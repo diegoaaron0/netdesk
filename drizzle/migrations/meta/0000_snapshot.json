@@ -1,0 +1,838 @@
+{
+  "id": "4285decf-0ff6-4185-b368-65baac3d379f",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.adjuntos": {
+      "name": "adjuntos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tamano_bytes": {
+          "name": "tamano_bytes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "incidente_id": {
+          "name": "incidente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "escalamiento_id": {
+          "name": "escalamiento_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "adjuntos_incidente_id_incidentes_id_fk": {
+          "name": "adjuntos_incidente_id_incidentes_id_fk",
+          "tableFrom": "adjuntos",
+          "tableTo": "incidentes",
+          "columnsFrom": [
+            "incidente_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "adjuntos_escalamiento_id_escalamientos_id_fk": {
+          "name": "adjuntos_escalamiento_id_escalamientos_id_fk",
+          "tableFrom": "adjuntos",
+          "tableTo": "escalamientos",
+          "columnsFrom": [
+            "escalamiento_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.escalamientos": {
+      "name": "escalamientos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "incidente_id": {
+          "name": "incidente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nivel": {
+          "name": "nivel",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nivel_esc_id": {
+          "name": "nivel_esc_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contacto_escalado": {
+          "name": "contacto_escalado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email_contacto": {
+          "name": "email_contacto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hora_envio_correo": {
+          "name": "hora_envio_correo",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hora_respuesta": {
+          "name": "hora_respuesta",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tiempo_respuesta_min": {
+          "name": "tiempo_respuesta_min",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "estado_cronometro": {
+          "name": "estado_cronometro",
+          "type": "estado_cronometro",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'CORRIENDO'"
+        },
+        "cuerpo_correo": {
+          "name": "cuerpo_correo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "escalamientos_incidente_id_incidentes_id_fk": {
+          "name": "escalamientos_incidente_id_incidentes_id_fk",
+          "tableFrom": "escalamientos",
+          "tableTo": "incidentes",
+          "columnsFrom": [
+            "incidente_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "escalamientos_nivel_esc_id_niveles_escalamiento_id_fk": {
+          "name": "escalamientos_nivel_esc_id_niveles_escalamiento_id_fk",
+          "tableFrom": "escalamientos",
+          "tableTo": "niveles_escalamiento",
+          "columnsFrom": [
+            "nivel_esc_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.incidentes": {
+      "name": "incidentes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "codigo": {
+          "name": "codigo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tienda_id": {
+          "name": "tienda_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "registrado_por_id": {
+          "name": "registrado_por_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nivel_impacto": {
+          "name": "nivel_impacto",
+          "type": "nivel_impacto",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "usuarios_afectados": {
+          "name": "usuarios_afectados",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "tipo_incidente",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "estado": {
+          "name": "estado",
+          "type": "estado_incidente",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ABIERTO'"
+        },
+        "ticket_proveedor": {
+          "name": "ticket_proveedor",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "descartes_realizados": {
+          "name": "descartes_realizados",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "solucion_aplicada": {
+          "name": "solucion_aplicada",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hora_registro": {
+          "name": "hora_registro",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "hora_inicio_seguimiento": {
+          "name": "hora_inicio_seguimiento",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hora_fin": {
+          "name": "hora_fin",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mttr_minutos": {
+          "name": "mttr_minutos",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "observaciones": {
+          "name": "observaciones",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actualizado_en": {
+          "name": "actualizado_en",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "incidentes_tienda_id_tiendas_id_fk": {
+          "name": "incidentes_tienda_id_tiendas_id_fk",
+          "tableFrom": "incidentes",
+          "tableTo": "tiendas",
+          "columnsFrom": [
+            "tienda_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "incidentes_registrado_por_id_usuarios_id_fk": {
+          "name": "incidentes_registrado_por_id_usuarios_id_fk",
+          "tableFrom": "incidentes",
+          "tableTo": "usuarios",
+          "columnsFrom": [
+            "registrado_por_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "incidentes_codigo_unique": {
+          "name": "incidentes_codigo_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "codigo"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.niveles_escalamiento": {
+      "name": "niveles_escalamiento",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "proveedor_id": {
+          "name": "proveedor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nivel": {
+          "name": "nivel",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nombre_contacto": {
+          "name": "nombre_contacto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "celular": {
+          "name": "celular",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tiempo_resp_sev1": {
+          "name": "tiempo_resp_sev1",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tiempo_resp_sev2": {
+          "name": "tiempo_resp_sev2",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tiempo_resp_sev3": {
+          "name": "tiempo_resp_sev3",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "niveles_escalamiento_proveedor_id_proveedores_id_fk": {
+          "name": "niveles_escalamiento_proveedor_id_proveedores_id_fk",
+          "tableFrom": "niveles_escalamiento",
+          "tableTo": "proveedores",
+          "columnsFrom": [
+            "proveedor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.proveedores": {
+      "name": "proveedores",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "correo_soporte": {
+          "name": "correo_soporte",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "telefono_soporte": {
+          "name": "telefono_soporte",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "instruccion_general": {
+          "name": "instruccion_general",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "proveedores_nombre_unique": {
+          "name": "proveedores_nombre_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "nombre"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.tiendas": {
+      "name": "tiendas",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "codigo": {
+          "name": "codigo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nombre_cc": {
+          "name": "nombre_cc",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "formato": {
+          "name": "formato",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "direccion": {
+          "name": "direccion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "referencia": {
+          "name": "referencia",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "distrito": {
+          "name": "distrito",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provincia": {
+          "name": "provincia",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ubicacion": {
+          "name": "ubicacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "coordenadas": {
+          "name": "coordenadas",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cluster": {
+          "name": "cluster",
+          "type": "cluster_tienda",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "supervisor_nombre": {
+          "name": "supervisor_nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "proveedor_id": {
+          "name": "proveedor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tipo_conexion": {
+          "name": "tipo_conexion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tipo_servicio": {
+          "name": "tipo_servicio",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cid_servicio": {
+          "name": "cid_servicio",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tiene_contingencia": {
+          "name": "tiene_contingencia",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "costo_mensual": {
+          "name": "costo_mensual",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "instruccion_reporte": {
+          "name": "instruccion_reporte",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contacto_soporte": {
+          "name": "contacto_soporte",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "administrador_nombre": {
+          "name": "administrador_nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "administrador_email": {
+          "name": "administrador_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "administrador_celular": {
+          "name": "administrador_celular",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "tiendas_proveedor_id_proveedores_id_fk": {
+          "name": "tiendas_proveedor_id_proveedores_id_fk",
+          "tableFrom": "tiendas",
+          "tableTo": "proveedores",
+          "columnsFrom": [
+            "proveedor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "tiendas_codigo_unique": {
+          "name": "tiendas_codigo_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "codigo"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.usuarios": {
+      "name": "usuarios",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rol": {
+          "name": "rol",
+          "type": "rol",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'AGENTE'"
+        },
+        "cluster": {
+          "name": "cluster",
+          "type": "cluster_tienda",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activo": {
+          "name": "activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "usuarios_email_unique": {
+          "name": "usuarios_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.cluster_tienda": {
+      "name": "cluster_tienda",
+      "schema": "public",
+      "values": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ]
+    },
+    "public.estado_cronometro": {
+      "name": "estado_cronometro",
+      "schema": "public",
+      "values": [
+        "CORRIENDO",
+        "RESPONDIDO",
+        "VENCIDO"
+      ]
+    },
+    "public.estado_incidente": {
+      "name": "estado_incidente",
+      "schema": "public",
+      "values": [
+        "ABIERTO",
+        "EN_SEGUIMIENTO",
+        "ESCALADO_N1",
+        "ESCALADO_N2",
+        "ESCALADO_N3",
+        "RESUELTO",
+        "CANCELADO",
+        "CERRADO"
+      ]
+    },
+    "public.nivel_impacto": {
+      "name": "nivel_impacto",
+      "schema": "public",
+      "values": [
+        "ALTO",
+        "MEDIO",
+        "BAJO"
+      ]
+    },
+    "public.rol": {
+      "name": "rol",
+      "schema": "public",
+      "values": [
+        "AGENTE",
+        "SUPERVISOR",
+        "GERENCIA"
+      ]
+    },
+    "public.tipo_incidente": {
+      "name": "tipo_incidente",
+      "schema": "public",
+      "values": [
+        "CAIDA_TOTAL",
+        "INTERMITENCIA",
+        "LENTITUD",
+        "POS",
+        "OTROS"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
