@@ -8,7 +8,8 @@ export default auth(function proxy(req) {
   const rol = (session.user as any)?.rol
   const path = req.nextUrl.pathname
 
-  if (path.startsWith('/dashboard') && rol !== 'SUPERVISOR') {
+  const elevated = ['SUPERVISOR', 'GERENCIA', 'INFRAESTRUCTURA']
+  if (path.startsWith('/dashboard') && !elevated.includes(rol)) {
     return NextResponse.redirect(new URL('/incidentes', req.url))
   }
   if (path.startsWith('/reportes') && rol === 'AGENTE') {

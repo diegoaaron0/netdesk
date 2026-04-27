@@ -103,14 +103,14 @@ export default function IncidentesPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: 'var(--muted)' }}>
-              {['ID / Hora', 'Tienda / Proveedor', 'Tipo', 'Impacto', 'Estado', 'Tiempo'].map(h => (
+              {['ID / Hora', 'Tienda', 'Tipo', 'Impacto', 'Estado', 'Cluster', 'Tiempo'].map(h => (
                 <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 && (
-              <tr><td colSpan={6} style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>No hay incidentes</td></tr>
+              <tr><td colSpan={7} style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>No hay incidentes</td></tr>
             )}
             {filtered.map((inc, idx) => {
               const closed = inc.estado === 'RESUELTO' || inc.estado === 'CANCELADO' || inc.estado === 'CERRADO'
@@ -120,18 +120,26 @@ export default function IncidentesPage() {
                 onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                 <td style={{ padding: '9px 12px' }}>
-                  <div style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 500, color: 'var(--foreground)' }}>{inc.codigo}</div>
+                  <div style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 600, color: 'var(--foreground)' }}>{inc.codigo}</div>
                   <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '1px' }}>
                     {new Date(inc.horaRegistro).toLocaleString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}
                   </div>
                 </td>
                 <td style={{ padding: '9px 12px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 500 }}>{inc.tiendaNombre}</div>
+                  <div style={{ fontSize: '11px', fontWeight: 700, fontFamily: 'monospace', color: 'var(--foreground)' }}>{inc.tiendaCodigo}</div>
+                  <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--foreground)' }}>{inc.tiendaNombre}</div>
                   <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{inc.proveedorNombre} · {inc.tiendaDistrito}</div>
                 </td>
                 <td style={{ padding: '9px 12px', fontSize: '11px' }}>{TIPO_LABELS[inc.tipo] ?? inc.tipo}</td>
                 <td style={{ padding: '9px 12px' }}><Badge variant={impactoToVariant(inc.nivelImpacto)} /></td>
                 <td style={{ padding: '9px 12px' }}><Badge variant={estadoToVariant(inc.estado)} /></td>
+                <td style={{ padding: '9px 12px' }}>
+                  {inc.tiendaCluster ? (
+                    <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 700, fontFamily: 'monospace', background: 'var(--muted)', color: 'var(--foreground)', letterSpacing: '0.05em' }}>
+                      {inc.tiendaCluster}
+                    </span>
+                  ) : <span style={{ color: 'var(--muted-foreground)', fontSize: '10px' }}>—</span>}
+                </td>
                 <td style={{ padding: '9px 12px', fontSize: '11px', fontFamily: 'monospace', color: 'var(--muted-foreground)' }}>
                   {tiempoTranscurrido(inc.horaRegistro, inc.horaFin)}
                 </td>

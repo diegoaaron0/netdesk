@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
     tiendaCodigo: tiendas.codigo,
     tiendaNombre: tiendas.nombreCc,
     tiendaDistrito: tiendas.distrito,
+    tiendaCluster: tiendas.cluster,
     proveedorNombre: proveedores.nombre,
     agenteName: usuarios.nombre,
     agenteId: usuarios.id,
@@ -66,11 +67,17 @@ export async function POST(req: NextRequest) {
   const [user] = await db.select({ id: usuarios.id }).from(usuarios).where(eq(usuarios.email, session.user!.email!))
   if (!user) return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 })
 
-  const year = new Date().getFullYear()
   const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(incidentes)
-    .where(sql`EXTRACT(YEAR FROM hora_registro) = ${year}`)
-  const seq = String(Number(count) + 1).padStart(4, '0')
-  const codigo = `INC-${year}-${seq}`
+  const seq = String(Number(count) + 1).padStart(5, '0')
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  let codigo = ''
+  for (let i = 0; i < 10; i++) {
+    const letter = letters[Math.floor(Math.random() * 26)]
+    const candidate = `${seq}${letter}`
+    const [existing] = await db.select({ id: incidentes.id }).from(incidentes).where(eq(incidentes.codigo, candidate))
+    if (!existing) { codigo = candidate; break }
+  }
+  if (!codigo) return NextResponse.json({ error: 'No se pudo generar código único' }, { status: 500 })
 
   const [inc] = await db.insert(incidentes).values({
     codigo,

@@ -9,7 +9,8 @@
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed": "tsx drizzle/seed.ts"
+    "db:seed": "tsx drizzle/seed.ts",
+    "db:add-users": "tsx drizzle/add-users.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.2",

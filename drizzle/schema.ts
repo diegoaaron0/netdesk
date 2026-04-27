@@ -4,7 +4,7 @@ import {
 } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
 
-export const rolEnum = pgEnum('rol', ['AGENTE', 'SUPERVISOR', 'GERENCIA'])
+export const rolEnum = pgEnum('rol', ['AGENTE', 'SUPERVISOR', 'GERENCIA', 'INFRAESTRUCTURA'])
 export const nivelImpactoEnum = pgEnum('nivel_impacto', ['ALTO', 'MEDIO', 'BAJO'])
 export const tipoIncidenteEnum = pgEnum('tipo_incidente', [
   'CAIDA_TOTAL', 'INTERMITENCIA', 'LENTITUD', 'POS', 'OTROS',
@@ -22,6 +22,7 @@ export const usuarios = pgTable('usuarios', {
   id:       uuid('id').primaryKey().defaultRandom(),
   nombre:   text('nombre').notNull(),
   email:    text('email').unique().notNull(),
+  password: text('password').default('soporte123'),
   rol:      rolEnum('rol').notNull().default('AGENTE'),
   cluster:  clusterEnum('cluster'),
   activo:   boolean('activo').default(true),
@@ -94,6 +95,7 @@ export const incidentes = pgTable('incidentes', {
   horaFin:               timestamp('hora_fin'),
   mttrMinutos:           integer('mttr_minutos'),
   observaciones:         text('observaciones'),
+  reabiertaInfo:         text('reabrierta_info'),
   actualizadoEn:         timestamp('actualizado_en').defaultNow(),
 })
 

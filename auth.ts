@@ -9,12 +9,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   providers: [
     CredentialsProvider({
-      name: 'dev',
-      credentials: { email: { label: 'Email', type: 'text' } },
+      name: 'credentials',
+      credentials: {
+        email: { label: 'Email', type: 'text' },
+        password: { label: 'Contraseña', type: 'password' },
+      },
       async authorize(credentials) {
         if (!credentials?.email) return null
         const [user] = await db.select().from(usuarios).where(eq(usuarios.email, credentials.email as string))
         if (!user || !user.activo) return null
+        if (user.password !== credentials.password) return null
         return { id: user.id, name: user.nombre, email: user.email, rol: user.rol }
       },
     }),

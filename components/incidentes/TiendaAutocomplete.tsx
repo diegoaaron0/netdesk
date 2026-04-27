@@ -17,6 +17,7 @@ export interface Tienda {
   formato: string | null
   direccion: string | null
   distrito: string | null
+  cluster: string | null
   tipoConexion: string | null
   cidServicio: string | null
   instruccionReporte: string | null

@@ -103,6 +103,9 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   const [editForm, setEditForm] = useState<any>({})
   const [saving, setSaving] = useState(false)
   const [supervisorEdit, setSupervisorEdit] = useState(false)
+  const [showReopenModal, setShowReopenModal] = useState(false)
+  const [reopenMotivo, setReopenMotivo] = useState('')
+  const [reopening, setReopening] = useState(false)
 
   // Escalation
   const [showEscalarForm, setShowEscalarForm] = useState(false)
@@ -152,7 +155,8 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   )
 
   const isClosed = ['RESUELTO', 'CANCELADO', 'CERRADO'].includes(inc.estado)
-  const canEdit = !isClosed || (userRol === 'SUPERVISOR' && supervisorEdit)
+  const canManage = ['SUPERVISOR', 'GERENCIA', 'INFRAESTRUCTURA'].includes(userRol)
+  const canEdit = !isClosed || (canManage && supervisorEdit)
 
   function setEdit(k: string, v: string) { setEditForm((f: any) => ({ ...f, [k]: v })) }
 
@@ -176,6 +180,19 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   async function handleCancelar() {
     if (!confirm('¿Cancelar este incidente?')) return
     await fetch(`/api/incidentes/${id}/cancelar`, { method: 'POST' })
+    fetchInc()
+  }
+
+  async function handleReopen() {
+    setReopening(true)
+    await fetch(`/api/incidentes/${id}/reabrir`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ motivo: reopenMotivo }),
+    })
+    setReopening(false)
+    setShowReopenModal(false)
+    setReopenMotivo('')
     fetchInc()
   }
 
@@ -254,11 +271,11 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.55)', padding: '2px 7px', borderRadius: '4px' }}>
                 {TIPO_LABELS[inc.tipo] ?? inc.tipo}
               </span>
-              {/* Supervisor edit toggle */}
-              {isClosed && userRol === 'SUPERVISOR' && (
+              {/* Edit toggle for elevated roles */}
+              {isClosed && canManage && (
                 <button
                   onClick={() => setSupervisorEdit(v => !v)}
-                  title="Editar como supervisor"
+                  title="Editar incidente cerrado"
                   style={{ background: supervisorEdit ? 'rgba(59,130,246,0.25)' : 'rgba(255,255,255,0.08)', border: 'none', color: supervisorEdit ? '#93c5fd' : 'rgba(255,255,255,0.4)', borderRadius: '4px', padding: '2px 8px', fontSize: '10px', cursor: 'pointer' }}
                 >
                   ✏ {supervisorEdit ? 'Editando' : 'Editar'}
@@ -283,6 +300,33 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
 
       {inc.proveedorInstruccion && (
         <GuiaEscalamiento proveedor={inc.proveedorNombre} instruccion={inc.proveedorInstruccion} />
+      )}
+
+      {/* ── Reopen modal ── */}
+      {showReopenModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '400px', margin: '16px' }}>
+            <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '6px' }}>Reabrir incidente</div>
+            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '16px' }}>El incidente volverá a estado ABIERTO y se restablecerá el cronómetro.</div>
+            <label style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)', display: 'block', marginBottom: '6px' }}>Motivo (opcional)</label>
+            <textarea
+              value={reopenMotivo}
+              onChange={e => setReopenMotivo(e.target.value)}
+              placeholder="¿Por qué se reabre este incidente?"
+              style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--muted)', color: 'var(--foreground)', outline: 'none', minHeight: '80px', resize: 'vertical', boxSizing: 'border-box' }}
+            />
+            <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+              <button onClick={() => { setShowReopenModal(false); setReopenMotivo('') }}
+                style={{ flex: 1, padding: '8px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>
+                Cancelar
+              </button>
+              <button onClick={handleReopen} disabled={reopening}
+                style={{ flex: 1, padding: '8px', background: '#92400e', color: '#fde68a', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: reopening ? 'wait' : 'pointer' }}>
+                {reopening ? 'Reabriendo...' : 'Confirmar reapertura'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Main grid ── */}
@@ -310,6 +354,13 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 </FieldRow>
                 {inc.usuariosAfectados && <FieldRow label="Usuarios"><ReadonlyVal value={inc.usuariosAfectados} /></FieldRow>}
                 {inc.descripcionInicial && <FieldRow label="Descripción inicial"><ReadonlyVal value={inc.descripcionInicial} /></FieldRow>}
+                {inc.reabiertaInfo && (
+                  <FieldRow label="Reapertura">
+                    <div style={{ padding: '7px 10px', fontSize: '11px', background: 'rgba(146,64,14,0.1)', border: '0.5px solid rgba(146,64,14,0.25)', borderRadius: '8px', color: '#d97706' }}>
+                      {inc.reabiertaInfo}
+                    </div>
+                  </FieldRow>
+                )}
               </div>
               <div>
                 <FieldRow label="Registrado por"><ReadonlyVal value={inc.agenteNombre} /></FieldRow>
@@ -376,6 +427,16 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               </button>
               <button onClick={handleResolver} style={{ ...btnBase, background: '#14532d', color: '#86efac' }}>
                 Marcar como resuelto
+              </button>
+            </div>
+          )}
+
+          {/* Reopen button */}
+          {isClosed && inc.estado !== 'CANCELADO' && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+              <button onClick={() => setShowReopenModal(true)}
+                style={{ ...btnBase, background: 'rgba(133,79,11,0.15)', color: '#d97706', border: '0.5px solid rgba(133,79,11,0.3)' }}>
+                Reabrir incidente
               </button>
             </div>
           )}

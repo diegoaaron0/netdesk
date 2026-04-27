@@ -101,6 +101,7 @@ export default function NuevoIncidentePage() {
                 <FieldRow label="Proveedor"><ReadonlyField value={tienda.proveedor?.nombre ?? '—'} /></FieldRow>
                 <FieldRow label="Tipo conexión"><ReadonlyField value={tienda.tipoConexion ?? '—'} /></FieldRow>
                 <FieldRow label="CID / Servicio"><ReadonlyField value={tienda.cidServicio ?? '—'} mono /></FieldRow>
+                <FieldRow label="Cluster"><ReadonlyField value={tienda.cluster ?? '—'} /></FieldRow>
               </>
             )}
 

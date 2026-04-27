@@ -8,15 +8,15 @@ const NAV = [
   {
     section: 'Operación',
     items: [
-      { href: '/incidentes',       label: 'Incidentes',        dot: '#378ADD', roles: ['AGENTE','SUPERVISOR','GERENCIA'] },
-      { href: '/incidentes/nuevo', label: '+ Nuevo incidente', dot: 'rgba(255,255,255,0.15)', roles: ['AGENTE','SUPERVISOR'] },
+      { href: '/incidentes',       label: 'Incidentes',        dot: '#378ADD', roles: ['AGENTE','SUPERVISOR','GERENCIA','INFRAESTRUCTURA'] },
+      { href: '/incidentes/nuevo', label: '+ Nuevo incidente', dot: 'rgba(255,255,255,0.15)', roles: ['AGENTE','SUPERVISOR','INFRAESTRUCTURA'] },
     ],
   },
   {
     section: 'Análisis',
     items: [
-      { href: '/dashboard', label: 'Dashboard', dot: '#1D9E75', roles: ['SUPERVISOR'] },
-      { href: '/reportes',  label: 'Reportes',  dot: '#7F77DD', roles: ['SUPERVISOR','GERENCIA'] },
+      { href: '/dashboard', label: 'Dashboard', dot: '#1D9E75', roles: ['SUPERVISOR','GERENCIA','INFRAESTRUCTURA'] },
+      { href: '/reportes',  label: 'Reportes',  dot: '#7F77DD', roles: ['SUPERVISOR','GERENCIA','INFRAESTRUCTURA'] },
     ],
   },
 ]
@@ -73,7 +73,9 @@ export default function Sidebar({ serverRol, serverName }: { serverRol?: string;
           </div>
           <div>
             <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.65)', fontWeight: 500 }}>{userName}</div>
-            <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)' }}>{userRol === 'SUPERVISOR' ? 'Supervisor' : userRol === 'GERENCIA' ? 'Gerencia' : 'Agente TTI'}</div>
+            <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)' }}>
+              {userRol === 'SUPERVISOR' ? 'Supervisor' : userRol === 'GERENCIA' ? 'Gerencia' : userRol === 'INFRAESTRUCTURA' ? 'Infraestructura' : 'Agente TTI'}
+            </div>
           </div>
         </div>
         <button

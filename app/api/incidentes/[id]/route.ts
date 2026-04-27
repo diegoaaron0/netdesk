@@ -25,6 +25,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     horaFin: incidentes.horaFin,
     mttrMinutos: incidentes.mttrMinutos,
     observaciones: incidentes.observaciones,
+    reabiertaInfo: incidentes.reabiertaInfo,
     actualizadoEn: incidentes.actualizadoEn,
     tiendaId: tiendas.id,
     tiendaCodigo: tiendas.codigo,
