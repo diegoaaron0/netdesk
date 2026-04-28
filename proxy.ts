@@ -15,7 +15,18 @@ export default auth(function proxy(req) {
   if (path.startsWith('/reportes') && rol === 'AGENTE') {
     return NextResponse.redirect(new URL('/incidentes', req.url))
   }
+  if (path.startsWith('/usuarios') && rol !== 'SUPERVISOR') {
+    return NextResponse.redirect(new URL('/incidentes', req.url))
+  }
   return NextResponse.next()
 })
 
-export const config = { matcher: ['/incidentes/:path*', '/dashboard/:path*', '/reportes/:path*'] }
+export const config = {
+  matcher: [
+    '/incidentes/:path*',
+    '/dashboard/:path*',
+    '/reportes/:path*',
+    '/mantenimiento/:path*',
+    '/usuarios/:path*',
+  ],
+}

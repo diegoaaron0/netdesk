@@ -21,7 +21,9 @@ export const estadoCronometroEnum = pgEnum('estado_cronometro', [
 export const usuarios = pgTable('usuarios', {
   id:       uuid('id').primaryKey().defaultRandom(),
   nombre:   text('nombre').notNull(),
+  apellido: text('apellido'),
   email:    text('email').unique().notNull(),
+  celular:  text('celular'),
   password: text('password').default('soporte123'),
   rol:      rolEnum('rol').notNull().default('AGENTE'),
   cluster:  clusterEnum('cluster'),

@@ -17,6 +17,12 @@ async function main() {
   await sql`ALTER TABLE "incidentes" ADD COLUMN IF NOT EXISTS "reabrierta_info" text`
   console.log('[startup] ✓ Columna incidentes.reabrierta_info')
 
+  await sql`ALTER TABLE "usuarios" ADD COLUMN IF NOT EXISTS "apellido" text`
+  console.log('[startup] ✓ Columna usuarios.apellido')
+
+  await sql`ALTER TABLE "usuarios" ADD COLUMN IF NOT EXISTS "celular" text`
+  console.log('[startup] ✓ Columna usuarios.celular')
+
   // Insertar usuarios INFRAESTRUCTURA si no existen
   await sql`
     INSERT INTO "usuarios" ("nombre", "email", "password", "rol", "activo")

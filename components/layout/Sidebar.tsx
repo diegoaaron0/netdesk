@@ -19,6 +19,13 @@ const NAV = [
       { href: '/reportes',  label: 'Reportes',  dot: '#7F77DD', roles: ['SUPERVISOR','GERENCIA','INFRAESTRUCTURA'] },
     ],
   },
+  {
+    section: 'Configuración',
+    items: [
+      { href: '/mantenimiento', label: 'Mantenimiento', dot: '#F59E0B', roles: ['AGENTE','SUPERVISOR','GERENCIA','INFRAESTRUCTURA'] },
+      { href: '/usuarios',      label: 'Usuarios',      dot: '#A78BFA', roles: ['SUPERVISOR'] },
+    ],
+  },
 ]
 
 function initials(name: string) {
