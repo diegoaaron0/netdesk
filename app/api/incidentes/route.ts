@@ -1,61 +1,90 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { incidentes, tiendas, usuarios, proveedores } from '@/drizzle/schema'
-import { eq, desc, and, gte, lte, sql } from 'drizzle-orm'
+import { eq, desc, and, gte, lt, sql, inArray } from 'drizzle-orm'
 import { auth } from '@/auth'
+
+const OPEN_ESTADOS = ['ABIERTO', 'EN_SEGUIMIENTO', 'ESCALADO_N1', 'ESCALADO_N2', 'ESCALADO_N3']
+
+function todayLima(): string {
+  return new Date(Date.now() - 5 * 3600000).toISOString().slice(0, 10)
+}
+
+function limaDateRange(dateStr: string) {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return {
+    start: new Date(Date.UTC(y, m - 1, d,     5, 0, 0, 0)),
+    end:   new Date(Date.UTC(y, m - 1, d + 1, 5, 0, 0, 0)),
+  }
+}
+
+const COLS = {
+  id:            incidentes.id,
+  codigo:        incidentes.codigo,
+  tipo:          incidentes.tipo,
+  estado:        incidentes.estado,
+  nivelImpacto:  incidentes.nivelImpacto,
+  horaRegistro:  incidentes.horaRegistro,
+  horaFin:       incidentes.horaFin,
+  mttrMinutos:   incidentes.mttrMinutos,
+  tiendaCodigo:  tiendas.codigo,
+  tiendaNombre:  tiendas.nombreCc,
+  tiendaDistrito:tiendas.distrito,
+  tiendaCluster: tiendas.cluster,
+  proveedorNombre:proveedores.nombre,
+  agenteName:    usuarios.nombre,
+  agenteId:      usuarios.id,
+}
 
 export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   const { searchParams } = req.nextUrl
-  const estado = searchParams.get('estado')
+  const estado   = searchParams.get('estado')
   const agenteId = searchParams.get('agente')
-  const fecha = searchParams.get('fecha')
+  const fechaDesde = searchParams.get('fechaDesde') ?? todayLima()
+  const fechaHasta = searchParams.get('fechaHasta') ?? fechaDesde
 
   const userRol = (session.user as any)?.rol
-  const userId = (session.user as any)?.id
 
-  const conditions = []
-
-  if (userRol === 'AGENTE' && userId) {
+  const userCond: any[] = []
+  if (userRol === 'AGENTE') {
     const [u] = await db.select({ id: usuarios.id }).from(usuarios).where(eq(usuarios.email, session.user!.email!))
-    if (u) conditions.push(eq(incidentes.registradoPorId, u.id))
+    if (u) userCond.push(eq(incidentes.registradoPorId, u.id))
   }
 
-  if (estado) conditions.push(eq(incidentes.estado, estado as any))
-  if (agenteId) conditions.push(eq(incidentes.registradoPorId, agenteId))
-  if (fecha) {
-    const day = new Date(fecha)
-    const next = new Date(day); next.setDate(next.getDate() + 1)
-    conditions.push(gte(incidentes.horaRegistro, day), lte(incidentes.horaRegistro, next))
-  }
+  const { start } = limaDateRange(fechaDesde)
+  const { end }   = limaDateRange(fechaHasta)
 
-  const data = await db.select({
-    id: incidentes.id,
-    codigo: incidentes.codigo,
-    tipo: incidentes.tipo,
-    estado: incidentes.estado,
-    nivelImpacto: incidentes.nivelImpacto,
-    horaRegistro: incidentes.horaRegistro,
-    horaFin: incidentes.horaFin,
-    mttrMinutos: incidentes.mttrMinutos,
-    tiendaCodigo: tiendas.codigo,
-    tiendaNombre: tiendas.nombreCc,
-    tiendaDistrito: tiendas.distrito,
-    tiendaCluster: tiendas.cluster,
-    proveedorNombre: proveedores.nombre,
-    agenteName: usuarios.nombre,
-    agenteId: usuarios.id,
-  })
-    .from(incidentes)
-    .leftJoin(tiendas, eq(incidentes.tiendaId, tiendas.id))
-    .leftJoin(proveedores, eq(tiendas.proveedorId, proveedores.id))
-    .leftJoin(usuarios, eq(incidentes.registradoPorId, usuarios.id))
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(desc(incidentes.horaRegistro))
+  const rangeConds: any[] = [gte(incidentes.horaRegistro, start), lt(incidentes.horaRegistro, end), ...userCond]
+  if (estado)   rangeConds.push(eq(incidentes.estado, estado as any))
+  if (agenteId) rangeConds.push(eq(incidentes.registradoPorId, agenteId))
 
-  return NextResponse.json(data)
+  const overdueConds: any[] = [
+    lt(incidentes.horaRegistro, start),
+    inArray(incidentes.estado, OPEN_ESTADOS as any),
+    ...userCond,
+  ]
+
+  const joins = (q: any) => q
+    .leftJoin(tiendas,    eq(incidentes.tiendaId,   tiendas.id))
+    .leftJoin(proveedores, eq(tiendas.proveedorId,  proveedores.id))
+    .leftJoin(usuarios,   eq(incidentes.registradoPorId, usuarios.id))
+
+  const [regular, overdue] = await Promise.all([
+    joins(db.select(COLS).from(incidentes))
+      .where(and(...rangeConds))
+      .orderBy(desc(incidentes.horaRegistro)),
+    joins(db.select(COLS).from(incidentes))
+      .where(and(...overdueConds))
+      .orderBy(desc(incidentes.horaRegistro)),
+  ])
+
+  return NextResponse.json([
+    ...overdue.map((i: any)  => ({ ...i, isOverdue: true })),
+    ...regular.map((i: any) => ({ ...i, isOverdue: false })),
+  ])
 }
 
 export async function POST(req: NextRequest) {
@@ -81,18 +110,18 @@ export async function POST(req: NextRequest) {
 
   const [inc] = await db.insert(incidentes).values({
     codigo,
-    tiendaId: body.tiendaId,
-    registradoPorId: user.id,
-    nivelImpacto: body.nivelImpacto,
-    usuariosAfectados: body.usuariosAfectados ?? null,
-    descripcionInicial: body.descripcionInicial ?? null,
-    tipo: body.tipo,
-    estado: body.estado ?? 'ABIERTO',
-    ticketProveedor: body.ticketProveedor ?? null,
-    descartesRealizados: body.descartesRealizados ?? null,
-    solucionAplicada: body.solucionAplicada ?? null,
+    tiendaId:              body.tiendaId,
+    registradoPorId:       user.id,
+    nivelImpacto:          body.nivelImpacto,
+    usuariosAfectados:     body.usuariosAfectados ?? null,
+    descripcionInicial:    body.descripcionInicial ?? null,
+    tipo:                  body.tipo,
+    estado:                body.estado ?? 'ABIERTO',
+    ticketProveedor:       body.ticketProveedor ?? null,
+    descartesRealizados:   body.descartesRealizados ?? null,
+    solucionAplicada:      body.solucionAplicada ?? null,
     horaInicioSeguimiento: body.horaInicioSeguimiento ? new Date(body.horaInicioSeguimiento) : null,
-    observaciones: body.observaciones ?? null,
+    observaciones:         body.observaciones ?? null,
   }).returning()
 
   return NextResponse.json(inc, { status: 201 })
