@@ -46,16 +46,28 @@ export default function MantenimientoPage() {
   const [saving, setSaving] = useState(false)
 
   const fetchTiendas = useCallback(async () => {
-    const params = new URLSearchParams()
-    if (filtros.proveedor) params.set('proveedor', filtros.proveedor)
-    if (filtros.cluster)   params.set('cluster', filtros.cluster)
-    const res = await fetch(`/api/tiendas?${params}`)
-    const data = await res.json()
-    setTiendas(data)
-    // Extract unique providers for filter dropdown
-    const provMap = new Map<string, string>()
-    data.forEach((t: any) => { if (t.proveedorId && t.proveedorNombre) provMap.set(t.proveedorId, t.proveedorNombre) })
-    setProveedores(Array.from(provMap.entries()).map(([id, nombre]) => ({ id, nombre })).sort((a, b) => a.nombre.localeCompare(b.nombre)))
+    try {
+      const params = new URLSearchParams()
+      if (filtros.proveedor) params.set('proveedor', filtros.proveedor)
+      if (filtros.cluster)   params.set('cluster', filtros.cluster)
+      const res = await fetch(`/api/tiendas?${params}`)
+      if (!res.ok) {
+        const txt = await res.text()
+        console.error('[mantenimiento] API error', res.status, txt)
+        return
+      }
+      const data = await res.json()
+      if (!Array.isArray(data)) {
+        console.error('[mantenimiento] respuesta inesperada:', data)
+        return
+      }
+      setTiendas(data)
+      const provMap = new Map<string, string>()
+      data.forEach((t: any) => { if (t.proveedorId && t.proveedorNombre) provMap.set(t.proveedorId, t.proveedorNombre) })
+      setProveedores(Array.from(provMap.entries()).map(([id, nombre]) => ({ id, nombre })).sort((a, b) => a.nombre.localeCompare(b.nombre)))
+    } catch (e) {
+      console.error('[mantenimiento] fetch error:', e)
+    }
   }, [filtros.proveedor, filtros.cluster])
 
   useEffect(() => { fetchTiendas() }, [fetchTiendas])

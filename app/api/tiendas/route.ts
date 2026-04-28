@@ -54,40 +54,45 @@ export async function GET(req: NextRequest) {
   }
 
   // ── Full list mode (para mantenimiento) ─────────────────────
-  const conditions = []
-  if (clusterF) conditions.push(eq(tiendas.cluster, clusterF as any))
+  try {
+    const conditions = []
+    if (clusterF) conditions.push(eq(tiendas.cluster, clusterF as any))
 
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
 
-  const rows = await db
-    .select({
-      id: tiendas.id, codigo: tiendas.codigo, nombreCc: tiendas.nombreCc,
-      formato: tiendas.formato, direccion: tiendas.direccion, referencia: tiendas.referencia,
-      distrito: tiendas.distrito, provincia: tiendas.provincia, ubicacion: tiendas.ubicacion,
-      cluster: tiendas.cluster, supervisorNombre: tiendas.supervisorNombre,
-      proveedorId: tiendas.proveedorId, proveedorNombre: proveedores.nombre,
-      tipoConexion: tiendas.tipoConexion, tipoServicio: tiendas.tipoServicio,
-      cidServicio: tiendas.cidServicio, tieneContingencia: tiendas.tieneContingencia,
-      costoMensual: tiendas.costoMensual, instruccionReporte: tiendas.instruccionReporte,
-      contactoSoporte: tiendas.contactoSoporte,
-      administradorNombre: tiendas.administradorNombre,
-      administradorEmail: tiendas.administradorEmail,
-      administradorCelular: tiendas.administradorCelular,
-      incidentCount: sql<number>`(
-        SELECT COUNT(*) FROM "incidentes"
-        WHERE "incidentes"."tienda_id" = ${tiendas.id}
-        AND "incidentes"."hora_registro" >= ${thirtyDaysAgo}
-      )`,
-    })
-    .from(tiendas)
-    .leftJoin(proveedores, eq(tiendas.proveedorId, proveedores.id))
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(tiendas.codigo)
+    const rows = await db
+      .select({
+        id: tiendas.id, codigo: tiendas.codigo, nombreCc: tiendas.nombreCc,
+        formato: tiendas.formato, direccion: tiendas.direccion, referencia: tiendas.referencia,
+        distrito: tiendas.distrito, provincia: tiendas.provincia, ubicacion: tiendas.ubicacion,
+        cluster: tiendas.cluster, supervisorNombre: tiendas.supervisorNombre,
+        proveedorId: tiendas.proveedorId, proveedorNombre: proveedores.nombre,
+        tipoConexion: tiendas.tipoConexion, tipoServicio: tiendas.tipoServicio,
+        cidServicio: tiendas.cidServicio, tieneContingencia: tiendas.tieneContingencia,
+        costoMensual: tiendas.costoMensual, instruccionReporte: tiendas.instruccionReporte,
+        contactoSoporte: tiendas.contactoSoporte,
+        administradorNombre: tiendas.administradorNombre,
+        administradorEmail: tiendas.administradorEmail,
+        administradorCelular: tiendas.administradorCelular,
+        incidentCount: sql<number>`(
+          SELECT COUNT(*) FROM incidentes
+          WHERE incidentes.tienda_id = ${tiendas.id}
+          AND incidentes.hora_registro >= ${thirtyDaysAgo}
+        )`,
+      })
+      .from(tiendas)
+      .leftJoin(proveedores, eq(tiendas.proveedorId, proveedores.id))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(tiendas.codigo)
 
-  let filtered = rows
-  if (proveedorF) filtered = filtered.filter(r => r.proveedorNombre === proveedorF)
+    let filtered = rows
+    if (proveedorF) filtered = filtered.filter(r => r.proveedorNombre === proveedorF)
 
-  return NextResponse.json(filtered)
+    return NextResponse.json(filtered)
+  } catch (e) {
+    console.error('GET /api/tiendas error:', e)
+    return NextResponse.json({ error: String(e) }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {
