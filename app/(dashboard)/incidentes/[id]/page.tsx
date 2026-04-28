@@ -396,7 +396,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 <FieldRow label="Estado">
                   {canManage && supervisorEdit ? (
                     <select style={inputStyle()} value={editForm.estado} onChange={e => setEdit('estado', e.target.value)}>
-                      {['ABIERTO','EN_PROGRESO','RESUELTO','CERRADO','CANCELADO'].map(v => <option key={v} value={v}>{v}</option>)}
+                      {['ABIERTO','EN_SEGUIMIENTO','ESCALADO_N1','ESCALADO_N2','ESCALADO_N3','RESUELTO','CERRADO','CANCELADO'].map(v => <option key={v} value={v}>{v.replace(/_/g,' ')}</option>)}
                     </select>
                   ) : (
                     <div style={{ paddingTop: '4px' }}><Badge variant={estadoToVariant(inc.estado)} /></div>

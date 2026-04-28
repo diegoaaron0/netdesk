@@ -77,8 +77,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const body = await req.json()
   const allowedFields: Record<string, any> = {}
   const editable = ['estado','nivelImpacto','usuariosAfectados','tipo','descripcionInicial','ticketProveedor','descartesRealizados','solucionAplicada','horaInicioSeguimiento','observaciones','horaRegistro','horaFin','mttrMinutos']
+  const dateFields = new Set(['horaRegistro','horaFin','horaInicioSeguimiento'])
   for (const k of editable) {
-    if (k in body) allowedFields[k] = body[k]
+    if (k in body) {
+      allowedFields[k] = dateFields.has(k)
+        ? (body[k] ? new Date(body[k]) : null)
+        : body[k]
+    }
   }
 
   const [updated] = await db.update(incidentes)
