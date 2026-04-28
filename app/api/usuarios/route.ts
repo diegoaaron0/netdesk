@@ -13,6 +13,7 @@ export async function GET() {
     celular:  usuarios.celular,
     rol:      usuarios.rol,
     cluster:  usuarios.cluster,
+    permisos: usuarios.permisos,
     activo:   usuarios.activo,
   }).from(usuarios).orderBy(usuarios.nombre)
 
@@ -34,6 +35,7 @@ export async function POST(req: NextRequest) {
     password: body.password ?? 'soporte123',
     rol:      body.rol ?? 'AGENTE',
     cluster:  body.cluster ?? null,
+    permisos: body.permisos ?? null,
     activo:   body.activo ?? true,
   }).returning()
 

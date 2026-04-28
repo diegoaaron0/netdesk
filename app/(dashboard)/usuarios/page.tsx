@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
+import { useSession } from 'next-auth/react'
 
 const ROL_COLORS: Record<string, { bg: string; color: string }> = {
   AGENTE:          { bg: '#f3f4f6', color: '#374151' },
@@ -8,9 +9,78 @@ const ROL_COLORS: Record<string, { bg: string; color: string }> = {
   INFRAESTRUCTURA: { bg: '#ede9fe', color: '#7c3aed' },
 }
 
+const PERMISOS_GRUPOS = [
+  {
+    key: 'INCIDENTES',
+    items: [
+      { key: 'incidentes.ver',      label: 'Ver incidentes' },
+      { key: 'incidentes.crear',    label: 'Crear incidentes' },
+      { key: 'incidentes.editar',   label: 'Editar incidentes' },
+      { key: 'incidentes.eliminar', label: 'Eliminar incidentes' },
+    ],
+  },
+  {
+    key: 'ESCALAMIENTOS',
+    items: [
+      { key: 'escalamientos.ver',    label: 'Ver escalamientos' },
+      { key: 'escalamientos.crear',  label: 'Crear escalamientos' },
+      { key: 'escalamientos.editar', label: 'Editar escalamientos' },
+    ],
+  },
+  {
+    key: 'MANTENIMIENTO',
+    items: [
+      { key: 'mantenimiento.ver',    label: 'Ver mantenimiento' },
+      { key: 'mantenimiento.editar', label: 'Editar tiendas' },
+    ],
+  },
+  {
+    key: 'USUARIOS',
+    items: [
+      { key: 'usuarios.ver',    label: 'Ver usuarios' },
+      { key: 'usuarios.editar', label: 'Editar usuarios' },
+    ],
+  },
+  {
+    key: 'DASHBOARD & REPORTES',
+    items: [
+      { key: 'dashboard.ver', label: 'Ver dashboard' },
+      { key: 'reportes.ver',  label: 'Ver reportes' },
+    ],
+  },
+]
+
+const PERMISOS_POR_ROL: Record<string, string[]> = {
+  AGENTE: [
+    'incidentes.ver', 'incidentes.crear', 'incidentes.editar',
+    'escalamientos.ver', 'escalamientos.crear',
+    'mantenimiento.ver',
+  ],
+  SUPERVISOR: [
+    'incidentes.ver', 'incidentes.crear', 'incidentes.editar', 'incidentes.eliminar',
+    'escalamientos.ver', 'escalamientos.crear', 'escalamientos.editar',
+    'mantenimiento.ver', 'mantenimiento.editar',
+    'usuarios.ver', 'usuarios.editar',
+    'dashboard.ver', 'reportes.ver',
+  ],
+  GERENCIA: [
+    'incidentes.ver',
+    'escalamientos.ver',
+    'mantenimiento.ver',
+    'dashboard.ver', 'reportes.ver',
+  ],
+  INFRAESTRUCTURA: [
+    'incidentes.ver', 'incidentes.crear', 'incidentes.editar',
+    'escalamientos.ver', 'escalamientos.crear', 'escalamientos.editar',
+    'mantenimiento.ver', 'mantenimiento.editar',
+    'dashboard.ver', 'reportes.ver',
+  ],
+}
+
 const BLANK = {
   nombre: '', apellido: '', email: '', celular: '',
   password: 'soporte123', rol: 'AGENTE', cluster: '', activo: true,
+  permisos: PERMISOS_POR_ROL['AGENTE'] as string[],
 }
 
 function initials(nombre: string, apellido?: string) {
@@ -23,6 +93,9 @@ function inputStyle(): React.CSSProperties {
 }
 
 export default function UsuariosPage() {
+  const { data: session } = useSession()
+  const myRol = (session?.user as any)?.rol ?? 'AGENTE'
+
   const [usuarios, setUsuarios] = useState<any[]>([])
   const [modal, setModal] = useState<{ open: boolean; data: any; isNew: boolean }>({ open: false, data: BLANK, isNew: false })
   const [saving, setSaving] = useState(false)
@@ -37,11 +110,19 @@ export default function UsuariosPage() {
 
   function openEdit(u: any) {
     setShowPass(false)
-    setModal({ open: true, isNew: false, data: { ...u, password: u.password ?? 'soporte123', cluster: u.cluster ?? '' } })
+    setModal({
+      open: true, isNew: false,
+      data: {
+        ...u,
+        password: u.password ?? 'soporte123',
+        cluster: u.cluster ?? '',
+        permisos: u.permisos ?? PERMISOS_POR_ROL[u.rol] ?? [],
+      },
+    })
   }
   function openNew() {
     setShowPass(false)
-    setModal({ open: true, isNew: true, data: { ...BLANK } })
+    setModal({ open: true, isNew: true, data: { ...BLANK, permisos: [...PERMISOS_POR_ROL['AGENTE']] } })
   }
 
   async function handleSave() {
@@ -62,7 +143,21 @@ export default function UsuariosPage() {
     fetchUsuarios()
   }
 
-  function setField(k: string, v: any) { setModal(m => ({ ...m, data: { ...m.data, [k]: v } })) }
+  function setField(k: string, v: any) {
+    if (k === 'rol') {
+      setModal(m => ({ ...m, data: { ...m.data, rol: v, permisos: [...(PERMISOS_POR_ROL[v] ?? [])] } }))
+    } else {
+      setModal(m => ({ ...m, data: { ...m.data, [k]: v } }))
+    }
+  }
+
+  function togglePermiso(key: string) {
+    setModal(m => {
+      const current: string[] = m.data.permisos ?? []
+      const next = current.includes(key) ? current.filter(p => p !== key) : [...current, key]
+      return { ...m, data: { ...m.data, permisos: next } }
+    })
+  }
 
   const inp = inputStyle()
 
@@ -133,7 +228,7 @@ export default function UsuariosPage() {
       {/* Modal */}
       {modal.open && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', width: '100%', maxWidth: '440px', maxHeight: '90vh', overflow: 'auto' }}>
+          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', width: '100%', maxWidth: '520px', maxHeight: '92vh', overflow: 'auto' }}>
             <div style={{ padding: '14px 20px', borderBottom: '0.5px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontSize: '13px', fontWeight: 600 }}>{modal.isNew ? 'Nuevo usuario' : 'Editar usuario'}</div>
               <button onClick={() => setModal(m => ({ ...m, open: false }))} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--muted-foreground)' }}>✕</button>
@@ -150,17 +245,13 @@ export default function UsuariosPage() {
                 </div>
               </div>
 
-              {[
-                ['email',   'Correo'],
-                ['celular', 'Celular'],
-              ].map(([k, l]) => (
+              {[['email', 'Correo'], ['celular', 'Celular']].map(([k, l]) => (
                 <div key={k} style={{ marginBottom: '10px' }}>
                   <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '3px' }}>{l}</label>
                   <input value={modal.data[k] ?? ''} onChange={e => setField(k, e.target.value)} style={inp} />
                 </div>
               ))}
 
-              {/* Password */}
               <div style={{ marginBottom: '10px' }}>
                 <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '3px' }}>Contraseña</label>
                 <div style={{ display: 'flex', gap: '6px' }}>
@@ -179,7 +270,38 @@ export default function UsuariosPage() {
                 </select>
               </div>
 
-              {/* Activo toggle */}
+              {/* Permisos — solo SUPERVISOR puede ver y editar */}
+              {myRol === 'SUPERVISOR' && (
+                <div style={{ marginBottom: '14px', padding: '12px', background: 'var(--muted)', borderRadius: '8px' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+                    Permisos del sistema
+                  </div>
+                  {PERMISOS_GRUPOS.map(grupo => (
+                    <div key={grupo.key} style={{ marginBottom: '10px' }}>
+                      <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--foreground)', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        {grupo.key}
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
+                        {grupo.items.map(item => {
+                          const checked = (modal.data.permisos ?? []).includes(item.key)
+                          return (
+                            <label key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', cursor: 'pointer', padding: '3px 0' }}>
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => togglePermiso(item.key)}
+                                style={{ width: '13px', height: '13px', cursor: 'pointer' }}
+                              />
+                              <span style={{ color: 'var(--foreground)' }}>{item.label}</span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
                 <button type="button" onClick={() => setField('activo', !modal.data.activo)}
                   style={{ position: 'relative', width: '36px', height: '20px', borderRadius: '10px', border: 'none', cursor: 'pointer', background: modal.data.activo ? '#22c55e' : '#d1d5db' }}>

@@ -36,6 +36,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     administradorNombre: body.administradorNombre ?? null,
     administradorEmail:  body.administradorEmail ?? null,
     administradorCelular:body.administradorCelular ?? null,
+    perfilSupervisor:    body.perfilSupervisor ?? null,
   }).where(eq(tiendas.id, id)).returning()
 
   return NextResponse.json(updated)

@@ -73,6 +73,7 @@ export async function GET(req: NextRequest) {
       administradorNombre: tiendas.administradorNombre,
       administradorEmail: tiendas.administradorEmail,
       administradorCelular: tiendas.administradorCelular,
+      perfilSupervisor: tiendas.perfilSupervisor,
     })
       .from(tiendas)
       .leftJoin(proveedores, eq(tiendas.proveedorId, proveedores.id))
@@ -125,6 +126,7 @@ export async function POST(req: NextRequest) {
     administradorNombre: body.administradorNombre ?? null,
     administradorEmail:  body.administradorEmail ?? null,
     administradorCelular:body.administradorCelular ?? null,
+    perfilSupervisor:    body.perfilSupervisor ?? null,
   }).returning()
   return NextResponse.json(t, { status: 201 })
 }

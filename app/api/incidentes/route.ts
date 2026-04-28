@@ -19,21 +19,22 @@ function limaDateRange(dateStr: string) {
 }
 
 const COLS = {
-  id:            incidentes.id,
-  codigo:        incidentes.codigo,
-  tipo:          incidentes.tipo,
-  estado:        incidentes.estado,
-  nivelImpacto:  incidentes.nivelImpacto,
-  horaRegistro:  incidentes.horaRegistro,
-  horaFin:       incidentes.horaFin,
-  mttrMinutos:   incidentes.mttrMinutos,
-  tiendaCodigo:  tiendas.codigo,
-  tiendaNombre:  tiendas.nombreCc,
-  tiendaDistrito:tiendas.distrito,
-  tiendaCluster: tiendas.cluster,
+  id:             incidentes.id,
+  codigo:         incidentes.codigo,
+  tipo:           incidentes.tipo,
+  estado:         incidentes.estado,
+  nivelImpacto:   incidentes.nivelImpacto,
+  ticketInvgate:  incidentes.ticketInvgate,
+  horaRegistro:   incidentes.horaRegistro,
+  horaFin:        incidentes.horaFin,
+  mttrMinutos:    incidentes.mttrMinutos,
+  tiendaCodigo:   tiendas.codigo,
+  tiendaNombre:   tiendas.nombreCc,
+  tiendaDistrito: tiendas.distrito,
+  tiendaCluster:  tiendas.cluster,
   proveedorNombre:proveedores.nombre,
-  agenteName:    usuarios.nombre,
-  agenteId:      usuarios.id,
+  agenteName:     usuarios.nombre,
+  agenteId:       usuarios.id,
 }
 
 export async function GET(req: NextRequest) {
@@ -46,25 +47,16 @@ export async function GET(req: NextRequest) {
   const fechaDesde = searchParams.get('fechaDesde') ?? todayLima()
   const fechaHasta = searchParams.get('fechaHasta') ?? fechaDesde
 
-  const userRol = (session.user as any)?.rol
-
-  const userCond: any[] = []
-  if (userRol === 'AGENTE') {
-    const [u] = await db.select({ id: usuarios.id }).from(usuarios).where(eq(usuarios.email, session.user!.email!))
-    if (u) userCond.push(eq(incidentes.registradoPorId, u.id))
-  }
-
   const { start } = limaDateRange(fechaDesde)
   const { end }   = limaDateRange(fechaHasta)
 
-  const rangeConds: any[] = [gte(incidentes.horaRegistro, start), lt(incidentes.horaRegistro, end), ...userCond]
+  const rangeConds: any[] = [gte(incidentes.horaRegistro, start), lt(incidentes.horaRegistro, end)]
   if (estado)   rangeConds.push(eq(incidentes.estado, estado as any))
   if (agenteId) rangeConds.push(eq(incidentes.registradoPorId, agenteId))
 
   const overdueConds: any[] = [
     lt(incidentes.horaRegistro, start),
     inArray(incidentes.estado, OPEN_ESTADOS as any),
-    ...userCond,
   ]
 
   const joins = (q: any) => q

@@ -14,7 +14,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <SessionProviderWrapper session={session}>
       <div style={{ display: 'flex', minHeight: '100vh' }}>
         <Sidebar serverRol={serverRol} serverName={serverName} />
-        <main style={{ flex: 1, overflowY: 'auto', background: 'var(--muted)', padding: '18px' }}>
+        <main style={{ flex: 1, overflowY: 'auto', background: 'var(--muted)', padding: '18px', marginLeft: '192px' }}>
           {children}
         </main>
       </div>

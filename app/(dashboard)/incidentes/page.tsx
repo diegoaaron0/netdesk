@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { Badge, estadoToVariant, impactoToVariant } from '@/components/ui/Badge'
 import { MetricCard } from '@/components/ui/MetricCard'
 
@@ -24,23 +25,27 @@ type QuickFilter = 'hoy' | 'ayer' | '7dias'
 
 export default function IncidentesPage() {
   const router = useRouter()
+  const { data: session } = useSession()
+  const userRol = (session?.user as any)?.rol ?? 'AGENTE'
+
   const [data, setData]               = useState<any[]>([])
   const [agentes, setAgentes]         = useState<any[]>([])
+  const [myId, setMyId]               = useState<string | null>(null)
   const [quickFilter, setQuickFilter] = useState<QuickFilter>('hoy')
   const [fechaCustom, setFechaCustom] = useState('')
   const [estado, setEstado]           = useState('')
   const [agente, setAgente]           = useState('')
+  const [filtroProveedor, setFiltroProveedor] = useState('')
+  const [misRegistros, setMisRegistros] = useState(false)
   const [q, setQ]                     = useState('')
   const [debouncedQ, setDebouncedQ]   = useState('')
   const [, setTick]                   = useState(0)
 
-  // Debounce search 300ms
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(q), 300)
     return () => clearTimeout(t)
   }, [q])
 
-  // Live timer re-render every 30s
   useEffect(() => {
     const id = setInterval(() => setTick(t => t + 1), 30000)
     return () => clearInterval(id)
@@ -75,32 +80,55 @@ export default function IncidentesPage() {
   }, [estado, agente, quickFilter, fechaCustom])
 
   useEffect(() => { fetchData() }, [fetchData])
-  useEffect(() => { fetch('/api/usuarios').then(r => r.json()).then(setAgentes) }, [])
+
+  useEffect(() => {
+    fetch('/api/usuarios').then(r => r.json()).then((list: any[]) => {
+      setAgentes(list)
+      const email = (session?.user as any)?.email
+      if (email) {
+        const me = list.find((a: any) => a.email === email)
+        if (me) setMyId(me.id)
+      }
+    })
+  }, [session?.user])
 
   function handleQuickFilter(f: QuickFilter) {
     setQuickFilter(f)
     setFechaCustom('')
   }
 
-  // Split overdue vs regular
+  async function handleDelete(e: React.MouseEvent, incId: string) {
+    e.stopPropagation()
+    if (!confirm('¿Eliminar este incidente? Esta acción no se puede deshacer.')) return
+    await fetch(`/api/incidentes/${incId}`, { method: 'DELETE' })
+    fetchData()
+  }
+
   const overdue = data.filter(i => i.isOverdue)
   const regular = data.filter(i => !i.isOverdue)
 
-  const applySearch = (items: any[]) => {
-    if (!debouncedQ) return items
-    const sq = debouncedQ.toLowerCase()
-    return items.filter(i =>
-      i.codigo?.toLowerCase().includes(sq) ||
-      i.tiendaCodigo?.toLowerCase().includes(sq) ||
-      i.tiendaNombre?.toLowerCase().includes(sq)
-    )
+  // Unique proveedores from loaded data
+  const proveedoresUnicos = Array.from(new Set(data.map(i => i.proveedorNombre).filter(Boolean))).sort()
+
+  const applyFilters = (items: any[]) => {
+    let result = items
+    if (misRegistros && myId) result = result.filter(i => i.agenteId === myId)
+    if (filtroProveedor) result = result.filter(i => i.proveedorNombre === filtroProveedor)
+    if (debouncedQ) {
+      const sq = debouncedQ.toLowerCase()
+      result = result.filter(i =>
+        i.codigo?.toLowerCase().includes(sq) ||
+        i.tiendaCodigo?.toLowerCase().includes(sq) ||
+        i.tiendaNombre?.toLowerCase().includes(sq)
+      )
+    }
+    return result
   }
 
-  const filteredOverdue  = applySearch(overdue)
-  const filteredRegular  = applySearch(regular)
-  const allFiltered      = [...filteredOverdue, ...filteredRegular]
+  const filteredOverdue = applyFilters(overdue)
+  const filteredRegular = applyFilters(regular)
+  const allFiltered     = [...filteredOverdue, ...filteredRegular]
 
-  // Metrics (always from full data, not search-filtered)
   const abiertos    = data.filter(i => i.estado === 'ABIERTO' || i.estado === 'EN_SEGUIMIENTO').length
   const escalados   = data.filter(i => i.estado?.startsWith('ESCALADO')).length
   const resueltosHoy = regular.filter(i => {
@@ -158,7 +186,6 @@ export default function IncidentesPage() {
 
       {/* Filtros */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-        {/* Búsqueda */}
         <input
           placeholder="Buscar ID o tienda..."
           value={q}
@@ -166,7 +193,6 @@ export default function IncidentesPage() {
           style={{ ...selStyle, minWidth: '190px' }}
         />
 
-        {/* Botones de fecha rápida */}
         <div style={{ display: 'flex', gap: '4px' }}>
           {(['hoy', 'ayer', '7dias'] as QuickFilter[]).map(f => (
             <button key={f} onClick={() => handleQuickFilter(f)}
@@ -176,7 +202,6 @@ export default function IncidentesPage() {
           ))}
         </div>
 
-        {/* Fecha manual */}
         <input
           type="date"
           value={fechaCustom}
@@ -184,7 +209,6 @@ export default function IncidentesPage() {
           style={{ ...selStyle, borderColor: fechaCustom ? 'hsl(221,83%,23%)' : 'var(--border)' }}
         />
 
-        {/* Estado */}
         <select value={estado} onChange={e => setEstado(e.target.value)} style={selStyle}>
           <option value="">Todos los estados</option>
           {['ABIERTO','EN_SEGUIMIENTO','ESCALADO_N1','ESCALADO_N2','ESCALADO_N3','RESUELTO','CANCELADO','CERRADO'].map(e => (
@@ -192,13 +216,30 @@ export default function IncidentesPage() {
           ))}
         </select>
 
-        {/* Agente */}
+        <select value={filtroProveedor} onChange={e => setFiltroProveedor(e.target.value)} style={selStyle}>
+          <option value="">Todos los proveedores</option>
+          {proveedoresUnicos.map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
+
         <select value={agente} onChange={e => setAgente(e.target.value)} style={selStyle}>
           <option value="">Todos los agentes</option>
           {agentes.filter(a => a.rol === 'AGENTE' || a.rol === 'SUPERVISOR').map(a => (
             <option key={a.id} value={a.id}>{a.nombre}</option>
           ))}
         </select>
+
+        <button
+          onClick={() => setMisRegistros(v => !v)}
+          style={{
+            padding: '6px 12px', fontSize: '12px', fontWeight: misRegistros ? 600 : 400,
+            border: misRegistros ? 'none' : '0.5px solid var(--border)',
+            borderRadius: '8px', cursor: 'pointer',
+            background: misRegistros ? '#14532d' : 'var(--card)',
+            color: misRegistros ? '#86efac' : 'var(--foreground)', outline: 'none',
+            whiteSpace: 'nowrap' as const,
+          }}>
+          Mis registros
+        </button>
       </div>
 
       {/* Tabla */}
@@ -206,7 +247,7 @@ export default function IncidentesPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: 'var(--muted)' }}>
-              {['ID / Hora', 'Tienda', 'Tipo', 'Impacto', 'Estado', 'Cluster', 'Tiempo'].map(h => (
+              {['ID / Hora', 'Tienda', 'Tipo', 'Impacto', 'Estado', 'Cluster', 'Tiempo', ''].map(h => (
                 <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
@@ -214,7 +255,7 @@ export default function IncidentesPage() {
           <tbody>
             {allFiltered.length === 0 && (
               <tr>
-                <td colSpan={7} style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
+                <td colSpan={8} style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
                   No hay incidentes
                 </td>
               </tr>
@@ -222,6 +263,13 @@ export default function IncidentesPage() {
             {allFiltered.map((inc, idx) => {
               const closed    = inc.estado === 'RESUELTO' || inc.estado === 'CANCELADO' || inc.estado === 'CERRADO'
               const isOverdue = !!inc.isOverdue
+              const isAbierto = inc.estado === 'ABIERTO'
+              const isDark    = isAbierto && !isOverdue
+
+              const rowBg = isOverdue ? 'rgba(239,68,68,0.04)' : (isDark ? '#0d1117' : 'transparent')
+              const rowBgHover = isOverdue ? 'rgba(239,68,68,0.09)' : (isDark ? '#161b22' : 'var(--muted)')
+              const textColor = isDark ? 'rgba(255,255,255,0.8)' : 'var(--foreground)'
+              const mutedColor = isDark ? 'rgba(255,255,255,0.4)' : 'var(--muted-foreground)'
 
               return (
                 <tr key={inc.id}
@@ -229,19 +277,22 @@ export default function IncidentesPage() {
                   style={{
                     borderTop:   idx > 0 ? '0.5px solid var(--border)' : 'none',
                     borderLeft:  isOverdue ? '3px solid #ef4444' : '3px solid transparent',
-                    background:  isOverdue ? 'rgba(239,68,68,0.04)' : 'transparent',
+                    background:  rowBg,
                     cursor:      'pointer',
-                    opacity:     closed ? 0.55 : 1,
+                    opacity:     closed && !isAbierto ? 0.6 : 1,
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.background = isOverdue ? 'rgba(239,68,68,0.09)' : 'var(--muted)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = isOverdue ? 'rgba(239,68,68,0.04)' : 'transparent')}>
+                  onMouseEnter={e => (e.currentTarget.style.background = rowBgHover)}
+                  onMouseLeave={e => (e.currentTarget.style.background = rowBg)}>
 
                   {/* ID / Hora */}
                   <td style={{ padding: '9px 12px' }}>
-                    <div style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 600, color: 'var(--foreground)' }}>
+                    <div style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 600, color: textColor }}>
                       {inc.codigo}
                     </div>
-                    <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '1px' }}>
+                    {inc.ticketInvgate && (
+                      <div style={{ fontSize: '10px', color: mutedColor, marginTop: '1px' }}>#{inc.ticketInvgate}</div>
+                    )}
+                    <div style={{ fontSize: '10px', color: mutedColor, marginTop: '1px' }}>
                       {new Date(inc.horaRegistro).toLocaleString('es-PE', {
                         timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit',
                         day: '2-digit', month: '2-digit',
@@ -251,19 +302,19 @@ export default function IncidentesPage() {
 
                   {/* Tienda */}
                   <td style={{ padding: '9px 12px' }}>
-                    <div style={{ fontFamily: 'monospace', fontSize: '15px', fontWeight: 700, letterSpacing: '-0.01em', lineHeight: 1, color: isOverdue ? '#dc2626' : 'var(--foreground)' }}>
+                    <div style={{ fontFamily: 'monospace', fontSize: '15px', fontWeight: 700, letterSpacing: '-0.01em', lineHeight: 1, color: isOverdue ? '#dc2626' : textColor }}>
                       {inc.tiendaCodigo}
                     </div>
-                    <div style={{ fontSize: '12px', marginTop: '3px', color: isOverdue ? '#dc2626' : 'var(--foreground)' }}>
+                    <div style={{ fontSize: '12px', marginTop: '3px', color: isOverdue ? '#dc2626' : textColor }}>
                       {inc.tiendaNombre}
                     </div>
-                    <div style={{ fontSize: '10px', marginTop: '1px', color: isOverdue ? '#f87171' : 'var(--muted-foreground)' }}>
+                    <div style={{ fontSize: '10px', marginTop: '1px', color: isOverdue ? '#f87171' : mutedColor }}>
                       {inc.proveedorNombre} · {inc.tiendaDistrito}
                     </div>
                   </td>
 
                   {/* Tipo */}
-                  <td style={{ padding: '9px 12px', fontSize: '11px' }}>{TIPO_LABELS[inc.tipo] ?? inc.tipo}</td>
+                  <td style={{ padding: '9px 12px', fontSize: '11px', color: textColor }}>{TIPO_LABELS[inc.tipo] ?? inc.tipo}</td>
 
                   {/* Impacto */}
                   <td style={{ padding: '9px 12px' }}><Badge variant={impactoToVariant(inc.nivelImpacto)} /></td>
@@ -274,14 +325,28 @@ export default function IncidentesPage() {
                   {/* Cluster */}
                   <td style={{ padding: '9px 12px' }}>
                     {inc.tiendaCluster
-                      ? <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 700, fontFamily: 'monospace', background: 'var(--muted)', color: 'var(--foreground)', letterSpacing: '0.05em' }}>{inc.tiendaCluster}</span>
-                      : <span style={{ color: 'var(--muted-foreground)', fontSize: '10px' }}>—</span>
+                      ? <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 700, fontFamily: 'monospace', background: isDark ? 'rgba(255,255,255,0.1)' : 'var(--muted)', color: isDark ? 'rgba(255,255,255,0.7)' : 'var(--foreground)', letterSpacing: '0.05em' }}>{inc.tiendaCluster}</span>
+                      : <span style={{ color: mutedColor, fontSize: '10px' }}>—</span>
                     }
                   </td>
 
                   {/* Tiempo */}
-                  <td style={{ padding: '9px 12px', fontFamily: 'monospace', fontSize: '11px', fontWeight: isOverdue ? 700 : 400, color: isOverdue ? '#dc2626' : 'var(--muted-foreground)' }}>
+                  <td style={{ padding: '9px 12px', fontFamily: 'monospace', fontSize: '11px', fontWeight: isOverdue ? 700 : 400, color: isOverdue ? '#dc2626' : mutedColor }}>
                     {tiempoTranscurrido(inc.horaRegistro, inc.horaFin)}
+                  </td>
+
+                  {/* Acciones */}
+                  <td style={{ padding: '9px 12px' }}>
+                    {inc.estado === 'CANCELADO' && userRol === 'SUPERVISOR' && (
+                      <button
+                        onClick={e => handleDelete(e, inc.id)}
+                        title="Eliminar incidente"
+                        style={{ padding: '3px 8px', fontSize: '11px', background: 'rgba(220,38,38,0.1)', color: '#dc2626', border: '0.5px solid rgba(220,38,38,0.3)', borderRadius: '5px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(220,38,38,0.2)' }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(220,38,38,0.1)' }}>
+                        Eliminar
+                      </button>
+                    )}
                   </td>
                 </tr>
               )

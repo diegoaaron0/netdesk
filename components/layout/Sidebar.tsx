@@ -41,7 +41,7 @@ export default function Sidebar({ serverRol, serverName }: { serverRol?: string;
   console.log('[Sidebar] status:', status, '| serverRol:', serverRol, '| sessionRol:', (session?.user as any)?.rol, '| effective:', userRol)
 
   return (
-    <aside style={{ width: '192px', minHeight: '100vh', background: '#0d1117', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+    <aside style={{ width: '192px', height: '100vh', background: '#0d1117', display: 'flex', flexDirection: 'column', flexShrink: 0, position: 'fixed', top: 0, left: 0, zIndex: 50, overflowY: 'auto' }}>
       <div style={{ padding: '14px 16px 12px', borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}>
         <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.28)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Service Desk</div>
         <div style={{ fontSize: '15px', fontWeight: 500, color: 'white', letterSpacing: '-0.02em', marginTop: '1px' }}>NetDesk</div>

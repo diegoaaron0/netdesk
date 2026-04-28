@@ -132,6 +132,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
     const data = await res.json()
     setInc(data)
     setEditForm({
+      ticketInvgate: data.ticketInvgate ?? '',
       ticketProveedor: data.ticketProveedor ?? '',
       descartesRealizados: data.descartesRealizados ?? '',
       solucionAplicada: data.solucionAplicada ?? '',
@@ -280,7 +281,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   const btnBase: React.CSSProperties = { padding: '7px 14px', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }
 
   return (
-    <div>
+    <div style={{ paddingBottom: '56px' }}>
       {/* ── Back button ── */}
       <button onClick={() => router.push('/incidentes')}
         style={{ background: 'none', border: 'none', color: 'var(--muted-foreground)', fontSize: '12px', cursor: 'pointer', padding: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -469,6 +470,9 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
 
           {/* Block B — Gestión */}
           <SectionCard title="B — Gestión">
+            <FieldRow label="Ticket Invgate">
+              <input disabled={!canEdit} style={inputStyle(!canEdit)} value={editForm.ticketInvgate} onChange={e => setEdit('ticketInvgate', e.target.value)} placeholder="Ej: 12345" />
+            </FieldRow>
             <FieldRow label="Ticket proveedor">
               <input disabled={!canEdit} style={inputStyle(!canEdit)} value={editForm.ticketProveedor} onChange={e => setEdit('ticketProveedor', e.target.value)} placeholder="Nro. de ticket del proveedor" />
             </FieldRow>
@@ -609,6 +613,14 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
             ))}
           </SectionCard>
         </div>
+      </div>
+
+      {/* ── Sticky back button ── */}
+      <div style={{ position: 'fixed', bottom: 0, left: '192px', right: 0, zIndex: 40, background: 'var(--card)', borderTop: '0.5px solid var(--border)', padding: '10px 18px' }}>
+        <button onClick={() => router.push('/incidentes')}
+          style={{ background: 'none', border: 'none', color: 'var(--muted-foreground)', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          ← Volver a incidentes
+        </button>
       </div>
     </div>
   )

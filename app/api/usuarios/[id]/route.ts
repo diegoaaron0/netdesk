@@ -20,6 +20,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if ('password' in body) fields.password = body.password
   if ('rol'      in body) fields.rol      = body.rol
   if ('cluster'  in body) fields.cluster  = body.cluster ?? null
+  if ('permisos' in body) fields.permisos = body.permisos ?? null
   if ('activo'   in body) fields.activo   = body.activo
 
   const [updated] = await db.update(usuarios).set(fields).where(eq(usuarios.id, id)).returning()

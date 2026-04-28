@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { incidentes, tiendas, proveedores, usuarios, escalamientos, nivelesEscalamiento } from '@/drizzle/schema'
+import { incidentes, tiendas, proveedores, usuarios, escalamientos, nivelesEscalamiento, adjuntos } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
 import { auth } from '@/auth'
 
@@ -24,6 +24,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     horaInicioSeguimiento: incidentes.horaInicioSeguimiento,
     horaFin: incidentes.horaFin,
     mttrMinutos: incidentes.mttrMinutos,
+    ticketInvgate: incidentes.ticketInvgate,
     observaciones: incidentes.observaciones,
     reabiertaInfo: incidentes.reabiertaInfo,
     actualizadoEn: incidentes.actualizadoEn,
@@ -76,7 +77,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const body = await req.json()
   const allowedFields: Record<string, any> = {}
-  const editable = ['estado','nivelImpacto','usuariosAfectados','tipo','descripcionInicial','ticketProveedor','descartesRealizados','solucionAplicada','horaInicioSeguimiento','observaciones','horaRegistro','horaFin','mttrMinutos']
+  const editable = ['estado','nivelImpacto','usuariosAfectados','tipo','descripcionInicial','ticketInvgate','ticketProveedor','descartesRealizados','solucionAplicada','horaInicioSeguimiento','observaciones','horaRegistro','horaFin','mttrMinutos']
   const dateFields = new Set(['horaRegistro','horaFin','horaInicioSeguimiento'])
   for (const k of editable) {
     if (k in body) {
@@ -92,4 +93,22 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     .returning()
 
   return NextResponse.json(updated)
+}
+
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const session = await auth()
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const rol = (session.user as any)?.rol
+  if (rol !== 'SUPERVISOR') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  await db.delete(adjuntos).where(eq(adjuntos.incidenteId, id))
+  const escs = await db.select({ id: escalamientos.id }).from(escalamientos).where(eq(escalamientos.incidenteId, id))
+  for (const esc of escs) {
+    await db.delete(adjuntos).where(eq(adjuntos.escalamientoId, esc.id))
+  }
+  await db.delete(escalamientos).where(eq(escalamientos.incidenteId, id))
+  await db.delete(incidentes).where(eq(incidentes.id, id))
+
+  return NextResponse.json({ ok: true })
 }

@@ -27,6 +27,7 @@ export const usuarios = pgTable('usuarios', {
   password: text('password').default('soporte123'),
   rol:      rolEnum('rol').notNull().default('AGENTE'),
   cluster:  clusterEnum('cluster'),
+  permisos: text('permisos').array(),
   activo:   boolean('activo').default(true),
   creadoEn: timestamp('creado_en').defaultNow(),
 })
@@ -76,6 +77,7 @@ export const tiendas = pgTable('tiendas', {
   administradorNombre:  text('administrador_nombre'),
   administradorEmail:   text('administrador_email'),
   administradorCelular: text('administrador_celular'),
+  perfilSupervisor:     text('perfil_supervisor'),
   creadoEn:             timestamp('creado_en').defaultNow(),
 })
 
@@ -89,6 +91,7 @@ export const incidentes = pgTable('incidentes', {
   descripcionInicial:    text('descripcion_inicial'),
   tipo:                  tipoIncidenteEnum('tipo').notNull(),
   estado:                estadoIncidenteEnum('estado').notNull().default('ABIERTO'),
+  ticketInvgate:         text('ticket_invgate'),
   ticketProveedor:       text('ticket_proveedor'),
   descartesRealizados:   text('descartes_realizados'),
   solucionAplicada:      text('solucion_aplicada'),

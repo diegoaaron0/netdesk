@@ -21,10 +21,18 @@ function provColor(nombre: string | null) {
   return PROVEEDOR_COLORS[nombre.toUpperCase()] ?? { bg: '#f3f4f6', color: '#6b7280' }
 }
 
+const PERFILES_SUPERVISOR = [
+  { emoji: '',   label: 'Sin definir' },
+  { emoji: '😡', label: 'Crítico' },
+  { emoji: '😤', label: 'Exigente' },
+  { emoji: '😐', label: 'Neutral' },
+  { emoji: '🙂', label: 'Colaborativo' },
+]
+
 const BLANK = {
   codigo: '', nombreCc: '', formato: '', direccion: '', referencia: '',
   distrito: '', provincia: '', ubicacion: '', cluster: '',
-  supervisorNombre: '', proveedorId: '', tipoConexion: '', tipoServicio: '',
+  supervisorNombre: '', perfilSupervisor: '', proveedorId: '', tipoConexion: '', tipoServicio: '',
   cidServicio: '', tieneContingencia: false, costoMensual: '',
   instruccionReporte: '', contactoSoporte: '', administradorNombre: '',
   administradorEmail: '', administradorCelular: '',
@@ -73,7 +81,7 @@ export default function MantenimientoPage() {
   useEffect(() => { fetchTiendas() }, [fetchTiendas])
 
   function openEdit(t: any) {
-    setModal({ open: true, isNew: false, data: { ...t, proveedorId: t.proveedorId ?? '', cluster: t.cluster ?? '', tieneContingencia: t.tieneContingencia ?? false, costoMensual: t.costoMensual ?? '' } })
+    setModal({ open: true, isNew: false, data: { ...t, proveedorId: t.proveedorId ?? '', cluster: t.cluster ?? '', tieneContingencia: t.tieneContingencia ?? false, costoMensual: t.costoMensual ?? '', perfilSupervisor: t.perfilSupervisor ?? '' } })
   }
   function openNew() {
     setModal({ open: true, isNew: true, data: { ...BLANK } })
@@ -203,8 +211,8 @@ export default function MantenimientoPage() {
                 {t.tipoConexion && <div><span style={{ fontWeight: 500 }}>Conexión:</span> {t.tipoConexion}</div>}
                 {t.cidServicio  && <div><span style={{ fontWeight: 500 }}>CID:</span> <span style={{ fontFamily: 'monospace' }}>{t.cidServicio}</span></div>}
                 {(t.distrito || t.provincia) && <div><span style={{ fontWeight: 500 }}>Ubic.:</span> {[t.distrito, t.provincia].filter(Boolean).join(', ')}</div>}
-                {t.supervisorNombre && <div><span style={{ fontWeight: 500 }}>Supervisor:</span> {t.supervisorNombre}</div>}
-                {t.contactoSoporte  && <div><span style={{ fontWeight: 500 }}>Tel:</span> {t.contactoSoporte}</div>}
+                {t.supervisorNombre && <div><span style={{ fontWeight: 500 }}>Supervisor:</span> {t.perfilSupervisor ? `${t.perfilSupervisor} ` : ''}{t.supervisorNombre}</div>}
+                {t.administradorCelular && <div><span style={{ fontWeight: 500 }}>Tel:</span> {t.administradorCelular}</div>}
               </div>
             </div>
           )
@@ -248,6 +256,22 @@ export default function MantenimientoPage() {
                   }
                 </div>
               ))}
+
+              {/* Perfil supervisor */}
+              <div style={{ marginBottom: '10px' }}>
+                <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '6px' }}>Perfil del supervisor</label>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {PERFILES_SUPERVISOR.map(({ emoji, label }) => {
+                    const selected = modal.data.perfilSupervisor === emoji
+                    return (
+                      <button key={emoji || 'none'} type="button" onClick={() => setField('perfilSupervisor', emoji)}
+                        style={{ padding: '5px 10px', fontSize: '12px', borderRadius: '7px', cursor: 'pointer', border: selected ? '1.5px solid hsl(221,83%,23%)' : '0.5px solid var(--border)', background: selected ? 'hsl(221,83%,23%)' : 'var(--muted)', color: selected ? 'white' : 'var(--foreground)', outline: 'none' }}>
+                        {emoji ? `${emoji} ${label}` : label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
 
               {/* Cluster select */}
               <div style={{ marginBottom: '10px' }}>
