@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { tiendas, proveedores, nivelesEscalamiento, incidentes } from '@/drizzle/schema'
-import { ilike, or, eq, and, gte, sql } from 'drizzle-orm'
+import { ilike, or, eq, and, gte, sql, count } from 'drizzle-orm'
 import { auth } from '@/auth'
 
 const PROVEEDOR_COLORS: Record<string, { bg: string; color: string }> = {
@@ -54,45 +54,44 @@ export async function GET(req: NextRequest) {
   }
 
   // ── Full list mode (para mantenimiento) ─────────────────────
-  try {
-    const conditions = []
-    if (clusterF) conditions.push(eq(tiendas.cluster, clusterF as any))
+  const conditions = []
+  if (clusterF) conditions.push(eq(tiendas.cluster, clusterF as any))
 
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
 
-    const rows = await db
-      .select({
-        id: tiendas.id, codigo: tiendas.codigo, nombreCc: tiendas.nombreCc,
-        formato: tiendas.formato, direccion: tiendas.direccion, referencia: tiendas.referencia,
-        distrito: tiendas.distrito, provincia: tiendas.provincia, ubicacion: tiendas.ubicacion,
-        cluster: tiendas.cluster, supervisorNombre: tiendas.supervisorNombre,
-        proveedorId: tiendas.proveedorId, proveedorNombre: proveedores.nombre,
-        tipoConexion: tiendas.tipoConexion, tipoServicio: tiendas.tipoServicio,
-        cidServicio: tiendas.cidServicio, tieneContingencia: tiendas.tieneContingencia,
-        costoMensual: tiendas.costoMensual, instruccionReporte: tiendas.instruccionReporte,
-        contactoSoporte: tiendas.contactoSoporte,
-        administradorNombre: tiendas.administradorNombre,
-        administradorEmail: tiendas.administradorEmail,
-        administradorCelular: tiendas.administradorCelular,
-        incidentCount: sql<number>`(
-          SELECT COUNT(*) FROM incidentes
-          WHERE incidentes.tienda_id = ${tiendas.id}
-          AND incidentes.hora_registro >= ${thirtyDaysAgo}
-        )`,
-      })
+  const [rows, counts] = await Promise.all([
+    db.select({
+      id: tiendas.id, codigo: tiendas.codigo, nombreCc: tiendas.nombreCc,
+      formato: tiendas.formato, direccion: tiendas.direccion, referencia: tiendas.referencia,
+      distrito: tiendas.distrito, provincia: tiendas.provincia, ubicacion: tiendas.ubicacion,
+      cluster: tiendas.cluster, supervisorNombre: tiendas.supervisorNombre,
+      proveedorId: tiendas.proveedorId, proveedorNombre: proveedores.nombre,
+      tipoConexion: tiendas.tipoConexion, tipoServicio: tiendas.tipoServicio,
+      cidServicio: tiendas.cidServicio, tieneContingencia: tiendas.tieneContingencia,
+      costoMensual: tiendas.costoMensual, instruccionReporte: tiendas.instruccionReporte,
+      contactoSoporte: tiendas.contactoSoporte,
+      administradorNombre: tiendas.administradorNombre,
+      administradorEmail: tiendas.administradorEmail,
+      administradorCelular: tiendas.administradorCelular,
+    })
       .from(tiendas)
       .leftJoin(proveedores, eq(tiendas.proveedorId, proveedores.id))
       .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(tiendas.codigo)
+      .orderBy(tiendas.codigo),
 
-    let filtered = rows
-    if (proveedorF) filtered = filtered.filter(r => r.proveedorNombre === proveedorF)
+    db.select({ tiendaId: incidentes.tiendaId, total: count() })
+      .from(incidentes)
+      .where(gte(incidentes.horaRegistro, thirtyDaysAgo))
+      .groupBy(incidentes.tiendaId),
+  ])
 
-    return NextResponse.json(filtered)
-  } catch (e) {
-    console.error('GET /api/tiendas error:', e)
-    return NextResponse.json({ error: String(e) }, { status: 500 })
-  }
+  const countMap: Record<string, number> = {}
+  for (const c of counts) if (c.tiendaId) countMap[c.tiendaId] = c.total
+
+  let filtered = rows.map(r => ({ ...r, incidentCount: countMap[r.id] ?? 0 }))
+  if (proveedorF) filtered = filtered.filter(r => r.proveedorNombre === proveedorF)
+
+  return NextResponse.json(filtered)
 }
 
 export async function POST(req: NextRequest) {
