@@ -3,12 +3,17 @@ import { useEffect, useState, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 
 const PROVEEDOR_COLORS: Record<string, { bg: string; color: string }> = {
-  BITEL:     { bg: '#dbeafe', color: '#1e40af' },
-  CLARO:     { bg: '#fee2e2', color: '#b91c1c' },
-  CONVERGIA: { bg: '#ede9fe', color: '#7c3aed' },
-  ENTEL:     { bg: '#dcfce7', color: '#15803d' },
-  MOVISTAR:  { bg: '#1e3a8a', color: '#bfdbfe' },
-  GTD:       { bg: '#ffedd5', color: '#c2410c' },
+  BITEL:            { bg: '#dbeafe', color: '#1e40af' },
+  CLARO:            { bg: '#fee2e2', color: '#b91c1c' },
+  CONVERGIA:        { bg: '#ede9fe', color: '#7c3aed' },
+  ENTEL:            { bg: '#dcfce7', color: '#15803d' },
+  MOVISTAR:         { bg: '#1e3a8a', color: '#bfdbfe' },
+  GTD:              { bg: '#ffedd5', color: '#c2410c' },
+  FIBERLUX:         { bg: '#fef9c3', color: '#854d0e' },
+  'FIBRA AMAZÓNICA':{ bg: '#d1fae5', color: '#065f46' },
+  DITSAC:           { bg: '#fce7f3', color: '#9d174d' },
+  TELCONET:         { bg: '#e0f2fe', color: '#075985' },
+  GONET:            { bg: '#f0fdf4', color: '#166534' },
 }
 
 function provColor(nombre: string | null) {
@@ -150,10 +155,17 @@ export default function MantenimientoPage() {
                 {t.codigo}
               </div>
 
-              {/* Nombre */}
-              <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--foreground)', marginBottom: '8px', lineHeight: 1.3, paddingRight: '20px' }}>
+              {/* Nombre CC */}
+              <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--foreground)', lineHeight: 1.3, paddingRight: '20px' }}>
                 {t.nombreCc || '—'}
               </div>
+              {/* Dirección */}
+              {t.direccion && (
+                <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px', marginBottom: '8px', lineHeight: 1.3, paddingRight: '20px' }}>
+                  {t.direccion}
+                </div>
+              )}
+              {!t.direccion && <div style={{ marginBottom: '8px' }} />}
 
               {/* Badges */}
               <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '10px' }}>
