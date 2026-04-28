@@ -59,32 +59,38 @@ export async function GET(req: NextRequest) {
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
 
-  const [rows, counts] = await Promise.all([
-    db.select({
-      id: tiendas.id, codigo: tiendas.codigo, nombreCc: tiendas.nombreCc,
-      formato: tiendas.formato, direccion: tiendas.direccion, referencia: tiendas.referencia,
-      distrito: tiendas.distrito, provincia: tiendas.provincia, ubicacion: tiendas.ubicacion,
-      cluster: tiendas.cluster, supervisorNombre: tiendas.supervisorNombre,
-      proveedorId: tiendas.proveedorId, proveedorNombre: proveedores.nombre,
-      tipoConexion: tiendas.tipoConexion, tipoServicio: tiendas.tipoServicio,
-      cidServicio: tiendas.cidServicio, tieneContingencia: tiendas.tieneContingencia,
-      costoMensual: tiendas.costoMensual, instruccionReporte: tiendas.instruccionReporte,
-      contactoSoporte: tiendas.contactoSoporte,
-      administradorNombre: tiendas.administradorNombre,
-      administradorEmail: tiendas.administradorEmail,
-      administradorCelular: tiendas.administradorCelular,
-      perfilSupervisor: tiendas.perfilSupervisor,
-    })
-      .from(tiendas)
+  const colsBase = {
+    id: tiendas.id, codigo: tiendas.codigo, nombreCc: tiendas.nombreCc,
+    formato: tiendas.formato, direccion: tiendas.direccion, referencia: tiendas.referencia,
+    distrito: tiendas.distrito, provincia: tiendas.provincia, ubicacion: tiendas.ubicacion,
+    cluster: tiendas.cluster, supervisorNombre: tiendas.supervisorNombre,
+    proveedorId: tiendas.proveedorId, proveedorNombre: proveedores.nombre,
+    tipoConexion: tiendas.tipoConexion, tipoServicio: tiendas.tipoServicio,
+    cidServicio: tiendas.cidServicio, tieneContingencia: tiendas.tieneContingencia,
+    costoMensual: tiendas.costoMensual, instruccionReporte: tiendas.instruccionReporte,
+    contactoSoporte: tiendas.contactoSoporte,
+    administradorNombre: tiendas.administradorNombre,
+    administradorEmail: tiendas.administradorEmail,
+    administradorCelular: tiendas.administradorCelular,
+  }
+  const colsFull = { ...colsBase, perfilSupervisor: tiendas.perfilSupervisor }
+
+  const countQuery = db.select({ tiendaId: incidentes.tiendaId, total: count() })
+    .from(incidentes).where(gte(incidentes.horaRegistro, thirtyDaysAgo)).groupBy(incidentes.tiendaId)
+
+  async function queryTiendas(cols: any) {
+    return db.select(cols).from(tiendas)
       .leftJoin(proveedores, eq(tiendas.proveedorId, proveedores.id))
       .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(tiendas.codigo),
+      .orderBy(tiendas.codigo)
+  }
 
-    db.select({ tiendaId: incidentes.tiendaId, total: count() })
-      .from(incidentes)
-      .where(gte(incidentes.horaRegistro, thirtyDaysAgo))
-      .groupBy(incidentes.tiendaId),
-  ])
+  let rows: any[], counts: any[]
+  try {
+    ;[rows, counts] = await Promise.all([queryTiendas(colsFull), countQuery])
+  } catch {
+    ;[rows, counts] = await Promise.all([queryTiendas(colsBase), countQuery])
+  }
 
   const countMap: Record<string, number> = {}
   for (const c of counts) if (c.tiendaId) countMap[c.tiendaId] = c.total

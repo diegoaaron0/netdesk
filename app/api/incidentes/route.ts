@@ -18,13 +18,12 @@ function limaDateRange(dateStr: string) {
   }
 }
 
-const COLS = {
+const COLS_BASE = {
   id:             incidentes.id,
   codigo:         incidentes.codigo,
   tipo:           incidentes.tipo,
   estado:         incidentes.estado,
   nivelImpacto:   incidentes.nivelImpacto,
-  ticketInvgate:  incidentes.ticketInvgate,
   horaRegistro:   incidentes.horaRegistro,
   horaFin:        incidentes.horaFin,
   mttrMinutos:    incidentes.mttrMinutos,
@@ -36,6 +35,8 @@ const COLS = {
   agenteName:     usuarios.nombre,
   agenteId:       usuarios.id,
 }
+
+const COLS = { ...COLS_BASE, ticketInvgate: incidentes.ticketInvgate }
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -64,14 +65,19 @@ export async function GET(req: NextRequest) {
     .leftJoin(proveedores, eq(tiendas.proveedorId,  proveedores.id))
     .leftJoin(usuarios,   eq(incidentes.registradoPorId, usuarios.id))
 
-  const [regular, overdue] = await Promise.all([
-    joins(db.select(COLS).from(incidentes))
-      .where(and(...rangeConds))
-      .orderBy(desc(incidentes.horaRegistro)),
-    joins(db.select(COLS).from(incidentes))
-      .where(and(...overdueConds))
-      .orderBy(desc(incidentes.horaRegistro)),
-  ])
+  async function queryPair(cols: any) {
+    return Promise.all([
+      joins(db.select(cols).from(incidentes)).where(and(...rangeConds)).orderBy(desc(incidentes.horaRegistro)),
+      joins(db.select(cols).from(incidentes)).where(and(...overdueConds)).orderBy(desc(incidentes.horaRegistro)),
+    ])
+  }
+
+  let regular: any[], overdue: any[]
+  try {
+    ;[regular, overdue] = await queryPair(COLS)
+  } catch {
+    ;[regular, overdue] = await queryPair(COLS_BASE)
+  }
 
   return NextResponse.json([
     ...overdue.map((i: any)  => ({ ...i, isOverdue: true })),
