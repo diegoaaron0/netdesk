@@ -76,7 +76,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const body = await req.json()
   const allowedFields: Record<string, any> = {}
-  const editable = ['estado','nivelImpacto','usuariosAfectados','tipo','ticketProveedor','descartesRealizados','solucionAplicada','horaInicioSeguimiento','observaciones']
+  const editable = ['estado','nivelImpacto','usuariosAfectados','tipo','descripcionInicial','ticketProveedor','descartesRealizados','solucionAplicada','horaInicioSeguimiento','observaciones','horaRegistro','horaFin','mttrMinutos']
   for (const k of editable) {
     if (k in body) allowedFields[k] = body[k]
   }

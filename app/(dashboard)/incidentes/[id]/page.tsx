@@ -59,6 +59,18 @@ function relativeTime(date: string | Date) {
   return new Date(date).toLocaleDateString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
+function toDatetimeLocal(iso: string | null | undefined) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const lima = new Date(d.getTime() - 5 * 3600000)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${lima.getUTCFullYear()}-${p(lima.getUTCMonth()+1)}-${p(lima.getUTCDate())}T${p(lima.getUTCHours())}:${p(lima.getUTCMinutes())}`
+}
+function fromDatetimeLocal(val: string) {
+  if (!val) return null
+  return new Date(val + ':00-05:00').toISOString()
+}
+
 function minToHM(min: number | null) {
   if (!min) return '—'
   const h = Math.floor(min / 60)
@@ -124,6 +136,13 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
       descartesRealizados: data.descartesRealizados ?? '',
       solucionAplicada: data.solucionAplicada ?? '',
       observaciones: data.observaciones ?? '',
+      nivelImpacto: data.nivelImpacto ?? 'MEDIO',
+      tipo: data.tipo ?? 'CAIDA_TOTAL',
+      estado: data.estado ?? 'ABIERTO',
+      usuariosAfectados: data.usuariosAfectados ?? '',
+      descripcionInicial: data.descripcionInicial ?? '',
+      horaRegistro: toDatetimeLocal(data.horaRegistro),
+      horaFin: toDatetimeLocal(data.horaFin),
     })
   }, [id])
 
@@ -162,10 +181,18 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
 
   async function handleSave() {
     setSaving(true)
+    const body: any = { ...editForm }
+    if ('horaRegistro' in body) body.horaRegistro = fromDatetimeLocal(body.horaRegistro)
+    if ('horaFin' in body) body.horaFin = body.horaFin ? fromDatetimeLocal(body.horaFin) : null
+    if (body.horaRegistro && body.horaFin) {
+      body.mttrMinutos = Math.round((new Date(body.horaFin).getTime() - new Date(body.horaRegistro).getTime()) / 60000)
+    } else if (body.horaFin === null) {
+      body.mttrMinutos = null
+    }
     await fetch(`/api/incidentes/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(editForm),
+      body: JSON.stringify(body),
     })
     setSaving(false)
     fetchInc()
@@ -334,7 +361,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
 
         {/* ── LEFT COLUMN ── */}
         <div>
-          {/* Block A + C — readonly */}
+          {/* Block A — editable by managers when supervisorEdit is on */}
           <SectionCard title="A — Identificación & Tiempos">
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
               <div>
@@ -342,18 +369,56 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 <FieldRow label="Proveedor"><ReadonlyVal value={inc.proveedorNombre} /></FieldRow>
                 <FieldRow label="CID / Servicio"><ReadonlyVal value={inc.tiendaCid} mono /></FieldRow>
                 <FieldRow label="Tipo conexión"><ReadonlyVal value={inc.tiendaTipoConexion} /></FieldRow>
+
                 <FieldRow label="Nivel de impacto">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '4px' }}>
-                    <Badge variant={impactoToVariant(inc.nivelImpacto)} />
-                    <span style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>{inc.nivelImpacto}</span>
-                  </div>
+                  {canManage && supervisorEdit ? (
+                    <select style={inputStyle()} value={editForm.nivelImpacto} onChange={e => setEdit('nivelImpacto', e.target.value)}>
+                      {['CRITICO','ALTO','MEDIO','BAJO'].map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '4px' }}>
+                      <Badge variant={impactoToVariant(inc.nivelImpacto)} />
+                      <span style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>{inc.nivelImpacto}</span>
+                    </div>
+                  )}
                 </FieldRow>
-                <FieldRow label="Tipo"><ReadonlyVal value={TIPO_LABELS[inc.tipo] ?? inc.tipo} /></FieldRow>
+
+                <FieldRow label="Tipo">
+                  {canManage && supervisorEdit ? (
+                    <select style={inputStyle()} value={editForm.tipo} onChange={e => setEdit('tipo', e.target.value)}>
+                      {Object.entries(TIPO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    </select>
+                  ) : (
+                    <ReadonlyVal value={TIPO_LABELS[inc.tipo] ?? inc.tipo} />
+                  )}
+                </FieldRow>
+
                 <FieldRow label="Estado">
-                  <div style={{ paddingTop: '4px' }}><Badge variant={estadoToVariant(inc.estado)} /></div>
+                  {canManage && supervisorEdit ? (
+                    <select style={inputStyle()} value={editForm.estado} onChange={e => setEdit('estado', e.target.value)}>
+                      {['ABIERTO','EN_PROGRESO','RESUELTO','CERRADO','CANCELADO'].map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  ) : (
+                    <div style={{ paddingTop: '4px' }}><Badge variant={estadoToVariant(inc.estado)} /></div>
+                  )}
                 </FieldRow>
-                {inc.usuariosAfectados && <FieldRow label="Usuarios"><ReadonlyVal value={inc.usuariosAfectados} /></FieldRow>}
-                {inc.descripcionInicial && <FieldRow label="Descripción inicial"><ReadonlyVal value={inc.descripcionInicial} /></FieldRow>}
+
+                <FieldRow label="Usuarios">
+                  {canManage && supervisorEdit ? (
+                    <input style={inputStyle()} value={editForm.usuariosAfectados} onChange={e => setEdit('usuariosAfectados', e.target.value)} placeholder="N.º usuarios afectados" />
+                  ) : (
+                    <ReadonlyVal value={inc.usuariosAfectados ?? '—'} />
+                  )}
+                </FieldRow>
+
+                <FieldRow label="Descripción inicial">
+                  {canManage && supervisorEdit ? (
+                    <textarea style={textareaStyle()} value={editForm.descripcionInicial} onChange={e => setEdit('descripcionInicial', e.target.value)} placeholder="Descripción del incidente..." />
+                  ) : (
+                    <ReadonlyVal value={inc.descripcionInicial ?? '—'} />
+                  )}
+                </FieldRow>
+
                 {inc.reabiertaInfo && (
                   <FieldRow label="Reapertura">
                     <div style={{ padding: '7px 10px', fontSize: '11px', background: 'rgba(146,64,14,0.1)', border: '0.5px solid rgba(146,64,14,0.25)', borderRadius: '8px', color: '#d97706' }}>
@@ -364,12 +429,23 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               </div>
               <div>
                 <FieldRow label="Registrado por"><ReadonlyVal value={inc.agenteNombre} /></FieldRow>
+
                 <FieldRow label="Hora registro">
-                  <ReadonlyVal value={new Date(inc.horaRegistro).toLocaleString('es-PE', { timeZone: 'America/Lima' })} />
+                  {canManage && supervisorEdit ? (
+                    <input type="datetime-local" style={inputStyle()} value={editForm.horaRegistro} onChange={e => setEdit('horaRegistro', e.target.value)} />
+                  ) : (
+                    <ReadonlyVal value={new Date(inc.horaRegistro).toLocaleString('es-PE', { timeZone: 'America/Lima' })} />
+                  )}
                 </FieldRow>
+
                 <FieldRow label="Hora fin">
-                  <ReadonlyVal value={inc.horaFin ? new Date(inc.horaFin).toLocaleString('es-PE', { timeZone: 'America/Lima' }) : '—'} />
+                  {canManage && supervisorEdit ? (
+                    <input type="datetime-local" style={inputStyle()} value={editForm.horaFin} onChange={e => setEdit('horaFin', e.target.value)} />
+                  ) : (
+                    <ReadonlyVal value={inc.horaFin ? new Date(inc.horaFin).toLocaleString('es-PE', { timeZone: 'America/Lima' }) : '—'} />
+                  )}
                 </FieldRow>
+
                 <FieldRow label="MTTR total"><ReadonlyVal value={minToHM(inc.mttrMinutos)} /></FieldRow>
 
                 {/* 4 timers */}

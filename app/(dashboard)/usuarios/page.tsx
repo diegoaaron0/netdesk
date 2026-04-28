@@ -85,7 +85,7 @@ export default function UsuariosPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: 'var(--muted)' }}>
-              {['Usuario', 'Correo', 'Celular', 'Rol', 'Cluster', 'Estado', ''].map(h => (
+              {['Usuario', 'Correo', 'Celular', 'Rol', 'Estado', ''].map(h => (
                 <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
@@ -109,7 +109,6 @@ export default function UsuariosPage() {
                   <td style={{ padding: '10px 14px' }}>
                     <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: rc.bg, color: rc.color }}>{u.rol}</span>
                   </td>
-                  <td style={{ padding: '10px 14px', fontSize: '11px', color: 'var(--muted-foreground)' }}>{u.cluster || '—'}</td>
                   <td style={{ padding: '10px 14px' }}>
                     <button onClick={() => toggleActivo(u)}
                       style={{ position: 'relative', width: '36px', height: '20px', borderRadius: '10px', border: 'none', cursor: 'pointer', background: u.activo ? '#22c55e' : '#d1d5db', transition: 'background 0.2s' }}>
@@ -173,20 +172,11 @@ export default function UsuariosPage() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-                <div>
-                  <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '3px' }}>Rol</label>
-                  <select value={modal.data.rol} onChange={e => setField('rol', e.target.value)} style={inp}>
-                    {['AGENTE','SUPERVISOR','GERENCIA','INFRAESTRUCTURA'].map(r => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '3px' }}>Cluster</label>
-                  <select value={modal.data.cluster ?? ''} onChange={e => setField('cluster', e.target.value)} style={inp}>
-                    <option value="">Sin cluster</option>
-                    {['A','B','C','D'].map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
+              <div style={{ marginBottom: '10px' }}>
+                <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '3px' }}>Rol</label>
+                <select value={modal.data.rol} onChange={e => setField('rol', e.target.value)} style={inp}>
+                  {['AGENTE','SUPERVISOR','GERENCIA','INFRAESTRUCTURA'].map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
               </div>
 
               {/* Activo toggle */}
