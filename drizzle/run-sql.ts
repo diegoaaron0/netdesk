@@ -6,20 +6,32 @@ const sql = postgres(process.env.DATABASE_URL!, {
 })
 
 async function main() {
-  console.log('Aplicando cambios...')
+  console.log('[startup] Aplicando migraciones...')
 
   await sql`ALTER TYPE "rol" ADD VALUE IF NOT EXISTS 'INFRAESTRUCTURA'`
-  console.log('✓ Enum INFRAESTRUCTURA añadido')
+  console.log('[startup] ✓ Enum INFRAESTRUCTURA')
 
   await sql`ALTER TABLE "usuarios" ADD COLUMN IF NOT EXISTS "password" text DEFAULT 'soporte123'`
-  console.log('✓ Columna password añadida')
+  console.log('[startup] ✓ Columna usuarios.password')
 
   await sql`ALTER TABLE "incidentes" ADD COLUMN IF NOT EXISTS "reabrierta_info" text`
-  console.log('✓ Columna reabrierta_info añadida')
+  console.log('[startup] ✓ Columna incidentes.reabrierta_info')
 
-  console.log('Listo.')
+  // Insertar usuarios INFRAESTRUCTURA si no existen
+  await sql`
+    INSERT INTO "usuarios" ("nombre", "email", "password", "rol", "activo")
+    SELECT 'Edson Puelles', 'edson.puelles@footloose.pe', 'soporte123', 'INFRAESTRUCTURA', true
+    WHERE NOT EXISTS (SELECT 1 FROM "usuarios" WHERE "email" = 'edson.puelles@footloose.pe')
+  `
+  await sql`
+    INSERT INTO "usuarios" ("nombre", "email", "password", "rol", "activo")
+    SELECT 'Valentín', 'valentin@footloose.pe', 'soporte123', 'INFRAESTRUCTURA', true
+    WHERE NOT EXISTS (SELECT 1 FROM "usuarios" WHERE "email" = 'valentin@footloose.pe')
+  `
+  console.log('[startup] ✓ Usuarios Edson Puelles y Valentín (INFRAESTRUCTURA)')
+
+  console.log('[startup] Migraciones completadas.')
   await sql.end()
-  process.exit(0)
 }
 
-main().catch(e => { console.error(e); process.exit(1) })
+main().catch(e => { console.error('[startup] Error:', e); process.exit(1) })

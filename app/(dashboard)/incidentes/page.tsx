@@ -126,11 +126,9 @@ export default function IncidentesPage() {
                   </div>
                 </td>
                 <td style={{ padding: '9px 12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-                    <span style={{ fontFamily: 'monospace', fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', flexShrink: 0 }}>{inc.tiendaCodigo}</span>
-                    <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--foreground)' }}>{inc.tiendaNombre}</span>
-                  </div>
-                  <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{inc.proveedorNombre} · {inc.tiendaDistrito}</div>
+                  <div style={{ fontFamily: 'monospace', fontSize: '15px', fontWeight: 700, color: 'var(--foreground)', letterSpacing: '-0.01em', lineHeight: 1 }}>{inc.tiendaCodigo}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--foreground)', marginTop: '3px' }}>{inc.tiendaNombre}</div>
+                  <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '1px' }}>{inc.proveedorNombre} · {inc.tiendaDistrito}</div>
                 </td>
                 <td style={{ padding: '9px 12px', fontSize: '11px' }}>{TIPO_LABELS[inc.tipo] ?? inc.tipo}</td>
                 <td style={{ padding: '9px 12px' }}><Badge variant={impactoToVariant(inc.nivelImpacto)} /></td>
