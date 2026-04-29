@@ -9,7 +9,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const selectBase = {
+  const [inc] = await db.select({
     id: incidentes.id,
     codigo: incidentes.codigo,
     tipo: incidentes.tipo,
@@ -17,6 +17,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     nivelImpacto: incidentes.nivelImpacto,
     usuariosAfectados: incidentes.usuariosAfectados,
     descripcionInicial: incidentes.descripcionInicial,
+    ticketInvgate: incidentes.ticketInvgate,
     ticketProveedor: incidentes.ticketProveedor,
     descartesRealizados: incidentes.descartesRealizados,
     solucionAplicada: incidentes.solucionAplicada,
@@ -41,28 +42,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     proveedorTelefono: proveedores.telefonoSoporte,
     agenteNombre: usuarios.nombre,
     agenteEmail: usuarios.email,
-  }
-
-  const baseQuery = () => db.select(selectBase)
+  })
     .from(incidentes)
     .leftJoin(tiendas, eq(incidentes.tiendaId, tiendas.id))
     .leftJoin(proveedores, eq(tiendas.proveedorId, proveedores.id))
     .leftJoin(usuarios, eq(incidentes.registradoPorId, usuarios.id))
     .where(eq(incidentes.id, id))
-
-  let inc: any
-  try {
-    const [row] = await db.select({ ...selectBase, ticketInvgate: incidentes.ticketInvgate })
-      .from(incidentes)
-      .leftJoin(tiendas, eq(incidentes.tiendaId, tiendas.id))
-      .leftJoin(proveedores, eq(tiendas.proveedorId, proveedores.id))
-      .leftJoin(usuarios, eq(incidentes.registradoPorId, usuarios.id))
-      .where(eq(incidentes.id, id))
-    inc = row
-  } catch {
-    const [row] = await baseQuery()
-    inc = row
-  }
 
   if (!inc) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
