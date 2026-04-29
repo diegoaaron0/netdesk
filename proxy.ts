@@ -1,23 +1,29 @@
 import { auth } from '@/auth'
 import { NextResponse } from 'next/server'
+import { can } from '@/lib/permisos'
 
-export default auth(function proxy(req) {
+export default auth((req) => {
   const session = req.auth
-  if (!session) return NextResponse.redirect(new URL('/login', req.url))
-
-  const rol = (session.user as any)?.rol
   const path = req.nextUrl.pathname
 
-  const elevated = ['SUPERVISOR', 'GERENCIA', 'INFRAESTRUCTURA']
-  if (path.startsWith('/dashboard') && !elevated.includes(rol)) {
-    return NextResponse.redirect(new URL('/incidentes', req.url))
+  if (!session) {
+    return NextResponse.redirect(new URL('/login', req.url))
   }
-  if (path.startsWith('/reportes') && rol === 'AGENTE') {
-    return NextResponse.redirect(new URL('/incidentes', req.url))
+
+  const rutas: { path: string; permiso: string }[] = [
+    { path: '/dashboard',    permiso: 'dashboard.ver' },
+    { path: '/reportes',     permiso: 'reportes.ver' },
+    { path: '/usuarios',     permiso: 'usuarios.ver' },
+  ]
+
+  for (const ruta of rutas) {
+    if (path.startsWith(ruta.path) && !can(session, ruta.permiso)) {
+      if (can(session, 'incidentes.ver'))
+        return NextResponse.redirect(new URL('/incidentes', req.url))
+      return NextResponse.redirect(new URL('/login', req.url))
+    }
   }
-  if (path.startsWith('/usuarios') && rol !== 'SUPERVISOR') {
-    return NextResponse.redirect(new URL('/incidentes', req.url))
-  }
+
   return NextResponse.next()
 })
 
@@ -26,7 +32,7 @@ export const config = {
     '/incidentes/:path*',
     '/dashboard/:path*',
     '/reportes/:path*',
-    '/mantenimiento/:path*',
     '/usuarios/:path*',
+    '/mantenimiento/:path*',
   ],
 }
