@@ -247,7 +247,7 @@ export default function IncidentesPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: 'var(--muted)' }}>
-              {['ID / Hora', 'Tienda', 'Tipo', 'Impacto', 'Estado', 'Cluster', 'Tiempo', ''].map(h => (
+              {['ID / Hora', 'Tienda', 'Usuario', 'Tipo', 'Impacto', 'Estado', 'Cluster', 'Tiempo', ''].map(h => (
                 <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
@@ -255,7 +255,7 @@ export default function IncidentesPage() {
           <tbody>
             {allFiltered.length === 0 && (
               <tr>
-                <td colSpan={8} style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
+                <td colSpan={9} style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
                   No hay incidentes
                 </td>
               </tr>
@@ -264,22 +264,22 @@ export default function IncidentesPage() {
               const closed    = inc.estado === 'RESUELTO' || inc.estado === 'CANCELADO' || inc.estado === 'CERRADO'
               const isOverdue = !!inc.isOverdue
               const isAbierto = inc.estado === 'ABIERTO'
-              const isDark    = isAbierto && !isOverdue
 
-              const rowBg = isOverdue ? 'rgba(239,68,68,0.04)' : (isDark ? '#0d1117' : 'transparent')
-              const rowBgHover = isOverdue ? 'rgba(239,68,68,0.09)' : (isDark ? '#161b22' : 'var(--muted)')
-              const textColor = isDark ? 'rgba(255,255,255,0.8)' : 'var(--foreground)'
-              const mutedColor = isDark ? 'rgba(255,255,255,0.4)' : 'var(--muted-foreground)'
+              const rowBg = isOverdue ? 'rgba(239,68,68,0.04)' : 'transparent'
+              const rowBgHover = isOverdue ? 'rgba(239,68,68,0.09)' : 'var(--muted)'
+              const textColor = isOverdue ? '#dc2626' : 'var(--foreground)'
+              const mutedColor = isOverdue ? '#f87171' : 'var(--muted-foreground)'
 
               return (
                 <tr key={inc.id}
                   onClick={() => router.push(`/incidentes/${inc.id}`)}
                   style={{
                     borderTop:   idx > 0 ? '0.5px solid var(--border)' : 'none',
-                    borderLeft:  isOverdue ? '3px solid #ef4444' : '3px solid transparent',
+                    borderLeft:  isOverdue ? '3px solid #ef4444' : (isAbierto ? '3px solid #0f172a' : '3px solid transparent'),
                     background:  rowBg,
                     cursor:      'pointer',
                     opacity:     closed && !isAbierto ? 0.6 : 1,
+                    boxShadow:   isAbierto && !isOverdue ? 'inset 0 0 0 1.5px #0f172a' : 'none',
                   }}
                   onMouseEnter={e => (e.currentTarget.style.background = rowBgHover)}
                   onMouseLeave={e => (e.currentTarget.style.background = rowBg)}>
@@ -302,15 +302,20 @@ export default function IncidentesPage() {
 
                   {/* Tienda */}
                   <td style={{ padding: '9px 12px' }}>
-                    <div style={{ fontFamily: 'monospace', fontSize: '15px', fontWeight: 700, letterSpacing: '-0.01em', lineHeight: 1, color: isOverdue ? '#dc2626' : textColor }}>
+                    <div style={{ fontFamily: 'monospace', fontSize: isAbierto && !isOverdue ? '18px' : '15px', fontWeight: 700, letterSpacing: '-0.01em', lineHeight: 1, color: isOverdue ? '#dc2626' : (isAbierto ? '#0f172a' : textColor) }}>
                       {inc.tiendaCodigo}
                     </div>
-                    <div style={{ fontSize: '12px', marginTop: '3px', color: isOverdue ? '#dc2626' : textColor }}>
+                    <div style={{ fontSize: '12px', marginTop: '3px', fontWeight: isAbierto && !isOverdue ? 600 : 400, color: isOverdue ? '#dc2626' : textColor }}>
                       {inc.tiendaNombre}
                     </div>
-                    <div style={{ fontSize: '10px', marginTop: '1px', color: isOverdue ? '#f87171' : mutedColor }}>
+                    <div style={{ fontSize: '10px', marginTop: '1px', color: mutedColor }}>
                       {inc.proveedorNombre} · {inc.tiendaDistrito}
                     </div>
+                  </td>
+
+                  {/* Usuario */}
+                  <td style={{ padding: '9px 12px', fontSize: '11px', color: mutedColor, whiteSpace: 'nowrap' }}>
+                    {inc.agenteName ?? '—'}
                   </td>
 
                   {/* Tipo */}
@@ -325,7 +330,7 @@ export default function IncidentesPage() {
                   {/* Cluster */}
                   <td style={{ padding: '9px 12px' }}>
                     {inc.tiendaCluster
-                      ? <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 700, fontFamily: 'monospace', background: isDark ? 'rgba(255,255,255,0.1)' : 'var(--muted)', color: isDark ? 'rgba(255,255,255,0.7)' : 'var(--foreground)', letterSpacing: '0.05em' }}>{inc.tiendaCluster}</span>
+                      ? <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 700, fontFamily: 'monospace', background: 'var(--muted)', color: 'var(--foreground)', letterSpacing: '0.05em' }}>{inc.tiendaCluster}</span>
                       : <span style={{ color: mutedColor, fontSize: '10px' }}>—</span>
                     }
                   </td>

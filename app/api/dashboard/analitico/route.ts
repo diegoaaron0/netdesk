@@ -2,12 +2,12 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
+import { can } from '@/lib/permisos'
 
 export async function GET(req: Request) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  const rol = (session.user as any)?.rol
-  if (rol !== 'SUPERVISOR') return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
+  if (!can(session, 'dashboard.ver')) return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
 
   const { searchParams } = new URL(req.url)
   const desde = searchParams.get('desde') ?? new Date(Date.now() - 7 * 86400000).toISOString()

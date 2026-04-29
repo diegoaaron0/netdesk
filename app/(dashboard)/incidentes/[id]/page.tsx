@@ -7,6 +7,7 @@ import { CronometroPrincipal } from '@/components/incidentes/CronometroPrincipal
 import { CronometroEscalamiento } from '@/components/incidentes/CronometroEscalamiento'
 import { GuiaEscalamiento } from '@/components/incidentes/GuiaEscalamiento'
 import { AdjuntosZona } from '@/components/incidentes/AdjuntosZona'
+import { sessionPermisos } from '@/lib/permisos'
 
 const TIPO_LABELS: Record<string, string> = {
   CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia',
@@ -118,6 +119,8 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   const [showReopenModal, setShowReopenModal] = useState(false)
   const [reopenMotivo, setReopenMotivo] = useState('')
   const [reopening, setReopening] = useState(false)
+  const [escTimerEdits, setEscTimerEdits] = useState<Record<string, string>>({})
+  const [savingTimers, setSavingTimers] = useState(false)
 
   // Escalation
   const [showEscalarForm, setShowEscalarForm] = useState(false)
@@ -149,6 +152,16 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
 
   useEffect(() => { fetchInc() }, [fetchInc])
 
+  useEffect(() => {
+    if (!inc?.escalamientos) return
+    const edits: Record<string, string> = {}
+    for (const esc of inc.escalamientos) {
+      edits[`${esc.id}-envio`] = toDatetimeLocal(esc.horaEnvioCorreo) ?? ''
+      edits[`${esc.id}-resp`]  = toDatetimeLocal(esc.horaRespuesta) ?? ''
+    }
+    setEscTimerEdits(edits)
+  }, [inc])
+
   // Auto-fill escalation form when nivel changes
   useEffect(() => {
     if (!inc?.nivelesProveedor) return
@@ -176,6 +189,8 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
 
   const isClosed = ['RESUELTO', 'CANCELADO', 'CERRADO'].includes(inc.estado)
   const canManage = ['SUPERVISOR', 'GERENCIA', 'INFRAESTRUCTURA'].includes(userRol)
+  const canAdmin  = sessionPermisos(session).includes('admin')
+  const canBlockA = canAdmin || (canManage && supervisorEdit)
   const canEdit = !isClosed || (canManage && supervisorEdit)
 
   function setEdit(k: string, v: string) { setEditForm((f: any) => ({ ...f, [k]: v })) }
@@ -251,9 +266,28 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
     setTimeout(() => setCopiedCorreo(false), 2000)
   }
 
+  async function saveEscTimers() {
+    setSavingTimers(true)
+    for (const esc of [segundoEsc, tercerEsc].filter(Boolean)) {
+      const envio = escTimerEdits[`${esc.id}-envio`] ?? ''
+      const resp  = escTimerEdits[`${esc.id}-resp`]  ?? ''
+      await fetch(`/api/escalamientos/${esc.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          horaEnvioCorreo: envio ? fromDatetimeLocal(envio) : null,
+          horaRespuesta:   resp  ? fromDatetimeLocal(resp)  : null,
+        }),
+      })
+    }
+    setSavingTimers(false)
+    fetchInc()
+  }
+
   // Compute timers
-  const primerEsc = inc.escalamientos?.[0]
+  const primerEsc  = inc.escalamientos?.[0]
   const segundoEsc = inc.escalamientos?.[1]
+  const tercerEsc  = inc.escalamientos?.[2]
 
   // T2: exact Lima time of first email sent
   const horaCorreoT2 = primerEsc?.horaEnvioCorreo
@@ -372,7 +406,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 <FieldRow label="Tipo conexión"><ReadonlyVal value={inc.tiendaTipoConexion} /></FieldRow>
 
                 <FieldRow label="Nivel de impacto">
-                  {canManage && supervisorEdit ? (
+                  {canBlockA ? (
                     <select style={inputStyle()} value={editForm.nivelImpacto} onChange={e => setEdit('nivelImpacto', e.target.value)}>
                       {['CRITICO','ALTO','MEDIO','BAJO'].map(v => <option key={v} value={v}>{v}</option>)}
                     </select>
@@ -385,7 +419,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 </FieldRow>
 
                 <FieldRow label="Tipo">
-                  {canManage && supervisorEdit ? (
+                  {canBlockA ? (
                     <select style={inputStyle()} value={editForm.tipo} onChange={e => setEdit('tipo', e.target.value)}>
                       {Object.entries(TIPO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                     </select>
@@ -395,7 +429,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 </FieldRow>
 
                 <FieldRow label="Estado">
-                  {canManage && supervisorEdit ? (
+                  {canBlockA ? (
                     <select style={inputStyle()} value={editForm.estado} onChange={e => setEdit('estado', e.target.value)}>
                       {['ABIERTO','EN_SEGUIMIENTO','ESCALADO_N1','ESCALADO_N2','ESCALADO_N3','RESUELTO','CERRADO','CANCELADO'].map(v => <option key={v} value={v}>{v.replace(/_/g,' ')}</option>)}
                     </select>
@@ -405,7 +439,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 </FieldRow>
 
                 <FieldRow label="Usuarios">
-                  {canManage && supervisorEdit ? (
+                  {canBlockA ? (
                     <input style={inputStyle()} value={editForm.usuariosAfectados} onChange={e => setEdit('usuariosAfectados', e.target.value)} placeholder="N.º usuarios afectados" />
                   ) : (
                     <ReadonlyVal value={inc.usuariosAfectados ?? '—'} />
@@ -413,7 +447,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 </FieldRow>
 
                 <FieldRow label="Descripción inicial">
-                  {canManage && supervisorEdit ? (
+                  {canBlockA ? (
                     <textarea style={textareaStyle()} value={editForm.descripcionInicial} onChange={e => setEdit('descripcionInicial', e.target.value)} placeholder="Descripción del incidente..." />
                   ) : (
                     <ReadonlyVal value={inc.descripcionInicial ?? '—'} />
@@ -432,7 +466,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 <FieldRow label="Registrado por"><ReadonlyVal value={inc.agenteNombre} /></FieldRow>
 
                 <FieldRow label="Hora registro">
-                  {canManage && supervisorEdit ? (
+                  {canBlockA ? (
                     <input type="datetime-local" style={inputStyle()} value={editForm.horaRegistro} onChange={e => setEdit('horaRegistro', e.target.value)} />
                   ) : (
                     <ReadonlyVal value={new Date(inc.horaRegistro).toLocaleString('es-PE', { timeZone: 'America/Lima' })} />
@@ -440,7 +474,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 </FieldRow>
 
                 <FieldRow label="Hora fin">
-                  {canManage && supervisorEdit ? (
+                  {canBlockA ? (
                     <input type="datetime-local" style={inputStyle()} value={editForm.horaFin} onChange={e => setEdit('horaFin', e.target.value)} />
                   ) : (
                     <ReadonlyVal value={inc.horaFin ? new Date(inc.horaFin).toLocaleString('es-PE', { timeZone: 'America/Lima' }) : '—'} />
@@ -463,6 +497,33 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                       <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 500, color: t.value === '—' ? 'var(--muted-foreground)' : 'var(--foreground)' }}>{t.value}</span>
                     </div>
                   ))}
+                  {canAdmin && (segundoEsc || tercerEsc) && (
+                    <>
+                      <div style={{ borderTop: '0.5px solid var(--border)', margin: '8px 0 6px' }} />
+                      {([
+                        segundoEsc ? { escId: segundoEsc.id, label: '2do correo enviado', field: 'envio' } : null,
+                        segundoEsc ? { escId: segundoEsc.id, label: 'Respuesta N2',        field: 'resp'  } : null,
+                        tercerEsc  ? { escId: tercerEsc.id,  label: '3er correo enviado', field: 'envio' } : null,
+                        tercerEsc  ? { escId: tercerEsc.id,  label: 'Respuesta N3',        field: 'resp'  } : null,
+                      ].filter(Boolean) as { escId: string; label: string; field: string }[]).map(row => (
+                        <div key={`${row.escId}-${row.field}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px', gap: '8px' }}>
+                          <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', flexShrink: 0 }}>{row.label}</span>
+                          <input
+                            type="datetime-local"
+                            value={escTimerEdits[`${row.escId}-${row.field}`] ?? ''}
+                            onChange={e => setEscTimerEdits(p => ({ ...p, [`${row.escId}-${row.field}`]: e.target.value }))}
+                            style={{ fontSize: '10px', border: '0.5px solid var(--border)', borderRadius: '4px', background: 'var(--card)', color: 'var(--foreground)', padding: '2px 4px', maxWidth: '160px' }}
+                          />
+                        </div>
+                      ))}
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+                        <button onClick={saveEscTimers} disabled={savingTimers}
+                          style={{ padding: '3px 10px', fontSize: '10px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                          {savingTimers ? '...' : 'Guardar tiempos'}
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -490,7 +551,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               <AdjuntosZona incidenteId={id} disabled={!canEdit} />
             </div>
 
-            {canEdit && (
+            {(canEdit || canBlockA) && (
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
                 <button onClick={handleSave} disabled={saving} style={{ ...btnBase, background: 'hsl(221,83%,23%)', color: 'white' }}>
                   {saving ? 'Guardando...' : 'Guardar cambios'}

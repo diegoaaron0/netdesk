@@ -445,8 +445,8 @@ function AnaliticoView({ ana, loading, period, setPeriod, customDesde, customHas
                       <tr key={t.codigo ?? idx} style={{ borderTop: idx > 0 ? '0.5px solid var(--border)' : 'none' }}>
                         <td style={{ padding: '7px 8px', fontSize: '11px', color, fontWeight: 600 }}>{idx + 1}</td>
                         <td style={{ padding: '7px 8px' }}>
-                          <div style={{ fontSize: '11px', fontWeight: 500 }}>{t.nombre}</div>
-                          <div style={{ fontSize: '9px', color: 'var(--muted-foreground)' }}>{t.distrito}</div>
+                          <div style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: 700, lineHeight: 1 }}>{t.codigo}</div>
+                          <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{t.nombre} · {t.distrito}</div>
                         </td>
                         <td style={{ padding: '7px 8px', fontSize: '12px', fontWeight: 600 }}>{t.total}</td>
                         <td style={{ padding: '7px 8px', fontSize: '11px', fontFamily: 'monospace' }}>{t.mttr_avg ? `${t.mttr_avg}m` : '—'}</td>

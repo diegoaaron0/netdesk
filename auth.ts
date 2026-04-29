@@ -20,17 +20,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!user || !user.activo) return null
         const stored = user.password ?? 'soporte123'
         if (stored !== credentials.password) return null
-        return { id: user.id, name: user.nombre, email: user.email, rol: user.rol }
+        return { id: user.id, name: user.nombre, email: user.email, rol: user.rol, permisos: user.permisos ?? null }
       },
     }),
   ],
   callbacks: {
     async jwt({ token, user }) {
-      if (user) token.rol = (user as any).rol
+      if (user) {
+        token.rol     = (user as any).rol
+        token.permisos = (user as any).permisos ?? null
+      }
       return token
     },
     async session({ session, token }) {
-      if (session.user) (session.user as any).rol = token.rol
+      if (session.user) {
+        ;(session.user as any).rol     = token.rol
+        ;(session.user as any).permisos = token.permisos ?? null
+      }
       return session
     },
   },

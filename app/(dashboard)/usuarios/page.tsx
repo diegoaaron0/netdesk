@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
+import { PERMISOS_POR_ROL } from '@/lib/permisos'
 
 const ROL_COLORS: Record<string, { bg: string; color: string }> = {
   AGENTE:          { bg: '#f3f4f6', color: '#374151' },
@@ -48,34 +49,13 @@ const PERMISOS_GRUPOS = [
       { key: 'reportes.ver',  label: 'Ver reportes' },
     ],
   },
+  {
+    key: 'ADMINISTRACIÓN',
+    items: [
+      { key: 'admin', label: 'Editor bloque A — identificación y tiempos' },
+    ],
+  },
 ]
-
-const PERMISOS_POR_ROL: Record<string, string[]> = {
-  AGENTE: [
-    'incidentes.ver', 'incidentes.crear', 'incidentes.editar',
-    'escalamientos.ver', 'escalamientos.crear',
-    'mantenimiento.ver',
-  ],
-  SUPERVISOR: [
-    'incidentes.ver', 'incidentes.crear', 'incidentes.editar', 'incidentes.eliminar',
-    'escalamientos.ver', 'escalamientos.crear', 'escalamientos.editar',
-    'mantenimiento.ver', 'mantenimiento.editar',
-    'usuarios.ver', 'usuarios.editar',
-    'dashboard.ver', 'reportes.ver',
-  ],
-  GERENCIA: [
-    'incidentes.ver',
-    'escalamientos.ver',
-    'mantenimiento.ver',
-    'dashboard.ver', 'reportes.ver',
-  ],
-  INFRAESTRUCTURA: [
-    'incidentes.ver', 'incidentes.crear', 'incidentes.editar',
-    'escalamientos.ver', 'escalamientos.crear', 'escalamientos.editar',
-    'mantenimiento.ver', 'mantenimiento.editar',
-    'dashboard.ver', 'reportes.ver',
-  ],
-}
 
 const BLANK = {
   nombre: '', apellido: '', email: '', celular: '',
@@ -135,6 +115,12 @@ export default function UsuariosPage() {
     }
     setSaving(false)
     setModal(m => ({ ...m, open: false }))
+    fetchUsuarios()
+  }
+
+  async function handleDelete(u: any) {
+    if (!confirm(`¿Eliminar al usuario "${u.nombre}"? Esta acción no se puede deshacer.`)) return
+    await fetch(`/api/usuarios/${u.id}`, { method: 'DELETE' })
     fetchUsuarios()
   }
 
@@ -211,12 +197,23 @@ export default function UsuariosPage() {
                     </button>
                   </td>
                   <td style={{ padding: '10px 14px' }}>
-                    <button onClick={() => openEdit(u)}
-                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted-foreground)', fontSize: '13px', padding: '3px 7px', borderRadius: '5px' }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--muted)' }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}>
-                      ✏
-                    </button>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <button onClick={() => openEdit(u)}
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted-foreground)', fontSize: '13px', padding: '3px 7px', borderRadius: '5px' }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--muted)' }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}>
+                        ✏
+                      </button>
+                      {myRol === 'SUPERVISOR' && (
+                        <button onClick={() => handleDelete(u)}
+                          title="Eliminar usuario"
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#dc2626', fontSize: '13px', padding: '3px 7px', borderRadius: '5px' }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(220,38,38,0.08)' }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}>
+                          🗑
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               )
