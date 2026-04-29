@@ -3,27 +3,28 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
+import { getPermisos } from '@/lib/permisos'
 
 const NAV = [
   {
     section: 'Operación',
     items: [
-      { href: '/incidentes',       label: 'Incidentes',        dot: '#378ADD', roles: ['AGENTE','SUPERVISOR','GERENCIA','INFRAESTRUCTURA'] },
-      { href: '/incidentes/nuevo', label: '+ Nuevo incidente', dot: 'rgba(255,255,255,0.15)', roles: ['AGENTE','SUPERVISOR','INFRAESTRUCTURA'] },
+      { href: '/incidentes',       label: 'Incidentes',        dot: '#378ADD',               permiso: 'incidentes.ver' },
+      { href: '/incidentes/nuevo', label: '+ Nuevo incidente', dot: 'rgba(255,255,255,0.15)', permiso: 'incidentes.crear' },
     ],
   },
   {
     section: 'Análisis',
     items: [
-      { href: '/dashboard', label: 'Dashboard', dot: '#1D9E75', roles: ['SUPERVISOR','GERENCIA','INFRAESTRUCTURA'] },
-      { href: '/reportes',  label: 'Reportes',  dot: '#7F77DD', roles: ['SUPERVISOR','GERENCIA','INFRAESTRUCTURA'] },
+      { href: '/dashboard', label: 'Dashboard', dot: '#1D9E75', permiso: 'dashboard.ver' },
+      { href: '/reportes',  label: 'Reportes',  dot: '#7F77DD', permiso: 'reportes.ver' },
     ],
   },
   {
     section: 'Configuración',
     items: [
-      { href: '/mantenimiento', label: 'Mantenimiento', dot: '#F59E0B', roles: ['AGENTE','SUPERVISOR','GERENCIA','INFRAESTRUCTURA'] },
-      { href: '/usuarios',      label: 'Usuarios',      dot: '#A78BFA', roles: ['SUPERVISOR'] },
+      { href: '/mantenimiento', label: 'Mantenimiento', dot: '#F59E0B', permiso: 'mantenimiento.ver' },
+      { href: '/usuarios',      label: 'Usuarios',      dot: '#A78BFA', permiso: 'usuarios.ver' },
     ],
   },
 ]
@@ -34,11 +35,10 @@ function initials(name: string) {
 
 export default function Sidebar({ serverRol, serverName }: { serverRol?: string; serverName?: string }) {
   const pathname = usePathname()
-  const { data: session, status } = useSession()
+  const { data: session } = useSession()
   const userRol  = serverRol ?? (session?.user as any)?.rol ?? 'AGENTE'
   const userName = serverName ?? session?.user?.name ?? ''
-
-  console.log('[Sidebar] status:', status, '| serverRol:', serverRol, '| sessionRol:', (session?.user as any)?.rol, '| effective:', userRol)
+  const permisos = getPermisos(session)
 
   return (
     <aside style={{ width: '192px', height: '100vh', background: '#0d1117', display: 'flex', flexDirection: 'column', flexShrink: 0, position: 'fixed', top: 0, left: 0, zIndex: 50, overflowY: 'auto' }}>
@@ -54,7 +54,7 @@ export default function Sidebar({ serverRol, serverName }: { serverRol?: string;
             <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.22)', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '10px 16px 3px' }}>
               {group.section}
             </div>
-            {group.items.filter(item => item.roles.includes(userRol)).map(item => {
+            {group.items.filter(item => permisos.includes(item.permiso)).map(item => {
               const isActive = pathname === item.href
               return (
                 <Link key={item.href} href={item.href} style={{

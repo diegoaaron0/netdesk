@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
-import { PERMISOS_POR_ROL } from '@/lib/permisos'
+import { PERMISOS_POR_ROL, can } from '@/lib/permisos'
 
 const ROL_COLORS: Record<string, { bg: string; color: string }> = {
   AGENTE:          { bg: '#f3f4f6', color: '#374151' },
@@ -15,44 +15,42 @@ const PERMISOS_GRUPOS = [
     key: 'INCIDENTES',
     items: [
       { key: 'incidentes.ver',      label: 'Ver incidentes' },
-      { key: 'incidentes.crear',    label: 'Crear incidentes' },
-      { key: 'incidentes.editar',   label: 'Editar incidentes' },
-      { key: 'incidentes.eliminar', label: 'Eliminar incidentes' },
+      { key: 'incidentes.crear',    label: 'Registrar nuevo incidente' },
+      { key: 'incidentes.reabrir',  label: 'Reabrir incidentes cerrados' },
+      { key: 'incidentes.editar',   label: 'Editar incidentes ajenos' },
+      { key: 'incidentes.eliminar', label: 'Eliminar incidentes cancelados' },
     ],
   },
   {
     key: 'ESCALAMIENTOS',
     items: [
-      { key: 'escalamientos.ver',    label: 'Ver escalamientos' },
-      { key: 'escalamientos.crear',  label: 'Crear escalamientos' },
-      { key: 'escalamientos.editar', label: 'Editar escalamientos' },
+      { key: 'escalamientos.crear',    label: 'Escalar incidente' },
+      { key: 'escalamientos.envio',    label: 'Registrar envío de correo' },
+      { key: 'escalamientos.respuesta', label: 'Registrar respuesta proveedor' },
     ],
   },
   {
     key: 'MANTENIMIENTO',
     items: [
-      { key: 'mantenimiento.ver',    label: 'Ver mantenimiento' },
-      { key: 'mantenimiento.editar', label: 'Editar tiendas' },
+      { key: 'mantenimiento.ver',     label: 'Ver módulo mantenimiento' },
+      { key: 'mantenimiento.editar',  label: 'Editar datos de tiendas' },
+      { key: 'mantenimiento.agregar', label: 'Agregar nueva tienda' },
     ],
   },
   {
     key: 'USUARIOS',
     items: [
-      { key: 'usuarios.ver',    label: 'Ver usuarios' },
-      { key: 'usuarios.editar', label: 'Editar usuarios' },
+      { key: 'usuarios.ver',    label: 'Ver módulo usuarios' },
+      { key: 'usuarios.editar', label: 'Editar datos de usuarios' },
+      { key: 'usuarios.crear',  label: 'Crear nuevos usuarios' },
     ],
   },
   {
-    key: 'DASHBOARD & REPORTES',
+    key: 'ANÁLISIS',
     items: [
-      { key: 'dashboard.ver', label: 'Ver dashboard' },
-      { key: 'reportes.ver',  label: 'Ver reportes' },
-    ],
-  },
-  {
-    key: 'ADMINISTRACIÓN',
-    items: [
-      { key: 'admin', label: 'Editor bloque A — identificación y tiempos' },
+      { key: 'dashboard.ver',     label: 'Ver dashboard operativo' },
+      { key: 'reportes.ver',      label: 'Ver reportes' },
+      { key: 'reportes.exportar', label: 'Exportar CSV' },
     ],
   },
 ]
@@ -75,6 +73,8 @@ function inputStyle(): React.CSSProperties {
 export default function UsuariosPage() {
   const { data: session } = useSession()
   const myRol = (session?.user as any)?.rol ?? 'AGENTE'
+  const canEdit = can(session, 'usuarios.editar')
+  const canCreate = can(session, 'usuarios.crear')
 
   const [usuarios, setUsuarios] = useState<any[]>([])
   const [modal, setModal] = useState<{ open: boolean; data: any; isNew: boolean }>({ open: false, data: BLANK, isNew: false })
@@ -107,7 +107,17 @@ export default function UsuariosPage() {
 
   async function handleSave() {
     setSaving(true)
-    const body = { ...modal.data, cluster: modal.data.cluster || null }
+    const defaultPerms = PERMISOS_POR_ROL[modal.data.rol] ?? []
+    const currentPerms: string[] = modal.data.permisos ?? []
+    const esDefault =
+      defaultPerms.length === currentPerms.length &&
+      defaultPerms.every(p => currentPerms.includes(p)) &&
+      currentPerms.every(p => defaultPerms.includes(p))
+    const body = {
+      ...modal.data,
+      cluster: modal.data.cluster || null,
+      permisos: esDefault ? null : currentPerms,
+    }
     if (modal.isNew) {
       await fetch('/api/usuarios', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     } else {
@@ -116,6 +126,9 @@ export default function UsuariosPage() {
     setSaving(false)
     setModal(m => ({ ...m, open: false }))
     fetchUsuarios()
+    if (!esDefault && !modal.isNew) {
+      alert('Permisos personalizados guardados. El usuario debe cerrar sesión y volver a entrar para que los cambios tomen efecto.')
+    }
   }
 
   async function handleDelete(u: any) {
@@ -155,10 +168,12 @@ export default function UsuariosPage() {
           <h1 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Gestión de usuarios</h1>
           <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{usuarios.length} usuarios</div>
         </div>
-        <button onClick={openNew}
-          style={{ padding: '7px 14px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>
-          + Nuevo usuario
-        </button>
+        {canCreate && (
+          <button onClick={openNew}
+            style={{ padding: '7px 14px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>
+            + Nuevo usuario
+          </button>
+        )}
       </div>
 
       {/* Tabla */}
@@ -204,7 +219,7 @@ export default function UsuariosPage() {
                         onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}>
                         ✏
                       </button>
-                      {myRol === 'SUPERVISOR' && (
+                      {canEdit && (
                         <button onClick={() => handleDelete(u)}
                           title="Eliminar usuario"
                           style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#dc2626', fontSize: '13px', padding: '3px 7px', borderRadius: '5px' }}
@@ -267,8 +282,8 @@ export default function UsuariosPage() {
                 </select>
               </div>
 
-              {/* Permisos — solo SUPERVISOR puede ver y editar */}
-              {myRol === 'SUPERVISOR' && (
+              {/* Permisos — solo quien puede editar usuarios */}
+              {canEdit && (
                 <div style={{ marginBottom: '14px', padding: '12px', background: 'var(--muted)', borderRadius: '8px' }}>
                   <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
                     Permisos del sistema

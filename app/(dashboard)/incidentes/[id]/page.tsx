@@ -7,7 +7,7 @@ import { CronometroPrincipal } from '@/components/incidentes/CronometroPrincipal
 import { CronometroEscalamiento } from '@/components/incidentes/CronometroEscalamiento'
 import { GuiaEscalamiento } from '@/components/incidentes/GuiaEscalamiento'
 import { AdjuntosZona } from '@/components/incidentes/AdjuntosZona'
-import { sessionPermisos } from '@/lib/permisos'
+import { can } from '@/lib/permisos'
 
 const TIPO_LABELS: Record<string, string> = {
   CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia',
@@ -110,7 +110,6 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   const { id } = use(params)
   const router = useRouter()
   const { data: session } = useSession()
-  const userRol = (session?.user as any)?.rol ?? 'AGENTE'
 
   const [inc, setInc] = useState<any>(null)
   const [editForm, setEditForm] = useState<any>({})
@@ -187,11 +186,10 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
     </div>
   )
 
-  const isClosed = ['RESUELTO', 'CANCELADO', 'CERRADO'].includes(inc.estado)
-  const canManage = ['SUPERVISOR', 'GERENCIA', 'INFRAESTRUCTURA'].includes(userRol)
-  const canAdmin  = sessionPermisos(session).includes('admin')
-  const canBlockA = canAdmin || (canManage && supervisorEdit)
-  const canEdit = !isClosed || (canManage && supervisorEdit)
+  const isClosed  = ['RESUELTO', 'CANCELADO', 'CERRADO'].includes(inc.estado)
+  const canManage = can(session, 'incidentes.editar')
+  const canBlockA = canManage && supervisorEdit
+  const canEdit   = !isClosed || (canManage && supervisorEdit)
 
   function setEdit(k: string, v: string) { setEditForm((f: any) => ({ ...f, [k]: v })) }
 
@@ -497,7 +495,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                       <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 500, color: t.value === '—' ? 'var(--muted-foreground)' : 'var(--foreground)' }}>{t.value}</span>
                     </div>
                   ))}
-                  {canAdmin && (segundoEsc || tercerEsc) && (
+                  {canManage && supervisorEdit && (segundoEsc || tercerEsc) && (
                     <>
                       <div style={{ borderTop: '0.5px solid var(--border)', margin: '8px 0 6px' }} />
                       {([

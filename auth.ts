@@ -27,8 +27,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.rol     = (user as any).rol
-        token.permisos = (user as any).permisos ?? null
+        token.rol = (user as any).rol
+        // Traer permisos reales desde la BD en cada login
+        const [dbUser] = await db.select({ permisos: usuarios.permisos })
+          .from(usuarios).where(eq(usuarios.email, user.email!))
+        token.permisos = dbUser?.permisos ?? null
       }
       return token
     },

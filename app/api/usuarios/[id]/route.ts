@@ -3,13 +3,13 @@ import { db } from '@/lib/db'
 import { usuarios } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
 import { auth } from '@/auth'
+import { can } from '@/lib/permisos'
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  const rol = (session.user as any)?.rol
-  if (rol !== 'SUPERVISOR') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!can(session, 'usuarios.editar')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   await db.delete(usuarios).where(eq(usuarios.id, id))
   return NextResponse.json({ ok: true })
@@ -19,8 +19,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  const rol = (session.user as any)?.rol
-  if (rol !== 'SUPERVISOR') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!can(session, 'usuarios.editar')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const body = await req.json()
   const fields: any = {}
