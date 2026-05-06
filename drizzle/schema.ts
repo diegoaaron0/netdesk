@@ -77,8 +77,24 @@ export const tiendas = pgTable('tiendas', {
   administradorNombre:  text('administrador_nombre'),
   administradorEmail:   text('administrador_email'),
   administradorCelular: text('administrador_celular'),
-  perfilSupervisor:     text('perfil_supervisor'),
-  creadoEn:             timestamp('creado_en').defaultNow(),
+  perfilSupervisor:              text('perfil_supervisor'),
+  ventaHoraSoles:                numeric('venta_hora_soles'),
+  contingenciaActiva:            boolean('contingencia_activa').default(false),
+  contingenciaActivadaPor:       text('contingencia_activada_por'),
+  contingenciaDescripcion:       text('contingencia_descripcion'),
+  contingenciaFecha:             timestamp('contingencia_fecha'),
+  tipoPersonalizadoHabilitado:   boolean('tipo_personalizado_habilitado').default(false),
+  creadoEn:                      timestamp('creado_en').defaultNow(),
+})
+
+export const tiendasHistorial = pgTable('tiendas_historial', {
+  id:            uuid('id').primaryKey().defaultRandom(),
+  tiendaId:      uuid('tienda_id').references(() => tiendas.id),
+  usuarioId:     uuid('usuario_id').references(() => usuarios.id),
+  campoEditado:  text('campo_editado').notNull(),
+  valorAnterior: text('valor_anterior'),
+  valorNuevo:    text('valor_nuevo'),
+  editadoEn:     timestamp('editado_en').defaultNow(),
 })
 
 export const incidentes = pgTable('incidentes', {
@@ -133,7 +149,8 @@ export const adjuntos = pgTable('adjuntos', {
 })
 
 export const usuariosRelations = relations(usuarios, ({ many }) => ({
-  incidentes: many(incidentes),
+  incidentes:        many(incidentes),
+  tiendasHistorial:  many(tiendasHistorial),
 }))
 export const proveedoresRelations = relations(proveedores, ({ many }) => ({
   tiendas: many(tiendas),
@@ -145,6 +162,7 @@ export const nivelesRelations = relations(nivelesEscalamiento, ({ one }) => ({
 export const tiendasRelations = relations(tiendas, ({ one, many }) => ({
   proveedor:  one(proveedores, { fields: [tiendas.proveedorId], references: [proveedores.id] }),
   incidentes: many(incidentes),
+  historial:  many(tiendasHistorial),
 }))
 export const incidentesRelations = relations(incidentes, ({ one, many }) => ({
   tienda:        one(tiendas,  { fields: [incidentes.tiendaId],        references: [tiendas.id] }),
@@ -160,4 +178,8 @@ export const escalamientosRelations = relations(escalamientos, ({ one, many }) =
 export const adjuntosRelations = relations(adjuntos, ({ one }) => ({
   incidente:    one(incidentes,    { fields: [adjuntos.incidenteId],    references: [incidentes.id] }),
   escalamiento: one(escalamientos, { fields: [adjuntos.escalamientoId], references: [escalamientos.id] }),
+}))
+export const tiendasHistorialRelations = relations(tiendasHistorial, ({ one }) => ({
+  tienda:  one(tiendas,   { fields: [tiendasHistorial.tiendaId],  references: [tiendas.id] }),
+  usuario: one(usuarios,  { fields: [tiendasHistorial.usuarioId], references: [usuarios.id] }),
 }))
