@@ -18,7 +18,7 @@ export async function GET(req: Request) {
       i.id,
       i.tipo,
       i.estado,
-      i.impacto,
+      i.nivel_impacto,
       t.codigo AS tienda_codigo,
       t.nombre_cc AS tienda_nombre,
       t.distrito,
@@ -31,7 +31,7 @@ export async function GET(req: Request) {
     FROM incidentes i
     JOIN tiendas t ON i.tienda_id = t.id
     JOIN proveedores p ON t.proveedor_id = p.id
-    LEFT JOIN usuarios u ON i.agente_id = u.id
+    LEFT JOIN usuarios u ON i.registrado_por_id = u.id
     WHERE i.hora_registro >= ${desde}::timestamptz AND i.hora_registro < ${hasta}::timestamptz
     ORDER BY i.hora_registro DESC
   `)
@@ -53,7 +53,7 @@ export async function GET(req: Request) {
     headers.join(','),
     ...(rows as any[]).map(r =>
       [
-        r.id, r.tipo, r.estado, r.impacto,
+        r.id, r.tipo, r.estado, r.nivel_impacto,
         r.tienda_codigo, r.tienda_nombre, r.distrito, r.proveedor,
         r.agente, r.hora_registro, r.hora_fin, r.mttr_minutos, r.ticket_invgate,
       ].map(escape).join(',')

@@ -117,6 +117,8 @@ export const incidentes = pgTable('incidentes', {
   mttrMinutos:           integer('mttr_minutos'),
   observaciones:         text('observaciones'),
   reabiertaInfo:         text('reabrierta_info'),
+  proveedorId:           uuid('proveedor_id').references(() => proveedores.id),
+  tipoPersonalizado:     text('tipo_personalizado'),
   actualizadoEn:         timestamp('actualizado_en').defaultNow(),
 })
 

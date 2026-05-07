@@ -406,7 +406,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 <FieldRow label="Nivel de impacto">
                   {canBlockA ? (
                     <select style={inputStyle()} value={editForm.nivelImpacto} onChange={e => setEdit('nivelImpacto', e.target.value)}>
-                      {['CRITICO','ALTO','MEDIO','BAJO'].map(v => <option key={v} value={v}>{v}</option>)}
+                      {['ALTO','MEDIO','BAJO'].map(v => <option key={v} value={v}>{v}</option>)}
                     </select>
                   ) : (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '4px' }}>
