@@ -23,7 +23,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    fetch('/api/usuarios').then(r => r.json()).then(setUsuarios)
+    fetch('/api/usuarios/publico').then(r => r.json()).then(setUsuarios)
   }, [])
 
   async function handleLogin(e: React.FormEvent) {
