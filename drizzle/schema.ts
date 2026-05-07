@@ -167,8 +167,9 @@ export const tiendasRelations = relations(tiendas, ({ one, many }) => ({
   historial:  many(tiendasHistorial),
 }))
 export const incidentesRelations = relations(incidentes, ({ one, many }) => ({
-  tienda:        one(tiendas,  { fields: [incidentes.tiendaId],        references: [tiendas.id] }),
-  registradoPor: one(usuarios, { fields: [incidentes.registradoPorId], references: [usuarios.id] }),
+  tienda:        one(tiendas,     { fields: [incidentes.tiendaId],      references: [tiendas.id] }),
+  registradoPor: one(usuarios,    { fields: [incidentes.registradoPorId], references: [usuarios.id] }),
+  proveedor:     one(proveedores, { fields: [incidentes.proveedorId],   references: [proveedores.id] }),
   escalamientos: many(escalamientos),
   adjuntos:      many(adjuntos),
 }))
