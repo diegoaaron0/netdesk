@@ -1,18 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { incidentes } from '@/drizzle/schema'
+import { incidentes, usuarios } from '@/drizzle/schema'
 import { eq, desc } from 'drizzle-orm'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const data = await db.select({
-    id: incidentes.id,
-    codigo: incidentes.codigo,
-    tipo: incidentes.tipo,
-    estado: incidentes.estado,
+    id:           incidentes.id,
+    codigo:       incidentes.codigo,
+    tipo:         incidentes.tipo,
+    estado:       incidentes.estado,
     horaRegistro: incidentes.horaRegistro,
+    horaFin:      incidentes.horaFin,
+    mttrMinutos:  incidentes.mttrMinutos,
+    agenteName:   usuarios.nombre,
   })
     .from(incidentes)
+    .leftJoin(usuarios, eq(incidentes.registradoPorId, usuarios.id))
     .where(eq(incidentes.tiendaId, id))
     .orderBy(desc(incidentes.horaRegistro))
     .limit(5)

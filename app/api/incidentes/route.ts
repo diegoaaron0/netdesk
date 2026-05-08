@@ -86,6 +86,9 @@ export async function POST(req: NextRequest) {
   const [user] = await db.select({ id: usuarios.id }).from(usuarios).where(eq(usuarios.email, session.user!.email!))
   if (!user) return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 })
 
+  const [tiendaRow] = await db.select({ proveedorId: tiendas.proveedorId })
+    .from(tiendas).where(eq(tiendas.id, body.tiendaId))
+
   const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(incidentes)
   const seq = String(Number(count) + 1).padStart(5, '0')
   const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
@@ -106,6 +109,8 @@ export async function POST(req: NextRequest) {
     usuariosAfectados:     body.usuariosAfectados ?? null,
     descripcionInicial:    body.descripcionInicial ?? null,
     tipo:                  body.tipo,
+    tipoPersonalizado:     body.tipoPersonalizado ?? null,
+    proveedorId:           tiendaRow?.proveedorId ?? null,
     estado:                body.estado ?? 'ABIERTO',
     ticketProveedor:       body.ticketProveedor ?? null,
     descartesRealizados:   body.descartesRealizados ?? null,

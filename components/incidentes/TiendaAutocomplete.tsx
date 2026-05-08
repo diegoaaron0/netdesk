@@ -21,6 +21,7 @@ export interface Tienda {
   tipoConexion: string | null
   cidServicio: string | null
   instruccionReporte: string | null
+  administradorCelular: string | null
   proveedor: {
     nombre: string
     instruccionGeneral: string | null
