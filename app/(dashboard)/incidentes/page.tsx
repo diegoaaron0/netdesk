@@ -3,7 +3,6 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Badge, estadoToVariant, impactoToVariant } from '@/components/ui/Badge'
-import { MetricCard } from '@/components/ui/MetricCard'
 
 function tiempoTranscurrido(desde: string | Date, hasta?: string | Date | null) {
   const ms = (hasta ? new Date(hasta).getTime() : Date.now()) - new Date(desde).getTime()
@@ -12,8 +11,8 @@ function tiempoTranscurrido(desde: string | Date, hasta?: string | Date | null) 
   return h > 0 ? `${h}h ${m}m` : `${m}m`
 }
 
-function limaDateStr(offsetDays = 0): string {
-  return new Date(Date.now() - 5 * 3600000 + offsetDays * 86400000).toISOString().slice(0, 10)
+function limaToday(): string {
+  return new Date(Date.now() - 5 * 3600000).toISOString().slice(0, 10)
 }
 
 const TIPO_LABELS: Record<string, string> = {
@@ -21,68 +20,81 @@ const TIPO_LABELS: Record<string, string> = {
   LENTITUD: 'Lentitud', POS: 'POS', OTROS: 'Otros',
 }
 
-type QuickFilter = 'hoy' | 'ayer' | '7dias'
+const OPEN_ESTADOS = ['ABIERTO', 'EN_SEGUIMIENTO', 'ESCALADO_N1', 'ESCALADO_N2', 'ESCALADO_N3']
+const CLOSED_ESTADOS = ['RESUELTO', 'CANCELADO', 'CERRADO']
+
+function sortIncidentes(items: any[]): any[] {
+  const overdue     = items.filter(i => i.isOverdue).sort((a, b) => new Date(a.horaRegistro).getTime() - new Date(b.horaRegistro).getTime())
+  const openRegular = items.filter(i => !i.isOverdue && OPEN_ESTADOS.includes(i.estado)).sort((a, b) => new Date(b.horaRegistro).getTime() - new Date(a.horaRegistro).getTime())
+  const closed      = items.filter(i => !i.isOverdue && !OPEN_ESTADOS.includes(i.estado)).sort((a, b) => new Date(b.horaRegistro).getTime() - new Date(a.horaRegistro).getTime())
+  return [...overdue, ...openRegular, ...closed]
+}
+
+// SVG icons
+const IconAbiertos = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#378ADD" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="4" width="20" height="16" rx="2"/><path d="M8 2v4M16 2v4M2 10h20"/>
+  </svg>
+)
+const IconEscalados = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C2600A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+  </svg>
+)
+const IconResueltos = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#27500A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+  </svg>
+)
+const IconTrash = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+  </svg>
+)
 
 export default function IncidentesPage() {
-  const router = useRouter()
+  const router   = useRouter()
   const { data: session } = useSession()
-  const userRol = (session?.user as any)?.rol ?? 'AGENTE'
+  const userRol  = (session?.user as any)?.rol ?? 'AGENTE'
+  const today    = limaToday()
 
-  const [data, setData]               = useState<any[]>([])
-  const [agentes, setAgentes]         = useState<any[]>([])
-  const [myId, setMyId]               = useState<string | null>(null)
-  const [quickFilter, setQuickFilter] = useState<QuickFilter>('hoy')
-  const [fechaCustom, setFechaCustom] = useState('')
-  const [estado, setEstado]           = useState('')
-  const [agente, setAgente]           = useState('')
+  const [data, setData]                       = useState<any[]>([])
+  const [agentes, setAgentes]                 = useState<any[]>([])
+  const [proveedoresList, setProveedoresList] = useState<any[]>([])
+  const [myId, setMyId]                       = useState<string | null>(null)
+
+  const [fechaDesde, setFechaDesde]           = useState(today)
+  const [fechaHasta, setFechaHasta]           = useState(today)
+  const [estado, setEstado]                   = useState('')
+  const [agente, setAgente]                   = useState('')
   const [filtroProveedor, setFiltroProveedor] = useState('')
-  const [misRegistros, setMisRegistros] = useState(false)
-  const [q, setQ]                     = useState('')
-  const [debouncedQ, setDebouncedQ]   = useState('')
-  const [, setTick]                   = useState(0)
+  const [misRegistros, setMisRegistros]       = useState(false)
+  const [q, setQ]                             = useState('')
+  const [debouncedQ, setDebouncedQ]           = useState('')
+  const [page, setPage]                       = useState(1)
+  const [perPage]                             = useState(20)
+  const [, setTick]                           = useState(0)
 
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedQ(q), 300)
-    return () => clearTimeout(t)
-  }, [q])
-
-  useEffect(() => {
-    const id = setInterval(() => setTick(t => t + 1), 30000)
-    return () => clearInterval(id)
-  }, [])
+  useEffect(() => { const t = setTimeout(() => setDebouncedQ(q), 300); return () => clearTimeout(t) }, [q])
+  useEffect(() => { const id = setInterval(() => setTick(t => t + 1), 30000); return () => clearInterval(id) }, [])
 
   const fetchData = useCallback(async () => {
     const params = new URLSearchParams()
-    if (estado)   params.set('estado', estado)
-    if (agente)   params.set('agente', agente)
-
-    if (fechaCustom) {
-      params.set('fechaDesde', fechaCustom)
-      params.set('fechaHasta', fechaCustom)
-    } else {
-      const today = limaDateStr()
-      if (quickFilter === 'hoy') {
-        params.set('fechaDesde', today)
-        params.set('fechaHasta', today)
-      } else if (quickFilter === 'ayer') {
-        const ayer = limaDateStr(-1)
-        params.set('fechaDesde', ayer)
-        params.set('fechaHasta', ayer)
-      } else {
-        params.set('fechaDesde', limaDateStr(-6))
-        params.set('fechaHasta', today)
-      }
-    }
-
+    if (estado) params.set('estado', estado)
+    if (agente) params.set('agente', agente)
+    params.set('fechaDesde', fechaDesde)
+    params.set('fechaHasta', fechaHasta)
     const res  = await fetch(`/api/incidentes?${params}`)
     const rows = await res.json()
     setData(Array.isArray(rows) ? rows : [])
-  }, [estado, agente, quickFilter, fechaCustom])
+    setPage(1)
+  }, [estado, agente, fechaDesde, fechaHasta])
 
   useEffect(() => { fetchData() }, [fetchData])
 
   useEffect(() => {
-    fetch('/api/usuarios').then(r => r.json()).then((list: any[]) => {
+    fetch('/api/usuarios/publico').then(r => r.json()).then((list: any[]) => {
+      if (!Array.isArray(list)) return
       setAgentes(list)
       const email = (session?.user as any)?.email
       if (email) {
@@ -92,9 +104,17 @@ export default function IncidentesPage() {
     })
   }, [session?.user])
 
-  function handleQuickFilter(f: QuickFilter) {
-    setQuickFilter(f)
-    setFechaCustom('')
+  useEffect(() => {
+    fetch('/api/proveedores').then(r => r.json()).then((list: any[]) => {
+      if (Array.isArray(list)) setProveedoresList(list)
+    })
+  }, [])
+
+  function clearFilters() {
+    const t = limaToday()
+    setFechaDesde(t); setFechaHasta(t)
+    setEstado(''); setAgente(''); setFiltroProveedor('')
+    setMisRegistros(false); setQ(''); setPage(1)
   }
 
   async function handleDelete(e: React.MouseEvent, incId: string) {
@@ -104,189 +124,202 @@ export default function IncidentesPage() {
     fetchData()
   }
 
-  const overdue = data.filter(i => i.isOverdue)
-  const regular = data.filter(i => !i.isOverdue)
-
-  // Unique proveedores from loaded data
-  const proveedoresUnicos = Array.from(new Set(data.map(i => i.proveedorNombre).filter(Boolean))).sort()
-
-  const applyFilters = (items: any[]) => {
-    let result = items
-    if (misRegistros && myId) result = result.filter(i => i.agenteId === myId)
-    if (filtroProveedor) result = result.filter(i => i.proveedorNombre === filtroProveedor)
+  // Filter + sort
+  const filtered = sortIncidentes(data).filter(inc => {
+    if (misRegistros && myId && inc.agenteId !== myId) return false
+    if (filtroProveedor && inc.proveedorNombre !== filtroProveedor) return false
     if (debouncedQ) {
-      const sq = debouncedQ.toLowerCase()
-      result = result.filter(i =>
-        i.codigo?.toLowerCase().includes(sq) ||
-        i.tiendaCodigo?.toLowerCase().includes(sq) ||
-        i.tiendaNombre?.toLowerCase().includes(sq)
-      )
+      const sq = debouncedQ.toLowerCase().replace('#', '')
+      if (
+        !inc.codigo?.toLowerCase().includes(sq) &&
+        !inc.tiendaCodigo?.toLowerCase().includes(sq) &&
+        !inc.tiendaNombre?.toLowerCase().includes(sq) &&
+        !inc.ticketInvgate?.toLowerCase().includes(sq)
+      ) return false
     }
-    return result
-  }
-
-  const filteredOverdue = applyFilters(overdue)
-  const filteredRegular = applyFilters(regular)
-  const allFiltered     = [...filteredOverdue, ...filteredRegular]
-
-  const abiertos    = data.filter(i => i.estado === 'ABIERTO' || i.estado === 'EN_SEGUIMIENTO').length
-  const escalados   = data.filter(i => i.estado?.startsWith('ESCALADO')).length
-  const resueltosHoy = regular.filter(i => {
-    if (i.estado !== 'RESUELTO' || !i.horaFin) return false
-    const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
-    return new Date(i.horaFin) >= hoy
-  }).length
-  const conMttr = regular.filter(i => i.mttrMinutos)
-  const mttrAvg = conMttr.length > 0
-    ? Math.round(conMttr.reduce((s: number, i: any) => s + i.mttrMinutos, 0) / conMttr.length)
-    : 0
-
-  const qBtnStyle = (active: boolean): React.CSSProperties => ({
-    padding: '6px 12px', fontSize: '12px', fontWeight: active ? 600 : 400,
-    border: active ? 'none' : '0.5px solid var(--border)',
-    borderRadius: '8px', cursor: 'pointer',
-    background: active ? 'hsl(221,83%,23%)' : 'var(--card)',
-    color: active ? 'white' : 'var(--foreground)', outline: 'none',
-    whiteSpace: 'nowrap' as const,
+    return true
   })
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage))
+  const paginated  = filtered.slice((page - 1) * perPage, page * perPage)
+
+  // Metrics (over full data, not filtered)
+  const abiertos  = data.filter(i => OPEN_ESTADOS.includes(i.estado)).length
+  const escalados = data.filter(i => i.estado?.startsWith('ESCALADO')).length
+  const resueltos = data.filter(i => i.estado === 'RESUELTO').length
+
   const selStyle: React.CSSProperties = {
-    padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)',
+    padding: '6px 10px', fontSize: '12px', border: '1px solid var(--border)',
     borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none',
+  }
+  const inputStyle: React.CSSProperties = {
+    ...selStyle, minWidth: '260px', flex: 1,
   }
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <h1 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--foreground)', margin: 0 }}>Incidentes</h1>
-          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>
-            {allFiltered.length} registros
-            {overdue.length > 0 && (
-              <span style={{ color: '#dc2626', fontWeight: 600 }}>
-                {' · '}{overdue.length} vencido{overdue.length > 1 ? 's' : ''} sin cerrar
-              </span>
-            )}
-          </div>
+          <h1 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--foreground)', margin: 0, lineHeight: 1.2 }}>Incidentes</h1>
+          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '3px' }}>Resumen y listado de incidentes</div>
         </div>
-        <button onClick={() => router.push('/incidentes/nuevo')}
-          style={{ padding: '7px 14px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>
+        <button
+          onClick={() => router.push('/incidentes/nuevo')}
+          style={{
+            padding: '9px 20px', background: 'hsl(221,83%,45%)', color: 'white',
+            border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
+            boxShadow: '0 1px 3px rgba(59,130,246,0.3)',
+          }}>
           + Nuevo incidente
         </button>
       </div>
 
       {/* Métricas */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '16px' }}>
-        <MetricCard label="Abiertos" value={abiertos} valueColor={abiertos > 0 ? '#185FA5' : undefined} />
-        <MetricCard label="Escalados" value={escalados} valueColor={escalados > 0 ? '#854F0B' : undefined} />
-        <MetricCard label="Resueltos hoy" value={resueltosHoy} valueColor="#27500A" />
-        <MetricCard label="MTTR promedio" value={mttrAvg > 0 ? `${mttrAvg}m` : '—'} sub="minutos" />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+        {[
+          { label: 'Abiertos', value: abiertos, color: '#185FA5', sub: 'incidentes', icon: <IconAbiertos /> },
+          { label: 'Escalados', value: escalados, color: '#854F0B', sub: 'incidentes', icon: <IconEscalados /> },
+          { label: 'Resueltos', value: resueltos, color: '#27500A', sub: 'incidentes', icon: <IconResueltos /> },
+        ].map(m => (
+          <div key={m.label} style={{ background: 'var(--card)', borderRadius: '10px', padding: '14px 16px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              {m.icon}
+            </div>
+            <div>
+              <div style={{ fontSize: '22px', fontWeight: 600, color: m.value > 0 ? m.color : 'var(--foreground)', lineHeight: 1.1 }}>{m.value}</div>
+              <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '1px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{m.label}</div>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Filtros */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <input
-          placeholder="Buscar ID o tienda..."
-          value={q}
-          onChange={e => setQ(e.target.value)}
-          style={{ ...selStyle, minWidth: '190px' }}
-        />
-
-        <div style={{ display: 'flex', gap: '4px' }}>
-          {(['hoy', 'ayer', '7dias'] as QuickFilter[]).map(f => (
-            <button key={f} onClick={() => handleQuickFilter(f)}
-              style={qBtnStyle(!fechaCustom && quickFilter === f)}>
-              {f === 'hoy' ? 'Hoy' : f === 'ayer' ? 'Ayer' : '7 días'}
-            </button>
-          ))}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {/* Fila 1: búsqueda + mis registros */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <input
+            placeholder="Buscar por ID de InvGate o ID de incidente..."
+            value={q}
+            onChange={e => { setQ(e.target.value); setPage(1) }}
+            style={{ ...inputStyle }}
+          />
+          <button
+            onClick={() => { setMisRegistros(v => !v); setPage(1) }}
+            style={{
+              padding: '6px 14px', fontSize: '12px', fontWeight: misRegistros ? 600 : 400,
+              border: misRegistros ? '1px solid #166534' : '1px solid var(--border)',
+              borderRadius: '8px', cursor: 'pointer',
+              background: misRegistros ? '#14532d' : 'var(--card)',
+              color: misRegistros ? '#86efac' : 'var(--foreground)', outline: 'none',
+              whiteSpace: 'nowrap',
+            }}>
+            Mis registros
+          </button>
         </div>
 
-        <input
-          type="date"
-          value={fechaCustom}
-          onChange={e => setFechaCustom(e.target.value)}
-          style={{ ...selStyle, borderColor: fechaCustom ? 'hsl(221,83%,23%)' : 'var(--border)' }}
-        />
+        {/* Fila 2: fechas + selects + limpiar */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <label style={{ fontSize: '11px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>Fecha desde</label>
+            <input type="date" value={fechaDesde}
+              onChange={e => { setFechaDesde(e.target.value); setPage(1) }}
+              style={{ ...selStyle }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <label style={{ fontSize: '11px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>Fecha hasta</label>
+            <input type="date" value={fechaHasta}
+              onChange={e => { setFechaHasta(e.target.value); setPage(1) }}
+              style={{ ...selStyle }} />
+          </div>
 
-        <select value={estado} onChange={e => setEstado(e.target.value)} style={selStyle}>
-          <option value="">Todos los estados</option>
-          {['ABIERTO','EN_SEGUIMIENTO','ESCALADO_N1','ESCALADO_N2','ESCALADO_N3','RESUELTO','CANCELADO','CERRADO'].map(e => (
-            <option key={e} value={e}>{e.replace(/_/g, ' ')}</option>
-          ))}
-        </select>
+          <select value={estado} onChange={e => { setEstado(e.target.value); setPage(1) }} style={selStyle}>
+            <option value="">Estados</option>
+            {['ABIERTO','EN_SEGUIMIENTO','ESCALADO_N1','ESCALADO_N2','ESCALADO_N3','RESUELTO','CANCELADO','CERRADO'].map(e => (
+              <option key={e} value={e}>{e.replace(/_/g,' ')}</option>
+            ))}
+          </select>
 
-        <select value={filtroProveedor} onChange={e => setFiltroProveedor(e.target.value)} style={selStyle}>
-          <option value="">Todos los proveedores</option>
-          {proveedoresUnicos.map(p => <option key={p} value={p}>{p}</option>)}
-        </select>
+          <select value={filtroProveedor} onChange={e => { setFiltroProveedor(e.target.value); setPage(1) }} style={selStyle}>
+            <option value="">Proveedores</option>
+            {proveedoresList.map(p => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
+          </select>
 
-        <select value={agente} onChange={e => setAgente(e.target.value)} style={selStyle}>
-          <option value="">Todos los agentes</option>
-          {agentes.filter(a => a.rol === 'AGENTE' || a.rol === 'SUPERVISOR').map(a => (
-            <option key={a.id} value={a.id}>{a.nombre}</option>
-          ))}
-        </select>
+          <select value={agente} onChange={e => { setAgente(e.target.value); setPage(1) }} style={selStyle}>
+            <option value="">Agentes</option>
+            {agentes.filter(a => a.rol === 'AGENTE' || a.rol === 'SUPERVISOR' || a.rol === 'INFRAESTRUCTURA').map(a => (
+              <option key={a.id} value={a.id}>{a.nombre}</option>
+            ))}
+          </select>
 
-        <button
-          onClick={() => setMisRegistros(v => !v)}
-          style={{
-            padding: '6px 12px', fontSize: '12px', fontWeight: misRegistros ? 600 : 400,
-            border: misRegistros ? 'none' : '0.5px solid var(--border)',
-            borderRadius: '8px', cursor: 'pointer',
-            background: misRegistros ? '#14532d' : 'var(--card)',
-            color: misRegistros ? '#86efac' : 'var(--foreground)', outline: 'none',
-            whiteSpace: 'nowrap' as const,
-          }}>
-          Mis registros
-        </button>
+          <button onClick={clearFilters}
+            style={{ padding: '6px 10px', fontSize: '11px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
+            Limpiar filtros
+          </button>
+        </div>
       </div>
 
       {/* Tabla */}
-      <div style={{ background: 'var(--card)', borderRadius: '10px', overflow: 'hidden', border: '0.5px solid var(--border)' }}>
+      <div style={{ background: 'var(--card)', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ background: 'var(--muted)' }}>
+            <tr style={{ background: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
               {['ID / Hora', 'Tienda', 'Usuario', 'Tipo', 'Impacto', 'Estado', 'Cluster', 'Tiempo', ''].map(h => (
-                <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
+                <th key={h} style={{ padding: '9px 12px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {allFiltered.length === 0 && (
+            {paginated.length === 0 && (
               <tr>
-                <td colSpan={9} style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
-                  No hay incidentes
+                <td colSpan={9} style={{ padding: '32px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
+                  No hay incidentes para mostrar
                 </td>
               </tr>
             )}
-            {allFiltered.map((inc, idx) => {
-              const closed    = inc.estado === 'RESUELTO' || inc.estado === 'CANCELADO' || inc.estado === 'CERRADO'
+            {paginated.map((inc, idx) => {
+              const isOpen    = OPEN_ESTADOS.includes(inc.estado) && !inc.isOverdue
               const isOverdue = !!inc.isOverdue
-              const isAbierto = inc.estado === 'ABIERTO'
+              const isClosed  = CLOSED_ESTADOS.includes(inc.estado) && !inc.isOverdue
 
-              const rowBg = isOverdue ? 'rgba(239,68,68,0.04)' : 'transparent'
-              const rowBgHover = isOverdue ? 'rgba(239,68,68,0.09)' : 'var(--muted)'
-              const textColor = isOverdue ? '#dc2626' : 'var(--foreground)'
-              const mutedColor = isOverdue ? '#f87171' : 'var(--muted-foreground)'
+              let rowBg       = 'transparent'
+              let rowBgHover  = 'var(--muted)'
+              let textColor   = 'var(--foreground)'
+              let mutedColor  = 'var(--muted-foreground)'
+
+              if (isOverdue) {
+                rowBg      = 'rgba(239,68,68,0.06)'
+                rowBgHover = 'rgba(239,68,68,0.12)'
+                textColor  = '#dc2626'
+                mutedColor = '#f87171'
+              } else if (isOpen) {
+                rowBg      = '#0d1117'
+                rowBgHover = '#111827'
+                textColor  = 'rgba(255,255,255,0.9)'
+                mutedColor = 'rgba(255,255,255,0.45)'
+              } else if (isClosed) {
+                rowBg      = 'rgba(0,0,0,0.02)'
+                rowBgHover = 'rgba(0,0,0,0.05)'
+              }
 
               return (
                 <tr key={inc.id}
                   onClick={() => router.push(`/incidentes/${inc.id}`)}
                   style={{
-                    borderTop:   idx > 0 ? '0.5px solid var(--border)' : 'none',
-                    borderLeft:  isOverdue ? '3px solid #ef4444' : (isAbierto ? '3px solid #0f172a' : '3px solid transparent'),
-                    background:  rowBg,
-                    cursor:      'pointer',
-                    opacity:     closed && !isAbierto ? 0.6 : 1,
-                    boxShadow:   isAbierto && !isOverdue ? 'inset 0 0 0 1.5px #0f172a' : 'none',
+                    borderTop:  idx > 0 ? '1px solid var(--border)' : 'none',
+                    borderLeft: isOverdue ? '3px solid #ef4444' : (isOpen ? '3px solid #1d4ed8' : '3px solid transparent'),
+                    background: rowBg,
+                    cursor:     'pointer',
                   }}
                   onMouseEnter={e => (e.currentTarget.style.background = rowBgHover)}
                   onMouseLeave={e => (e.currentTarget.style.background = rowBg)}>
 
                   {/* ID / Hora */}
                   <td style={{ padding: '9px 12px' }}>
-                    <div style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 600, color: textColor }}>
+                    <div style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 700, color: textColor }}>
                       {inc.codigo}
                     </div>
                     {inc.ticketInvgate && (
@@ -302,10 +335,10 @@ export default function IncidentesPage() {
 
                   {/* Tienda */}
                   <td style={{ padding: '9px 12px' }}>
-                    <div style={{ fontFamily: 'monospace', fontSize: isAbierto && !isOverdue ? '18px' : '15px', fontWeight: 700, letterSpacing: '-0.01em', lineHeight: 1, color: isOverdue ? '#dc2626' : (isAbierto ? '#0f172a' : textColor) }}>
+                    <div style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: 700, lineHeight: 1, color: textColor }}>
                       {inc.tiendaCodigo}
                     </div>
-                    <div style={{ fontSize: '12px', marginTop: '3px', fontWeight: isAbierto && !isOverdue ? 600 : 400, color: isOverdue ? '#dc2626' : textColor }}>
+                    <div style={{ fontSize: '12px', marginTop: '2px', color: textColor }}>
                       {inc.tiendaNombre}
                     </div>
                     <div style={{ fontSize: '10px', marginTop: '1px', color: mutedColor }}>
@@ -319,7 +352,12 @@ export default function IncidentesPage() {
                   </td>
 
                   {/* Tipo */}
-                  <td style={{ padding: '9px 12px', fontSize: '11px', color: textColor }}>{TIPO_LABELS[inc.tipo] ?? inc.tipo}</td>
+                  <td style={{ padding: '9px 12px', fontSize: '11px', color: textColor, whiteSpace: 'nowrap' }}>
+                    {TIPO_LABELS[inc.tipo] ?? inc.tipo}
+                    {inc.tipoPersonalizado && (
+                      <div style={{ fontSize: '10px', color: mutedColor, marginTop: '1px' }}>{inc.tipoPersonalizado}</div>
+                    )}
+                  </td>
 
                   {/* Impacto */}
                   <td style={{ padding: '9px 12px' }}><Badge variant={impactoToVariant(inc.nivelImpacto)} /></td>
@@ -330,13 +368,13 @@ export default function IncidentesPage() {
                   {/* Cluster */}
                   <td style={{ padding: '9px 12px' }}>
                     {inc.tiendaCluster
-                      ? <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 700, fontFamily: 'monospace', background: 'var(--muted)', color: 'var(--foreground)', letterSpacing: '0.05em' }}>{inc.tiendaCluster}</span>
+                      ? <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 700, fontFamily: 'monospace', background: isOpen ? 'rgba(255,255,255,0.1)' : 'var(--muted)', color: isOpen ? 'rgba(255,255,255,0.8)' : 'var(--foreground)', letterSpacing: '0.05em' }}>{inc.tiendaCluster}</span>
                       : <span style={{ color: mutedColor, fontSize: '10px' }}>—</span>
                     }
                   </td>
 
                   {/* Tiempo */}
-                  <td style={{ padding: '9px 12px', fontFamily: 'monospace', fontSize: '11px', fontWeight: isOverdue ? 700 : 400, color: isOverdue ? '#dc2626' : mutedColor }}>
+                  <td style={{ padding: '9px 12px', fontFamily: 'monospace', fontSize: '11px', fontWeight: isOverdue ? 700 : 400, color: isOverdue ? '#dc2626' : mutedColor, whiteSpace: 'nowrap' }}>
                     {tiempoTranscurrido(inc.horaRegistro, inc.horaFin)}
                   </td>
 
@@ -346,10 +384,10 @@ export default function IncidentesPage() {
                       <button
                         onClick={e => handleDelete(e, inc.id)}
                         title="Eliminar incidente"
-                        style={{ padding: '3px 8px', fontSize: '11px', background: 'rgba(220,38,38,0.1)', color: '#dc2626', border: '0.5px solid rgba(220,38,38,0.3)', borderRadius: '5px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        style={{ padding: '4px 8px', fontSize: '11px', background: 'rgba(220,38,38,0.1)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '5px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                         onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(220,38,38,0.2)' }}
                         onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(220,38,38,0.1)' }}>
-                        Eliminar
+                        <IconTrash /> Eliminar
                       </button>
                     )}
                   </td>
@@ -358,6 +396,34 @@ export default function IncidentesPage() {
             })}
           </tbody>
         </table>
+
+        {/* Paginación */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderTop: '1px solid var(--border)', background: 'var(--card)' }}>
+          <div style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>
+            {filtered.length === 0
+              ? 'Sin resultados'
+              : `Mostrando ${(page - 1) * perPage + 1} a ${Math.min(page * perPage, filtered.length)} de ${filtered.length}`
+            }
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <button
+              disabled={page <= 1}
+              onClick={() => setPage(p => p - 1)}
+              style={{ padding: '4px 8px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', cursor: page <= 1 ? 'default' : 'pointer', opacity: page <= 1 ? 0.4 : 1 }}>
+              ‹
+            </button>
+            <span style={{ fontSize: '12px', padding: '4px 10px', border: '1px solid hsl(221,83%,45%)', borderRadius: '6px', background: 'hsl(221,83%,45%)', color: 'white', minWidth: '28px', textAlign: 'center' }}>
+              {page}
+            </span>
+            <button
+              disabled={page >= totalPages}
+              onClick={() => setPage(p => p + 1)}
+              style={{ padding: '4px 8px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', cursor: page >= totalPages ? 'default' : 'pointer', opacity: page >= totalPages ? 0.4 : 1 }}>
+              ›
+            </button>
+            <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginLeft: '4px' }}>20 por página</span>
+          </div>
+        </div>
       </div>
     </div>
   )
