@@ -75,6 +75,9 @@ export async function GET(req: NextRequest) {
       administradorEmail: tiendas.administradorEmail,
       administradorCelular: tiendas.administradorCelular,
       perfilSupervisor: tiendas.perfilSupervisor,
+      contingenciaActiva: tiendas.contingenciaActiva,
+      contingenciaDescripcion: tiendas.contingenciaDescripcion,
+      contingenciaActivadaPor: tiendas.contingenciaActivadaPor,
     })
       .from(tiendas)
       .leftJoin(proveedores, eq(tiendas.proveedorId, proveedores.id))
