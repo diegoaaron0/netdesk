@@ -36,6 +36,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     tiendaDistrito: tiendas.distrito,
     tiendaCid: tiendas.cidServicio,
     tiendaTipoConexion: tiendas.tipoConexion,
+    tiendaCluster: tiendas.cluster,
+    tiendaAdminCelular: tiendas.administradorCelular,
     tiendaInstruccion: tiendas.instruccionReporte,
     proveedorId: proveedores.id,
     proveedorNombre: proveedores.nombre,

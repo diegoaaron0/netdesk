@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, use, useCallback } from 'react'
+import { useEffect, useState, use, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Badge, estadoToVariant, impactoToVariant } from '@/components/ui/Badge'
@@ -14,56 +14,17 @@ const TIPO_LABELS: Record<string, string> = {
   LENTITUD: 'Lentitud', POS: 'POS', OTROS: 'Otros',
 }
 
-function inputStyle(disabled?: boolean): React.CSSProperties {
-  return { width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: disabled ? 'var(--muted)' : 'var(--card)', color: disabled ? 'var(--muted-foreground)' : 'var(--foreground)', outline: 'none' }
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function iStyle(dis?: boolean): React.CSSProperties {
+  return { width: '100%', padding: '7px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: dis ? 'var(--muted)' : 'var(--card)', color: dis ? 'var(--muted-foreground)' : 'var(--foreground)', outline: 'none' }
 }
-function textareaStyle(disabled?: boolean): React.CSSProperties {
-  return { width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: disabled ? 'var(--muted)' : 'var(--card)', color: disabled ? 'var(--muted-foreground)' : 'var(--foreground)', outline: 'none', minHeight: '72px', resize: 'vertical' }
-}
-
-function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', alignItems: 'start', gap: '8px', marginBottom: '9px' }}>
-      <label style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)', paddingTop: '7px' }}>{label}</label>
-      <div>{children}</div>
-    </div>
-  )
-}
-
-function ReadonlyVal({ value, mono }: { value: string; mono?: boolean }) {
-  return (
-    <div style={{ padding: '7px 10px', fontSize: '12px', background: 'var(--muted)', borderRadius: '8px', color: 'var(--muted-foreground)', fontFamily: mono ? 'monospace' : undefined }}>
-      {value || '—'}
-    </div>
-  )
-}
-
-function SectionCard({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
-  return (
-    <div style={{ background: 'var(--card)', borderRadius: '10px', border: '0.5px solid var(--border)', marginBottom: '14px' }}>
-      <div style={{ padding: '10px 16px', borderBottom: '0.5px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontSize: '12px', fontWeight: 600 }}>{title}</div>
-        {action}
-      </div>
-      <div style={{ padding: '14px 16px' }}>{children}</div>
-    </div>
-  )
-}
-
-function relativeTime(date: string | Date) {
-  const diff = Date.now() - new Date(date).getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1) return 'hace un momento'
-  if (m < 60) return `hace ${m}m`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `hace ${h}h ${m % 60}m`
-  return new Date(date).toLocaleDateString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+function taStyle(dis?: boolean): React.CSSProperties {
+  return { ...iStyle(dis), minHeight: '72px', resize: 'vertical' as const, fontFamily: 'inherit' }
 }
 
 function toDatetimeLocal(iso: string | null | undefined) {
   if (!iso) return ''
-  const d = new Date(iso)
-  const lima = new Date(d.getTime() - 5 * 3600000)
+  const lima = new Date(new Date(iso).getTime() - 5 * 3600000)
   const p = (n: number) => String(n).padStart(2, '0')
   return `${lima.getUTCFullYear()}-${p(lima.getUTCMonth()+1)}-${p(lima.getUTCDate())}T${p(lima.getUTCHours())}:${p(lima.getUTCMinutes())}`
 }
@@ -71,15 +32,16 @@ function fromDatetimeLocal(val: string) {
   if (!val) return null
   return new Date(val + ':00-05:00').toISOString()
 }
-
 function minToHM(min: number | null) {
   if (!min) return '—'
-  const h = Math.floor(min / 60)
-  const m = min % 60
+  const h = Math.floor(min / 60), m = min % 60
   return h > 0 ? `${h}h ${m}m` : `${m}m`
 }
+function mttrFromHoras(h1: string, h2: string) {
+  return Math.round((new Date(h2).getTime() - new Date(h1).getTime()) / 60000)
+}
 
-function buildCorreo(inc: any, nivel: number, nivelData: any) {
+function buildCorreo(inc: any, nivelData: any) {
   return `Asunto: [NetDesk ${inc.codigo}] Avería Internet — ${inc.tiendaCodigo} ${inc.tiendaNombre} · ${inc.tiendaDistrito}
 
 Estimados ${nivelData?.nombreContacto ?? 'Soporte'},
@@ -106,22 +68,58 @@ Ticket NetDesk: ${inc.codigo}
 RUC: 20427799973`
 }
 
+// ── Small icon set ────────────────────────────────────────────────────────────
+const IcoStore  = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+const IcoWifi   = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+const IcoCid    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+const IcoConn   = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+const IcoClust  = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+const IcoImpact = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+const IcoType   = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+const IcoUsers  = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+const IcoStatus = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+const IcoClock  = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+const IcoEdit   = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+const IcoArrow  = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+const IcoExt    = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+const IcoLayers = () => <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.35"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 12l10 5 10-5"/><path d="M2 17l10 5 10-5"/></svg>
+
+function ResumenRow({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid var(--border)' }}>
+      <div style={{ width: '22px', flexShrink: 0, color: 'var(--muted-foreground)' }}>{icon}</div>
+      <div style={{ width: '130px', flexShrink: 0, fontSize: '11px', color: 'var(--muted-foreground)' }}>{label}</div>
+      <div style={{ flex: 1, fontSize: '12px', fontWeight: 500, color: 'var(--foreground)' }}>{children}</div>
+    </div>
+  )
+}
+
+function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', alignItems: 'start', gap: '8px', marginBottom: '10px' }}>
+      <label style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)', paddingTop: '7px' }}>{label}</label>
+      <div>{children}</div>
+    </div>
+  )
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 export default function IncidenteDetallePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const router = useRouter()
+  const router  = useRouter()
   const { data: session } = useSession()
+  const escRef  = useRef<HTMLDivElement>(null)
 
-  const [inc, setInc] = useState<any>(null)
-  const [editForm, setEditForm] = useState<any>({})
-  const [saving, setSaving] = useState(false)
+  const [inc, setInc]               = useState<any>(null)
+  const [historial, setHistorial]   = useState<any[]>([])
+  const [editForm, setEditForm]     = useState<any>({})
+  const [saving, setSaving]         = useState(false)
   const [supervisorEdit, setSupervisorEdit] = useState(false)
   const [showReopenModal, setShowReopenModal] = useState(false)
   const [reopenMotivo, setReopenMotivo] = useState('')
-  const [reopening, setReopening] = useState(false)
-  const [escTimerEdits, setEscTimerEdits] = useState<Record<string, string>>({})
-  const [savingTimers, setSavingTimers] = useState(false)
+  const [reopening, setReopening]   = useState(false)
 
-  // Escalation
+  // Escalamiento
   const [showEscalarForm, setShowEscalarForm] = useState(false)
   const [escForm, setEscForm] = useState({
     nivel: 1, nivelEscId: '', contactoEscalado: '', emailContacto: '',
@@ -130,66 +128,57 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   const [copiedCorreo, setCopiedCorreo] = useState(false)
 
   const fetchInc = useCallback(async () => {
-    const res = await fetch(`/api/incidentes/${id}`)
+    const res  = await fetch(`/api/incidentes/${id}`)
     const data = await res.json()
     setInc(data)
     setEditForm({
-      ticketInvgate: data.ticketInvgate ?? '',
-      ticketProveedor: data.ticketProveedor ?? '',
+      ticketInvgate:       data.ticketInvgate       ?? '',
+      ticketProveedor:     data.ticketProveedor     ?? '',
       descartesRealizados: data.descartesRealizados ?? '',
-      solucionAplicada: data.solucionAplicada ?? '',
-      observaciones: data.observaciones ?? '',
-      nivelImpacto: data.nivelImpacto ?? 'MEDIO',
-      tipo: data.tipo ?? 'CAIDA_TOTAL',
-      estado: data.estado ?? 'ABIERTO',
-      usuariosAfectados: data.usuariosAfectados ?? '',
-      descripcionInicial: data.descripcionInicial ?? '',
-      horaRegistro: toDatetimeLocal(data.horaRegistro),
-      horaFin: toDatetimeLocal(data.horaFin),
+      solucionAplicada:    data.solucionAplicada    ?? '',
+      observaciones:       data.observaciones       ?? '',
+      nivelImpacto:        data.nivelImpacto        ?? 'ALTO',
+      tipo:                data.tipo                ?? 'CAIDA_TOTAL',
+      estado:              data.estado              ?? 'ABIERTO',
+      usuariosAfectados:   data.usuariosAfectados   ?? '',
+      descripcionInicial:  data.descripcionInicial  ?? '',
+      horaRegistro:        toDatetimeLocal(data.horaRegistro),
+      horaFin:             toDatetimeLocal(data.horaFin),
     })
   }, [id])
 
   useEffect(() => { fetchInc() }, [fetchInc])
 
   useEffect(() => {
-    if (!inc?.escalamientos) return
-    const edits: Record<string, string> = {}
-    for (const esc of inc.escalamientos) {
-      edits[`${esc.id}-envio`] = toDatetimeLocal(esc.horaEnvioCorreo) ?? ''
-      edits[`${esc.id}-resp`]  = toDatetimeLocal(esc.horaRespuesta) ?? ''
-    }
-    setEscTimerEdits(edits)
-  }, [inc])
+    if (!inc?.tiendaId) return
+    fetch(`/api/tiendas/${inc.tiendaId}/historial`)
+      .then(r => r.json())
+      .then(d => setHistorial(Array.isArray(d) ? d.filter((h: any) => h.id !== inc.id) : []))
+  }, [inc?.tiendaId, inc?.id])
 
-  // Auto-fill escalation form when nivel changes
   useEffect(() => {
     if (!inc?.nivelesProveedor) return
     const nivelData = inc.nivelesProveedor.find((n: any) => n.nivel === escForm.nivel)
-    if (nivelData) {
-      const correo = buildCorreo(inc, escForm.nivel, nivelData)
-      setEscForm(f => ({
-        ...f,
-        nivelEscId: nivelData.id,
-        contactoEscalado: nivelData.nombreContacto ?? '',
-        emailContacto: nivelData.email ?? '',
-        telefonoContacto: nivelData.celular ?? '',
-        cuerpoCorreo: correo,
-      }))
-    } else {
-      setEscForm(f => ({ ...f, nivelEscId: '', contactoEscalado: '', emailContacto: '', telefonoContacto: '', cuerpoCorreo: buildCorreo(inc, f.nivel, null) }))
-    }
+    setEscForm(f => ({
+      ...f,
+      nivelEscId:       nivelData?.id            ?? '',
+      contactoEscalado: nivelData?.nombreContacto ?? '',
+      emailContacto:    nivelData?.email          ?? '',
+      telefonoContacto: nivelData?.celular        ?? '',
+      cuerpoCorreo:     buildCorreo(inc, nivelData),
+    }))
   }, [escForm.nivel, inc])
 
   if (!inc) return (
-    <div style={{ padding: '60px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>
-      Cargando...
-    </div>
+    <div style={{ padding: '60px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Cargando...</div>
   )
 
-  const isClosed  = ['RESUELTO', 'CANCELADO', 'CERRADO'].includes(inc.estado)
-  const canManage = can(session, 'incidentes.editar')
-  const canBlockA = canManage && supervisorEdit
-  const canEdit   = !isClosed || (canManage && supervisorEdit)
+  const userEmail  = (session?.user as any)?.email
+  const isClosed   = ['RESUELTO', 'CANCELADO', 'CERRADO'].includes(inc.estado)
+  const canManage  = can(session, 'incidentes.editar')
+  const isMyInc    = userEmail === inc.agenteEmail
+  const canEditB   = canManage || (isMyInc && !isClosed)
+  const canEditA   = canManage && supervisorEdit
 
   function setEdit(k: string, v: string) { setEditForm((f: any) => ({ ...f, [k]: v })) }
 
@@ -199,15 +188,11 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
     if ('horaRegistro' in body) body.horaRegistro = fromDatetimeLocal(body.horaRegistro)
     if ('horaFin' in body) body.horaFin = body.horaFin ? fromDatetimeLocal(body.horaFin) : null
     if (body.horaRegistro && body.horaFin) {
-      body.mttrMinutos = Math.round((new Date(body.horaFin).getTime() - new Date(body.horaRegistro).getTime()) / 60000)
+      body.mttrMinutos = mttrFromHoras(body.horaRegistro, body.horaFin)
     } else if (body.horaFin === null) {
       body.mttrMinutos = null
     }
-    await fetch(`/api/incidentes/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
+    await fetch(`/api/incidentes/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     setSaving(false)
     fetchInc()
   }
@@ -226,130 +211,73 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
 
   async function handleReopen() {
     setReopening(true)
-    await fetch(`/api/incidentes/${id}/reabrir`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ motivo: reopenMotivo }),
-    })
-    setReopening(false)
-    setShowReopenModal(false)
-    setReopenMotivo('')
+    await fetch(`/api/incidentes/${id}/reabrir`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motivo: reopenMotivo }) })
+    setReopening(false); setShowReopenModal(false); setReopenMotivo('')
     fetchInc()
   }
 
   async function handleEscalar() {
     if (!escForm.contactoEscalado || !escForm.emailContacto) return alert('Completa el contacto y email')
-    await fetch(`/api/incidentes/${id}/escalar`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(escForm),
-    })
+    await fetch(`/api/incidentes/${id}/escalar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(escForm) })
     setShowEscalarForm(false)
     fetchInc()
   }
 
-  async function handleEnvioCorreo(escId: string) {
-    await fetch(`/api/escalamientos/${escId}/envio`, { method: 'PUT' })
-    fetchInc()
-  }
-
-  async function handleRespuesta(escId: string) {
-    await fetch(`/api/escalamientos/${escId}/respuesta`, { method: 'PUT' })
-    fetchInc()
+  function openEscalarForm() {
+    setShowEscalarForm(true)
+    setTimeout(() => escRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
   }
 
   async function copyCorreo() {
     await navigator.clipboard.writeText(escForm.cuerpoCorreo)
-    setCopiedCorreo(true)
-    setTimeout(() => setCopiedCorreo(false), 2000)
+    setCopiedCorreo(true); setTimeout(() => setCopiedCorreo(false), 2000)
   }
 
-  async function saveEscTimers() {
-    setSavingTimers(true)
-    for (const esc of [segundoEsc, tercerEsc].filter(Boolean)) {
-      const envio = escTimerEdits[`${esc.id}-envio`] ?? ''
-      const resp  = escTimerEdits[`${esc.id}-resp`]  ?? ''
-      await fetch(`/api/escalamientos/${esc.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          horaEnvioCorreo: envio ? fromDatetimeLocal(envio) : null,
-          horaRespuesta:   resp  ? fromDatetimeLocal(resp)  : null,
-        }),
-      })
-    }
-    setSavingTimers(false)
-    fetchInc()
-  }
-
-  // Compute timers
+  // Timers T1–T4
   const primerEsc  = inc.escalamientos?.[0]
   const segundoEsc = inc.escalamientos?.[1]
-  const tercerEsc  = inc.escalamientos?.[2]
-
-  // T2: exact Lima time of first email sent
   const horaCorreoT2 = primerEsc?.horaEnvioCorreo
     ? new Date(primerEsc.horaEnvioCorreo).toLocaleString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit' })
     : '—'
-
-  // T3: if N1 responded → N1 response time; else if 2nd escalation email → "Hasta 2do correo"
   let t3Label = 'T3 — Respuesta N1'
   let t3Value: string
   if (primerEsc?.tiempoRespuestaMin != null) {
     t3Value = minToHM(primerEsc.tiempoRespuestaMin)
   } else if (primerEsc?.horaEnvioCorreo && segundoEsc?.horaEnvioCorreo) {
     t3Label = 'T3 — Hasta 2do correo'
-    t3Value = minToHM(Math.round((new Date(segundoEsc.horaEnvioCorreo).getTime() - new Date(primerEsc.horaEnvioCorreo).getTime()) / 60000))
+    t3Value = minToHM(mttrFromHoras(primerEsc.horaEnvioCorreo, segundoEsc.horaEnvioCorreo))
   } else {
     t3Value = '—'
   }
-
-  // T4: from last escalation that has a response → resolution
   const lastEscWithResp = [...(inc.escalamientos ?? [])].reverse().find((e: any) => e.horaRespuesta)
   const tiempoResolucion = inc.horaFin && lastEscWithResp?.horaRespuesta
-    ? Math.round((new Date(inc.horaFin).getTime() - new Date(lastEscWithResp.horaRespuesta).getTime()) / 60000)
-    : null
+    ? mttrFromHoras(lastEscWithResp.horaRespuesta, inc.horaFin) : null
 
-  const btnBase: React.CSSProperties = { padding: '7px 14px', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }
+  const btn: React.CSSProperties = { padding: '8px 16px', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }
 
   return (
-    <div style={{ paddingBottom: '56px' }}>
-      {/* ── Back button ── */}
-      <button onClick={() => router.push('/incidentes')}
-        style={{ background: 'none', border: 'none', color: 'var(--muted-foreground)', fontSize: '12px', cursor: 'pointer', padding: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
-        ← Volver a incidentes
-      </button>
+    <div style={{ paddingBottom: '64px' }}>
 
       {/* ── Header ── */}
-      <div style={{ background: '#0d1117', borderRadius: '10px', padding: '16px 20px', marginBottom: '14px' }}>
+      <div style={{ background: '#0d1117', borderRadius: '12px', padding: '18px 22px', marginBottom: '14px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
               <span style={{ fontFamily: 'monospace', fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>{inc.codigo}</span>
               <Badge variant={impactoToVariant(inc.nivelImpacto)} />
               <Badge variant={estadoToVariant(inc.estado)} />
-              <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.55)', padding: '2px 7px', borderRadius: '4px' }}>
+              <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.55)', padding: '2px 8px', borderRadius: '4px' }}>
                 {TIPO_LABELS[inc.tipo] ?? inc.tipo}
               </span>
-              {/* Edit toggle for elevated roles */}
-              {isClosed && canManage && (
-                <button
-                  onClick={() => setSupervisorEdit(v => !v)}
-                  title="Editar incidente cerrado"
-                  style={{ background: supervisorEdit ? 'rgba(59,130,246,0.25)' : 'rgba(255,255,255,0.08)', border: 'none', color: supervisorEdit ? '#93c5fd' : 'rgba(255,255,255,0.4)', borderRadius: '4px', padding: '2px 8px', fontSize: '10px', cursor: 'pointer' }}
-                >
-                  ✏ {supervisorEdit ? 'Editando' : 'Editar'}
-                </button>
-              )}
             </div>
-            <div style={{ fontSize: '18px', fontWeight: 500, color: 'white', marginBottom: '4px' }}>
+            <div style={{ fontSize: '20px', fontWeight: 600, color: 'white', marginBottom: '4px', lineHeight: 1.2 }}>
               {inc.tiendaCodigo} — {inc.tiendaNombre}
             </div>
-            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>
+            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.38)' }}>
               {inc.proveedorNombre} · {inc.tiendaDistrito} · Agente: {inc.agenteNombre}
             </div>
             {inc.actualizadoEn && (
-              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', marginTop: '5px' }}>
+              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.18)', marginTop: '5px' }}>
                 Última edición: {new Date(inc.actualizadoEn).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
               </div>
             )}
@@ -358,6 +286,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
         </div>
       </div>
 
+      {/* Guía */}
       {inc.proveedorInstruccion && (
         <GuiaEscalamiento proveedor={inc.proveedorNombre} instruccion={inc.proveedorInstruccion} />
       )}
@@ -365,21 +294,15 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
       {/* ── Reopen modal ── */}
       {showReopenModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '400px', margin: '16px' }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '400px', margin: '16px' }}>
             <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '6px' }}>Reabrir incidente</div>
             <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '16px' }}>El incidente volverá a estado ABIERTO y se restablecerá el cronómetro.</div>
-            <label style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)', display: 'block', marginBottom: '6px' }}>Motivo (opcional)</label>
-            <textarea
-              value={reopenMotivo}
-              onChange={e => setReopenMotivo(e.target.value)}
+            <textarea value={reopenMotivo} onChange={e => setReopenMotivo(e.target.value)}
               placeholder="¿Por qué se reabre este incidente?"
-              style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--muted)', color: 'var(--foreground)', outline: 'none', minHeight: '80px', resize: 'vertical', boxSizing: 'border-box' }}
-            />
+              style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--muted)', color: 'var(--foreground)', outline: 'none', minHeight: '80px', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }} />
             <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
               <button onClick={() => { setShowReopenModal(false); setReopenMotivo('') }}
-                style={{ flex: 1, padding: '8px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>
-                Cancelar
-              </button>
+                style={{ flex: 1, padding: '8px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>Cancelar</button>
               <button onClick={handleReopen} disabled={reopening}
                 style={{ flex: 1, padding: '8px', background: '#92400e', color: '#fde68a', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: reopening ? 'wait' : 'pointer' }}>
                 {reopening ? 'Reabriendo...' : 'Confirmar reapertura'}
@@ -390,329 +313,335 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
       )}
 
       {/* ── Main grid ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '14px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '16px', alignItems: 'start' }}>
 
-        {/* ── LEFT COLUMN ── */}
-        <div>
-          {/* Block A — editable by managers when supervisorEdit is on */}
-          <SectionCard title="A — Identificación & Tiempos">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
-              <div>
-                <FieldRow label="Tienda"><ReadonlyVal value={`${inc.tiendaCodigo} — ${inc.tiendaNombre}`} /></FieldRow>
-                <FieldRow label="Proveedor"><ReadonlyVal value={inc.proveedorNombre} /></FieldRow>
-                <FieldRow label="CID / Servicio"><ReadonlyVal value={inc.tiendaCid} mono /></FieldRow>
-                <FieldRow label="Tipo conexión"><ReadonlyVal value={inc.tiendaTipoConexion} /></FieldRow>
-
-                <FieldRow label="Nivel de impacto">
-                  {canBlockA ? (
-                    <select style={inputStyle()} value={editForm.nivelImpacto} onChange={e => setEdit('nivelImpacto', e.target.value)}>
-                      {['ALTO','MEDIO','BAJO'].map(v => <option key={v} value={v}>{v}</option>)}
-                    </select>
-                  ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '4px' }}>
-                      <Badge variant={impactoToVariant(inc.nivelImpacto)} />
-                      <span style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>{inc.nivelImpacto}</span>
-                    </div>
-                  )}
-                </FieldRow>
-
-                <FieldRow label="Tipo">
-                  {canBlockA ? (
-                    <select style={inputStyle()} value={editForm.tipo} onChange={e => setEdit('tipo', e.target.value)}>
-                      {Object.entries(TIPO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                    </select>
-                  ) : (
-                    <ReadonlyVal value={TIPO_LABELS[inc.tipo] ?? inc.tipo} />
-                  )}
-                </FieldRow>
-
-                <FieldRow label="Estado">
-                  {canBlockA ? (
-                    <select style={inputStyle()} value={editForm.estado} onChange={e => setEdit('estado', e.target.value)}>
-                      {['ABIERTO','EN_SEGUIMIENTO','ESCALADO_N1','ESCALADO_N2','ESCALADO_N3','RESUELTO','CERRADO','CANCELADO'].map(v => <option key={v} value={v}>{v.replace(/_/g,' ')}</option>)}
-                    </select>
-                  ) : (
-                    <div style={{ paddingTop: '4px' }}><Badge variant={estadoToVariant(inc.estado)} /></div>
-                  )}
-                </FieldRow>
-
-                <FieldRow label="Usuarios">
-                  {canBlockA ? (
-                    <input style={inputStyle()} value={editForm.usuariosAfectados} onChange={e => setEdit('usuariosAfectados', e.target.value)} placeholder="N.º usuarios afectados" />
-                  ) : (
-                    <ReadonlyVal value={inc.usuariosAfectados ?? '—'} />
-                  )}
-                </FieldRow>
-
-                <FieldRow label="Descripción inicial">
-                  {canBlockA ? (
-                    <textarea style={textareaStyle()} value={editForm.descripcionInicial} onChange={e => setEdit('descripcionInicial', e.target.value)} placeholder="Descripción del incidente..." />
-                  ) : (
-                    <ReadonlyVal value={inc.descripcionInicial ?? '—'} />
-                  )}
-                </FieldRow>
-
-                {inc.reabiertaInfo && (
-                  <FieldRow label="Reapertura">
-                    <div style={{ padding: '7px 10px', fontSize: '11px', background: 'rgba(146,64,14,0.1)', border: '0.5px solid rgba(146,64,14,0.25)', borderRadius: '8px', color: '#d97706' }}>
-                      {inc.reabiertaInfo}
-                    </div>
-                  </FieldRow>
-                )}
-              </div>
-              <div>
-                <FieldRow label="Registrado por"><ReadonlyVal value={inc.agenteNombre} /></FieldRow>
-
-                <FieldRow label="Hora registro">
-                  {canBlockA ? (
-                    <input type="datetime-local" style={inputStyle()} value={editForm.horaRegistro} onChange={e => setEdit('horaRegistro', e.target.value)} />
-                  ) : (
-                    <ReadonlyVal value={new Date(inc.horaRegistro).toLocaleString('es-PE', { timeZone: 'America/Lima' })} />
-                  )}
-                </FieldRow>
-
-                <FieldRow label="Hora fin">
-                  {canBlockA ? (
-                    <input type="datetime-local" style={inputStyle()} value={editForm.horaFin} onChange={e => setEdit('horaFin', e.target.value)} />
-                  ) : (
-                    <ReadonlyVal value={inc.horaFin ? new Date(inc.horaFin).toLocaleString('es-PE', { timeZone: 'America/Lima' }) : '—'} />
-                  )}
-                </FieldRow>
-
-                <FieldRow label="MTTR total"><ReadonlyVal value={minToHM(inc.mttrMinutos)} /></FieldRow>
-
-                {/* 4 timers */}
-                <div style={{ marginTop: '8px', padding: '10px 12px', background: 'var(--muted)', borderRadius: '8px' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>Tiempos del incidente</div>
-                  {[
-                    { label: 'T1 — Duración total', value: minToHM(inc.mttrMinutos) },
-                    { label: 'T2 — 1er correo enviado', value: horaCorreoT2 },
-                    { label: t3Label, value: t3Value },
-                    { label: 'T4 — Respuesta a solución', value: minToHM(tiempoResolucion) },
-                  ].map(t => (
-                    <div key={t.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-                      <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{t.label}</span>
-                      <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 500, color: t.value === '—' ? 'var(--muted-foreground)' : 'var(--foreground)' }}>{t.value}</span>
-                    </div>
-                  ))}
-                  {canManage && supervisorEdit && (segundoEsc || tercerEsc) && (
-                    <>
-                      <div style={{ borderTop: '0.5px solid var(--border)', margin: '8px 0 6px' }} />
-                      {([
-                        segundoEsc ? { escId: segundoEsc.id, label: '2do correo enviado', field: 'envio' } : null,
-                        segundoEsc ? { escId: segundoEsc.id, label: 'Respuesta N2',        field: 'resp'  } : null,
-                        tercerEsc  ? { escId: tercerEsc.id,  label: '3er correo enviado', field: 'envio' } : null,
-                        tercerEsc  ? { escId: tercerEsc.id,  label: 'Respuesta N3',        field: 'resp'  } : null,
-                      ].filter(Boolean) as { escId: string; label: string; field: string }[]).map(row => (
-                        <div key={`${row.escId}-${row.field}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px', gap: '8px' }}>
-                          <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', flexShrink: 0 }}>{row.label}</span>
-                          <input
-                            type="datetime-local"
-                            value={escTimerEdits[`${row.escId}-${row.field}`] ?? ''}
-                            onChange={e => setEscTimerEdits(p => ({ ...p, [`${row.escId}-${row.field}`]: e.target.value }))}
-                            style={{ fontSize: '10px', border: '0.5px solid var(--border)', borderRadius: '4px', background: 'var(--card)', color: 'var(--foreground)', padding: '2px 4px', maxWidth: '160px' }}
-                          />
-                        </div>
-                      ))}
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
-                        <button onClick={saveEscTimers} disabled={savingTimers}
-                          style={{ padding: '3px 10px', fontSize: '10px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-                          {savingTimers ? '...' : 'Guardar tiempos'}
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          </SectionCard>
-
-          {/* Block B — Gestión */}
-          <SectionCard title="B — Gestión">
+        {/* LEFT — Block B */}
+        <div style={{ background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', overflow: 'hidden' }}>
+          <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--foreground)' }}>B — Gestión</div>
+          </div>
+          <div style={{ padding: '16px 18px' }}>
             <FieldRow label="Ticket Invgate">
-              <input disabled={!canEdit} style={inputStyle(!canEdit)} value={editForm.ticketInvgate} onChange={e => setEdit('ticketInvgate', e.target.value)} placeholder="Ej: 12345" />
+              <input disabled={!canEditB} style={iStyle(!canEditB)} value={editForm.ticketInvgate} onChange={e => setEdit('ticketInvgate', e.target.value)} placeholder="Ej: 12345" />
             </FieldRow>
             <FieldRow label="Ticket proveedor">
-              <input disabled={!canEdit} style={inputStyle(!canEdit)} value={editForm.ticketProveedor} onChange={e => setEdit('ticketProveedor', e.target.value)} placeholder="Nro. de ticket del proveedor" />
+              <input disabled={!canEditB} style={iStyle(!canEditB)} value={editForm.ticketProveedor} onChange={e => setEdit('ticketProveedor', e.target.value)} placeholder="Nro. de ticket del proveedor" />
             </FieldRow>
             <FieldRow label="Descartes realizados">
-              <textarea disabled={!canEdit} style={textareaStyle(!canEdit)} value={editForm.descartesRealizados} onChange={e => setEdit('descartesRealizados', e.target.value)} placeholder="Describe los descartes y verificaciones realizados..." />
+              <textarea disabled={!canEditB} style={taStyle(!canEditB)} value={editForm.descartesRealizados} onChange={e => setEdit('descartesRealizados', e.target.value)} placeholder="Describe los descartes y verificaciones realizados..." />
             </FieldRow>
             <FieldRow label="Solución aplicada">
-              <textarea disabled={!canEdit} style={textareaStyle(!canEdit)} value={editForm.solucionAplicada} onChange={e => setEdit('solucionAplicada', e.target.value)} placeholder="Describe la solución aplicada..." />
+              <textarea disabled={!canEditB} style={taStyle(!canEditB)} value={editForm.solucionAplicada} onChange={e => setEdit('solucionAplicada', e.target.value)} placeholder="Describe la solución aplicada..." />
             </FieldRow>
             <FieldRow label="Observaciones">
-              <textarea disabled={!canEdit} style={textareaStyle(!canEdit)} value={editForm.observaciones} onChange={e => setEdit('observaciones', e.target.value)} placeholder="Notas adicionales..." />
+              <textarea disabled={!canEditB} style={taStyle(!canEditB)} value={editForm.observaciones} onChange={e => setEdit('observaciones', e.target.value)} placeholder="Notas adicionales..." />
             </FieldRow>
 
-            <div style={{ borderTop: '0.5px solid var(--border)', marginTop: '10px', paddingTop: '12px' }}>
-              <AdjuntosZona incidenteId={id} disabled={!canEdit} />
+            <div style={{ borderTop: '1px solid var(--border)', marginTop: '10px', paddingTop: '12px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)', marginBottom: '8px' }}>Adjuntos</div>
+              <AdjuntosZona incidenteId={id} disabled={!canEditB} />
             </div>
 
-            {(canEdit || canBlockA) && (
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
-                <button onClick={handleSave} disabled={saving} style={{ ...btnBase, background: 'hsl(221,83%,23%)', color: 'white' }}>
-                  {saving ? 'Guardando...' : 'Guardar cambios'}
-                </button>
+            {inc.reabiertaInfo && (
+              <div style={{ marginTop: '12px', padding: '8px 12px', fontSize: '11px', background: 'rgba(146,64,14,0.1)', border: '1px solid rgba(146,64,14,0.25)', borderRadius: '8px', color: '#d97706' }}>
+                {inc.reabiertaInfo}
               </div>
             )}
-          </SectionCard>
+          </div>
+        </div>
 
-          {/* Resolve / Cancel */}
+        {/* RIGHT — Resumen + Historial */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+          {/* Resumen del incidente */}
+          <div style={{ background: 'var(--card)', border: '2px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+            <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', background: 'var(--muted)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--foreground)' }}>Resumen del incidente</div>
+                <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '1px' }}>Información del incidente registrado.</div>
+              </div>
+              {canManage && (
+                <button onClick={() => setSupervisorEdit(v => !v)}
+                  title={supervisorEdit ? 'Salir de edición' : 'Editar campos'}
+                  style={{ width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)', borderRadius: '6px', background: supervisorEdit ? 'hsl(221,83%,45%)' : 'var(--card)', color: supervisorEdit ? 'white' : 'var(--muted-foreground)', cursor: 'pointer' }}>
+                  <IcoEdit />
+                </button>
+              )}
+            </div>
+            <div style={{ padding: '12px 16px' }}>
+              <ResumenRow icon={<IcoStore />} label="Tienda">{inc.tiendaCodigo} — {inc.tiendaNombre}</ResumenRow>
+              <ResumenRow icon={<IcoWifi />} label="Proveedor">{inc.proveedorNombre ?? '—'}</ResumenRow>
+              <ResumenRow icon={<IcoCid />} label="CID / Servicio"><span style={{ fontFamily: 'monospace' }}>{inc.tiendaCid ?? '—'}</span></ResumenRow>
+              <ResumenRow icon={<IcoConn />} label="Tipo de conexión">{inc.tiendaTipoConexion ?? '—'}</ResumenRow>
+              <ResumenRow icon={<IcoClust />} label="Cluster">{inc.tiendaCluster ?? '—'}</ResumenRow>
+
+              <ResumenRow icon={<IcoImpact />} label="Nivel de impacto">
+                {canEditA ? (
+                  <select style={{ ...iStyle(), fontSize: '11px', padding: '4px 6px' }} value={editForm.nivelImpacto} onChange={e => setEdit('nivelImpacto', e.target.value)}>
+                    {['ALTO','MEDIO','BAJO'].map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                ) : <Badge variant={impactoToVariant(inc.nivelImpacto)} />}
+              </ResumenRow>
+
+              <ResumenRow icon={<IcoType />} label="Tipo de incidente">
+                {canEditA ? (
+                  <select style={{ ...iStyle(), fontSize: '11px', padding: '4px 6px' }} value={editForm.tipo} onChange={e => setEdit('tipo', e.target.value)}>
+                    {Object.entries(TIPO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                ) : (TIPO_LABELS[inc.tipo] ?? inc.tipo)}
+              </ResumenRow>
+
+              <ResumenRow icon={<IcoUsers />} label="Usuarios afectados">
+                {canEditA ? (
+                  <input style={{ ...iStyle(), fontSize: '11px', padding: '4px 6px' }} value={editForm.usuariosAfectados} onChange={e => setEdit('usuariosAfectados', e.target.value)} />
+                ) : (inc.usuariosAfectados ?? '—')}
+              </ResumenRow>
+
+              <ResumenRow icon={<IcoStatus />} label="Estado">
+                {canEditA ? (
+                  <select style={{ ...iStyle(), fontSize: '11px', padding: '4px 6px' }} value={editForm.estado} onChange={e => setEdit('estado', e.target.value)}>
+                    {['ABIERTO','EN_SEGUIMIENTO','ESCALADO_N1','ESCALADO_N2','ESCALADO_N3','RESUELTO','CERRADO','CANCELADO'].map(v => <option key={v} value={v}>{v.replace(/_/g,' ')}</option>)}
+                  </select>
+                ) : <Badge variant={estadoToVariant(inc.estado)} />}
+              </ResumenRow>
+
+              {/* Tiempos */}
+              <div style={{ marginTop: '10px', padding: '10px 12px', background: 'var(--muted)', borderRadius: '8px' }}>
+                <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '8px' }}>Tiempos del incidente</div>
+                {[
+                  { label: 'T1 — Duración total',        value: minToHM(inc.mttrMinutos) },
+                  { label: 'T2 — 1er correo enviado',    value: horaCorreoT2 },
+                  { label: t3Label,                       value: t3Value },
+                  { label: 'T4 — Respuesta a solución',  value: minToHM(tiempoResolucion) },
+                ].map(t => (
+                  <div key={t.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                    <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{t.label}</span>
+                    <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 500, color: t.value === '—' ? 'var(--muted-foreground)' : 'var(--foreground)' }}>{t.value}</span>
+                  </div>
+                ))}
+
+                {/* Hora registro / fin (editable by supervisor) */}
+                {canEditA && (
+                  <>
+                    <div style={{ borderTop: '1px solid var(--border)', margin: '8px 0 6px' }} />
+                    <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '4px' }}>Hora registro</div>
+                    <input type="datetime-local" style={{ ...iStyle(), fontSize: '10px', padding: '4px 6px', marginBottom: '6px' }} value={editForm.horaRegistro} onChange={e => setEdit('horaRegistro', e.target.value)} />
+                    <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '4px' }}>Hora fin</div>
+                    <input type="datetime-local" style={{ ...iStyle(), fontSize: '10px', padding: '4px 6px' }} value={editForm.horaFin} onChange={e => setEdit('horaFin', e.target.value)} />
+                  </>
+                )}
+                {!canEditA && (
+                  <>
+                    <div style={{ borderTop: '1px solid var(--border)', margin: '8px 0 6px' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <IcoClock />
+                      <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>
+                        {new Date(inc.horaRegistro).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        {inc.horaFin ? ` → ${new Date(inc.horaFin).toLocaleString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit' })}` : ''}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Historial reciente */}
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+            <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 600 }}>Historial reciente de la tienda</div>
+                <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '1px' }}>Últimos incidentes registrados en esta tienda.</div>
+              </div>
+              {inc.tiendaId && (
+                <a href={`/mantenimiento/${inc.tiendaId}`}
+                  onClick={e => { e.preventDefault(); router.push(`/mantenimiento/${inc.tiendaId}`) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'hsl(221,83%,50%)', textDecoration: 'none', whiteSpace: 'nowrap', marginTop: '2px' }}>
+                  Ver historial completo <IcoExt />
+                </a>
+              )}
+            </div>
+            <div style={{ padding: '0 16px' }}>
+              {historial.length === 0 ? (
+                <div style={{ padding: '14px 0', fontSize: '11px', color: 'var(--muted-foreground)', textAlign: 'center' }}>Sin incidentes previos</div>
+              ) : historial.map((h: any, idx: number) => {
+                const mttr = h.mttrMinutos ? minToHM(h.mttrMinutos)
+                  : (h.horaFin ? minToHM(mttrFromHoras(h.horaRegistro, h.horaFin)) : null)
+                return (
+                  <div key={h.id} onClick={() => router.push(`/incidentes/${h.id}`)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 0', borderBottom: idx < historial.length - 1 ? '1px solid var(--border)' : 'none', cursor: 'pointer' }}>
+                    <div style={{ flexShrink: 0 }}><Badge variant={estadoToVariant(h.estado)} /></div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 600 }}>{h.codigo}</div>
+                      <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '1px' }}>
+                        {new Date(h.horaRegistro).toLocaleDateString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        {' · '}{new Date(h.horaRegistro).toLocaleTimeString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', textAlign: 'right', flexShrink: 0 }}>
+                      <div>{TIPO_LABELS[h.tipo] ?? h.tipo}</div>
+                      {mttr && <div style={{ color: 'var(--foreground)', fontWeight: 500 }}>{mttr}</div>}
+                    </div>
+                    <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', maxWidth: '70px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}>{h.agenteName ?? '—'}</div>
+                    <div style={{ color: 'var(--muted-foreground)', flexShrink: 0 }}><IcoArrow /></div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+        </div>{/* end RIGHT */}
+      </div>{/* end main grid */}
+
+      {/* ── Block D — Escalamientos ── */}
+      <div ref={escRef} style={{ background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', marginTop: '16px', overflow: 'hidden' }}>
+        <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: '13px', fontWeight: 600 }}>D — Escalamientos</div>
           {!isClosed && (
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '4px' }}>
-              <button onClick={handleCancelar} style={{ ...btnBase, background: 'var(--muted)', border: '0.5px solid var(--border)', fontWeight: 400 }}>
-                Cancelar incidente
-              </button>
-              <button onClick={handleResolver} style={{ ...btnBase, background: '#14532d', color: '#86efac' }}>
-                Marcar como resuelto
-              </button>
-            </div>
-          )}
-
-          {/* Reopen button */}
-          {isClosed && inc.estado !== 'CANCELADO' && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
-              <button onClick={() => setShowReopenModal(true)}
-                style={{ ...btnBase, background: 'rgba(133,79,11,0.15)', color: '#d97706', border: '0.5px solid rgba(133,79,11,0.3)' }}>
-                Reabrir incidente
-              </button>
-            </div>
+            <button onClick={() => setShowEscalarForm(v => !v)}
+              style={{ padding: '5px 12px', background: showEscalarForm ? 'var(--muted)' : 'hsl(221,83%,45%)', color: showEscalarForm ? 'var(--foreground)' : 'white', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>
+              + Agregar nivel
+            </button>
           )}
         </div>
 
-        {/* ── RIGHT COLUMN ── */}
-        <div>
-          <SectionCard
-            title="D — Escalamientos"
-            action={!isClosed ? (
-              <button onClick={() => setShowEscalarForm(v => !v)}
-                style={{ ...btnBase, padding: '4px 10px', background: 'hsl(221,83%,23%)', color: 'white', fontSize: '11px' }}>
-                + Agregar nivel
-              </button>
-            ) : undefined}
-          >
-            {/* Escalation form */}
-            {showEscalarForm && (
-              <div style={{ marginBottom: '14px', padding: '12px', background: 'var(--muted)', borderRadius: '8px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 600, marginBottom: '10px' }}>Nuevo escalamiento</div>
-
-                <div style={{ marginBottom: '8px' }}>
+        <div style={{ padding: '16px 18px' }}>
+          {/* Escalation form */}
+          {showEscalarForm && (
+            <div style={{ marginBottom: '16px', padding: '14px', background: 'var(--muted)', borderRadius: '10px', border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '12px' }}>Nuevo escalamiento</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                <div>
                   <label style={{ fontSize: '10px', color: 'var(--muted-foreground)', display: 'block', marginBottom: '3px' }}>Nivel</label>
-                  <select style={{ ...inputStyle(), marginTop: '0' }} value={escForm.nivel}
-                    onChange={e => setEscForm(f => ({ ...f, nivel: Number(e.target.value) }))}>
-                    {[1, 2, 3, 4].map(n => <option key={n} value={n}>Nivel {n}</option>)}
+                  <select style={iStyle()} value={escForm.nivel} onChange={e => setEscForm(f => ({ ...f, nivel: Number(e.target.value) }))}>
+                    {[1,2,3,4].map(n => <option key={n} value={n}>Nivel {n}</option>)}
                   </select>
                 </div>
-
-                <div style={{ marginBottom: '8px' }}>
-                  <label style={{ fontSize: '10px', color: 'var(--muted-foreground)', display: 'block', marginBottom: '3px' }}>Contacto</label>
-                  <input style={inputStyle()} value={escForm.contactoEscalado}
-                    onChange={e => setEscForm(f => ({ ...f, contactoEscalado: e.target.value }))} placeholder="Nombre del contacto" />
-                </div>
-
-                <div style={{ marginBottom: '8px' }}>
-                  <label style={{ fontSize: '10px', color: 'var(--muted-foreground)', display: 'block', marginBottom: '3px' }}>Email</label>
-                  <input style={inputStyle()} value={escForm.emailContacto}
-                    onChange={e => setEscForm(f => ({ ...f, emailContacto: e.target.value }))} placeholder="email@proveedor.com" />
-                </div>
-
-                <div style={{ marginBottom: '8px' }}>
-                  <label style={{ fontSize: '10px', color: 'var(--muted-foreground)', display: 'block', marginBottom: '3px' }}>Teléfono / WhatsApp</label>
-                  <input style={inputStyle()} value={escForm.telefonoContacto}
-                    onChange={e => setEscForm(f => ({ ...f, telefonoContacto: e.target.value }))} placeholder="+51 9XX XXX XXX" />
-                </div>
-
-                <div style={{ marginBottom: '8px' }}>
+                <div>
                   <label style={{ fontSize: '10px', color: 'var(--muted-foreground)', display: 'block', marginBottom: '3px' }}>Tiempo estimado de solución</label>
-                  <input style={inputStyle()} value={escForm.tiempoEstimadoSolucion}
-                    onChange={e => setEscForm(f => ({ ...f, tiempoEstimadoSolucion: e.target.value }))} placeholder="Ej: 2 horas, antes de las 3pm" />
-                </div>
-
-                <div style={{ marginBottom: '10px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
-                    <label style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Borrador de correo</label>
-                    <button onClick={copyCorreo} style={{ fontSize: '10px', padding: '2px 8px', background: copiedCorreo ? '#14532d' : 'transparent', color: copiedCorreo ? '#86efac' : 'var(--muted-foreground)', border: '0.5px solid var(--border)', borderRadius: '4px', cursor: 'pointer' }}>
-                      {copiedCorreo ? '✓ Copiado' : 'Copiar'}
-                    </button>
-                  </div>
-                  <textarea
-                    value={escForm.cuerpoCorreo}
-                    onChange={e => setEscForm(f => ({ ...f, cuerpoCorreo: e.target.value }))}
-                    style={{ ...inputStyle(), minHeight: '140px', fontSize: '10px', lineHeight: 1.55, resize: 'vertical' }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button onClick={() => setShowEscalarForm(false)}
-                    style={{ flex: 1, padding: '7px', background: 'transparent', border: '0.5px solid var(--border)', borderRadius: '6px', fontSize: '11px', cursor: 'pointer' }}>
-                    Cancelar
-                  </button>
-                  <button onClick={handleEscalar}
-                    style={{ flex: 1, padding: '7px', background: '#854F0B', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}>
-                    Escalar →
-                  </button>
+                  <input style={iStyle()} value={escForm.tiempoEstimadoSolucion} onChange={e => setEscForm(f => ({ ...f, tiempoEstimadoSolucion: e.target.value }))} placeholder="Ej: 2 horas, antes de las 3pm" />
                 </div>
               </div>
-            )}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                <div>
+                  <label style={{ fontSize: '10px', color: 'var(--muted-foreground)', display: 'block', marginBottom: '3px' }}>Contacto</label>
+                  <input style={iStyle()} value={escForm.contactoEscalado} onChange={e => setEscForm(f => ({ ...f, contactoEscalado: e.target.value }))} placeholder="Nombre del contacto" />
+                </div>
+                <div>
+                  <label style={{ fontSize: '10px', color: 'var(--muted-foreground)', display: 'block', marginBottom: '3px' }}>Email</label>
+                  <input style={iStyle()} value={escForm.emailContacto} onChange={e => setEscForm(f => ({ ...f, emailContacto: e.target.value }))} placeholder="email@proveedor.com" />
+                </div>
+                <div>
+                  <label style={{ fontSize: '10px', color: 'var(--muted-foreground)', display: 'block', marginBottom: '3px' }}>Teléfono / WhatsApp</label>
+                  <input style={iStyle()} value={escForm.telefonoContacto} onChange={e => setEscForm(f => ({ ...f, telefonoContacto: e.target.value }))} placeholder="+51 9XX XXX XXX" />
+                </div>
+              </div>
+              <div style={{ marginBottom: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                  <label style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Borrador de correo</label>
+                  <button onClick={copyCorreo} style={{ fontSize: '10px', padding: '2px 8px', background: copiedCorreo ? '#14532d' : 'transparent', color: copiedCorreo ? '#86efac' : 'var(--muted-foreground)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer' }}>
+                    {copiedCorreo ? '✓ Copiado' : 'Copiar'}
+                  </button>
+                </div>
+                <textarea value={escForm.cuerpoCorreo} onChange={e => setEscForm(f => ({ ...f, cuerpoCorreo: e.target.value }))}
+                  style={{ ...iStyle(), minHeight: '130px', fontSize: '10px', lineHeight: 1.55, resize: 'vertical', fontFamily: 'monospace' }} />
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => setShowEscalarForm(false)}
+                  style={{ flex: 1, padding: '8px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>Cancelar</button>
+                <button onClick={handleEscalar}
+                  style={{ flex: 1, padding: '8px', background: '#854F0B', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>Escalar →</button>
+              </div>
+            </div>
+          )}
 
-            {/* Escalation list */}
-            {(!inc.escalamientos || inc.escalamientos.length === 0) && !showEscalarForm && (
-              <div style={{ textAlign: 'center', padding: '20px', fontSize: '11px', color: 'var(--muted-foreground)' }}>Sin escalamientos</div>
-            )}
+          {/* Empty state */}
+          {(!inc.escalamientos || inc.escalamientos.length === 0) && !showEscalarForm && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '36px 20px', gap: '8px' }}>
+              <IcoLayers />
+              <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--muted-foreground)' }}>Sin escalamientos</div>
+              <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', opacity: 0.7 }}>Agrega un nivel para iniciar el proceso de escalamiento.</div>
+            </div>
+          )}
 
-            {inc.escalamientos?.map((esc: any) => (
-              <EscalamientoCard
-                key={esc.id}
-                esc={esc}
-                isClosed={isClosed}
-                onEnvio={() => handleEnvioCorreo(esc.id)}
-                onRespuesta={() => handleRespuesta(esc.id)}
-              />
-            ))}
-          </SectionCard>
+          {/* Escalamiento cards */}
+          {inc.escalamientos && inc.escalamientos.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '12px' }}>
+              {inc.escalamientos.map((esc: any) => (
+                <EscalamientoCard key={esc.id} esc={esc} isClosed={isClosed}
+                  onEnvio={async () => { await fetch(`/api/escalamientos/${esc.id}/envio`, { method: 'PUT' }); fetchInc() }}
+                  onRespuesta={async () => { await fetch(`/api/escalamientos/${esc.id}/respuesta`, { method: 'PUT' }); fetchInc() }}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* ── Sticky back button ── */}
-      <div style={{ position: 'fixed', bottom: 0, left: '192px', right: 0, zIndex: 40, background: 'var(--card)', borderTop: '0.5px solid var(--border)', padding: '10px 18px' }}>
+      {/* ── Sticky bottom bar ── */}
+      <div style={{ position: 'fixed', bottom: 0, left: '192px', right: 0, zIndex: 40, background: 'var(--card)', borderTop: '1px solid var(--border)', padding: '10px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <button onClick={() => router.push('/incidentes')}
-          style={{ background: 'none', border: 'none', color: 'var(--muted-foreground)', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          style={{ background: 'none', border: 'none', color: 'var(--muted-foreground)', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
           ← Volver a incidentes
         </button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {!isClosed && (
+            <>
+              <button onClick={handleCancelar}
+                style={{ ...btn, background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)', fontWeight: 400 }}>
+                Cancelar incidente
+              </button>
+              <button onClick={handleResolver}
+                style={{ ...btn, background: '#14532d', color: '#86efac' }}>
+                Marcar como resuelto
+              </button>
+              <button onClick={openEscalarForm}
+                style={{ ...btn, background: 'hsl(221,83%,45%)', color: 'white', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                Escalar incidente <IcoArrow />
+              </button>
+            </>
+          )}
+          {isClosed && inc.estado !== 'CANCELADO' && (
+            <button onClick={() => setShowReopenModal(true)}
+              style={{ ...btn, background: 'rgba(133,79,11,0.15)', color: '#d97706', border: '1px solid rgba(133,79,11,0.3)' }}>
+              Reabrir incidente
+            </button>
+          )}
+          {(canEditB || canEditA) && (
+            <button onClick={handleSave} disabled={saving}
+              style={{ ...btn, background: 'hsl(221,83%,45%)', color: 'white', border: '1px solid hsl(221,83%,35%)' }}>
+              {saving ? 'Guardando...' : 'Guardar cambios'}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
+// ── EscalamientoCard ──────────────────────────────────────────────────────────
 function EscalamientoCard({ esc, isClosed, onEnvio, onRespuesta }: {
-  esc: any; isClosed: boolean
-  onEnvio: () => void; onRespuesta: () => void
+  esc: any; isClosed: boolean; onEnvio: () => void; onRespuesta: () => void
 }) {
   const [showCorreo, setShowCorreo] = useState(false)
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied]         = useState(false)
 
   async function copy() {
     await navigator.clipboard.writeText(esc.cuerpoCorreo ?? '')
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    setCopied(true); setTimeout(() => setCopied(false), 2000)
   }
 
   const horaCreado = new Date(esc.creadoEn).toLocaleString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
 
   return (
-    <div style={{ marginBottom: '12px', padding: '12px', background: 'var(--muted)', borderRadius: '8px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+    <div style={{ padding: '14px', background: 'var(--muted)', borderRadius: '10px', border: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
         <div>
-          <div style={{ fontSize: '11px', fontWeight: 600 }}>Nivel {esc.nivel} — {esc.contactoEscalado}</div>
-          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '1px' }}>{esc.emailContacto}</div>
-          {esc.telefonoContacto && (
-            <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>📞 {esc.telefonoContacto}</div>
-          )}
+          <div style={{ fontSize: '12px', fontWeight: 600 }}>Nivel {esc.nivel} — {esc.contactoEscalado}</div>
+          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{esc.emailContacto}</div>
+          {esc.telefonoContacto && <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>📞 {esc.telefonoContacto}</div>}
         </div>
-        <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', textAlign: 'right' }}>
-          {horaCreado}
-        </div>
+        <span style={{ fontSize: '9px', color: 'var(--muted-foreground)' }}>{horaCreado}</span>
       </div>
 
       {esc.tiempoEstimadoSolucion && (
@@ -723,7 +652,6 @@ function EscalamientoCard({ esc, isClosed, onEnvio, onRespuesta }: {
 
       <CronometroEscalamiento horaEnvio={esc.horaEnvioCorreo} horaRespuesta={esc.horaRespuesta} />
 
-      {/* Correo borrador collapsible */}
       {esc.cuerpoCorreo && (
         <div style={{ marginTop: '8px' }}>
           <button onClick={() => setShowCorreo(v => !v)}
@@ -736,7 +664,7 @@ function EscalamientoCard({ esc, isClosed, onEnvio, onRespuesta }: {
                 {esc.cuerpoCorreo}
               </pre>
               <button onClick={copy}
-                style={{ marginTop: '4px', fontSize: '10px', padding: '3px 10px', background: copied ? '#14532d' : 'transparent', color: copied ? '#86efac' : 'var(--muted-foreground)', border: '0.5px solid var(--border)', borderRadius: '5px', cursor: 'pointer' }}>
+                style={{ marginTop: '4px', fontSize: '10px', padding: '3px 10px', background: copied ? '#14532d' : 'transparent', color: copied ? '#86efac' : 'var(--muted-foreground)', border: '1px solid var(--border)', borderRadius: '5px', cursor: 'pointer' }}>
                 {copied ? '✓ Copiado' : 'Copiar correo'}
               </button>
             </div>
@@ -744,10 +672,9 @@ function EscalamientoCard({ esc, isClosed, onEnvio, onRespuesta }: {
         </div>
       )}
 
-      {/* Action buttons */}
       {!esc.horaEnvioCorreo && !isClosed && (
         <button onClick={onEnvio}
-          style={{ width: '100%', marginTop: '8px', padding: '7px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}>
+          style={{ width: '100%', marginTop: '8px', padding: '7px', background: 'hsl(221,83%,45%)', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}>
           Correo enviado → iniciar cronómetro
         </button>
       )}
