@@ -31,7 +31,7 @@ function formatBytes(b: number | null) {
   return `${(b / 1024 / 1024).toFixed(1)} MB`
 }
 
-export function AdjuntosZona({ incidenteId, disabled }: { incidenteId: string; disabled?: boolean }) {
+export function AdjuntosZona({ incidenteId, escalamientoId, disabled }: { incidenteId?: string; escalamientoId?: string; disabled?: boolean }) {
   const [adjuntos, setAdjuntos] = useState<Adjunto[]>([])
   const [uploading, setUploading] = useState(false)
   const [lightbox, setLightbox] = useState<string | null>(null)
@@ -39,9 +39,12 @@ export function AdjuntosZona({ incidenteId, disabled }: { incidenteId: string; d
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
-    const res = await fetch(`/api/adjuntos?incidenteId=${incidenteId}`)
+    const param = incidenteId
+      ? `incidenteId=${incidenteId}`
+      : `escalamientoId=${escalamientoId}`
+    const res = await fetch(`/api/adjuntos?${param}`)
     if (res.ok) setAdjuntos(await res.json())
-  }, [incidenteId])
+  }, [incidenteId, escalamientoId])
 
   useEffect(() => { load() }, [load])
 
@@ -85,7 +88,8 @@ export function AdjuntosZona({ incidenteId, disabled }: { incidenteId: string; d
           nombre: file.name || `captura-${Date.now()}.jpg`,
           tipo: file.type || 'image/jpeg',
           tamanoBytes,
-          incidenteId,
+          incidenteId: incidenteId ?? null,
+          escalamientoId: escalamientoId ?? null,
         }),
       })
       if (res.ok) await load()

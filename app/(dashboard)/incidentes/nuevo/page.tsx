@@ -76,12 +76,13 @@ export default function NuevoIncidentePage() {
   const [historial, setHistorial] = useState<any[]>([])
   const [saving, setSaving]     = useState(false)
   const [form, setForm] = useState({
-    nivelImpacto:       'ALTO',
-    tipo:               'CAIDA_TOTAL',
-    tipoPersonalizado:  '',
-    usuariosAfectados:  '',
-    descripcionInicial: '',
-    estado:             'ABIERTO',
+    nivelImpacto:        'ALTO',
+    tipo:                'CAIDA_TOTAL',
+    tipoPersonalizado:   '',
+    otrosClasificacion:  '',
+    usuariosAfectados:   '',
+    descripcionInicial:  '',
+    estado:              'ABIERTO',
   })
 
   function set(k: string, v: string) { setForm(f => ({ ...f, [k]: v })) }
@@ -96,7 +97,8 @@ export default function NuevoIncidentePage() {
       body: JSON.stringify({
         ...form,
         tiendaId: tienda.id,
-        tipoPersonalizado: form.tipo === 'OTROS' ? form.tipoPersonalizado : null,
+        tipoPersonalizado:  form.tipo === 'OTROS' ? form.tipoPersonalizado  : null,
+        otrosClasificacion: form.tipo === 'OTROS' ? form.otrosClasificacion : null,
       }),
     })
     if (res.ok) {
@@ -197,12 +199,28 @@ export default function NuevoIncidentePage() {
                     <option value="OTROS">Otro...</option>
                   </select>
                   {form.tipo === 'OTROS' && (
-                    <input
-                      style={{ ...iSel, marginTop: '6px' }}
-                      placeholder="Especifica el tipo de incidente"
-                      value={form.tipoPersonalizado}
-                      onChange={e => set('tipoPersonalizado', e.target.value)}
-                    />
+                    <>
+                      <input
+                        style={{ ...iSel, marginTop: '6px' }}
+                        placeholder="Describe brevemente el problema"
+                        required
+                        value={form.tipoPersonalizado}
+                        onChange={e => set('tipoPersonalizado', e.target.value)}
+                      />
+                      <select
+                        style={{ ...iSel, marginTop: '6px' }}
+                        value={form.otrosClasificacion}
+                        onChange={e => set('otrosClasificacion', e.target.value)}
+                      >
+                        <option value="">Clasificación (opcional)</option>
+                        <option value="Energía">Energía (corte eléctrico, UPS, generador)</option>
+                        <option value="Router / Equipo">Router / Equipo (apagado, reinicio, falla hardware)</option>
+                        <option value="Sistema / Software">Sistema / Software (configuración, firmware)</option>
+                        <option value="Cableado">Cableado (fibra cortada, conector)</option>
+                        <option value="Usuario">Usuario (error operativo)</option>
+                        <option value="No clasificado">No clasificado</option>
+                      </select>
+                    </>
                   )}
                 </div>
                 <div>

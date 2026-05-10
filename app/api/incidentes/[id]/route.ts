@@ -27,8 +27,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     horaFin: incidentes.horaFin,
     mttrMinutos: incidentes.mttrMinutos,
     observaciones: incidentes.observaciones,
-    reabiertaInfo: incidentes.reabiertaInfo,
-    actualizadoEn: incidentes.actualizadoEn,
+    reabiertaInfo:      incidentes.reabiertaInfo,
+    tipoPersonalizado:  incidentes.tipoPersonalizado,
+    otrosClasificacion: incidentes.otrosClasificacion,
+    actualizadoEn:      incidentes.actualizadoEn,
     tiendaId: tiendas.id,
     tiendaCodigo: tiendas.codigo,
     tiendaNombre: tiendas.nombreCc,
@@ -80,7 +82,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const body = await req.json()
   const allowedFields: Record<string, any> = {}
-  const editable = ['estado','nivelImpacto','usuariosAfectados','tipo','descripcionInicial','ticketInvgate','ticketProveedor','descartesRealizados','solucionAplicada','horaInicioSeguimiento','observaciones','horaRegistro','horaFin','mttrMinutos']
+  const editable = ['estado','nivelImpacto','usuariosAfectados','tipo','tipoPersonalizado','otrosClasificacion','descripcionInicial','ticketInvgate','ticketProveedor','descartesRealizados','solucionAplicada','horaInicioSeguimiento','observaciones','horaRegistro','horaFin','mttrMinutos']
   const dateFields = new Set(['horaRegistro','horaFin','horaInicioSeguimiento'])
   for (const k of editable) {
     if (k in body) {

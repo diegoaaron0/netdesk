@@ -119,6 +119,7 @@ export const incidentes = pgTable('incidentes', {
   reabiertaInfo:         text('reabrierta_info'),
   proveedorId:           uuid('proveedor_id').references(() => proveedores.id),
   tipoPersonalizado:     text('tipo_personalizado'),
+  otrosClasificacion:    text('otros_clasificacion'),
   actualizadoEn:         timestamp('actualizado_en').defaultNow(),
 })
 
@@ -136,6 +137,7 @@ export const escalamientos = pgTable('escalamientos', {
   tiempoRespuestaMin:      integer('tiempo_respuesta_min'),
   estadoCronometro:        estadoCronometroEnum('estado_cronometro').default('CORRIENDO'),
   cuerpoCorreo:            text('cuerpo_correo'),
+  respuestaTexto:          text('respuesta_texto'),
   creadoEn:                timestamp('creado_en').defaultNow(),
 })
 

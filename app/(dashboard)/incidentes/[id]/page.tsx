@@ -139,6 +139,8 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
       observaciones:       data.observaciones       ?? '',
       nivelImpacto:        data.nivelImpacto        ?? 'ALTO',
       tipo:                data.tipo                ?? 'CAIDA_TOTAL',
+      tipoPersonalizado:   data.tipoPersonalizado   ?? '',
+      otrosClasificacion:  data.otrosClasificacion  ?? '',
       estado:              data.estado              ?? 'ABIERTO',
       usuariosAfectados:   data.usuariosAfectados   ?? '',
       descripcionInicial:  data.descripcionInicial  ?? '',
@@ -385,10 +387,38 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
 
               <ResumenRow icon={<IcoType />} label="Tipo de incidente">
                 {canEditA ? (
-                  <select style={{ ...iStyle(), fontSize: '11px', padding: '4px 6px' }} value={editForm.tipo} onChange={e => setEdit('tipo', e.target.value)}>
-                    {Object.entries(TIPO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                  </select>
-                ) : (TIPO_LABELS[inc.tipo] ?? inc.tipo)}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <select style={{ ...iStyle(), fontSize: '11px', padding: '4px 6px' }} value={editForm.tipo} onChange={e => setEdit('tipo', e.target.value)}>
+                      {Object.entries(TIPO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    </select>
+                    {editForm.tipo === 'OTROS' && (
+                      <>
+                        <input style={{ ...iStyle(), fontSize: '11px', padding: '4px 6px' }} placeholder="Describe brevemente el problema" value={editForm.tipoPersonalizado} onChange={e => setEdit('tipoPersonalizado', e.target.value)} />
+                        <select style={{ ...iStyle(), fontSize: '11px', padding: '4px 6px' }} value={editForm.otrosClasificacion} onChange={e => setEdit('otrosClasificacion', e.target.value)}>
+                          <option value="">Sin clasificar</option>
+                          <option value="Energía">Energía</option>
+                          <option value="Router / Equipo">Router / Equipo</option>
+                          <option value="Sistema / Software">Sistema / Software</option>
+                          <option value="Cableado">Cableado</option>
+                          <option value="Usuario">Usuario</option>
+                          <option value="No clasificado">No clasificado</option>
+                        </select>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <div>{TIPO_LABELS[inc.tipo] ?? inc.tipo}</div>
+                    {inc.tipo === 'OTROS' && inc.tipoPersonalizado && (
+                      <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '1px' }}>{inc.tipoPersonalizado}</div>
+                    )}
+                    {inc.tipo === 'OTROS' && (inc.otrosClasificacion || inc.tipoPersonalizado) && (
+                      <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '1px' }}>
+                        {inc.otrosClasificacion || 'Sin clasificar'}
+                      </div>
+                    )}
+                  </div>
+                )}
               </ResumenRow>
 
               <ResumenRow icon={<IcoUsers />} label="Usuarios afectados">
@@ -566,11 +596,15 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
 
           {/* Escalamiento cards */}
           {inc.escalamientos && inc.escalamientos.length > 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '12px' }}>
               {inc.escalamientos.map((esc: any) => (
                 <EscalamientoCard key={esc.id} esc={esc} isClosed={isClosed}
                   onEnvio={async () => { await fetch(`/api/escalamientos/${esc.id}/envio`, { method: 'PUT' }); fetchInc() }}
                   onRespuesta={async () => { await fetch(`/api/escalamientos/${esc.id}/respuesta`, { method: 'PUT' }); fetchInc() }}
+                  onDelete={async () => {
+                    await fetch(`/api/escalamientos/${esc.id}`, { method: 'DELETE' })
+                    fetchInc()
+                  }}
                 />
               ))}
             </div>
@@ -620,28 +654,64 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
 }
 
 // ── EscalamientoCard ──────────────────────────────────────────────────────────
-function EscalamientoCard({ esc, isClosed, onEnvio, onRespuesta }: {
-  esc: any; isClosed: boolean; onEnvio: () => void; onRespuesta: () => void
+const IcoTrashEsc = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+
+function EscalamientoCard({ esc, isClosed, onEnvio, onRespuesta, onDelete }: {
+  esc: any; isClosed: boolean; onEnvio: () => void; onRespuesta: () => void; onDelete: () => void
 }) {
-  const [showCorreo, setShowCorreo] = useState(false)
-  const [copied, setCopied]         = useState(false)
+  const [showCorreo, setShowCorreo]       = useState(false)
+  const [copied, setCopied]               = useState(false)
+  const [respuesta, setRespuesta]         = useState(esc.respuestaTexto ?? '')
+  const [savingResp, setSavingResp]       = useState(false)
+  const [deleting, setDeleting]           = useState(false)
 
   async function copy() {
     await navigator.clipboard.writeText(esc.cuerpoCorreo ?? '')
     setCopied(true); setTimeout(() => setCopied(false), 2000)
   }
 
+  async function saveRespuesta() {
+    setSavingResp(true)
+    await fetch(`/api/escalamientos/${esc.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ respuestaTexto: respuesta }),
+    })
+    setSavingResp(false)
+  }
+
+  async function handleDelete() {
+    if (esc.horaEnvioCorreo && !esc.horaRespuesta) {
+      if (!confirm('El cronómetro ya está corriendo. ¿Eliminar de todas formas este escalamiento?')) return
+    } else {
+      if (!confirm('¿Eliminar este escalamiento?')) return
+    }
+    setDeleting(true)
+    await onDelete()
+  }
+
+  const canDelete = !isClosed && !esc.horaRespuesta
+
   const horaCreado = new Date(esc.creadoEn).toLocaleString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
 
   return (
     <div style={{ padding: '14px', background: 'var(--muted)', borderRadius: '10px', border: '1px solid var(--border)' }}>
+      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
         <div>
           <div style={{ fontSize: '12px', fontWeight: 600 }}>Nivel {esc.nivel} — {esc.contactoEscalado}</div>
           <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{esc.emailContacto}</div>
           {esc.telefonoContacto && <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>📞 {esc.telefonoContacto}</div>}
         </div>
-        <span style={{ fontSize: '9px', color: 'var(--muted-foreground)' }}>{horaCreado}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '9px', color: 'var(--muted-foreground)' }}>{horaCreado}</span>
+          {canDelete && (
+            <button onClick={handleDelete} disabled={deleting} title="Eliminar escalamiento"
+              style={{ width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '5px', color: '#dc2626', cursor: deleting ? 'wait' : 'pointer' }}>
+              <IcoTrashEsc />
+            </button>
+          )}
+        </div>
       </div>
 
       {esc.tiempoEstimadoSolucion && (
@@ -671,6 +741,30 @@ function EscalamientoCard({ esc, isClosed, onEnvio, onRespuesta }: {
           )}
         </div>
       )}
+
+      {/* Respuesta del proveedor */}
+      <div style={{ marginTop: '10px' }}>
+        <div style={{ fontSize: '10px', fontWeight: 500, color: 'var(--muted-foreground)', marginBottom: '4px' }}>Respuesta del proveedor</div>
+        <textarea
+          value={respuesta}
+          onChange={e => setRespuesta(e.target.value)}
+          onBlur={saveRespuesta}
+          placeholder="Anota lo que respondió el proveedor..."
+          disabled={isClosed}
+          style={{ width: '100%', padding: '6px 8px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '6px', background: isClosed ? 'var(--muted)' : 'var(--card)', color: 'var(--foreground)', outline: 'none', resize: 'vertical', minHeight: '56px', fontFamily: 'inherit', lineHeight: 1.5, boxSizing: 'border-box' }}
+        />
+        {!isClosed && (
+          <button onClick={saveRespuesta} disabled={savingResp}
+            style={{ marginTop: '4px', fontSize: '10px', padding: '3px 10px', background: 'transparent', color: 'var(--muted-foreground)', border: '1px solid var(--border)', borderRadius: '5px', cursor: 'pointer' }}>
+            {savingResp ? 'Guardando...' : 'Guardar respuesta'}
+          </button>
+        )}
+      </div>
+
+      {/* Adjuntos del escalamiento */}
+      <div style={{ marginTop: '10px' }}>
+        <AdjuntosZona escalamientoId={esc.id} disabled={isClosed} />
+      </div>
 
       {!esc.horaEnvioCorreo && !isClosed && (
         <button onClick={onEnvio}

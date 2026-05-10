@@ -8,8 +8,9 @@ export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const incidenteId = req.nextUrl.searchParams.get('incidenteId')
-  if (!incidenteId) return NextResponse.json([])
+  const incidenteId    = req.nextUrl.searchParams.get('incidenteId')
+  const escalamientoId = req.nextUrl.searchParams.get('escalamientoId')
+  if (!incidenteId && !escalamientoId) return NextResponse.json([])
 
   const data = await db.select({
     id: adjuntos.id,
@@ -18,7 +19,11 @@ export async function GET(req: NextRequest) {
     tipo: adjuntos.tipo,
     tamanoBytes: adjuntos.tamanoBytes,
     creadoEn: adjuntos.creadoEn,
-  }).from(adjuntos).where(eq(adjuntos.incidenteId, incidenteId))
+  }).from(adjuntos).where(
+    incidenteId
+      ? eq(adjuntos.incidenteId, incidenteId)
+      : eq(adjuntos.escalamientoId, escalamientoId!)
+  )
 
   return NextResponse.json(data)
 }

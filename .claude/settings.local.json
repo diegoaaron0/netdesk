@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(npx next *)",
+      "PowerShell(cd \"c:\\\\Users\\\\diego\\\\Downloads\\\\Ciclo5\\\\2026\\\\NetDesk\\\\netdesk\"; npx tsc --noEmit 2>&1; echo \"Exit: $LASTEXITCODE\")",
+      "Bash(Get-ChildItem -Path . -Filter middleware.ts -Recurse -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object FullName)"
+    ]
+  }
+}
