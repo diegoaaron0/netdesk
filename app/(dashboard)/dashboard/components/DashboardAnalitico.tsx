@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import type { DashboardAnaliticoResponse } from '@/types/dashboard'
 import TendenciaSLACard from './TendenciaSLACard'
+import ProviderImpactCard from './ProviderImpactCard'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -604,9 +605,18 @@ export default function DashboardAnalitico() {
           />
         </div>
 
-        {/* B-H — Placeholders */}
+        {/* B — Impacto por proveedor (activo) */}
+        <div style={{ gridColumn: '1 / -1' }}>
+          <ProviderImpactCard
+            desde={desde}
+            hasta={hasta}
+            proveedorId={proveedorId}
+            refreshKey={refreshKey}
+          />
+        </div>
+
+        {/* C-H — Placeholders */}
         {[
-          { title: 'B. Impacto por proveedor', desc: 'Comparativa de proveedores por incidentes, MTTR, SLA y costo estimado' },
           { title: 'C. Tiendas críticas', desc: 'Ranking de tiendas que requieren revisión estructural' },
           { title: 'D. Distribución por tipo', desc: 'Breakdown de incidentes por tipo de caída' },
           { title: 'E. Cumplimiento SLA por proveedor', desc: 'Detalle de SLA de respuesta y resolución por proveedor' },
