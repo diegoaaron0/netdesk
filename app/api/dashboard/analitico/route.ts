@@ -10,6 +10,7 @@ import {
   getMTTRTexto,
 } from '@/lib/dashboard-calculations'
 import { calcImpactoRow } from '@/lib/impacto-calc'
+import { calcSLARow } from '@/lib/sla-core'
 import {
   fetchIncidentesPeriodo,
   fetchEscalamientosPeriodo,
@@ -68,14 +69,6 @@ function escsByIncidente(escs: RawEscalamiento[]): Map<string, RawEscalamiento[]
     m.get(e.incidente_id)!.push(e)
   }
   return m
-}
-
-function isSLACumplido(escs: RawEscalamiento[]): boolean {
-  if (escs.length === 0) return true
-  return escs.every((e) => {
-    const slaMin = parseSlaMinutos(e.tiempo_resp_sev1)
-    return getSLACumplido(e.tiempo_respuesta_min, e.hora_respuesta, slaMin)
-  })
 }
 
 function calcExcessoMin(escs: RawEscalamiento[]): number {
@@ -144,16 +137,16 @@ function buildByDay(incs: RawIncidente[]) {
 
 // ─── Reincidencia razon ───────────────────────────────────────────────────────
 
-function getRazon(
-  incs: RawIncidente[],
-  escMap: Map<string, RawEscalamiento[]>,
-): string {
+function getRazon(incs: RawIncidente[]): string {
   const tipos = [...new Set(incs.map((i) => i.tipo))]
   if (tipos.length === 1) return 'Mismo tipo de caída'
   const allMttr = incs.filter((i) => i.mttr_minutos).map((i) => i.mttr_minutos!)
   const avgMttr = allMttr.length ? allMttr.reduce((a, b) => a + b, 0) / allMttr.length : 0
   if (avgMttr > 240) return 'MTTR alto'
-  const slaFail = incs.some((i) => !isSLACumplido(escMap.get(i.id) ?? []))
+  const slaFail = incs.some((i) => {
+    const r = calcSLARow({ tipo: i.tipo, hora_correo_n1: i.hora_correo_n1, hora_primera_resp: i.hora_primera_resp, hora_fin: i.hora_fin, max_nivel: i.max_nivel })
+    return r.evaluable && !r.slaGeneral
+  })
   if (slaFail) return 'SLA incumplido'
   return 'Costo estimado alto'
 }
@@ -254,10 +247,20 @@ function buildCards(
   const slaByProv = new Map<string, { ok: number; total: number; excessSum: number; excessCount: number }>()
 
   let slaCumplidos = 0
+  let slaEvaluablesCount = 0
   const evaluables: { codigo: string; tiendaCodigo: string; proveedor: string; tipo: string; fecha: string; cumplido: boolean }[] = []
   for (const i of incs) {
-    const incEscs = escMap.get(i.id) ?? []
-    const cumplido = isSLACumplido(incEscs)
+    const slaRes = calcSLARow({
+      tipo: i.tipo,
+      hora_correo_n1: i.hora_correo_n1,
+      hora_primera_resp: i.hora_primera_resp,
+      hora_fin: i.hora_fin,
+      max_nivel: i.max_nivel,
+    })
+    if (!slaRes.evaluable) continue
+
+    slaEvaluablesCount++
+    const cumplido = slaRes.slaGeneral
     if (cumplido) slaCumplidos++
 
     evaluables.push({
@@ -274,17 +277,27 @@ function buildCards(
     const s = slaByProv.get(prov)!
     s.total++
     if (cumplido) { s.ok++ } else {
-      const ex = calcExcessoMin(incEscs)
+      const ex = calcExcessoMin(escMap.get(i.id) ?? [])
       if (ex > 0) { s.excessSum += ex; s.excessCount++ }
     }
   }
-  const slaPct = incs.length > 0 ? Math.round(slaCumplidos / incs.length * 100) : 0
+  const slaPct = slaEvaluablesCount > 0 ? Math.round(slaCumplidos / slaEvaluablesCount * 100) : 0
 
   let prevSlaOk = 0
+  let prevEvaluablesCount = 0
   for (const i of prevIncs) {
-    if (isSLACumplido(prevEscMap.get(i.id) ?? [])) prevSlaOk++
+    const slaRes = calcSLARow({
+      tipo: i.tipo,
+      hora_correo_n1: i.hora_correo_n1,
+      hora_primera_resp: i.hora_primera_resp,
+      hora_fin: i.hora_fin,
+      max_nivel: i.max_nivel,
+    })
+    if (!slaRes.evaluable) continue
+    prevEvaluablesCount++
+    if (slaRes.slaGeneral) prevSlaOk++
   }
-  const prevSlaPct = prevIncs.length > 0 ? Math.round(prevSlaOk / prevIncs.length * 100) : null
+  const prevSlaPct = prevEvaluablesCount > 0 ? Math.round(prevSlaOk / prevEvaluablesCount * 100) : null
   const dSla = prevSlaPct != null ? slaPct - prevSlaPct : null
 
   const slaPorProveedor = [...slaByProv.entries()]
@@ -362,7 +375,7 @@ function buildCards(
         codigo: arr[0].tienda_codigo,
         proveedor: arr[0].prov_nombre ?? '—',
         caidas: arr.length,
-        razon: getRazon(arr, escMap),
+        razon: getRazon(arr),
         incidenteCodigos: arr.map((r) => r.codigo),
         tipoRepetido,
         costoEstimado,
@@ -384,8 +397,8 @@ function buildCards(
     m.incidentes++
     m.tiendas.add(i.tienda_id)
     if (i.mttr_minutos) { m.mttrSum += i.mttr_minutos; m.mttrCount++ }
-    m.slaTotal++
-    if (isSLACumplido(escMap.get(i.id) ?? [])) m.slaOk++
+    const slaRes7 = calcSLARow({ tipo: i.tipo, hora_correo_n1: i.hora_correo_n1, hora_primera_resp: i.hora_primera_resp, hora_fin: i.hora_fin, max_nivel: i.max_nivel })
+    if (slaRes7.evaluable) { m.slaTotal++; if (slaRes7.slaGeneral) m.slaOk++ }
     m.costo += calcCostoIncidente(i, ventasDiarias).costo
   }
 

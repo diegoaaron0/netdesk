@@ -635,7 +635,6 @@ export default function DashboardAnalitico() {
               { label: 'Costo estimado', valor: fmtCosto(cards.proveedorCritico.metricas.costoEstimado), ok: false },
               { label: 'Incidentes', valor: String(cards.proveedorCritico.metricas.incidentes), ok: cards.proveedorCritico.metricas.incidentes <= 2 },
               { label: 'Tiendas reinc.', valor: String(cards.proveedorCritico.metricas.reincidenciaTiendas), ok: cards.proveedorCritico.metricas.reincidenciaTiendas === 0 },
-              { label: 'Score', valor: `${cards.proveedorCritico.score}/100`, ok: false },
             ].map(({ label, valor, ok }) => (
               <div key={label} style={{ background: 'var(--muted)', borderRadius: '8px', padding: '8px 10px' }}>
                 <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '2px' }}>{label}</div>
@@ -645,7 +644,7 @@ export default function DashboardAnalitico() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             {[
-              { label: 'Costo', pts: cards.proveedorCritico.scoreBreakdown.costo },
+              { label: 'Impacto ec.', pts: cards.proveedorCritico.scoreBreakdown.costo },
               { label: 'SLA',   pts: cards.proveedorCritico.scoreBreakdown.sla },
               { label: 'MTTR',  pts: cards.proveedorCritico.scoreBreakdown.mttr },
               { label: 'Reinc.', pts: cards.proveedorCritico.scoreBreakdown.reincidencia },

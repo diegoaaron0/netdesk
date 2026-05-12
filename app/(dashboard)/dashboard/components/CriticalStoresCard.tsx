@@ -20,9 +20,9 @@ function fmtCosto(n: number) {
 }
 
 function estadoBadge(estado: TiendaCritica['estado']) {
-  if (estado === 'critica') return { label: '● Crítica',  color: '#A32D2D', bg: '#FCEBEB' }
-  if (estado === 'revisar') return { label: '● Revisar',  color: '#854F0B', bg: '#FAEEDA' }
-  return                           { label: '● Óptima',   color: '#3B6D11', bg: '#EAF3DE' }
+  if (estado === 'critica') return { label: '● Crítica',      color: '#A32D2D', bg: '#FCEBEB' }
+  if (estado === 'revisar') return { label: '● En revisión',  color: '#854F0B', bg: '#FAEEDA' }
+  return                           { label: '● Estabilizada', color: '#3B6D11', bg: '#EAF3DE' }
 }
 
 function Tooltip({ lines }: { lines: string[] }) {

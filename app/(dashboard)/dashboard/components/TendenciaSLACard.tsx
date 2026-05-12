@@ -43,6 +43,13 @@ function estadoColor(estado: string) {
   return '#888780'
 }
 
+function estadoLabel(estado: string) {
+  if (estado === 'optimo')    return 'Estable'
+  if (estado === 'en_riesgo') return 'En revisión'
+  if (estado === 'critico')   return 'Crítico'
+  return 'Sin muestra suficiente'
+}
+
 function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
   const d: DayData = payload[0]?.payload
@@ -150,10 +157,10 @@ export default function TendenciaSLACard({ desde, hasta, proveedorId, refreshKey
           <div style={{ width: 16, height: 2, background: '#888', borderRadius: 1, borderTop: '2px dashed #888' }} />
           Meta SLA 90%
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', fontSize: '10px' }}>
-          <span style={{ padding: '2px 7px', background: '#EAF3DE', color: '#3B6D11', borderRadius: '999px' }}>Verde ≥ 90%</span>
-          <span style={{ padding: '2px 7px', background: '#FAEEDA', color: '#854F0B', borderRadius: '999px' }}>Amarillo 70–89%</span>
-          <span style={{ padding: '2px 7px', background: '#FCEBEB', color: '#A32D2D', borderRadius: '999px' }}>Rojo &lt; 70%</span>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', fontSize: '10px' }}>
+          <span style={{ padding: '2px 7px', background: '#EAF3DE', color: '#3B6D11', borderRadius: '999px' }}>Estable ≥ 90%</span>
+          <span style={{ padding: '2px 7px', background: '#FAEEDA', color: '#854F0B', borderRadius: '999px' }}>En revisión 70–89%</span>
+          <span style={{ padding: '2px 7px', background: '#FCEBEB', color: '#A32D2D', borderRadius: '999px' }}>Crítico &lt; 70%</span>
         </div>
       </div>
 
@@ -205,9 +212,10 @@ export default function TendenciaSLACard({ desde, hasta, proveedorId, refreshKey
                   <span style={{ color: '#A32D2D', fontWeight: 600 }}>⚠</span>
                   <span>
                     <strong>{d.dia.slice(5).split('-').reverse().join('/')}</strong>
-                    {' → '}caída de SLA a <strong style={{ color: '#A32D2D' }}>{d.slaPct}%</strong>
-                    {d.causaPrincipal && ` — Causa principal: ${d.causaPrincipal}`}
-                    {d.proveedorMasAfectado && d.fueraSLA > 0 && ` — ${d.fueraSLA} caso${d.fueraSLA > 1 ? 's' : ''} ${d.proveedorMasAfectado} fuera de SLA`}
+                    {' → '}SLA <strong style={{ color: '#A32D2D' }}>{d.slaPct}%</strong>
+                    {d.evaluables > 0 && ` (${d.dentraSLA} de ${d.evaluables} evaluables)`}
+                    {d.causaPrincipal && ` — ${d.causaPrincipal}`}
+                    {d.proveedorMasAfectado && d.fueraSLA > 0 && ` — ${d.fueraSLA} caso${d.fueraSLA > 1 ? 's' : ''} fuera de SLA`}
                   </span>
                 </div>
               ))}

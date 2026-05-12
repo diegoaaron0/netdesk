@@ -20,6 +20,11 @@ export interface RawIncidente {
   contingencia_activa: boolean
   prov_nombre: string | null
   dia_semana: number
+  // Campos SLA (de LATERAL joins)
+  hora_correo_n1: Date | null
+  hora_primera_resp: Date | null
+  nivel_respuesta: number | null
+  max_nivel: number | null
 }
 
 export interface RawEscalamiento {
@@ -58,18 +63,40 @@ export async function fetchIncidentesPeriodo(
       t.nombre_cc AS tienda_nombre,
       t.distrito  AS tienda_distrito,
       t.cluster,
-      t.venta_hora_soles::float          AS venta_hora_soles,
-      COALESCE(t.tiene_contingencia, false)    AS tiene_contingencia,
-      COALESCE(t.contingencia_activa, false)   AS contingencia_activa,
-      p.nombre    AS prov_nombre,
-      EXTRACT(DOW FROM i.hora_registro AT TIME ZONE 'America/Lima')::int AS dia_semana
+      t.venta_hora_soles::float                   AS venta_hora_soles,
+      COALESCE(t.tiene_contingencia, false)        AS tiene_contingencia,
+      COALESCE(t.contingencia_activa, false)       AS contingencia_activa,
+      COALESCE(p.nombre, pt.nombre)               AS prov_nombre,
+      EXTRACT(DOW FROM i.hora_registro AT TIME ZONE 'America/Lima')::int AS dia_semana,
+      n1.hora_correo_n1,
+      resp.hora_primera_resp,
+      resp.nivel_respuesta,
+      max_n.max_nivel
     FROM incidentes i
     JOIN tiendas t ON i.tienda_id = t.id
-    LEFT JOIN proveedores p ON i.proveedor_id = p.id
+    LEFT JOIN proveedores p  ON i.proveedor_id = p.id
+    LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
+    LEFT JOIN LATERAL (
+      SELECT hora_envio_correo AS hora_correo_n1
+      FROM   escalamientos
+      WHERE  incidente_id = i.id AND nivel = 1 AND hora_envio_correo IS NOT NULL
+      ORDER  BY creado_en LIMIT 1
+    ) n1 ON true
+    LEFT JOIN LATERAL (
+      SELECT hora_respuesta AS hora_primera_resp, nivel AS nivel_respuesta
+      FROM   escalamientos
+      WHERE  incidente_id = i.id AND hora_respuesta IS NOT NULL
+      ORDER  BY hora_respuesta LIMIT 1
+    ) resp ON true
+    LEFT JOIN LATERAL (
+      SELECT COALESCE(MAX(nivel), 0) AS max_nivel
+      FROM   escalamientos
+      WHERE  incidente_id = i.id
+    ) max_n ON true
     WHERE i.hora_registro >= ${desde}::timestamptz
       AND i.hora_registro <  ${hasta}::timestamptz
       AND i.estado != 'CANCELADO'
-      ${proveedorNombre ? sql`AND p.nombre = ${proveedorNombre}` : sql``}
+      ${proveedorNombre ? sql`AND COALESCE(p.nombre, pt.nombre) = ${proveedorNombre}` : sql``}
     ORDER BY i.hora_registro DESC
   `)
   return rows as unknown as RawIncidente[]
@@ -91,12 +118,14 @@ export async function fetchEscalamientosPeriodo(
       ne.tiempo_resp_sev1
     FROM escalamientos e
     JOIN incidentes i ON e.incidente_id = i.id
-    LEFT JOIN proveedores p ON i.proveedor_id = p.id
+    JOIN tiendas t    ON i.tienda_id    = t.id
+    LEFT JOIN proveedores p  ON i.proveedor_id = p.id
+    LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
     LEFT JOIN niveles_escalamiento ne ON e.nivel_esc_id = ne.id
     WHERE i.hora_registro >= ${desde}::timestamptz
       AND i.hora_registro <  ${hasta}::timestamptz
       AND i.estado != 'CANCELADO'
-      ${proveedorNombre ? sql`AND p.nombre = ${proveedorNombre}` : sql``}
+      ${proveedorNombre ? sql`AND COALESCE(p.nombre, pt.nombre) = ${proveedorNombre}` : sql``}
   `)
   return rows as unknown as RawEscalamiento[]
 }

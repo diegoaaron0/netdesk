@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
         i.hora_fin,
         i.mttr_minutos,
         i.proveedor_id,
-        p.nombre    AS prov_nombre,
+        COALESCE(p.nombre, pt.nombre) AS prov_nombre,
         t.codigo    AS tienda_codigo,
         t.nombre_cc AS tienda_nombre,
         t.cluster,
@@ -51,7 +51,8 @@ export async function GET(req: NextRequest) {
         max_n.max_nivel
       FROM incidentes i
       JOIN tiendas t ON i.tienda_id = t.id
-      LEFT JOIN proveedores p ON i.proveedor_id = p.id
+      LEFT JOIN proveedores p  ON i.proveedor_id = p.id
+      LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
       LEFT JOIN LATERAL (
         SELECT hora_envio_correo AS hora_correo_n1
         FROM   escalamientos
@@ -72,7 +73,7 @@ export async function GET(req: NextRequest) {
       WHERE i.hora_registro >= ${desde}::timestamptz
         AND i.hora_registro <  ${hasta}::timestamptz
         AND i.estado != 'CANCELADO'
-        ${proveedorId ? sql`AND p.nombre = ${proveedorId}` : sql``}
+        ${proveedorId ? sql`AND COALESCE(p.nombre, pt.nombre) = ${proveedorId}` : sql``}
       ORDER BY i.hora_registro
     `) as unknown as RawProveedorRow[],
     fetchVentasDiarias(),

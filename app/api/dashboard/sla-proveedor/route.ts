@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
         i.hora_registro,
         i.hora_fin,
         i.proveedor_id,
-        p.nombre    AS prov_nombre,
+        COALESCE(p.nombre, pt.nombre) AS prov_nombre,
         t.codigo    AS tienda_codigo,
         t.nombre_cc AS tienda_nombre,
         n1.hora_correo_n1,
@@ -44,7 +44,8 @@ export async function GET(req: NextRequest) {
         max_n.max_nivel
       FROM incidentes i
       JOIN tiendas t ON i.tienda_id = t.id
-      LEFT JOIN proveedores p ON i.proveedor_id = p.id
+      LEFT JOIN proveedores p  ON i.proveedor_id = p.id
+      LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
       LEFT JOIN LATERAL (
         SELECT hora_envio_correo AS hora_correo_n1
         FROM   escalamientos
@@ -66,8 +67,8 @@ export async function GET(req: NextRequest) {
         AND i.hora_registro <  ${hasta}::timestamptz
         AND i.estado = 'RESUELTO'
         AND i.hora_fin IS NOT NULL
-        AND i.proveedor_id IS NOT NULL
-        ${proveedorId ? sql`AND p.nombre = ${proveedorId}` : sql``}
+        AND COALESCE(p.nombre, pt.nombre) IS NOT NULL
+        ${proveedorId ? sql`AND COALESCE(p.nombre, pt.nombre) = ${proveedorId}` : sql``}
       ORDER BY i.hora_registro DESC
     `) as unknown as RawSLAProvRow[],
     fetchProveedoresList(),

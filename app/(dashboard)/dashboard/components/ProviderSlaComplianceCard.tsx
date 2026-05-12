@@ -24,8 +24,8 @@ function slaBg(pct: number | null) {
 }
 function estadoLabel(pct: number | null) {
   if (pct == null) return 'Sin datos'
-  if (pct >= 90) return 'Óptimo'
-  if (pct >= 70) return 'Revisar'
+  if (pct >= 90) return 'Estable'
+  if (pct >= 70) return 'En revisión'
   return 'Crítico'
 }
 function fmtMin(min: number | null | undefined) {
