@@ -6,6 +6,7 @@ import TendenciaSLACard from './TendenciaSLACard'
 import ProviderImpactCard from './ProviderImpactCard'
 import CriticalStoresCard from './CriticalStoresCard'
 import DistributionByTypeCard from './DistributionByTypeCard'
+import ProviderSlaComplianceCard from './ProviderSlaComplianceCard'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -637,9 +638,18 @@ export default function DashboardAnalitico() {
           />
         </div>
 
-        {/* E-H — Placeholders */}
+        {/* E — Cumplimiento SLA por proveedor (activo) */}
+        <div style={{ gridColumn: '1 / -1' }}>
+          <ProviderSlaComplianceCard
+            desde={desde}
+            hasta={hasta}
+            proveedorId={proveedorId}
+            refreshKey={refreshKey}
+          />
+        </div>
+
+        {/* F-H — Placeholders */}
         {[
-          { title: 'E. Cumplimiento SLA por proveedor', desc: 'Detalle de SLA de respuesta y resolución por proveedor' },
           { title: 'F. Impacto geográfico', desc: 'Concentración de incidentes e impacto económico por zona' },
           { title: 'G. Tendencia SLA últimos 6 meses', desc: 'Evolución mensual del cumplimiento SLA por proveedor' },
           { title: 'H. Insights y decisiones sugeridas', desc: 'Recomendaciones ejecutivas basadas en los datos del período' },
