@@ -5,6 +5,7 @@ import type { DashboardAnaliticoResponse } from '@/types/dashboard'
 import TendenciaSLACard from './TendenciaSLACard'
 import ProviderImpactCard from './ProviderImpactCard'
 import CriticalStoresCard from './CriticalStoresCard'
+import DistributionByTypeCard from './DistributionByTypeCard'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -626,9 +627,18 @@ export default function DashboardAnalitico() {
           />
         </div>
 
-        {/* D-H — Placeholders */}
+        {/* D — Distribución por tipo (activo) */}
+        <div>
+          <DistributionByTypeCard
+            desde={desde}
+            hasta={hasta}
+            proveedorId={proveedorId}
+            refreshKey={refreshKey}
+          />
+        </div>
+
+        {/* E-H — Placeholders */}
         {[
-          { title: 'D. Distribución por tipo', desc: 'Breakdown de incidentes por tipo de caída' },
           { title: 'E. Cumplimiento SLA por proveedor', desc: 'Detalle de SLA de respuesta y resolución por proveedor' },
           { title: 'F. Impacto geográfico', desc: 'Concentración de incidentes e impacto económico por zona' },
           { title: 'G. Tendencia SLA últimos 6 meses', desc: 'Evolución mensual del cumplimiento SLA por proveedor' },
