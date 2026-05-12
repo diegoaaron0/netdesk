@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import type { DashboardAnaliticoResponse } from '@/types/dashboard'
 import TendenciaSLACard from './TendenciaSLACard'
 import ProviderImpactCard from './ProviderImpactCard'
+import CriticalStoresCard from './CriticalStoresCard'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -615,9 +616,18 @@ export default function DashboardAnalitico() {
           />
         </div>
 
-        {/* C-H — Placeholders */}
+        {/* C — Tiendas críticas (activo) */}
+        <div style={{ gridColumn: '1 / -1' }}>
+          <CriticalStoresCard
+            desde={desde}
+            hasta={hasta}
+            proveedorId={proveedorId}
+            refreshKey={refreshKey}
+          />
+        </div>
+
+        {/* D-H — Placeholders */}
         {[
-          { title: 'C. Tiendas críticas', desc: 'Ranking de tiendas que requieren revisión estructural' },
           { title: 'D. Distribución por tipo', desc: 'Breakdown de incidentes por tipo de caída' },
           { title: 'E. Cumplimiento SLA por proveedor', desc: 'Detalle de SLA de respuesta y resolución por proveedor' },
           { title: 'F. Impacto geográfico', desc: 'Concentración de incidentes e impacto económico por zona' },
