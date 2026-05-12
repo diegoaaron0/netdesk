@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import type { DashboardAnaliticoResponse } from '@/types/dashboard'
+import TendenciaSLACard from './TendenciaSLACard'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -188,9 +189,11 @@ export default function DashboardAnalitico() {
   const [loading, setLoading] = useState(false)
   const [openCard, setOpenCard] = useState<string | null>(null)
   const [rotatingIdx, setRotatingIdx] = useState(0)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const fetchData = useCallback(async (d = desde, h = hasta, pId = proveedorId) => {
     setLoading(true)
+    setRefreshKey((k) => k + 1)
     try {
       const params = new URLSearchParams({ desde: d, hasta: h })
       if (pId) params.set('proveedorId', pId)
@@ -588,17 +591,28 @@ export default function DashboardAnalitico() {
         </Panel>
       )}
 
-      {/* 8 Placeholders */}
+      {/* KPIs — A activo, B-H placeholders */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '20px' }}>
+
+        {/* A — Tendencia de incidentes y SLA (activo) */}
+        <div style={{ gridColumn: '1 / -1' }}>
+          <TendenciaSLACard
+            desde={desde}
+            hasta={hasta}
+            proveedorId={proveedorId}
+            refreshKey={refreshKey}
+          />
+        </div>
+
+        {/* B-H — Placeholders */}
         {[
-          { title: 'Tendencia de incidentes y SLA', desc: 'Evolución diaria de incidentes y cumplimiento SLA en el período' },
-          { title: 'Impacto por proveedor', desc: 'Comparativa de proveedores por incidentes, MTTR, SLA y costo estimado' },
-          { title: 'Tiendas críticas', desc: 'Ranking de tiendas que requieren revisión estructural' },
-          { title: 'Distribución por tipo', desc: 'Breakdown de incidentes por tipo de caída' },
-          { title: 'Cumplimiento SLA por proveedor', desc: 'Detalle de SLA de respuesta y resolución por proveedor' },
-          { title: 'Impacto geográfico', desc: 'Concentración de incidentes e impacto económico por zona' },
-          { title: 'Tendencia SLA últimos 6 meses', desc: 'Evolución mensual del cumplimiento SLA por proveedor' },
-          { title: 'Insights y decisiones sugeridas', desc: 'Recomendaciones ejecutivas basadas en los datos del período' },
+          { title: 'B. Impacto por proveedor', desc: 'Comparativa de proveedores por incidentes, MTTR, SLA y costo estimado' },
+          { title: 'C. Tiendas críticas', desc: 'Ranking de tiendas que requieren revisión estructural' },
+          { title: 'D. Distribución por tipo', desc: 'Breakdown de incidentes por tipo de caída' },
+          { title: 'E. Cumplimiento SLA por proveedor', desc: 'Detalle de SLA de respuesta y resolución por proveedor' },
+          { title: 'F. Impacto geográfico', desc: 'Concentración de incidentes e impacto económico por zona' },
+          { title: 'G. Tendencia SLA últimos 6 meses', desc: 'Evolución mensual del cumplimiento SLA por proveedor' },
+          { title: 'H. Insights y decisiones sugeridas', desc: 'Recomendaciones ejecutivas basadas en los datos del período' },
         ].map(({ title, desc }) => (
           <div key={title} style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>{title}</div>

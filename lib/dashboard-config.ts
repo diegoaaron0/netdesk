@@ -25,4 +25,7 @@ export const DASHBOARD_CONFIG = {
     costo: 0.35, sla: 0.25, mttr: 0.20,
     reincidencia: 0.10, incidentes: 0.10,
   },
+
+  SLA_RESPUESTA_MIN: 60,   // 1 hora por nivel antes de escalar
+  SLA_RESOLUCION_MIN: 240, // 4 horas totales desde correo N1
 }
