@@ -8,6 +8,7 @@ import CriticalStoresCard from './CriticalStoresCard'
 import DistributionByTypeCard from './DistributionByTypeCard'
 import ProviderSlaComplianceCard from './ProviderSlaComplianceCard'
 import GeographicImpactCard from './GeographicImpactCard'
+import SlaTrendSixMonthsCard from './SlaTrendSixMonthsCard'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -659,9 +660,16 @@ export default function DashboardAnalitico() {
           />
         </div>
 
-        {/* G-H — Placeholders */}
+        {/* G — Tendencia SLA últimos 6 meses (activo) */}
+        <div style={{ gridColumn: '1 / -1' }}>
+          <SlaTrendSixMonthsCard
+            proveedorId={proveedorId}
+            refreshKey={refreshKey}
+          />
+        </div>
+
+        {/* H — Placeholder */}
         {[
-          { title: 'G. Tendencia SLA últimos 6 meses', desc: 'Evolución mensual del cumplimiento SLA por proveedor' },
           { title: 'H. Insights y decisiones sugeridas', desc: 'Recomendaciones ejecutivas basadas en los datos del período' },
         ].map(({ title, desc }) => (
           <div key={title} style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
