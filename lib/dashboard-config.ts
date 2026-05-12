@@ -27,5 +27,4 @@ export const DASHBOARD_CONFIG = {
   },
 
   SLA_RESPUESTA_MIN: 60,   // 1 hora por nivel antes de escalar
-  SLA_RESOLUCION_MIN: 240, // 4 horas totales desde correo N1
 }

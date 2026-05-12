@@ -44,6 +44,7 @@ export async function GET(req: NextRequest) {
         t.cluster,
         t.venta_hora_soles::float  AS venta_hora_soles,
         t.tiene_contingencia,
+        COALESCE(t.contingencia_activa, false) AS contingencia_activa,
         n1.hora_correo_n1,
         resp.hora_primera_resp,
         max_n.max_nivel

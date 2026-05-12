@@ -2,6 +2,7 @@ import type {
   PuntoTendencia, ChartMes, ResumenProveedor, MesCritico,
   SLATrendResumenGlobal, SLATendenciaEstado, EstadoTendencia,
 } from '@/types/sla-trend'
+import { calcSLARow } from './sla-core'
 
 export interface RawSLATrendRow {
   id: string
@@ -15,10 +16,6 @@ export interface RawSLATrendRow {
   max_nivel: number | null
 }
 
-const SLA_RESP_MIN = 60
-const SLA_RESOLUCION_POR_TIPO: Record<string, number> = {
-  CAIDA_TOTAL: 240, INTERMITENCIA: 480, LENTITUD: 720, POS: 240, OTROS: 240,
-}
 const MES_LABELS: Record<number, string> = {
   1: 'Ene', 2: 'Feb', 3: 'Mar', 4: 'Abr', 5: 'May', 6: 'Jun',
   7: 'Jul', 8: 'Ago', 9: 'Set', 10: 'Oct', 11: 'Nov', 12: 'Dic',
@@ -34,32 +31,18 @@ export function getMesLabel(key: string): string {
   return `${MES_LABELS[parseInt(month)]} ${year}`
 }
 
-function toMs(v: Date | string | null): number | null {
-  if (!v) return null; return new Date(v).getTime()
-}
-function diffMin(a: Date | string | null, b: Date | string | null): number | null {
-  const ma = toMs(a); const mb = toMs(b)
-  if (ma == null || mb == null) return null
-  return (ma - mb) / 60000
-}
 function avg(vals: number[]): number | null {
   return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null
 }
 
 function calcRow(row: RawSLATrendRow) {
-  const evaluable = row.hora_correo_n1 != null && row.max_nivel != null && row.max_nivel >= 1
-  if (!evaluable) return { evaluable: false, escaladoN2: false, slaGeneral: false, tPrimeraRespuestaMin: null as number | null, tResolucionMin: null as number | null }
-  const escaladoN2 = (row.max_nivel ?? 0) >= 2
-  const tResp = diffMin(row.hora_primera_resp, row.hora_correo_n1)
-  const tResol = diffMin(row.hora_fin, row.hora_correo_n1)
-  const slaResolucionObj = SLA_RESOLUCION_POR_TIPO[row.tipo] ?? 240
-  const slaRespuesta = !escaladoN2 && tResp != null && tResp <= SLA_RESP_MIN
-  const slaResolucion = tResol != null && tResol <= slaResolucionObj
-  return {
-    evaluable: true, escaladoN2, slaGeneral: slaRespuesta && slaResolucion,
-    tPrimeraRespuestaMin: tResp != null ? Math.round(tResp) : null,
-    tResolucionMin: tResol != null ? Math.round(tResol) : null,
-  }
+  return calcSLARow({
+    tipo: row.tipo,
+    hora_correo_n1: row.hora_correo_n1,
+    hora_primera_resp: row.hora_primera_resp,
+    hora_fin: row.hora_fin,
+    max_nivel: row.max_nivel,
+  })
 }
 
 function getEstado(slaPct: number | null): SLATendenciaEstado {

@@ -2,6 +2,9 @@ import type {
   ZonaResumen, DistritoDetalle, TiendaZonaDetalle,
   PatronGeografico, GeographicResumenGlobal, ZonaEstado,
 } from '@/types/geographic-impact'
+import { calcSLARow, calcMTTRMin } from './sla-core'
+import { calcImpactoRow } from './impacto-calc'
+import { getZona } from './geo-zones'
 
 export interface RawGeoRow {
   id: string
@@ -19,47 +22,14 @@ export interface RawGeoRow {
   cluster: string | null
   venta_hora_soles: number | null
   tiene_contingencia: boolean
+  contingencia_activa: boolean
   hora_correo_n1: Date | string | null
   hora_primera_resp: Date | string | null
   max_nivel: number | null
 }
 
-const SLA_RESOLUCION_POR_TIPO: Record<string, number> = {
-  CAIDA_TOTAL: 240, INTERMITENCIA: 480, LENTITUD: 720, POS: 240, OTROS: 240,
-}
-
-// ─── Zona Mapping ─────────────────────────────────────────────────────────────
-
-const LIMA_NORTE = ['comas', 'independencia', 'los olivos', 'san martín de porres', 'san martin de porres', 'carabayllo', 'puente piedra', 'ancón', 'ancon', 'santa rosa', 'rimac', 'rímac']
-const LIMA_ESTE  = ['san juan de lurigancho', 'sjl', 'ate', 'el agustino', 'santa anita', 'chaclacayo', 'cieneguilla', 'la molina', 'lurigancho']
-const LIMA_SUR   = ['san juan de miraflores', 'sjm', 'villa el salvador', 'villa maría del triunfo', 'villa maria del triunfo', 'chorrillos', 'lurín', 'lurin', 'pachacamac', 'pucusana', 'punta hermosa', 'punta negra', 'san bartolo']
-const LIMA_CENTRO = ['miraflores', 'surquillo', 'barranco', 'san isidro', 'san borja', 'surco', 'santiago de surco', 'san luis', 'la victoria', 'lince', 'magdalena', 'pueblo libre', 'san miguel', 'jesús maría', 'jesus maria', 'breña', 'brena', 'cercado']
-const CALLAO     = ['callao', 'bellavista', 'la perla', 'la punta', 'ventanilla', 'mi perú', 'mi peru', 'carmen de la legua']
-
-export function getZona(distrito: string | null, cluster: string | null): string {
-  if (cluster && cluster.trim()) return cluster.trim()
-  if (!distrito) return 'Sin zona'
-  const d = distrito.toLowerCase().trim()
-  if (LIMA_NORTE.some((z) => d.includes(z))) return 'Lima Norte'
-  if (LIMA_ESTE.some((z) => d.includes(z))) return 'Lima Este'
-  if (LIMA_SUR.some((z) => d.includes(z))) return 'Lima Sur'
-  if (LIMA_CENTRO.some((z) => d.includes(z))) return 'Lima Centro'
-  if (CALLAO.some((z) => d.includes(z))) return 'Callao'
-  if (d.includes('lima')) return 'Lima Centro'
-  return 'Provincia'
-}
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function toMs(v: Date | string | null): number | null {
-  if (!v) return null
-  return new Date(v).getTime()
-}
-function diffMin(a: Date | string | null, b: Date | string | null): number | null {
-  const ma = toMs(a); const mb = toMs(b)
-  if (ma == null || mb == null) return null
-  return (ma - mb) / 60000
-}
 function avg(vals: number[]): number | null {
   return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null
 }
@@ -69,21 +39,18 @@ function topKey(counts: Record<string, number>): string | null {
   return entries.sort((a, b) => b[1] - a[1])[0][0]
 }
 function calcImpacto(row: RawGeoRow): number {
-  if (row.estado !== 'RESUELTO' || !row.hora_fin || !row.venta_hora_soles) return 0
-  const mttr = diffMin(row.hora_fin, row.hora_registro)
-  if (mttr == null || mttr <= 0) return 0
-  return Math.round((mttr / 60) * row.venta_hora_soles * 0.35)
+  return calcImpactoRow(row).impactoEstimado
 }
 function calcSLA(row: RawGeoRow): boolean | null {
   if (row.estado !== 'RESUELTO' || !row.hora_fin) return null
-  if (!row.hora_correo_n1 || !row.max_nivel || row.max_nivel < 1) return null
-  const escaladoN2 = row.max_nivel >= 2
-  const tResp = diffMin(row.hora_primera_resp, row.hora_correo_n1)
-  const slaResp = !escaladoN2 && tResp != null && tResp <= 60
-  const slaResolucionObj = SLA_RESOLUCION_POR_TIPO[row.tipo] ?? 240
-  const tResol = diffMin(row.hora_fin, row.hora_correo_n1)
-  const slaResol = tResol != null && tResol <= slaResolucionObj
-  return slaResp && slaResol
+  const res = calcSLARow({
+    tipo: row.tipo,
+    hora_correo_n1: row.hora_correo_n1,
+    hora_primera_resp: row.hora_primera_resp,
+    hora_fin: row.hora_fin,
+    max_nivel: row.max_nivel,
+  })
+  return res.evaluable ? res.slaGeneral : null
 }
 function getEstado(slaPct: number | null, incidentes: number): ZonaEstado {
   if (slaPct != null) {
@@ -113,7 +80,7 @@ export function buildZonas(rows: RawGeoRow[]): ZonaResumen[] {
 
     const mttrVals = zRows
       .filter((r) => r.estado === 'RESUELTO' && r.hora_fin)
-      .map((r) => diffMin(r.hora_fin, r.hora_registro))
+      .map((r) => calcMTTRMin(r.hora_registro, r.hora_fin))
       .filter((v): v is number => v != null && v > 0)
 
     const slaResults = zRows.map(calcSLA).filter((v): v is boolean => v !== null)
@@ -161,7 +128,7 @@ export function buildDistritos(rows: RawGeoRow[]): DistritoDetalle[] {
 
     const mttrVals = dRows
       .filter((r) => r.estado === 'RESUELTO' && r.hora_fin)
-      .map((r) => diffMin(r.hora_fin, r.hora_registro))
+      .map((r) => calcMTTRMin(r.hora_registro, r.hora_fin))
       .filter((v): v is number => v != null && v > 0)
 
     const slaResults = dRows.map(calcSLA).filter((v): v is boolean => v !== null)
@@ -208,7 +175,7 @@ export function buildTiendasPorZona(rows: RawGeoRow[], zona: string): TiendaZona
     const first = tRows[0]
     const mttrVals = tRows
       .filter((r) => r.estado === 'RESUELTO' && r.hora_fin)
-      .map((r) => diffMin(r.hora_fin, r.hora_registro))
+      .map((r) => calcMTTRMin(r.hora_registro, r.hora_fin))
       .filter((v): v is number => v != null && v > 0)
 
     const slaResults = tRows.map(calcSLA).filter((v): v is boolean => v !== null)

@@ -2,6 +2,7 @@ import type {
   ProveedorSLAResumen, ProveedorSLATiempos, ProveedorSLANiveles,
   CasoFueraSLA, SLAEstado,
 } from '@/types/provider-sla-compliance'
+import { calcSLARow, SLA_RESPUESTA_MIN } from './sla-core'
 
 export interface RawSLAProvRow {
   id: string
@@ -19,24 +20,6 @@ export interface RawSLAProvRow {
   max_nivel: number | null
 }
 
-const SLA_RESP_MIN = 60
-const SLA_RESOLUCION_POR_TIPO: Record<string, number> = {
-  CAIDA_TOTAL:   240,
-  INTERMITENCIA: 480,
-  LENTITUD:      720,
-  POS:           240,
-  OTROS:         240,
-}
-
-function toMs(v: Date | string | null): number | null {
-  if (!v) return null
-  return new Date(v).getTime()
-}
-function diffMin(a: Date | string | null, b: Date | string | null): number | null {
-  const ma = toMs(a); const mb = toMs(b)
-  if (ma == null || mb == null) return null
-  return (ma - mb) / 60000
-}
 function avg(vals: number[]): number | null {
   return vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null
 }
@@ -46,54 +29,15 @@ function topEntry(counts: Record<number, number>): number | null {
   return Number(entries.sort((a, b) => b[1] - a[1])[0][0])
 }
 
-interface SLACalc {
-  evaluable: boolean
-  escaladoN2: boolean
-  tPrimeraRespuestaMin: number | null
-  tResolucionMin: number | null
-  slaResolucionObj: number
-  slaRespuesta: boolean
-  slaResolucion: boolean
-  slaGeneral: boolean
-  nivelQueRespondio: number | null
-  motivoIncumplimiento: string
-}
-
-function calcRow(row: RawSLAProvRow): SLACalc {
-  const evaluable = row.hora_correo_n1 != null && row.max_nivel != null && row.max_nivel >= 1
-  if (!evaluable) {
-    return {
-      evaluable: false, escaladoN2: false, tPrimeraRespuestaMin: null,
-      tResolucionMin: null, slaResolucionObj: 240,
-      slaRespuesta: false, slaResolucion: false, slaGeneral: false,
-      nivelQueRespondio: null, motivoIncumplimiento: '',
-    }
-  }
-  const escaladoN2 = (row.max_nivel ?? 0) >= 2
-  const tPrimeraRespuestaMin = diffMin(row.hora_primera_resp, row.hora_correo_n1)
-  const tResolucionMin = diffMin(row.hora_fin, row.hora_correo_n1)
-  const slaResolucionObj = SLA_RESOLUCION_POR_TIPO[row.tipo] ?? 240
-
-  const slaRespuesta = !escaladoN2
-    && tPrimeraRespuestaMin != null
-    && tPrimeraRespuestaMin <= SLA_RESP_MIN
-
-  const slaResolucion = tResolucionMin != null && tResolucionMin <= slaResolucionObj
-  const slaGeneral = slaRespuesta && slaResolucion
-
-  const motivos: string[] = []
-  if (!slaRespuesta) motivos.push(escaladoN2 ? 'Falta de respuesta en N1' : 'Respuesta fuera de tiempo')
-  if (!slaResolucion) motivos.push('Resolución fuera de tiempo')
-  const motivoIncumplimiento = motivos.join(' + ')
-
-  return {
-    evaluable, escaladoN2,
-    tPrimeraRespuestaMin: tPrimeraRespuestaMin != null ? Math.round(tPrimeraRespuestaMin) : null,
-    tResolucionMin: tResolucionMin != null ? Math.round(tResolucionMin) : null,
-    slaResolucionObj, slaRespuesta, slaResolucion, slaGeneral,
-    nivelQueRespondio: row.nivel_respuesta,
-    motivoIncumplimiento,
-  }
+function calcRow(row: RawSLAProvRow) {
+  const sla = calcSLARow({
+    tipo: row.tipo,
+    hora_correo_n1: row.hora_correo_n1,
+    hora_primera_resp: row.hora_primera_resp,
+    hora_fin: row.hora_fin,
+    max_nivel: row.max_nivel,
+  })
+  return { ...sla, nivelQueRespondio: row.nivel_respuesta }
 }
 
 export function getEstadoSLAProv(slaPct: number | null): SLAEstado {
@@ -177,7 +121,7 @@ export function buildTiemposTable(rows: RawSLAProvRow[]): ProveedorSLATiempos[] 
 
     result.push({
       nombre,
-      slaRespuestaObj: SLA_RESP_MIN,
+      slaRespuestaObj: SLA_RESPUESTA_MIN,
       tRespuestaRealProm: avg(respTimes),
       slaResolucionObjProm: avg(objTimes),
       tResolucionRealProm: avg(resolTimes),
@@ -243,7 +187,7 @@ export function buildCasosFueraSLA(rows: RawSLAProvRow[]): CasoFueraSLA[] {
       slaRespuesta: c.slaRespuesta,
       slaResolucion: c.slaResolucion,
       slaGeneral: c.slaGeneral,
-      motivoIncumplimiento: c.motivoIncumplimiento,
+      motivoIncumplimiento: c.motivoIncumplimiento ?? '',
     })
   }
   return result

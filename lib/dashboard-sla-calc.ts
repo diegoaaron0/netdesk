@@ -1,4 +1,4 @@
-import { DASHBOARD_CONFIG } from './dashboard-config'
+import { calcSLARow } from './sla-core'
 
 export interface RawSLARow {
   id: string
@@ -34,18 +34,6 @@ export interface SLACaso {
   motivoIncumplimiento: string | null
 }
 
-const { SLA_RESPUESTA_MIN, SLA_RESOLUCION_MIN } = DASHBOARD_CONFIG
-
-function toMs(v: Date | string | null): number | null {
-  if (!v) return null
-  return new Date(v).getTime()
-}
-function diffMin(a: Date | string | null, b: Date | string | null): number | null {
-  const ma = toMs(a); const mb = toMs(b)
-  if (ma == null || mb == null) return null
-  return (ma - mb) / 60000
-}
-
 export function getMotivoIncumplimiento(
   slaRespuesta: boolean,
   slaResolucion: boolean,
@@ -53,41 +41,20 @@ export function getMotivoIncumplimiento(
 ): string | null {
   if (slaRespuesta && slaResolucion) return null
   const parts: string[] = []
-  if (!slaRespuesta) {
-    parts.push(escaladoN2 ? 'Nivel 1 sin respuesta' : 'Respuesta fuera de tiempo')
-  }
+  if (!slaRespuesta) parts.push(escaladoN2 ? 'Nivel 1 sin respuesta' : 'Respuesta fuera de tiempo')
   if (!slaResolucion) parts.push('Resolución fuera de tiempo')
-  return parts.join(' + ')
+  return parts.join(' + ') || null
 }
 
 export function calcSLACaso(row: RawSLARow): SLACaso {
   const dia = new Date(row.hora_registro).toLocaleDateString('sv-SE', { timeZone: 'America/Lima' })
-
-  const evaluable =
-    row.hora_correo_n1 != null &&
-    row.max_nivel != null && row.max_nivel >= 1
-
-  const escaladoN2 = (row.max_nivel ?? 0) >= 2
-
-  const tPrimeraRespuestaMin = evaluable
-    ? diffMin(row.hora_primera_resp, row.hora_correo_n1)
-    : null
-
-  const tResolucionMin = evaluable
-    ? diffMin(row.hora_fin, row.hora_correo_n1)
-    : null
-
-  const slaRespuesta = evaluable
-    && !escaladoN2
-    && tPrimeraRespuestaMin != null
-    && tPrimeraRespuestaMin <= SLA_RESPUESTA_MIN
-
-  const slaResolucion = evaluable
-    && tResolucionMin != null
-    && tResolucionMin <= SLA_RESOLUCION_MIN
-
-  const slaGeneral = slaRespuesta && slaResolucion
-
+  const sla = calcSLARow({
+    tipo: row.tipo,
+    hora_correo_n1: row.hora_correo_n1,
+    hora_primera_resp: row.hora_primera_resp,
+    hora_fin: row.hora_fin,
+    max_nivel: row.max_nivel,
+  })
   return {
     id: row.id,
     codigo: row.codigo,
@@ -96,15 +63,15 @@ export function calcSLACaso(row: RawSLARow): SLACaso {
     provNombre: row.prov_nombre ?? '—',
     tiendaCodigo: row.tienda_codigo,
     tiendaNombre: row.tienda_nombre ?? '',
-    evaluable,
-    escaladoN2,
-    tPrimeraRespuestaMin: tPrimeraRespuestaMin != null ? Math.round(tPrimeraRespuestaMin) : null,
-    tResolucionMin: tResolucionMin != null ? Math.round(tResolucionMin) : null,
+    evaluable: sla.evaluable,
+    escaladoN2: sla.escaladoN2,
+    tPrimeraRespuestaMin: sla.tPrimeraRespuestaMin,
+    tResolucionMin: sla.tResolucionMin,
     nivelQueRespondio: row.nivel_respuesta,
-    slaRespuesta,
-    slaResolucion,
-    slaGeneral,
-    motivoIncumplimiento: evaluable ? getMotivoIncumplimiento(slaRespuesta, slaResolucion, escaladoN2) : null,
+    slaRespuesta: sla.slaRespuesta,
+    slaResolucion: sla.slaResolucion,
+    slaGeneral: sla.slaGeneral,
+    motivoIncumplimiento: sla.evaluable ? sla.motivoIncumplimiento : null,
   }
 }
 

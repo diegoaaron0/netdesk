@@ -2,6 +2,9 @@ import type {
   Insight, InsightCategoria, InsightPrioridad, InsightTipo,
   KpiOrigen, EvidenciaSummary, InsightsResumenGlobal,
 } from '@/types/insights'
+import { calcSLARow, calcMTTRMin } from './sla-core'
+import { calcImpactoRow } from './impacto-calc'
+import { getZona } from './geo-zones'
 
 // ─── Raw row type ─────────────────────────────────────────────────────────────
 
@@ -22,6 +25,7 @@ export interface RawInsightsRow {
   cluster: string | null
   venta_hora_soles: number | null
   tiene_contingencia: boolean | null
+  contingencia_activa: boolean | null
   hora_correo_n1: string | null
   hora_primera_resp: string | null
   max_nivel: number
@@ -35,57 +39,33 @@ function getMesKey(hora: string): string {
 }
 
 function calcMTTR(row: RawInsightsRow): number | null {
-  if (!row.hora_fin || row.estado !== 'RESUELTO') return null
-  const diff = new Date(row.hora_fin).getTime() - new Date(row.hora_registro).getTime()
-  return Math.round(diff / 60000)
-}
-
-function slaLimiteMin(tipo: string): number {
-  if (tipo === 'CAIDA_TOTAL') return 240
-  if (tipo === 'INTERMITENCIA') return 480
-  if (tipo === 'LENTITUD') return 720
-  return 240
-}
-
-function isEvaluable(row: RawInsightsRow): boolean {
-  return (
-    row.estado === 'RESUELTO' &&
-    row.hora_fin != null &&
-    row.hora_correo_n1 != null &&
-    row.max_nivel >= 1
-  )
+  if (row.estado !== 'RESUELTO') return null
+  const m = calcMTTRMin(row.hora_registro, row.hora_fin)
+  return m != null ? Math.round(m) : null
 }
 
 function calcSLA(row: RawInsightsRow): boolean | null {
-  if (!isEvaluable(row)) return null
-  if (row.max_nivel >= 2) return false
-  const mttr = calcMTTR(row)
-  if (mttr == null) return null
-  return mttr <= slaLimiteMin(row.tipo)
+  if (row.estado !== 'RESUELTO' || !row.hora_fin) return null
+  const res = calcSLARow({
+    tipo: row.tipo,
+    hora_correo_n1: row.hora_correo_n1,
+    hora_primera_resp: row.hora_primera_resp,
+    hora_fin: row.hora_fin,
+    max_nivel: row.max_nivel,
+  })
+  return res.evaluable ? res.slaGeneral : null
 }
 
 function calcImpacto(row: RawInsightsRow): number {
-  const mttr = calcMTTR(row)
-  if (mttr == null) return 0
-  const venta = row.venta_hora_soles ?? 500
-  return Math.round((mttr / 60) * venta * 0.35)
-}
-
-function getZona(distrito: string | null, cluster: string | null): string {
-  if (cluster) return cluster
-  if (!distrito) return 'Provincia'
-  const d = distrito.toUpperCase()
-  const LIMA_NORTE = ['INDEPENDENCIA', 'LOS OLIVOS', 'SAN MARTIN DE PORRES', 'COMAS', 'CARABAYLLO', 'PUENTE PIEDRA', 'RIMAC', 'ANCON', 'SANTA ROSA']
-  const LIMA_ESTE  = ['ATE', 'LA MOLINA', 'SANTA ANITA', 'EL AGUSTINO', 'LURIGANCHO', 'CHACLACAYO', 'CIENEGUILLA', 'SAN JUAN DE LURIGANCHO']
-  const LIMA_SUR   = ['VILLA EL SALVADOR', 'VILLA MARIA DEL TRIUNFO', 'SAN JUAN DE MIRAFLORES', 'CHORRILLOS', 'BARRANCO', 'SURCO', 'LURÍN', 'LURIN', 'PACHACAMAC', 'PUCUSANA', 'PUNTA HERMOSA', 'PUNTA NEGRA', 'SANTA MARIA DEL MAR']
-  const LIMA_CENTRO = ['MIRAFLORES', 'SAN ISIDRO', 'SAN BORJA', 'SURQUILLO', 'MAGDALENA', 'JESUS MARIA', 'LINCE', 'LA VICTORIA', 'LIMA', 'BREÑA', 'PUEBLO LIBRE']
-  const CALLAO = ['CALLAO', 'BELLAVISTA', 'LA PERLA', 'LA PUNTA', 'CARMEN DE LA LEGUA', 'VENTANILLA', 'MI PERU']
-  if (LIMA_NORTE.some(n => d.includes(n))) return 'Lima Norte'
-  if (LIMA_ESTE.some(n => d.includes(n)))  return 'Lima Este'
-  if (LIMA_SUR.some(n => d.includes(n)))   return 'Lima Sur'
-  if (LIMA_CENTRO.some(n => d.includes(n))) return 'Lima Centro'
-  if (CALLAO.some(n => d.includes(n)))     return 'Callao'
-  return 'Provincia'
+  return calcImpactoRow({
+    hora_registro: row.hora_registro,
+    hora_fin: row.hora_fin,
+    estado: row.estado,
+    venta_hora_soles: row.venta_hora_soles,
+    tipo: row.tipo,
+    cluster: row.cluster,
+    contingencia_activa: row.contingencia_activa,
+  }).impactoEstimado
 }
 
 // ─── Aggregation helpers ──────────────────────────────────────────────────────
