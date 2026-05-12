@@ -88,15 +88,6 @@ const TIPO_LABELS: Record<string, string> = {
   LENTITUD: 'Lentitud', POS: 'POS', OTROS: 'Otros',
 }
 
-// ── Mock recent reports (historial pendiente de implementar) ───────────────────
-const REPORTES_RECIENTES = [
-  { id: 1, nombre: 'Reporte mensual mayo 2026',   modulo: 'Analítico',  formato: 'CSV', fecha: '02/06/2026 09:30' },
-  { id: 2, nombre: 'Seguimiento proveedores',      modulo: 'Analítico',  formato: 'CSV', fecha: '01/06/2026 18:15' },
-  { id: 3, nombre: 'Incidentes operativos',        modulo: 'Incidentes', formato: 'CSV', fecha: '01/06/2026 14:00' },
-  { id: 4, nombre: 'Tiendas críticas mayo',        modulo: 'Analítico',  formato: 'CSV', fecha: '31/05/2026 21:05' },
-  { id: 5, nombre: 'SLA proveedores mayo',         modulo: 'Analítico',  formato: 'CSV', fecha: '31/05/2026 19:20' },
-]
-
 // ── CSV helpers ────────────────────────────────────────────────────────────────
 function esc(v: unknown): string {
   if (v == null) return ''
@@ -424,22 +415,39 @@ export default function ReportesPage() {
       </div>
 
       {/* ── Main 3-column grid ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr 296px', gap: '14px', marginBottom: '16px', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr 296px', gap: '14px', marginBottom: '16px', alignItems: 'stretch' }}>
 
-        {/* Col 1: Module selector */}
-        <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '14px' }}>
-          <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            1. Selecciona el módulo
+        {/* Col 1: Module selector + Recent reports */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '14px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              1. Selecciona el módulo
+            </div>
+            {(Object.keys(MODULO_META) as Modulo[]).map(m => (
+              <button key={m} onClick={() => cambiarModulo(m)}
+                style={{ width: '100%', padding: '9px 12px', marginBottom: '5px', border: modulo === m ? '1.5px solid #185FA5' : '0.5px solid #e5e7eb', borderRadius: '8px', background: modulo === m ? '#E6F1FB' : 'white', textAlign: 'left', cursor: 'pointer', display: 'block' }}>
+                <div style={{ fontWeight: 600, fontSize: '12px', color: modulo === m ? '#185FA5' : '#0f172a' }}>
+                  {MODULO_META[m].label}
+                </div>
+                <div style={{ fontSize: '10px', color: '#64748b', marginTop: '1px' }}>{MODULO_META[m].desc}</div>
+              </button>
+            ))}
           </div>
-          {(Object.keys(MODULO_META) as Modulo[]).map(m => (
-            <button key={m} onClick={() => cambiarModulo(m)}
-              style={{ width: '100%', padding: '9px 12px', marginBottom: '5px', border: modulo === m ? '1.5px solid #185FA5' : '0.5px solid #e5e7eb', borderRadius: '8px', background: modulo === m ? '#E6F1FB' : 'white', textAlign: 'left', cursor: 'pointer', display: 'block' }}>
-              <div style={{ fontWeight: 600, fontSize: '12px', color: modulo === m ? '#185FA5' : '#0f172a' }}>
-                {MODULO_META[m].label}
-              </div>
-              <div style={{ fontSize: '10px', color: '#64748b', marginTop: '1px' }}>{MODULO_META[m].desc}</div>
-            </button>
-          ))}
+
+          {/* 7. Reportes recientes */}
+          <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '14px', flex: 1 }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              7. Reportes recientes
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 0', gap: '6px' }}>
+              <div style={{ fontSize: '20px', opacity: 0.3 }}>📄</div>
+              <div style={{ fontSize: '11px', color: '#94a3b8', textAlign: 'center' }}>Sin reportes generados aún</div>
+              <div style={{ fontSize: '10px', color: '#cbd5e1', textAlign: 'center' }}>Los reportes exportados aparecerán aquí</div>
+            </div>
+            <div style={{ fontSize: '9px', color: '#cbd5e1', textAlign: 'center', marginTop: '4px' }}>
+              Historial — próximamente disponible
+            </div>
+          </div>
         </div>
 
         {/* Col 2: Section checkboxes */}
@@ -480,7 +488,7 @@ export default function ReportesPage() {
           </div>
         </div>
 
-        {/* Col 3: Summary + Export + Recent */}
+        {/* Col 3: Summary + Export */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
           {/* 3. Summary card */}
@@ -544,32 +552,11 @@ export default function ReportesPage() {
             </div>
           </div>
 
-          {/* 7. Recent reports */}
-          <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '14px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                7. Reportes recientes
-              </div>
-              <button style={{ fontSize: '10px', color: '#185FA5', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Ver todos</button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-              {REPORTES_RECIENTES.map((r, i) => (
-                <div key={r.id} style={{ padding: '7px 0', borderTop: i > 0 ? '0.5px solid #f1f5f9' : 'none', fontSize: '10px' }}>
-                  <div style={{ fontWeight: 600, color: '#0f172a', marginBottom: '1px' }}>{r.nombre}</div>
-                  <div style={{ color: '#64748b' }}>{r.modulo} · {r.formato} · {r.fecha}</div>
-                  <span style={{ marginTop: '2px', display: 'inline-block', padding: '1px 6px', background: '#EAF3DE', color: '#3B6D11', borderRadius: '999px', fontSize: '9px', fontWeight: 600 }}>Listo</span>
-                </div>
-              ))}
-            </div>
-            <div style={{ fontSize: '9px', color: '#94a3b8', marginTop: '8px', textAlign: 'center' }}>
-              Historial de reportes — próximamente disponible
-            </div>
-          </div>
         </div>
       </div>
 
-      {/* ── Bottom 2-column grid ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+      {/* ── Bottom 2-column grid (5 + 6) ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '0' }}>
 
         {/* 5. Quick templates */}
         <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '14px' }}>
