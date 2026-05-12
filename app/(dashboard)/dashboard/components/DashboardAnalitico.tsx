@@ -9,6 +9,7 @@ import DistributionByTypeCard from './DistributionByTypeCard'
 import ProviderSlaComplianceCard from './ProviderSlaComplianceCard'
 import GeographicImpactCard from './GeographicImpactCard'
 import SlaTrendSixMonthsCard from './SlaTrendSixMonthsCard'
+import InsightsRecommendationsCard from './InsightsRecommendationsCard'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -668,22 +669,15 @@ export default function DashboardAnalitico() {
           />
         </div>
 
-        {/* H — Placeholder */}
-        {[
-          { title: 'H. Insights y decisiones sugeridas', desc: 'Recomendaciones ejecutivas basadas en los datos del período' },
-        ].map(({ title, desc }) => (
-          <div key={title} style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>{title}</div>
-            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '12px' }}>{desc}</div>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '24px 0' }}>
-              <IconPlaceholder />
-              <span style={{ fontSize: '12px', color: '#9ca3af' }}>Próximamente</span>
-            </div>
-            <button disabled style={{ padding: '6px 14px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'not-allowed', opacity: 0.4, background: 'var(--card)', color: 'var(--foreground)', alignSelf: 'flex-start' }}>
-              Ver detalle
-            </button>
-          </div>
-        ))}
+        {/* H — Insights y decisiones sugeridas (activo) */}
+        <div style={{ gridColumn: '1 / -1' }}>
+          <InsightsRecommendationsCard
+            desde={desde}
+            hasta={hasta}
+            proveedorId={proveedorId}
+            refreshKey={refreshKey}
+          />
+        </div>
       </div>
     </>
   )
