@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
       WHERE i.hora_registro >= ${desde}::timestamptz
         AND i.hora_registro <  ${hasta}::timestamptz
         AND i.estado != 'CANCELADO'
-        ${proveedorId ? sql`AND i.proveedor_id = ${proveedorId}::uuid` : sql``}
+        ${proveedorId ? sql`AND p.nombre = ${proveedorId}` : sql``}
       ORDER BY i.hora_registro
     `) as unknown as RawTiendaRow[],
     fetchVentasDiarias(),

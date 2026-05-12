@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
         AND i.estado = 'RESUELTO'
         AND i.hora_fin IS NOT NULL
         AND i.proveedor_id IS NOT NULL
-        ${proveedorId ? sql`AND i.proveedor_id = ${proveedorId}::uuid` : sql``}
+        ${proveedorId ? sql`AND p.nombre = ${proveedorId}` : sql``}
       ORDER BY i.hora_registro DESC
     `) as unknown as RawSLAProvRow[],
     fetchProveedoresList(),

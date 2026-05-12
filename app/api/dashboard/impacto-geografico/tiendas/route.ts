@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
     WHERE i.hora_registro >= ${desde}::timestamptz
       AND i.hora_registro <  ${hasta}::timestamptz
       AND i.estado != 'CANCELADO'
-      ${proveedorId ? sql`AND i.proveedor_id = ${proveedorId}::uuid` : sql``}
+      ${proveedorId ? sql`AND p.nombre = ${proveedorId}` : sql``}
   `) as unknown as RawGeoRow[]
 
   const tiendas = buildTiendasPorZona(rows, zona)

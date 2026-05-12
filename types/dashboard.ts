@@ -1,13 +1,23 @@
 export interface IncidenteListItem {
+  id: string
   codigo: string
+  tiendaCodigo: string
+  tiendaNombre: string
   proveedor: string
   tipo: string
   estado: string
+  fecha: string
 }
 
-export interface TiendaChip {
+export interface TiendaDetalle {
   id: string
   codigo: string
+  nombre: string
+  proveedor: string
+  distrito: string | null
+  incidentesCount: number
+  ultimoIncidente: string
+  estadoReciente: string
 }
 
 export interface MttrProveedor {
@@ -21,11 +31,23 @@ export interface SlaProveedor {
   excessoPromMin: number
 }
 
+export interface SlaEvaluableItem {
+  codigo: string
+  tiendaCodigo: string
+  proveedor: string
+  tipo: string
+  fecha: string
+  cumplido: boolean
+}
+
 export interface CostoTienda {
   codigo: string
   proveedor: string
   horas: number
   costo: number
+  ventaAfectada: number
+  factor: number
+  motivo: string
 }
 
 export interface ReincidenciaTienda {
@@ -34,6 +56,9 @@ export interface ReincidenciaTienda {
   proveedor: string
   caidas: number
   razon: string
+  incidenteCodigos: string[]
+  tipoRepetido: string
+  costoEstimado: number
 }
 
 export interface DayCount {
@@ -57,7 +82,7 @@ export interface TiendasAfectadasCard {
   total: number
   porcentajeRed: number
   deltaVsAnterior: number | null
-  lista: TiendaChip[]
+  lista: TiendaDetalle[]
 }
 
 export interface MttrPromedioCard {
@@ -71,6 +96,7 @@ export interface CumplimientoSLACard {
   porcentaje: number
   deltaVsAnterior: number | null
   porProveedor: SlaProveedor[]
+  evaluables: SlaEvaluableItem[]
 }
 
 export interface CostoEstimadoCard {

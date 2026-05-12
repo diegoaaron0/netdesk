@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const desdeParam   = searchParams.get('desde')
   const hastaParam   = searchParams.get('hasta')
-  const proveedorId  = searchParams.get('proveedorId') || null
+  const proveedorId  = searchParams.get('proveedorId') || null  // value = provider name
 
   const hasta  = hastaParam  ? new Date(hastaParam  + 'T23:59:59').toISOString() : new Date().toISOString()
   const desde  = desdeParam  ? new Date(desdeParam  + 'T00:00:00').toISOString() : (() => {
@@ -95,7 +95,7 @@ function calcExcessoMin(escs: RawEscalamiento[]): number {
 function calcCostoIncidente(
   inc: RawIncidente,
   ventasDiarias: RawVentaDiaria[],
-): { costo: number; ventaAfectada: number } {
+): { costo: number; ventaAfectada: number; factor: number; motivo: string } {
   const ventaHora = getVentaHoraEstimadaOrNull(
     inc.tienda_codigo, inc.dia_semana, inc.venta_hora_soles, inc.cluster, ventasDiarias,
   )
@@ -110,7 +110,15 @@ function calcCostoIncidente(
   return {
     costo: res.impactoEstimado,
     ventaAfectada: res.ventaEsperadaAfectada ?? 0,
+    factor: res.factorAplicado,
+    motivo: res.motivoFactor,
   }
+}
+
+function fmtFechaInc(hora: Date | string): string {
+  return new Date(hora).toLocaleDateString('es-PE', {
+    day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Lima',
+  })
 }
 
 // ─── By-day helpers ──────────────────────────────────────────────────────────
@@ -150,6 +158,10 @@ function getRazon(
   return 'Costo estimado alto'
 }
 
+function topKey(counts: Record<string, number>): string {
+  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? ''
+}
+
 // ─── Main builder ────────────────────────────────────────────────────────────
 
 function buildCards(
@@ -159,7 +171,7 @@ function buildCards(
   prevIncs: RawIncidente[],
   prevEscs: RawEscalamiento[],
 ) {
-  const escMap  = escsByIncidente(escs)
+  const escMap     = escsByIncidente(escs)
   const prevEscMap = escsByIncidente(prevEscs)
 
   // ── CARD 1: Incidentes ──────────────────────────────────────────────────
@@ -170,12 +182,49 @@ function buildCards(
     : null
 
   // ── CARD 2: Tiendas afectadas ───────────────────────────────────────────
-  const tiendasMap = new Map<string, { id: string; codigo: string }>()
-  for (const i of incs) tiendasMap.set(i.tienda_id, { id: i.tienda_id, codigo: i.tienda_codigo })
+  type TiendaAccum = {
+    id: string; codigo: string; nombre: string; distrito: string | null
+    provCount: Record<string, number>; count: number
+    latestHora: number; latestEstado: string
+  }
+  const tiendasDetailMap = new Map<string, TiendaAccum>()
+  for (const i of incs) {
+    const existing = tiendasDetailMap.get(i.tienda_id)
+    const hora = new Date(i.hora_registro).getTime()
+    if (existing) {
+      existing.count++
+      if (i.prov_nombre) existing.provCount[i.prov_nombre] = (existing.provCount[i.prov_nombre] ?? 0) + 1
+      if (hora > existing.latestHora) { existing.latestHora = hora; existing.latestEstado = i.estado }
+    } else {
+      const provCount: Record<string, number> = {}
+      if (i.prov_nombre) provCount[i.prov_nombre] = 1
+      tiendasDetailMap.set(i.tienda_id, {
+        id: i.tienda_id, codigo: i.tienda_codigo,
+        nombre: i.tienda_nombre ?? '', distrito: i.tienda_distrito,
+        provCount, count: 1, latestHora: hora, latestEstado: i.estado,
+      })
+    }
+  }
+
   const prevTiendas = new Set(prevIncs.map((i) => i.tienda_id))
   const dTiendas = prevTiendas.size > 0
-    ? Math.round((tiendasMap.size - prevTiendas.size) / prevTiendas.size * 100)
+    ? Math.round((tiendasDetailMap.size - prevTiendas.size) / prevTiendas.size * 100)
     : null
+
+  const tiendasLista = [...tiendasDetailMap.values()]
+    .sort((a, b) => a.codigo.localeCompare(b.codigo))
+    .map((t) => ({
+      id: t.id,
+      codigo: t.codigo,
+      nombre: t.nombre,
+      proveedor: topKey(t.provCount) || '—',
+      distrito: t.distrito,
+      incidentesCount: t.count,
+      ultimoIncidente: new Date(t.latestHora).toLocaleDateString('es-PE', {
+        day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Lima',
+      }),
+      estadoReciente: t.latestEstado,
+    }))
 
   // ── CARD 3: MTTR promedio ───────────────────────────────────────────────
   const incsConMttr = incs.filter((i) => i.mttr_minutos != null && i.mttr_minutos > 0)
@@ -190,7 +239,6 @@ function buildCards(
 
   const dMttr = mttrActual != null && mttrPrev != null ? mttrActual - mttrPrev : null
 
-  // MTTR por proveedor
   const mttrByProv = new Map<string, { sum: number; count: number }>()
   for (const i of incs) {
     if (!i.prov_nombre || !i.mttr_minutos) continue
@@ -206,10 +254,20 @@ function buildCards(
   const slaByProv = new Map<string, { ok: number; total: number; excessSum: number; excessCount: number }>()
 
   let slaCumplidos = 0
+  const evaluables: { codigo: string; tiendaCodigo: string; proveedor: string; tipo: string; fecha: string; cumplido: boolean }[] = []
   for (const i of incs) {
     const incEscs = escMap.get(i.id) ?? []
     const cumplido = isSLACumplido(incEscs)
     if (cumplido) slaCumplidos++
+
+    evaluables.push({
+      codigo: i.codigo,
+      tiendaCodigo: i.tienda_codigo,
+      proveedor: i.prov_nombre ?? '—',
+      tipo: i.tipo,
+      fecha: fmtFechaInc(i.hora_registro),
+      cumplido,
+    })
 
     const prov = i.prov_nombre ?? '—'
     if (!slaByProv.has(prov)) slaByProv.set(prov, { ok: 0, total: 0, excessSum: 0, excessCount: 0 })
@@ -240,11 +298,12 @@ function buildCards(
   // ── CARD 5: Costo estimado ──────────────────────────────────────────────
   let costoTotal = 0
   let ventaAfectadaTotal = 0
-  const costoByProv  = new Map<string, number>()
-  const costoByTienda = new Map<string, { codigo: string; proveedor: string; horas: number; costo: number }>()
+  const costoByProv   = new Map<string, number>()
+  type CostoAccum = { codigo: string; proveedor: string; horas: number; costo: number; ventaAfectada: number; topCosto: number; topFactor: number; topMotivo: string }
+  const costoByTienda = new Map<string, CostoAccum>()
 
   for (const i of incs) {
-    const { costo, ventaAfectada } = calcCostoIncidente(i, ventasDiarias)
+    const { costo, ventaAfectada, factor, motivo } = calcCostoIncidente(i, ventasDiarias)
     costoTotal += costo
     ventaAfectadaTotal += ventaAfectada
 
@@ -254,13 +313,14 @@ function buildCards(
     const existing = costoByTienda.get(i.tienda_id)
     if (existing) {
       existing.costo += costo
+      existing.ventaAfectada += ventaAfectada
       existing.horas += (i.mttr_minutos ?? 0) / 60
+      if (costo > existing.topCosto) { existing.topCosto = costo; existing.topFactor = factor; existing.topMotivo = motivo }
     } else {
       costoByTienda.set(i.tienda_id, {
-        codigo: i.tienda_codigo,
-        proveedor: prov,
+        codigo: i.tienda_codigo, proveedor: prov,
         horas: (i.mttr_minutos ?? 0) / 60,
-        costo,
+        costo, ventaAfectada, topCosto: costo, topFactor: factor, topMotivo: motivo,
       })
     }
   }
@@ -271,12 +331,16 @@ function buildCards(
     ? Math.round((costoTotal - prevCosto) / prevCosto * 100)
     : null
 
-  const provCostoSorted = [...costoByProv.entries()].sort((a, b) => b[1] - a[1])
+  const provCostoSorted  = [...costoByProv.entries()].sort((a, b) => b[1] - a[1])
   const tiendaCostoSorted = [...costoByTienda.values()].sort((a, b) => b.costo - a.costo)
   const top5Tiendas = tiendaCostoSorted.slice(0, 5).map((t) => ({
-    ...t,
+    codigo: t.codigo,
+    proveedor: t.proveedor,
     horas: Math.round(t.horas * 10) / 10,
     costo: Math.round(t.costo),
+    ventaAfectada: Math.round(t.ventaAfectada),
+    factor: t.topFactor,
+    motivo: t.topMotivo,
   }))
 
   // ── CARD 6: Reincidencia ────────────────────────────────────────────────
@@ -288,24 +352,27 @@ function buildCards(
   const reincidentes = [...incsByTienda.values()]
     .filter((arr) => arr.length >= 2)
     .sort((a, b) => b.length - a.length)
-    .map((arr) => ({
-      id: arr[0].tienda_id,
-      codigo: arr[0].tienda_codigo,
-      proveedor: arr[0].prov_nombre ?? '—',
-      caidas: arr.length,
-      razon: getRazon(arr, escMap),
-    }))
+    .map((arr) => {
+      const tipoCounts: Record<string, number> = {}
+      for (const r of arr) tipoCounts[r.tipo] = (tipoCounts[r.tipo] ?? 0) + 1
+      const tipoRepetido = topKey(tipoCounts)
+      const costoEstimado = Math.round(costoByTienda.get(arr[0].tienda_id)?.costo ?? 0)
+      return {
+        id: arr[0].tienda_id,
+        codigo: arr[0].tienda_codigo,
+        proveedor: arr[0].prov_nombre ?? '—',
+        caidas: arr.length,
+        razon: getRazon(arr, escMap),
+        incidenteCodigos: arr.map((r) => r.codigo),
+        tipoRepetido,
+        costoEstimado,
+      }
+    })
 
   // ── CARD 7: Proveedor crítico ───────────────────────────────────────────
   const provMetricas = new Map<string, {
-    nombre: string
-    incidentes: number
-    mttrSum: number
-    mttrCount: number
-    slaOk: number
-    slaTotal: number
-    costo: number
-    tiendas: Set<string>
+    nombre: string; incidentes: number; mttrSum: number; mttrCount: number
+    slaOk: number; slaTotal: number; costo: number; tiendas: Set<string>
   }>()
 
   for (const i of incs) {
@@ -322,7 +389,6 @@ function buildCards(
     m.costo += calcCostoIncidente(i, ventasDiarias).costo
   }
 
-  // Reincidentes por proveedor (tiendas con 2+ incidentes)
   const reincByProv = new Map<string, number>()
   for (const arr of incsByTienda.values()) {
     if (arr.length < 2) continue
@@ -354,17 +420,19 @@ function buildCards(
     })
     scored.sort((a, b) => b.score - a.score)
     const top = scored[0]
-    proveedorCritico = {
-      nombre: top.nombre,
-      score: top.score,
-      metricas: {
-        slaPct: top.slaPct,
-        mttrMinutos: top.mttrMinutos,
-        costoEstimado: top.costo,
-        reincidenciaTiendas: top.reincidenciaTiendas,
-        incidentes: top.incidentes,
-      },
-      scoreBreakdown: top.breakdown as { costo: number; sla: number; mttr: number; reincidencia: number; incidentes: number },
+    if (top.score >= 30) {
+      proveedorCritico = {
+        nombre: top.nombre,
+        score: top.score,
+        metricas: {
+          slaPct: top.slaPct,
+          mttrMinutos: top.mttrMinutos,
+          costoEstimado: top.costo,
+          reincidenciaTiendas: top.reincidenciaTiendas,
+          incidentes: top.incidentes,
+        },
+        scoreBreakdown: top.breakdown as { costo: number; sla: number; mttr: number; reincidencia: number; incidentes: number },
+      }
     }
   }
 
@@ -373,18 +441,22 @@ function buildCards(
       total: incs.length,
       deltaVsAnterior: dTotal,
       lista: incs.map((i) => ({
+        id: i.id,
         codigo: i.codigo,
+        tiendaCodigo: i.tienda_codigo,
+        tiendaNombre: i.tienda_nombre ?? '',
         proveedor: i.prov_nombre ?? '—',
         tipo: i.tipo,
         estado: i.estado,
+        fecha: fmtFechaInc(i.hora_registro),
       })),
       byDay,
     },
     tiendasAfectadas: {
-      total: tiendasMap.size,
-      porcentajeRed: Math.round((tiendasMap.size / DASHBOARD_CONFIG.TOTAL_TIENDAS_ACTIVAS) * 1000) / 10,
+      total: tiendasDetailMap.size,
+      porcentajeRed: Math.round((tiendasDetailMap.size / DASHBOARD_CONFIG.TOTAL_TIENDAS_ACTIVAS) * 1000) / 10,
       deltaVsAnterior: dTiendas,
-      lista: [...tiendasMap.values()].sort((a, b) => a.codigo.localeCompare(b.codigo)),
+      lista: tiendasLista,
     },
     mttrPromedio: {
       minutos: mttrActual,
@@ -396,6 +468,7 @@ function buildCards(
       porcentaje: slaPct,
       deltaVsAnterior: dSla,
       porProveedor: slaPorProveedor,
+      evaluables,
     },
     costoEstimado: {
       total: Math.round(costoTotal),

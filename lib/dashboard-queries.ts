@@ -13,6 +13,7 @@ export interface RawIncidente {
   tienda_id: string
   tienda_codigo: string
   tienda_nombre: string | null
+  tienda_distrito: string | null
   cluster: string | null
   venta_hora_soles: number | null
   tiene_contingencia: boolean
@@ -40,7 +41,7 @@ export interface RawVentaDiaria {
 export async function fetchIncidentesPeriodo(
   desde: string,
   hasta: string,
-  proveedorId?: string | null,
+  proveedorNombre?: string | null,
 ): Promise<RawIncidente[]> {
   const rows = await db.execute(sql`
     SELECT
@@ -55,6 +56,7 @@ export async function fetchIncidentesPeriodo(
       t.id        AS tienda_id,
       t.codigo    AS tienda_codigo,
       t.nombre_cc AS tienda_nombre,
+      t.distrito  AS tienda_distrito,
       t.cluster,
       t.venta_hora_soles::float          AS venta_hora_soles,
       COALESCE(t.tiene_contingencia, false)    AS tiene_contingencia,
@@ -67,7 +69,7 @@ export async function fetchIncidentesPeriodo(
     WHERE i.hora_registro >= ${desde}::timestamptz
       AND i.hora_registro <  ${hasta}::timestamptz
       AND i.estado != 'CANCELADO'
-      ${proveedorId ? sql`AND i.proveedor_id = ${proveedorId}::uuid` : sql``}
+      ${proveedorNombre ? sql`AND p.nombre = ${proveedorNombre}` : sql``}
     ORDER BY i.hora_registro DESC
   `)
   return rows as unknown as RawIncidente[]
@@ -76,7 +78,7 @@ export async function fetchIncidentesPeriodo(
 export async function fetchEscalamientosPeriodo(
   desde: string,
   hasta: string,
-  proveedorId?: string | null,
+  proveedorNombre?: string | null,
 ): Promise<RawEscalamiento[]> {
   const rows = await db.execute(sql`
     SELECT
@@ -89,11 +91,12 @@ export async function fetchEscalamientosPeriodo(
       ne.tiempo_resp_sev1
     FROM escalamientos e
     JOIN incidentes i ON e.incidente_id = i.id
+    LEFT JOIN proveedores p ON i.proveedor_id = p.id
     LEFT JOIN niveles_escalamiento ne ON e.nivel_esc_id = ne.id
     WHERE i.hora_registro >= ${desde}::timestamptz
       AND i.hora_registro <  ${hasta}::timestamptz
       AND i.estado != 'CANCELADO'
-      ${proveedorId ? sql`AND i.proveedor_id = ${proveedorId}::uuid` : sql``}
+      ${proveedorNombre ? sql`AND p.nombre = ${proveedorNombre}` : sql``}
   `)
   return rows as unknown as RawEscalamiento[]
 }
