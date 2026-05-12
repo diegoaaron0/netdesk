@@ -7,6 +7,7 @@ import ProviderImpactCard from './ProviderImpactCard'
 import CriticalStoresCard from './CriticalStoresCard'
 import DistributionByTypeCard from './DistributionByTypeCard'
 import ProviderSlaComplianceCard from './ProviderSlaComplianceCard'
+import GeographicImpactCard from './GeographicImpactCard'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -648,9 +649,18 @@ export default function DashboardAnalitico() {
           />
         </div>
 
-        {/* F-H — Placeholders */}
+        {/* F — Impacto geográfico (activo) */}
+        <div style={{ gridColumn: '1 / -1' }}>
+          <GeographicImpactCard
+            desde={desde}
+            hasta={hasta}
+            proveedorId={proveedorId}
+            refreshKey={refreshKey}
+          />
+        </div>
+
+        {/* G-H — Placeholders */}
         {[
-          { title: 'F. Impacto geográfico', desc: 'Concentración de incidentes e impacto económico por zona' },
           { title: 'G. Tendencia SLA últimos 6 meses', desc: 'Evolución mensual del cumplimiento SLA por proveedor' },
           { title: 'H. Insights y decisiones sugeridas', desc: 'Recomendaciones ejecutivas basadas en los datos del período' },
         ].map(({ title, desc }) => (
