@@ -38,10 +38,10 @@ export async function GET(req: NextRequest) {
       i.estado,
       i.otros_clasificacion,
       p.nombre        AS prov_nombre,
-      t.nombre        AS tienda_nombre,
+      t.nombre_cc     AS tienda_nombre,
       t.distrito      AS tienda_distrito,
       t.cluster,
-      t.venta_hora_soles,
+      t.venta_hora_soles::float AS venta_hora_soles,
       n1.hora_correo_n1,
       max_n.max_nivel
     FROM incidentes i
