@@ -1,5 +1,25 @@
 import { DASHBOARD_CONFIG } from './dashboard-config'
 
+/** Retorna null si no hay dato de venta ni fallback de cluster conocido. */
+export function getVentaHoraEstimadaOrNull(
+  tiendaCodigo: string,
+  diaSemana: number,
+  ventaHoraSoles: number | null,
+  cluster: string | null,
+  ventasDiarias: Array<{ tienda_codigo: string; dia_semana: number; venta_hora_promedio: number }>,
+): number | null {
+  const match = ventasDiarias.find(
+    (v) => v.tienda_codigo === tiendaCodigo && Number(v.dia_semana) === diaSemana,
+  )
+  if (match) return Number(match.venta_hora_promedio)
+  if (ventaHoraSoles != null) return Number(ventaHoraSoles)
+  if (cluster != null) {
+    const fb = DASHBOARD_CONFIG.CLUSTER_FALLBACK_HORA[cluster]
+    if (fb != null) return fb
+  }
+  return null
+}
+
 export function getVentaHoraEsperada(
   tiendaCodigo: string,
   diaSemana: number,

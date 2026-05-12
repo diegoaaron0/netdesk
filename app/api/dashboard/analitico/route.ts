@@ -3,13 +3,13 @@ import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { DASHBOARD_CONFIG } from '@/lib/dashboard-config'
 import {
-  getVentaHoraEsperada,
-  getCostoEstimado,
+  getVentaHoraEstimadaOrNull,
   parseSlaMinutos,
   getSLACumplido,
   getScoreProveedor,
   getMTTRTexto,
 } from '@/lib/dashboard-calculations'
+import { calcImpactoRow } from '@/lib/impacto-calc'
 import {
   fetchIncidentesPeriodo,
   fetchEscalamientosPeriodo,
@@ -96,21 +96,21 @@ function calcCostoIncidente(
   inc: RawIncidente,
   ventasDiarias: RawVentaDiaria[],
 ): { costo: number; ventaAfectada: number } {
-  if (!inc.mttr_minutos || inc.mttr_minutos <= 0) return { costo: 0, ventaAfectada: 0 }
-  const ventaHora = getVentaHoraEsperada(
-    inc.tienda_codigo,
-    inc.dia_semana,
-    inc.venta_hora_soles,
-    inc.cluster,
-    ventasDiarias,
+  const ventaHora = getVentaHoraEstimadaOrNull(
+    inc.tienda_codigo, inc.dia_semana, inc.venta_hora_soles, inc.cluster, ventasDiarias,
   )
-  return getCostoEstimado(
-    ventaHora,
-    inc.mttr_minutos,
-    inc.tipo,
-    inc.tiene_contingencia,
-    inc.contingencia_activa,
-  )
+  const res = calcImpactoRow({
+    hora_registro: inc.hora_registro,
+    hora_fin: inc.hora_fin,
+    estado: inc.estado,
+    tipo: inc.tipo,
+    ventaHoraResolvida: ventaHora,
+    contingencia_activa: inc.contingencia_activa,
+  })
+  return {
+    costo: res.impactoEstimado,
+    ventaAfectada: res.ventaEsperadaAfectada ?? 0,
+  }
 }
 
 // ─── By-day helpers ──────────────────────────────────────────────────────────

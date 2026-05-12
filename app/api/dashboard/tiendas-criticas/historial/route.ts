@@ -4,7 +4,8 @@ import { can } from '@/lib/permisos'
 import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { calcSLACaso, type RawSLARow } from '@/lib/dashboard-sla-calc'
-import { getCostoEstimado, getVentaHoraEsperada } from '@/lib/dashboard-calculations'
+import { getVentaHoraEstimadaOrNull } from '@/lib/dashboard-calculations'
+import { calcImpactoRow } from '@/lib/impacto-calc'
 import { fetchVentasDiarias } from '@/lib/dashboard-queries'
 import type { RawTiendaRow } from '@/lib/critical-stores-calc'
 
@@ -86,16 +87,17 @@ export async function GET(req: NextRequest) {
       ? calcSLACaso(row as unknown as RawSLARow)
       : null
 
-    let costoEstimado = 0
-    if (row.estado === 'RESUELTO' && row.mttr_minutos) {
-      const ventaHora = getVentaHoraEsperada(
-        row.tienda_codigo, row.dia_semana, row.venta_hora_soles, row.cluster, ventasDiarias,
-      )
-      const { costo } = getCostoEstimado(
-        ventaHora, row.mttr_minutos, row.tipo, row.tiene_contingencia, row.contingencia_activa,
-      )
-      costoEstimado = Math.round(costo)
-    }
+    const ventaHora = getVentaHoraEstimadaOrNull(
+      row.tienda_codigo, row.dia_semana, row.venta_hora_soles, row.cluster, ventasDiarias,
+    )
+    const costoEstimado = calcImpactoRow({
+      hora_registro: row.hora_registro,
+      hora_fin: row.hora_fin,
+      estado: row.estado,
+      tipo: row.tipo,
+      ventaHoraResolvida: ventaHora,
+      contingencia_activa: row.contingencia_activa,
+    }).impactoEstimado
 
     const fecha = new Date(row.hora_registro).toLocaleDateString('es-PE', {
       day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Lima',

@@ -2,9 +2,10 @@ import {
   calcSLACaso, getEstadoSLA, getCausaPrincipal, type RawSLARow,
 } from './dashboard-sla-calc'
 import {
-  getCostoEstimado, getVentaHoraEsperada, getScoreProveedor,
+  getVentaHoraEstimadaOrNull, getScoreProveedor,
   type ScoreMetricas, type ScoreMaximos,
 } from './dashboard-calculations'
+import { calcImpactoRow } from './impacto-calc'
 import type { RawVentaDiaria } from './dashboard-queries'
 import type {
   ProveedorMetricas, TopIncidente, TiendaAfectada,
@@ -34,14 +35,18 @@ export interface RawProveedorRow {
 }
 
 function rowCosto(row: RawProveedorRow, ventasDiarias: RawVentaDiaria[]): number {
-  if (row.estado !== 'RESUELTO' || !row.mttr_minutos) return 0
-  const ventaHora = getVentaHoraEsperada(
+  if (row.estado !== 'RESUELTO') return 0
+  const ventaHora = getVentaHoraEstimadaOrNull(
     row.tienda_codigo, row.dia_semana, row.venta_hora_soles, row.cluster, ventasDiarias,
   )
-  const { costo } = getCostoEstimado(
-    ventaHora, row.mttr_minutos, row.tipo, row.tiene_contingencia, row.contingencia_activa,
-  )
-  return costo
+  return calcImpactoRow({
+    hora_registro: row.hora_registro,
+    hora_fin: row.hora_fin,
+    estado: row.estado,
+    tipo: row.tipo,
+    ventaHoraResolvida: ventaHora,
+    contingencia_activa: row.contingencia_activa,
+  }).impactoEstimado
 }
 
 export function buildProveedorMetricas(

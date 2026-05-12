@@ -1,5 +1,6 @@
 import { calcSLACaso, getCausaPrincipal, type RawSLARow } from './dashboard-sla-calc'
-import { getCostoEstimado, getVentaHoraEsperada } from './dashboard-calculations'
+import { getVentaHoraEstimadaOrNull } from './dashboard-calculations'
+import { calcImpactoRow } from './impacto-calc'
 import type { RawVentaDiaria } from './dashboard-queries'
 import type {
   TiendaCritica, TiendaEstado, PatronDetectado,
@@ -31,14 +32,18 @@ export interface RawTiendaRow {
 }
 
 function rowCosto(row: RawTiendaRow, ventasDiarias: RawVentaDiaria[]): number {
-  if (row.estado !== 'RESUELTO' || !row.mttr_minutos) return 0
-  const ventaHora = getVentaHoraEsperada(
+  if (row.estado !== 'RESUELTO') return 0
+  const ventaHora = getVentaHoraEstimadaOrNull(
     row.tienda_codigo, row.dia_semana, row.venta_hora_soles, row.cluster, ventasDiarias,
   )
-  const { costo } = getCostoEstimado(
-    ventaHora, row.mttr_minutos, row.tipo, row.tiene_contingencia, row.contingencia_activa,
-  )
-  return costo
+  return calcImpactoRow({
+    hora_registro: row.hora_registro,
+    hora_fin: row.hora_fin,
+    estado: row.estado,
+    tipo: row.tipo,
+    ventaHoraResolvida: ventaHora,
+    contingencia_activa: row.contingencia_activa,
+  }).impactoEstimado
 }
 
 function getProveedorMasFrecuente(rows: RawTiendaRow[]): string | null {
@@ -166,12 +171,19 @@ export function buildTiendasCriticas(
     let totalHorasAfectadas = 0
     let ventaHoraPromedio: number | null = null
     for (const row of tRows) {
-      if (row.estado === 'RESUELTO' && row.mttr_minutos) {
-        const vh = getVentaHoraEsperada(row.tienda_codigo, row.dia_semana, row.venta_hora_soles, row.cluster, ventasDiarias)
-        const { costo } = getCostoEstimado(vh, row.mttr_minutos, row.tipo, row.tiene_contingencia, row.contingencia_activa)
-        costoEstimado += costo
-        totalHorasAfectadas += row.mttr_minutos / 60
-        if (ventaHoraPromedio == null) ventaHoraPromedio = vh
+      if (row.estado === 'RESUELTO') {
+        const vh = getVentaHoraEstimadaOrNull(row.tienda_codigo, row.dia_semana, row.venta_hora_soles, row.cluster, ventasDiarias)
+        const imp = calcImpactoRow({
+          hora_registro: row.hora_registro,
+          hora_fin: row.hora_fin,
+          estado: row.estado,
+          tipo: row.tipo,
+          ventaHoraResolvida: vh,
+          contingencia_activa: row.contingencia_activa,
+        })
+        costoEstimado += imp.impactoEstimado
+        if (imp.mttrMin != null) totalHorasAfectadas += imp.mttrMin / 60
+        if (ventaHoraPromedio == null && vh != null) ventaHoraPromedio = vh
       }
     }
 

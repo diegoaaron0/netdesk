@@ -1,5 +1,6 @@
 import { calcSLACaso, getEstadoSLA, type RawSLARow } from './dashboard-sla-calc'
-import { getCostoEstimado, getVentaHoraEsperada } from './dashboard-calculations'
+import { getVentaHoraEstimadaOrNull } from './dashboard-calculations'
+import { calcImpactoRow } from './impacto-calc'
 import type { RawVentaDiaria } from './dashboard-queries'
 import {
   TIPO_LABELS, TIPO_COLORS,
@@ -41,10 +42,16 @@ export function normalizarTipo(tipo: string): TipoVisible {
 }
 
 function rowImpacto(row: RawDistribucionRow, ventasDiarias: RawVentaDiaria[]): number {
-  if (!row.mttr_minutos) return 0
-  const vh = getVentaHoraEsperada(row.tienda_codigo, row.dia_semana, row.venta_hora_soles, row.cluster, ventasDiarias)
-  const { costo } = getCostoEstimado(vh, row.mttr_minutos, row.tipo, row.tiene_contingencia, row.contingencia_activa)
-  return costo
+  const vh = getVentaHoraEstimadaOrNull(row.tienda_codigo, row.dia_semana, row.venta_hora_soles, row.cluster, ventasDiarias)
+  return calcImpactoRow({
+    hora_registro: row.hora_registro,
+    hora_fin: row.hora_fin,
+    estado: row.estado,
+    tipo: row.tipo,
+    ventaHoraResolvida: vh,
+    contingencia_activa: row.contingencia_activa,
+    otros_clasificacion: row.otros_clasificacion,
+  }).impactoEstimado
 }
 
 function topEntry(counts: Record<string, number>): string | null {

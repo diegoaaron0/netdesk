@@ -65,6 +65,7 @@ function calcImpacto(row: RawInsightsRow): number {
     tipo: row.tipo,
     cluster: row.cluster,
     contingencia_activa: row.contingencia_activa,
+    otros_clasificacion: row.otros_clasificacion,
   }).impactoEstimado
 }
 
