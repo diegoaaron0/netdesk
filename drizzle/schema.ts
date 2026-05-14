@@ -121,6 +121,37 @@ export const incidentes = pgTable('incidentes', {
   tipoPersonalizado:     text('tipo_personalizado'),
   otrosClasificacion:    text('otros_clasificacion'),
   actualizadoEn:         timestamp('actualizado_en').defaultNow(),
+  // Operación
+  estadoOperacion:       text('estado_operacion'),
+  operacionManual:       boolean('operacion_manual').default(false),
+  tipoOperacionManual:   text('tipo_operacion_manual'),
+  factorOperativo:       numeric('factor_operativo'),
+  // Contingencia en gestión
+  contActivadoPor:       text('cont_activado_por'),
+  contHoraActivacion:    timestamp('cont_hora_activacion'),
+  contRendimiento:       text('cont_rendimiento'),
+  contObservacion:       text('cont_observacion'),
+  // Datos móviles en gestión
+  movActivadoPor:        text('mov_activado_por'),
+  movHoraActivacion:     timestamp('mov_hora_activacion'),
+  movRendimiento:        text('mov_rendimiento'),
+  movObservacion:        text('mov_observacion'),
+  // Descartes Sí/No
+  descEnergia:           boolean('desc_energia'),
+  descRouter:            boolean('desc_router'),
+  descDns:               boolean('desc_dns'),
+  // Checklist
+  checkIpconfig:         boolean('check_ipconfig').default(false),
+  checkPingGw:           boolean('check_ping_gw').default(false),
+  checkPingInternet:     boolean('check_ping_internet').default(false),
+  checkTracert:          boolean('check_tracert').default(false),
+  checkDns:              boolean('check_dns').default(false),
+  checkRenovarIp:        boolean('check_renovar_ip').default(false),
+  descartesDetallado:    text('descartes_detallado'),
+  // Resolución
+  resueltoPor:           text('resuelto_por'),
+  atribucionFinal:       text('atribucion_final'),
+  evaluableProveedor:    boolean('evaluable_proveedor').default(true),
 })
 
 export const escalamientos = pgTable('escalamientos', {

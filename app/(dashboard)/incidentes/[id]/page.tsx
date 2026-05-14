@@ -118,7 +118,8 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   const [showReopenModal, setShowReopenModal] = useState(false)
   const [reopenMotivo, setReopenMotivo] = useState('')
   const [reopening, setReopening]   = useState(false)
-  const [showGuia, setShowGuia]     = useState(false)
+  const [showGuia, setShowGuia]       = useState(false)
+  const [showSolucionado, setShowSolucionado] = useState(false)
 
   // Escalamiento
   const [showEscalarForm, setShowEscalarForm] = useState(false)
@@ -147,6 +148,26 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
       descripcionInicial:  data.descripcionInicial  ?? '',
       horaRegistro:        toDatetimeLocal(data.horaRegistro),
       horaFin:             toDatetimeLocal(data.horaFin),
+      // Operación / gestión
+      estadoOperacion:     data.estadoOperacion     ?? '',
+      contActivadoPor:     data.contActivadoPor     ?? '',
+      contHoraActivacion:  toDatetimeLocal(data.contHoraActivacion),
+      contRendimiento:     data.contRendimiento     ?? '',
+      contObservacion:     data.contObservacion     ?? '',
+      movActivadoPor:      data.movActivadoPor      ?? '',
+      movHoraActivacion:   toDatetimeLocal(data.movHoraActivacion),
+      movRendimiento:      data.movRendimiento      ?? '',
+      movObservacion:      data.movObservacion      ?? '',
+      descEnergia:         data.descEnergia         ?? null,
+      descRouter:          data.descRouter          ?? null,
+      descDns:             data.descDns             ?? null,
+      checkIpconfig:       data.checkIpconfig       ?? false,
+      checkPingGw:         data.checkPingGw         ?? false,
+      checkPingInternet:   data.checkPingInternet   ?? false,
+      checkTracert:        data.checkTracert        ?? false,
+      checkDns:            data.checkDns            ?? false,
+      checkRenovarIp:      data.checkRenovarIp      ?? false,
+      descartesDetallado:  data.descartesDetallado  ?? '',
     })
   }, [id])
 
@@ -183,7 +204,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   const canEditB   = canManage || (isMyInc && !isClosed)
   const canEditA   = canManage && supervisorEdit
 
-  function setEdit(k: string, v: string) { setEditForm((f: any) => ({ ...f, [k]: v })) }
+  function setEdit(k: string, v: any) { setEditForm((f: any) => ({ ...f, [k]: v })) }
 
   async function handleSave() {
     setSaving(true)
@@ -195,8 +216,31 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
     } else if (body.horaFin === null) {
       body.mttrMinutos = null
     }
+    if ('contHoraActivacion' in body) body.contHoraActivacion = body.contHoraActivacion ? fromDatetimeLocal(body.contHoraActivacion) : null
+    if ('movHoraActivacion'  in body) body.movHoraActivacion  = body.movHoraActivacion  ? fromDatetimeLocal(body.movHoraActivacion)  : null
+    // Factor operativo automático
+    const rf: Record<string, string> = { EFECTIVA: '0.25', PARCIAL: '0.50', LIMITADA: '0.75' }
+    if (body.estadoOperacion === 'BOLETA_MANUAL') {
+      body.factorOperativo = '0.40'; body.operacionManual = true; body.tipoOperacionManual = 'BOLETA_MANUAL'
+    } else if (body.estadoOperacion === 'CONTINGENCIA') {
+      body.factorOperativo = rf[body.contRendimiento] ?? null; body.operacionManual = false; body.tipoOperacionManual = null
+    } else if (body.estadoOperacion === 'DATOS_MOVILES') {
+      body.factorOperativo = rf[body.movRendimiento] ?? null; body.operacionManual = false; body.tipoOperacionManual = null
+    } else {
+      body.factorOperativo = null; body.operacionManual = false; body.tipoOperacionManual = null
+    }
     await fetch(`/api/incidentes/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     setSaving(false)
+    fetchInc()
+  }
+
+  async function handleSolucionado() {
+    setShowSolucionado(false)
+    await fetch(`/api/incidentes/${id}/resolver`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resueltoPor: 'AGENTE', atribucionFinal: 'Gestión interna Service Desk', evaluableProveedor: false }),
+    })
     fetchInc()
   }
 
@@ -337,6 +381,22 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
         </div>
       )}
 
+      {/* ── Solucionado modal ── */}
+      {showSolucionado && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '380px', margin: '16px' }}>
+            <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>¿Confirmas que fue solucionado por el agente?</div>
+            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '20px' }}>Se registrará: resuelto por agente, no evaluable al proveedor.</div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => setShowSolucionado(false)}
+                style={{ flex: 1, padding: '8px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={handleSolucionado}
+                style={{ flex: 1, padding: '8px', background: '#14532d', color: '#86efac', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>Sí, solucionado por agente</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Main grid ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '16px', alignItems: 'start' }}>
 
@@ -346,32 +406,200 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
             <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--foreground)' }}>B — Gestión</div>
           </div>
           <div style={{ padding: '16px 18px' }}>
-            <FieldRow label="Ticket Invgate">
-              <input disabled={!canEditB} style={iStyle(!canEditB)} value={editForm.ticketInvgate} onChange={e => setEdit('ticketInvgate', e.target.value)} placeholder="Ej: 12345" />
-            </FieldRow>
-            <FieldRow label="Ticket proveedor">
-              <input disabled={!canEditB} style={iStyle(!canEditB)} value={editForm.ticketProveedor} onChange={e => setEdit('ticketProveedor', e.target.value)} placeholder="Nro. de ticket del proveedor" />
-            </FieldRow>
-            <FieldRow label="Descartes realizados">
-              <textarea disabled={!canEditB} style={taStyle(!canEditB)} value={editForm.descartesRealizados} onChange={e => setEdit('descartesRealizados', e.target.value)} placeholder="Describe los descartes y verificaciones realizados..." />
-            </FieldRow>
-            <FieldRow label="Solución aplicada">
-              <textarea disabled={!canEditB} style={taStyle(!canEditB)} value={editForm.solucionAplicada} onChange={e => setEdit('solucionAplicada', e.target.value)} placeholder="Describe la solución aplicada..." />
-            </FieldRow>
-            <FieldRow label="Observaciones">
-              <textarea disabled={!canEditB} style={taStyle(!canEditB)} value={editForm.observaciones} onChange={e => setEdit('observaciones', e.target.value)} placeholder="Notas adicionales..." />
-            </FieldRow>
 
-            <div style={{ borderTop: '1px solid var(--border)', marginTop: '10px', paddingTop: '12px' }}>
-              <div style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)', marginBottom: '8px' }}>Adjuntos</div>
+            {/* Fila 1: Ticket InvGate | Ticket Proveedor | Estado operación */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Ticket InvGate</label>
+                <input disabled={!canEditB} style={iStyle(!canEditB)} value={editForm.ticketInvgate} onChange={e => setEdit('ticketInvgate', e.target.value)} placeholder="Ej: 12345" />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Ticket Proveedor</label>
+                <input disabled={!canEditB} style={iStyle(!canEditB)} value={editForm.ticketProveedor} onChange={e => setEdit('ticketProveedor', e.target.value)} placeholder="Nro. ticket proveedor" />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Estado operación</label>
+                <select disabled={!canEditB} style={iStyle(!canEditB)} value={editForm.estadoOperacion ?? ''} onChange={e => setEdit('estadoOperacion', e.target.value)}>
+                  <option value="">Sin operación especial</option>
+                  <option value="CONTINGENCIA">Operación con contingencia</option>
+                  <option value="DATOS_MOVILES">Operación con datos móviles</option>
+                  <option value="BOLETA_MANUAL">Operación con boletas manuales</option>
+                  <option value="CAIDA">Operación con caída</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Bloque Contingencia */}
+            {editForm.estadoOperacion === 'CONTINGENCIA' && (
+              <div style={{ background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--foreground)', marginBottom: '12px' }}>Contingencia</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '10px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Activado por</label>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      {(['TIENDA','AGENTE','INFRAESTRUCTURA'] as const).map(opt => (
+                        <button key={opt} type="button" disabled={!canEditB} onClick={() => setEdit('contActivadoPor', opt)}
+                          style={{ padding: '5px 11px', fontSize: '11px', borderRadius: '6px', border: '1px solid var(--border)', cursor: !canEditB ? 'default' : 'pointer', fontWeight: editForm.contActivadoPor === opt ? 600 : 400, background: editForm.contActivadoPor === opt ? 'hsl(221,83%,45%)' : 'var(--card)', color: editForm.contActivadoPor === opt ? 'white' : 'var(--foreground)' }}>
+                          {opt.charAt(0) + opt.slice(1).toLowerCase()}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Hora de activación</label>
+                    <input type="datetime-local" disabled={!canEditB} style={iStyle(!canEditB)} value={editForm.contHoraActivacion ?? ''} onChange={e => setEdit('contHoraActivacion', e.target.value)} />
+                  </div>
+                </div>
+                <div style={{ marginBottom: '10px' }}>
+                  <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Rendimiento</label>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {[{ v:'EFECTIVA',l:'Efectiva',bg:'#dcfce7',c:'#15803d'},{v:'PARCIAL',l:'Parcial',bg:'#fef9c3',c:'#a16207'},{v:'LIMITADA',l:'Limitada',bg:'#fed7aa',c:'#c2410c'},{v:'NO_FUNCIONO',l:'No funcionó',bg:'#fee2e2',c:'#b91c1c'},{v:'INOPERATIVA',l:'Inoperativa',bg:'#fce7f3',c:'#9d174d'}].map(({v,l,bg,c}) => {
+                      const sel = editForm.contRendimiento === v
+                      return <button key={v} type="button" disabled={!canEditB} onClick={() => setEdit('contRendimiento', v)} style={{ padding:'4px 10px',fontSize:'11px',borderRadius:'6px',border:`1px solid ${sel?c:'var(--border)'}`,cursor:!canEditB?'default':'pointer',background:sel?bg:'var(--card)',color:sel?c:'var(--muted-foreground)',fontWeight:sel?600:400 }}>{l}</button>
+                    })}
+                  </div>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Observación</label>
+                  <textarea disabled={!canEditB} style={taStyle(!canEditB)} value={editForm.contObservacion ?? ''} onChange={e => setEdit('contObservacion', e.target.value)} placeholder="Describe el comportamiento de la contingencia..." />
+                </div>
+              </div>
+            )}
+
+            {/* Bloque Datos Móviles */}
+            {editForm.estadoOperacion === 'DATOS_MOVILES' && (
+              <div style={{ background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--foreground)', marginBottom: '12px' }}>Datos móviles</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '10px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Activado por</label>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      {(['TIENDA','AGENTE','INFRAESTRUCTURA'] as const).map(opt => (
+                        <button key={opt} type="button" disabled={!canEditB} onClick={() => setEdit('movActivadoPor', opt)}
+                          style={{ padding:'5px 11px',fontSize:'11px',borderRadius:'6px',border:'1px solid var(--border)',cursor:!canEditB?'default':'pointer',fontWeight:editForm.movActivadoPor===opt?600:400,background:editForm.movActivadoPor===opt?'hsl(221,83%,45%)':'var(--card)',color:editForm.movActivadoPor===opt?'white':'var(--foreground)' }}>
+                          {opt.charAt(0) + opt.slice(1).toLowerCase()}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Hora de activación</label>
+                    <input type="datetime-local" disabled={!canEditB} style={iStyle(!canEditB)} value={editForm.movHoraActivacion ?? ''} onChange={e => setEdit('movHoraActivacion', e.target.value)} />
+                  </div>
+                </div>
+                <div style={{ marginBottom: '10px' }}>
+                  <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Rendimiento</label>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {[{v:'EFECTIVA',l:'Efectiva',bg:'#dcfce7',c:'#15803d'},{v:'PARCIAL',l:'Parcial',bg:'#fef9c3',c:'#a16207'},{v:'LIMITADA',l:'Limitada',bg:'#fed7aa',c:'#c2410c'},{v:'NO_FUNCIONO',l:'No funcionó',bg:'#fee2e2',c:'#b91c1c'}].map(({v,l,bg,c}) => {
+                      const sel = editForm.movRendimiento === v
+                      return <button key={v} type="button" disabled={!canEditB} onClick={() => setEdit('movRendimiento', v)} style={{ padding:'4px 10px',fontSize:'11px',borderRadius:'6px',border:`1px solid ${sel?c:'var(--border)'}`,cursor:!canEditB?'default':'pointer',background:sel?bg:'var(--card)',color:sel?c:'var(--muted-foreground)',fontWeight:sel?600:400 }}>{l}</button>
+                    })}
+                  </div>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Observación</label>
+                  <textarea disabled={!canEditB} style={taStyle(!canEditB)} value={editForm.movObservacion ?? ''} onChange={e => setEdit('movObservacion', e.target.value)} placeholder="Describe el comportamiento de los datos móviles..." />
+                </div>
+              </div>
+            )}
+
+            {/* Descartes */}
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px', marginBottom: '14px' }}>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--foreground)', marginBottom: '12px' }}>Descartes realizados</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  {/* Sí/No */}
+                  <div style={{ marginBottom: '12px' }}>
+                    {[{key:'descEnergia',label:'Energía eléctrica'},{key:'descRouter',label:'Router / ONT encendido'},{key:'descDns',label:'Se cambió DNS'}].map(({key,label}) => (
+                      <div key={key} style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'7px' }}>
+                        <span style={{ fontSize:'11px',color:'var(--foreground)' }}>{label}</span>
+                        <div style={{ display:'flex',gap:'4px' }}>
+                          {([true,false] as const).map(val => (
+                            <button key={String(val)} type="button" disabled={!canEditB}
+                              onClick={() => setEdit(key, editForm[key] === val ? null : val)}
+                              style={{ padding:'2px 10px',fontSize:'11px',borderRadius:'5px',border:'1px solid var(--border)',cursor:!canEditB?'default':'pointer',background:editForm[key]===val?(val?'#dcfce7':'#fee2e2'):'var(--muted)',color:editForm[key]===val?(val?'#15803d':'#b91c1c'):'var(--muted-foreground)',fontWeight:editForm[key]===val?600:400 }}>
+                              {val?'Sí':'No'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Checklist */}
+                  <div style={{ display:'flex',flexDirection:'column',gap:'7px' }}>
+                    {[{key:'checkIpconfig',label:'Se ejecutó ipconfig'},{key:'checkPingGw',label:'Se realizó ping a gateway'},{key:'checkPingInternet',label:'Se realizó ping a internet'},{key:'checkTracert',label:'Se realizó tracert'},{key:'checkDns',label:'Se validó DNS'},{key:'checkRenovarIp',label:'Se renovó IP'}].map(({key,label}) => (
+                      <label key={key} style={{ display:'flex',alignItems:'center',gap:'7px',fontSize:'11px',cursor:!canEditB?'default':'pointer',color:editForm[key]?'var(--foreground)':'var(--muted-foreground)' }}>
+                        <input type="checkbox" disabled={!canEditB} checked={!!editForm[key]} onChange={e => setEdit(key, e.target.checked)}
+                          style={{ cursor:!canEditB?'default':'pointer',accentColor:'hsl(221,83%,45%)',width:'13px',height:'13px' }} />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                {/* Acciones registradas */}
+                <div>
+                  <div style={{ fontSize:'10px',fontWeight:600,color:'var(--muted-foreground)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:'8px' }}>Acciones registradas</div>
+                  <div style={{ background:'var(--muted)',borderRadius:'8px',padding:'10px 12px',minHeight:'120px' }}>
+                    {(() => {
+                      const acc = [
+                        editForm.checkPingGw       && 'Ping a gateway',
+                        editForm.checkPingInternet && 'Ping a internet',
+                        editForm.checkIpconfig     && 'Ejecutó ipconfig',
+                        editForm.checkTracert      && 'Tracert ejecutado',
+                        editForm.checkDns          && 'Validó DNS',
+                        editForm.checkRenovarIp    && 'Renovó IP',
+                        editForm.descEnergia === true && 'Energía verificada',
+                        editForm.descRouter  === true && 'Router/ONT verificado',
+                        editForm.descDns     === true && 'Cambio DNS aplicado',
+                      ].filter(Boolean) as string[]
+                      return acc.length > 0
+                        ? <div style={{ display:'flex',flexDirection:'column',gap:'5px' }}>
+                            {acc.map(a => (
+                              <div key={a} style={{ display:'flex',alignItems:'center',gap:'6px',fontSize:'11px',color:'var(--foreground)' }}>
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                {a}
+                              </div>
+                            ))}
+                          </div>
+                        : <div style={{ fontSize:'11px',color:'var(--muted-foreground)',fontStyle:'italic' }}>Sin acciones registradas aún</div>
+                    })()}
+                  </div>
+                </div>
+              </div>
+              {/* Detallado */}
+              <div style={{ marginTop:'12px' }}>
+                <label style={{ display:'block',fontSize:'10px',fontWeight:600,color:'var(--muted-foreground)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:'4px' }}>Detallado</label>
+                <textarea disabled={!canEditB} style={{ ...taStyle(!canEditB), minHeight:'90px' }}
+                  value={editForm.descartesDetallado ?? ''} onChange={e => setEdit('descartesDetallado', e.target.value)}
+                  placeholder="Describe qué se validó, resultados, respuesta de tienda, acciones del agente..." />
+              </div>
+            </div>
+
+            {/* Adjuntos */}
+            <div style={{ borderTop:'1px solid var(--border)',paddingTop:'12px',marginBottom:'14px' }}>
               <AdjuntosZona incidenteId={id} disabled={!canEditB} />
             </div>
 
             {inc.reabiertaInfo && (
-              <div style={{ marginTop: '12px', padding: '8px 12px', fontSize: '11px', background: 'rgba(146,64,14,0.1)', border: '1px solid rgba(146,64,14,0.25)', borderRadius: '8px', color: '#d97706' }}>
+              <div style={{ marginBottom:'12px',padding:'8px 12px',fontSize:'11px',background:'rgba(146,64,14,0.1)',border:'1px solid rgba(146,64,14,0.25)',borderRadius:'8px',color:'#d97706' }}>
                 {inc.reabiertaInfo}
               </div>
             )}
+
+            {/* Botones ESCALAR / SOLUCIONADO */}
+            {!isClosed && (
+              <div style={{ display:'flex',justifyContent:'flex-end',gap:'8px',borderTop:'1px solid var(--border)',paddingTop:'12px' }}>
+                <button type="button" disabled
+                  style={{ padding:'7px 18px',background:'var(--muted)',border:'1px solid var(--border)',borderRadius:'8px',fontSize:'12px',color:'var(--muted-foreground)',cursor:'default',opacity:0.55 }}>
+                  Escalar
+                </button>
+                <button type="button" onClick={() => setShowSolucionado(true)}
+                  style={{ padding:'7px 20px',background:'#14532d',color:'#86efac',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:600,cursor:'pointer' }}>
+                  ✓ Solucionado
+                </button>
+              </div>
+            )}
+
           </div>
         </div>
 
@@ -457,6 +685,19 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   </select>
                 ) : <Badge variant={estadoToVariant(inc.estado)} />}
               </ResumenRow>
+
+              {inc.estadoOperacion && (
+                <ResumenRow icon={<IcoConn />} label="Estado operación">
+                  <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', background: 'var(--muted)', color: 'var(--foreground)', border: '1px solid var(--border)', fontWeight: 500 }}>
+                    {{ CONTINGENCIA: 'Contingencia', DATOS_MOVILES: 'Datos móviles', BOLETA_MANUAL: 'Boleta manual', CAIDA: 'Caída' }[inc.estadoOperacion] ?? inc.estadoOperacion}
+                  </span>
+                </ResumenRow>
+              )}
+              {inc.factorOperativo != null && (
+                <ResumenRow icon={<IcoImpact />} label="Factor operativo">
+                  <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{(parseFloat(inc.factorOperativo) * 100).toFixed(0)}%</span>
+                </ResumenRow>
+              )}
 
               {/* Tiempos */}
               <div style={{ marginTop: '10px', padding: '10px 12px', background: 'var(--muted)', borderRadius: '8px' }}>

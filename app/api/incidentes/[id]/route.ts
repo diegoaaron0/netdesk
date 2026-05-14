@@ -42,6 +42,32 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     tiendaAdminCelular: tiendas.administradorCelular,
     tiendaReferencia: tiendas.referencia,
     tiendaInstruccion: tiendas.instruccionReporte,
+    // Operación / gestión
+    estadoOperacion:    incidentes.estadoOperacion,
+    operacionManual:    incidentes.operacionManual,
+    tipoOperacionManual: incidentes.tipoOperacionManual,
+    factorOperativo:    incidentes.factorOperativo,
+    contActivadoPor:    incidentes.contActivadoPor,
+    contHoraActivacion: incidentes.contHoraActivacion,
+    contRendimiento:    incidentes.contRendimiento,
+    contObservacion:    incidentes.contObservacion,
+    movActivadoPor:     incidentes.movActivadoPor,
+    movHoraActivacion:  incidentes.movHoraActivacion,
+    movRendimiento:     incidentes.movRendimiento,
+    movObservacion:     incidentes.movObservacion,
+    descEnergia:        incidentes.descEnergia,
+    descRouter:         incidentes.descRouter,
+    descDns:            incidentes.descDns,
+    checkIpconfig:      incidentes.checkIpconfig,
+    checkPingGw:        incidentes.checkPingGw,
+    checkPingInternet:  incidentes.checkPingInternet,
+    checkTracert:       incidentes.checkTracert,
+    checkDns:           incidentes.checkDns,
+    checkRenovarIp:     incidentes.checkRenovarIp,
+    descartesDetallado: incidentes.descartesDetallado,
+    resueltoPor:        incidentes.resueltoPor,
+    atribucionFinal:    incidentes.atribucionFinal,
+    evaluableProveedor: incidentes.evaluableProveedor,
     proveedorId: proveedores.id,
     proveedorNombre: proveedores.nombre,
     proveedorInstruccion: proveedores.instruccionGeneral,
@@ -83,8 +109,18 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const body = await req.json()
   const allowedFields: Record<string, any> = {}
-  const editable = ['estado','nivelImpacto','usuariosAfectados','tipo','tipoPersonalizado','otrosClasificacion','descripcionInicial','ticketInvgate','ticketProveedor','descartesRealizados','solucionAplicada','horaInicioSeguimiento','observaciones','horaRegistro','horaFin','mttrMinutos']
-  const dateFields = new Set(['horaRegistro','horaFin','horaInicioSeguimiento'])
+  const editable = [
+    'estado','nivelImpacto','usuariosAfectados','tipo','tipoPersonalizado','otrosClasificacion',
+    'descripcionInicial','ticketInvgate','ticketProveedor','descartesRealizados','solucionAplicada',
+    'horaInicioSeguimiento','observaciones','horaRegistro','horaFin','mttrMinutos',
+    'estadoOperacion','operacionManual','tipoOperacionManual','factorOperativo',
+    'contActivadoPor','contHoraActivacion','contRendimiento','contObservacion',
+    'movActivadoPor','movHoraActivacion','movRendimiento','movObservacion',
+    'descEnergia','descRouter','descDns',
+    'checkIpconfig','checkPingGw','checkPingInternet','checkTracert','checkDns','checkRenovarIp',
+    'descartesDetallado','resueltoPor','atribucionFinal','evaluableProveedor',
+  ]
+  const dateFields = new Set(['horaRegistro','horaFin','horaInicioSeguimiento','contHoraActivacion','movHoraActivacion'])
   for (const k of editable) {
     if (k in body) {
       allowedFields[k] = dateFields.has(k)
