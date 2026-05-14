@@ -118,6 +118,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   const [showReopenModal, setShowReopenModal] = useState(false)
   const [reopenMotivo, setReopenMotivo] = useState('')
   const [reopening, setReopening]   = useState(false)
+  const [showGuia, setShowGuia]     = useState(false)
 
   // Escalamiento
   const [showEscalarForm, setShowEscalarForm] = useState(false)
@@ -283,15 +284,37 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 Última edición: {new Date(inc.actualizadoEn).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
               </div>
             )}
+            {inc.tiendaReferencia && (
+              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.28)', marginTop: '4px' }}>
+                {inc.tiendaReferencia} · Agente: {inc.agenteNombre ?? '—'}
+              </div>
+            )}
+            {inc.tiendaAdminCelular && (
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '14px', marginTop: '8px' }}>
+                <span style={{ fontSize: '16px', fontWeight: 600, color: 'rgba(255,255,255,0.72)', fontFamily: 'monospace', letterSpacing: '0.02em' }}>{inc.tiendaAdminCelular}</span>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{inc.proveedorNombre ?? '—'}</span>
+              </div>
+            )}
           </div>
-          <CronometroPrincipal horaRegistro={inc.horaRegistro} horaFin={inc.horaFin} />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px', flexShrink: 0, marginLeft: '20px' }}>
+            <div style={{ position: 'relative', alignSelf: 'flex-end' }}
+              onMouseEnter={() => setShowGuia(true)}
+              onMouseLeave={() => setShowGuia(false)}>
+              <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '1.5px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help', fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.35)', userSelect: 'none' }}>?</div>
+              {inc.proveedorInstruccion && (
+                <div style={{ position: 'absolute', top: '26px', right: 0, zIndex: 200, minWidth: '300px', opacity: showGuia ? 1 : 0, pointerEvents: showGuia ? 'auto' : 'none', transition: 'opacity 0.2s ease', boxShadow: '0 4px 16px rgba(0,0,0,0.3)', borderRadius: '10px', overflow: 'hidden' }}>
+                  <GuiaEscalamiento proveedor={inc.proveedorNombre} instruccion={inc.proveedorInstruccion} />
+                </div>
+              )}
+            </div>
+            <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.28)', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'right' }}>Tiempo del incidente</div>
+            <CronometroPrincipal horaRegistro={inc.horaRegistro} horaFin={inc.horaFin} />
+            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.22)', textAlign: 'right', lineHeight: 1.5 }}>
+              Creado: {new Date(inc.horaRegistro).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            </div>
+          </div>
         </div>
       </div>
-
-      {/* Guía */}
-      {inc.proveedorInstruccion && (
-        <GuiaEscalamiento proveedor={inc.proveedorNombre} instruccion={inc.proveedorInstruccion} />
-      )}
 
       {/* ── Reopen modal ── */}
       {showReopenModal && (
