@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
       cluster: tiendas.cluster, tipoConexion: tiendas.tipoConexion,
       cidServicio: tiendas.cidServicio, instruccionReporte: tiendas.instruccionReporte,
       administradorCelular: tiendas.administradorCelular,
+      tieneContingencia: tiendas.tieneContingencia,
       proveedorId: tiendas.proveedorId,
     })
       .from(tiendas)

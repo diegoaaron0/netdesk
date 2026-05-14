@@ -66,6 +66,7 @@ const IcoUser   = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="no
 const IcoDoc    = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
 const IcoArrow  = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
 const IcoExt    = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+const IcoShield = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
 
 export default function NuevoIncidentePage() {
   const router = useRouter()
@@ -75,6 +76,7 @@ export default function NuevoIncidentePage() {
   const [tienda, setTienda]     = useState<Tienda | null>(null)
   const [historial, setHistorial] = useState<any[]>([])
   const [saving, setSaving]     = useState(false)
+  const [showGuia, setShowGuia] = useState(false)
   const [form, setForm] = useState({
     nivelImpacto:        'ALTO',
     tipo:                'CAIDA_TOTAL',
@@ -137,18 +139,24 @@ export default function NuevoIncidentePage() {
             {/* Section header */}
             <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ color: 'var(--muted-foreground)' }}><IcoInfo /></span>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--foreground)' }}>A. Identificación</div>
                 <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '1px' }}>Completa la información principal para registrar el incidente.</div>
+              </div>
+              {/* Tooltip guía de escalamiento */}
+              <div style={{ position: 'relative', flexShrink: 0 }}
+                onMouseEnter={() => setShowGuia(true)}
+                onMouseLeave={() => setShowGuia(false)}>
+                <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '1.5px solid var(--border)', background: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help', fontSize: '11px', fontWeight: 700, color: 'var(--muted-foreground)', userSelect: 'none' }}>?</div>
+                {tienda?.proveedor?.instruccionGeneral && (
+                  <div style={{ position: 'absolute', top: '26px', right: 0, zIndex: 200, minWidth: '300px', opacity: showGuia ? 1 : 0, pointerEvents: showGuia ? 'auto' : 'none', transition: 'opacity 0.2s ease', boxShadow: '0 4px 16px rgba(0,0,0,0.15)', borderRadius: '10px', overflow: 'hidden' }}>
+                    <GuiaEscalamiento proveedor={tienda.proveedor.nombre} instruccion={tienda.proveedor.instruccionGeneral} />
+                  </div>
+                )}
               </div>
             </div>
 
             <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-              {/* Guía de escalamiento */}
-              {tienda?.proveedor?.instruccionGeneral && (
-                <GuiaEscalamiento proveedor={tienda.proveedor.nombre} instruccion={tienda.proveedor.instruccionGeneral} />
-              )}
 
               {/* TIENDA */}
               <div>
@@ -162,20 +170,28 @@ export default function NuevoIncidentePage() {
                 )}
               </div>
 
-              {/* Readonly row: CID | Proveedor | Tipo conexión | Cluster */}
+              {/* Readonly row: CID | Proveedor | Tipo conexión | Cluster + Contingencia */}
               {tienda && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px' }}>
-                  {[
-                    { label: 'CID / Servicio', value: tienda.cidServicio ?? '—' },
-                    { label: 'Proveedor',       value: tienda.proveedor?.nombre ?? '—' },
-                    { label: 'Tipo de conexión',value: tienda.tipoConexion ?? '—' },
-                    { label: 'Cluster',          value: tienda.cluster ?? '—' },
-                  ].map(f => (
-                    <div key={f.label}>
-                      {fieldLabel(f.label)}
-                      <div style={iReadonly}>{f.value}</div>
-                    </div>
-                  ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px' }}>
+                    {[
+                      { label: 'CID / Servicio', value: tienda.cidServicio ?? '—' },
+                      { label: 'Proveedor',       value: tienda.proveedor?.nombre ?? '—' },
+                      { label: 'Tipo de conexión',value: tienda.tipoConexion ?? '—' },
+                      { label: 'Cluster',          value: tienda.cluster ?? '—' },
+                    ].map(f => (
+                      <div key={f.label}>
+                        {fieldLabel(f.label)}
+                        <div style={iReadonly}>{f.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Contingencia:</span>
+                    <span style={{ padding: '2px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 600, background: tienda.tieneContingencia ? '#dcfce7' : 'var(--muted)', color: tienda.tieneContingencia ? '#15803d' : 'var(--muted-foreground)', border: `1px solid ${tienda.tieneContingencia ? '#86efac' : 'var(--border)'}` }}>
+                      {tienda.tieneContingencia ? 'Sí' : 'No'}
+                    </span>
+                  </div>
                 </div>
               )}
 
@@ -230,28 +246,12 @@ export default function NuevoIncidentePage() {
                 </div>
               </div>
 
-              {/* Estado + Descripción */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div>
-                  {fieldLabel('Estado inicial', true)}
-                  <select style={iSel} value={form.estado} onChange={e => set('estado', e.target.value)}>
-                    {['ABIERTO','EN_SEGUIMIENTO','ESCALADO_N1','ESCALADO_N2','ESCALADO_N3'].map(e => (
-                      <option key={e} value={e}>{e.replace(/_/g, ' ')}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  {fieldLabel('Descripción inicial')}
-                  <textarea
-                    style={{ ...iSel, resize: 'vertical', minHeight: '80px', fontFamily: 'inherit', lineHeight: 1.5 }}
-                    placeholder="Ej: info que escuchaste..."
-                    value={form.descripcionInicial}
-                    onChange={e => set('descripcionInicial', e.target.value)}
-                  />
-                  <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '3px' }}>
-                    Describe brevemente lo ocurrido, las acciones tomadas y cualquier información relevante.
-                  </div>
-                </div>
+              {/* Estado inicial */}
+              <div style={{ maxWidth: '220px' }}>
+                {fieldLabel('Estado inicial', true)}
+                <select style={iSel} value={form.estado} onChange={e => set('estado', e.target.value)}>
+                  <option value="ABIERTO">ABIERTO</option>
+                </select>
               </div>
 
             </div>
@@ -318,6 +318,9 @@ export default function NuevoIncidentePage() {
               </ResumenRow>
               <ResumenRow icon={<IcoClust />} label="Cluster">
                 {tienda?.cluster ?? '—'}
+              </ResumenRow>
+              <ResumenRow icon={<IcoShield />} label="Contingencia">
+                {tienda ? (tienda.tieneContingencia ? 'Sí' : 'No') : '—'}
               </ResumenRow>
               <ResumenRow icon={<IcoImpact />} label="Nivel de impacto">
                 <Badge variant={impactoToVariant(form.nivelImpacto)} />
