@@ -41,8 +41,18 @@ function mttrFromHoras(h1: string, h2: string) {
   return Math.round((new Date(h2).getTime() - new Date(h1).getTime()) / 60000)
 }
 
-function buildCorreo(inc: any, nivelData: any) {
-  return `Asunto: [NetDesk ${inc.codigo}] Avería Internet — ${inc.tiendaCodigo} ${inc.tiendaNombre} · ${inc.tiendaDistrito}
+function buildCorreo(inc: any, nivelData: any, nivel: number = 1, prevEscs: any[] = []) {
+  const fmtH = (d: string | null | undefined) => d
+    ? new Date(d).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    : '—'
+  const prefix = nivel === 2
+    ? `El presente correo es una escalación debido a que no obtuvimos respuesta al correo enviado el ${fmtH(prevEscs[0]?.horaEnvioCorreo)}. Se requiere atención inmediata.\n\n`
+    : nivel === 3
+    ? `Tercer escalamiento. Los correos anteriores (N1: ${fmtH(prevEscs[0]?.horaEnvioCorreo)}, N2: ${fmtH(prevEscs[1]?.horaEnvioCorreo)}) no recibieron respuesta. Exigimos atención urgente y solución en el menor tiempo posible.\n\n`
+    : nivel === 4
+    ? `Cuarto y último escalamiento. Situación crítica sin resolución. Solicitamos intervención de nivel gerencial.\n\n`
+    : ''
+  return `${prefix}Asunto: [NetDesk ${inc.codigo}] Avería Internet — ${inc.tiendaCodigo} ${inc.tiendaNombre} · ${inc.tiendaDistrito}
 
 Estimados ${nivelData?.nombreContacto ?? 'Soporte'},
 
@@ -55,10 +65,9 @@ Tipo de conexión: ${inc.tiendaTipoConexion ?? '—'}
 Tipo de falla: ${TIPO_LABELS[inc.tipo] ?? inc.tipo}
 Hora de inicio: ${new Date(inc.horaRegistro).toLocaleString('es-PE', { timeZone: 'America/Lima' })}
 Usuarios afectados: ${inc.usuariosAfectados ?? '—'}
-Descripción: ${inc.descripcionInicial ?? '—'}
 
 Descartes realizados:
-${inc.descartesRealizados ?? '—'}
+${inc.descartesRealizados ?? 'Pendiente de documentar'}
 
 Adjuntamos evidencias.
 Quedamos atentos a su respuesta.
@@ -83,6 +92,15 @@ const IcoEdit   = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="no
 const IcoArrow  = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
 const IcoExt    = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
 const IcoLayers = () => <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.35"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 12l10 5 10-5"/><path d="M2 17l10 5 10-5"/></svg>
+
+function TimeRow({ label, value, color }: { label: string; value: string; color?: string }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+      <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{label}</span>
+      <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 500, color: color ?? (value === '—' || value === 'En curso' ? 'var(--muted-foreground)' : 'var(--foreground)') }}>{value}</span>
+    </div>
+  )
+}
 
 function ResumenRow({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
   return (
@@ -122,12 +140,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   const [showSolucionado, setShowSolucionado] = useState(false)
 
   // Escalamiento
-  const [showEscalarForm, setShowEscalarForm] = useState(false)
-  const [escForm, setEscForm] = useState({
-    nivel: 1, nivelEscId: '', contactoEscalado: '', emailContacto: '',
-    telefonoContacto: '', tiempoEstimadoSolucion: '', cuerpoCorreo: '',
-  })
-  const [copiedCorreo, setCopiedCorreo] = useState(false)
+  const [showNivelMenu, setShowNivelMenu] = useState(false)
 
   const fetchInc = useCallback(async () => {
     const res  = await fetch(`/api/incidentes/${id}`)
@@ -179,19 +192,6 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
       .then(r => r.json())
       .then(d => setHistorial(Array.isArray(d) ? d.filter((h: any) => h.id !== inc.id) : []))
   }, [inc?.tiendaId, inc?.id])
-
-  useEffect(() => {
-    if (!inc?.nivelesProveedor) return
-    const nivelData = inc.nivelesProveedor.find((n: any) => n.nivel === escForm.nivel)
-    setEscForm(f => ({
-      ...f,
-      nivelEscId:       nivelData?.id            ?? '',
-      contactoEscalado: nivelData?.nombreContacto ?? '',
-      emailContacto:    nivelData?.email          ?? '',
-      telefonoContacto: nivelData?.celular        ?? '',
-      cuerpoCorreo:     buildCorreo(inc, nivelData),
-    }))
-  }, [escForm.nivel, inc])
 
   if (!inc) return (
     <div style={{ padding: '60px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Cargando...</div>
@@ -263,42 +263,27 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
     fetchInc()
   }
 
-  async function handleEscalar() {
-    if (!escForm.contactoEscalado || !escForm.emailContacto) return alert('Completa el contacto y email')
-    await fetch(`/api/incidentes/${id}/escalar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(escForm) })
-    setShowEscalarForm(false)
+  async function handleEscalarNivel(nivel: number) {
+    setShowNivelMenu(false)
+    const nivelData = inc.nivelesProveedor?.find((n: any) => n.nivel === nivel)
+    const prevEscs = [...(inc.escalamientos ?? [])].sort((a: any, b: any) => a.nivel - b.nivel).filter((e: any) => e.nivel < nivel)
+    const cuerpoCorreo = buildCorreo(inc, nivelData, nivel, prevEscs)
+    await fetch(`/api/incidentes/${id}/escalar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nivel,
+        nivelEscId:             nivelData?.id             ?? null,
+        contactoEscalado:       nivelData?.nombreContacto ?? `Nivel ${nivel}`,
+        emailContacto:          nivelData?.email          ?? '',
+        telefonoContacto:       nivelData?.celular        ?? null,
+        tiempoEstimadoSolucion: null,
+        cuerpoCorreo,
+      }),
+    })
     fetchInc()
+    setTimeout(() => escRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200)
   }
-
-  function openEscalarForm() {
-    setShowEscalarForm(true)
-    setTimeout(() => escRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
-  }
-
-  async function copyCorreo() {
-    await navigator.clipboard.writeText(escForm.cuerpoCorreo)
-    setCopiedCorreo(true); setTimeout(() => setCopiedCorreo(false), 2000)
-  }
-
-  // Timers T1–T4
-  const primerEsc  = inc.escalamientos?.[0]
-  const segundoEsc = inc.escalamientos?.[1]
-  const horaCorreoT2 = primerEsc?.horaEnvioCorreo
-    ? new Date(primerEsc.horaEnvioCorreo).toLocaleString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit' })
-    : '—'
-  let t3Label = 'T3 — Respuesta N1'
-  let t3Value: string
-  if (primerEsc?.tiempoRespuestaMin != null) {
-    t3Value = minToHM(primerEsc.tiempoRespuestaMin)
-  } else if (primerEsc?.horaEnvioCorreo && segundoEsc?.horaEnvioCorreo) {
-    t3Label = 'T3 — Hasta 2do correo'
-    t3Value = minToHM(mttrFromHoras(primerEsc.horaEnvioCorreo, segundoEsc.horaEnvioCorreo))
-  } else {
-    t3Value = '—'
-  }
-  const lastEscWithResp = [...(inc.escalamientos ?? [])].reverse().find((e: any) => e.horaRespuesta)
-  const tiempoResolucion = inc.horaFin && lastEscWithResp?.horaRespuesta
-    ? mttrFromHoras(lastEscWithResp.horaRespuesta, inc.horaFin) : null
 
   const btn: React.CSSProperties = { padding: '8px 16px', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }
 
@@ -702,17 +687,35 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               {/* Tiempos */}
               <div style={{ marginTop: '10px', padding: '10px 12px', background: 'var(--muted)', borderRadius: '8px' }}>
                 <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '8px' }}>Tiempos del incidente</div>
-                {[
-                  { label: 'T1 — Duración total',        value: minToHM(inc.mttrMinutos) },
-                  { label: 'T2 — 1er correo enviado',    value: horaCorreoT2 },
-                  { label: t3Label,                       value: t3Value },
-                  { label: 'T4 — Respuesta a solución',  value: minToHM(tiempoResolucion) },
-                ].map(t => (
-                  <div key={t.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-                    <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{t.label}</span>
-                    <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 500, color: t.value === '—' ? 'var(--muted-foreground)' : 'var(--foreground)' }}>{t.value}</span>
-                  </div>
-                ))}
+                <TimeRow label="Hora inicio" value={new Date(inc.horaRegistro).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} />
+                <TimeRow label="Tiempo total" value={inc.mttrMinutos ? minToHM(inc.mttrMinutos) : 'En curso'} />
+                {[...(inc.escalamientos ?? [])].sort((a: any, b: any) => a.nivel - b.nivel).map((esc: any) => {
+                  const enviado = esc.horaEnvioCorreo
+                    ? new Date(esc.horaEnvioCorreo).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+                    : '—'
+                  let respVal = '—', respColor: string | undefined
+                  if (esc.noHuboRespuesta) {
+                    respVal = 'No hubo respuesta'; respColor = '#b91c1c'
+                  } else if (esc.tiempoRespuestaMin != null) {
+                    respVal = minToHM(esc.tiempoRespuestaMin)
+                  } else if (esc.horaEnvioCorreo && esc.estadoCronometro === 'VENCIDO') {
+                    const exc = Math.round((Date.now() - new Date(esc.horaEnvioCorreo).getTime()) / 60000) - 60
+                    respVal = exc > 0 ? `Excedido ${minToHM(exc)}` : 'Vencido'; respColor = '#d97706'
+                  }
+                  return (
+                    <div key={esc.id}>
+                      <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '6px 0 4px', borderTop: '1px solid var(--border)', paddingTop: '6px' }}>Nivel {esc.nivel}</div>
+                      <TimeRow label={`Enviado N${esc.nivel}`} value={enviado} />
+                      <TimeRow label={`Respuesta N${esc.nivel}`} value={respVal} color={respColor} />
+                    </div>
+                  )
+                })}
+                {inc.horaFin && (
+                  <>
+                    <div style={{ borderTop: '1px solid var(--border)', margin: '6px 0 4px' }} />
+                    <TimeRow label="Hora solución" value={new Date(inc.horaFin).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} />
+                  </>
+                )}
 
                 {/* Hora registro / fin (editable by supervisor) */}
                 {canEditA && (
@@ -789,90 +792,20 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
 
       {/* ── Block D — Escalamientos ── */}
       <div ref={escRef} style={{ background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', marginTop: '16px', overflow: 'hidden' }}>
-        <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)' }}>
           <div style={{ fontSize: '13px', fontWeight: 600 }}>D — Escalamientos</div>
-          {!isClosed && (
-            <button onClick={() => setShowEscalarForm(v => !v)}
-              style={{ padding: '5px 12px', background: showEscalarForm ? 'var(--muted)' : 'hsl(221,83%,45%)', color: showEscalarForm ? 'var(--foreground)' : 'white', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>
-              + Agregar nivel
-            </button>
-          )}
         </div>
-
         <div style={{ padding: '16px 18px' }}>
-          {/* Escalation form */}
-          {showEscalarForm && (
-            <div style={{ marginBottom: '16px', padding: '14px', background: 'var(--muted)', borderRadius: '10px', border: '1px solid var(--border)' }}>
-              <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '12px' }}>Nuevo escalamiento</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-                <div>
-                  <label style={{ fontSize: '10px', color: 'var(--muted-foreground)', display: 'block', marginBottom: '3px' }}>Nivel</label>
-                  <select style={iStyle()} value={escForm.nivel} onChange={e => setEscForm(f => ({ ...f, nivel: Number(e.target.value) }))}>
-                    {[1,2,3,4].map(n => <option key={n} value={n}>Nivel {n}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: '10px', color: 'var(--muted-foreground)', display: 'block', marginBottom: '3px' }}>Tiempo estimado de solución</label>
-                  <input style={iStyle()} value={escForm.tiempoEstimadoSolucion} onChange={e => setEscForm(f => ({ ...f, tiempoEstimadoSolucion: e.target.value }))} placeholder="Ej: 2 horas, antes de las 3pm" />
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-                <div>
-                  <label style={{ fontSize: '10px', color: 'var(--muted-foreground)', display: 'block', marginBottom: '3px' }}>Contacto</label>
-                  <input style={iStyle()} value={escForm.contactoEscalado} onChange={e => setEscForm(f => ({ ...f, contactoEscalado: e.target.value }))} placeholder="Nombre del contacto" />
-                </div>
-                <div>
-                  <label style={{ fontSize: '10px', color: 'var(--muted-foreground)', display: 'block', marginBottom: '3px' }}>Email</label>
-                  <input style={iStyle()} value={escForm.emailContacto} onChange={e => setEscForm(f => ({ ...f, emailContacto: e.target.value }))} placeholder="email@proveedor.com" />
-                </div>
-                <div>
-                  <label style={{ fontSize: '10px', color: 'var(--muted-foreground)', display: 'block', marginBottom: '3px' }}>Teléfono / WhatsApp</label>
-                  <input style={iStyle()} value={escForm.telefonoContacto} onChange={e => setEscForm(f => ({ ...f, telefonoContacto: e.target.value }))} placeholder="+51 9XX XXX XXX" />
-                </div>
-              </div>
-              <div style={{ marginBottom: '10px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
-                  <label style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Borrador de correo</label>
-                  <button onClick={copyCorreo} style={{ fontSize: '10px', padding: '2px 8px', background: copiedCorreo ? '#14532d' : 'transparent', color: copiedCorreo ? '#86efac' : 'var(--muted-foreground)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer' }}>
-                    {copiedCorreo ? '✓ Copiado' : 'Copiar'}
-                  </button>
-                </div>
-                <textarea value={escForm.cuerpoCorreo} onChange={e => setEscForm(f => ({ ...f, cuerpoCorreo: e.target.value }))}
-                  style={{ ...iStyle(), minHeight: '130px', fontSize: '10px', lineHeight: 1.55, resize: 'vertical', fontFamily: 'monospace' }} />
-              </div>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={() => setShowEscalarForm(false)}
-                  style={{ flex: 1, padding: '8px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>Cancelar</button>
-                <button onClick={handleEscalar}
-                  style={{ flex: 1, padding: '8px', background: '#854F0B', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>Escalar →</button>
-              </div>
-            </div>
-          )}
-
-          {/* Empty state */}
-          {(!inc.escalamientos || inc.escalamientos.length === 0) && !showEscalarForm && (
+          {(!inc.escalamientos || inc.escalamientos.length === 0) && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '36px 20px', gap: '8px' }}>
               <IcoLayers />
               <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--muted-foreground)' }}>Sin escalamientos</div>
-              <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', opacity: 0.7 }}>Agrega un nivel para iniciar el proceso de escalamiento.</div>
+              <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', opacity: 0.7 }}>Usa el botón "Escalar incidente" de la barra inferior.</div>
             </div>
           )}
-
-          {/* Escalamiento cards */}
-          {inc.escalamientos && inc.escalamientos.length > 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '12px' }}>
-              {inc.escalamientos.map((esc: any) => (
-                <EscalamientoCard key={esc.id} esc={esc} isClosed={isClosed}
-                  onEnvio={async () => { await fetch(`/api/escalamientos/${esc.id}/envio`, { method: 'PUT' }); fetchInc() }}
-                  onRespuesta={async () => { await fetch(`/api/escalamientos/${esc.id}/respuesta`, { method: 'PUT' }); fetchInc() }}
-                  onDelete={async () => {
-                    await fetch(`/api/escalamientos/${esc.id}`, { method: 'DELETE' })
-                    fetchInc()
-                  }}
-                />
-              ))}
-            </div>
-          )}
+          {inc.escalamientos?.map((esc: any) => (
+            <EscalamientoCard key={esc.id} esc={esc} allEscs={inc.escalamientos} inc={inc} isClosed={isClosed} onRefresh={fetchInc} />
+          ))}
         </div>
       </div>
 
@@ -893,10 +826,22 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 style={{ ...btn, background: '#14532d', color: '#86efac' }}>
                 Marcar como resuelto
               </button>
-              <button onClick={openEscalarForm}
-                style={{ ...btn, background: 'hsl(221,83%,45%)', color: 'white', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                Escalar incidente <IcoArrow />
-              </button>
+              <div style={{ position: 'relative' }}>
+                <button onClick={() => setShowNivelMenu(v => !v)}
+                  style={{ ...btn, background: 'hsl(221,83%,45%)', color: 'white', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  Escalar incidente <IcoArrow />
+                </button>
+                {showNivelMenu && (
+                  <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: '6px', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '6px', display: 'flex', flexDirection: 'column', gap: '4px', zIndex: 50, minWidth: '150px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)' }}>
+                    {[1,2,3,4].map(n => (
+                      <button key={n} onClick={() => handleEscalarNivel(n)}
+                        style={{ padding: '7px 12px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', textAlign: 'left', color: 'var(--foreground)' }}>
+                        Escalar N{n}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </>
           )}
           {isClosed && inc.estado !== 'CANCELADO' && (
@@ -919,134 +864,256 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
 
 // ── EscalamientoCard ──────────────────────────────────────────────────────────
 const IcoTrashEsc = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+const IcoPhone  = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.43A2 2 0 0 1 3.6 1.25h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.84a16 16 0 0 0 6.07 6.07l.96-1.06a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
 
-function EscalamientoCard({ esc, isClosed, onEnvio, onRespuesta, onDelete }: {
-  esc: any; isClosed: boolean; onEnvio: () => void; onRespuesta: () => void; onDelete: () => void
+function AtcLlamadaRow({ atc, isClosed, onFin, onSaveNotas, onDelete }: {
+  atc: any; isClosed: boolean; onFin: () => void; onSaveNotas: (n: string) => void; onDelete: () => void
 }) {
-  const [showCorreo, setShowCorreo]       = useState(false)
-  const [copied, setCopied]               = useState(false)
-  const [respuesta, setRespuesta]         = useState(esc.respuestaTexto ?? '')
-  const [savingResp, setSavingResp]       = useState(false)
-  const [deleting, setDeleting]           = useState(false)
+  const [notas, setNotas] = useState(atc.notas ?? '')
+  const inicio = new Date(atc.inicio).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+  return (
+    <div style={{ padding: '10px 12px', background: 'var(--card)', borderRadius: '8px', border: '1px solid var(--border)', marginBottom: '8px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <IcoPhone />
+          <span style={{ fontSize: '11px', fontWeight: 600 }}>{inicio}</span>
+          {atc.fin
+            ? <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>· {atc.duracionMin != null ? minToHM(atc.duracionMin) : '—'}</span>
+            : <span style={{ fontSize: '10px', color: '#15803d', fontWeight: 500 }}>● En curso</span>}
+        </div>
+        <div style={{ display: 'flex', gap: '4px' }}>
+          {!atc.fin && !isClosed && (
+            <button onClick={onFin} style={{ padding: '2px 8px', fontSize: '10px', background: '#fee2e2', color: '#b91c1c', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '4px', cursor: 'pointer' }}>
+              ■ Finalizar
+            </button>
+          )}
+          {!isClosed && (
+            <button onClick={onDelete} style={{ width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '4px', color: '#dc2626', cursor: 'pointer' }}>
+              <IcoTrashEsc />
+            </button>
+          )}
+        </div>
+      </div>
+      <textarea value={notas} onChange={e => setNotas(e.target.value)} onBlur={() => onSaveNotas(notas)}
+        placeholder="Notas de la llamada..."
+        disabled={isClosed}
+        style={{ width: '100%', padding: '6px 8px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--muted)', color: 'var(--foreground)', outline: 'none', resize: 'vertical', minHeight: '48px', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+    </div>
+  )
+}
 
-  async function copy() {
-    await navigator.clipboard.writeText(esc.cuerpoCorreo ?? '')
+function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
+  esc: any; allEscs: any[]; inc: any; isClosed: boolean; onRefresh: () => void
+}) {
+  const [showTemplate, setShowTemplate] = useState(false)
+  const [copied, setCopied]             = useState(false)
+  const [respuestaText, setRespuestaText] = useState(esc.respuestaTexto ?? '')
+  const [tiempoEstText, setTiempoEstText] = useState(esc.tiempoEstimadoSolucion ?? '')
+  const [saving, setSaving]             = useState(false)
+  const [showAtc, setShowAtc]           = useState(false)
+
+  const nivelData  = inc.nivelesProveedor?.find((n: any) => n.nivel === esc.nivel)
+  const prevEscs   = allEscs.filter((e: any) => e.nivel < esc.nivel).sort((a: any, b: any) => a.nivel - b.nivel)
+  const templateText = buildCorreo(inc, nivelData, esc.nivel, prevEscs)
+
+  const isRespondido   = !!esc.horaRespuesta
+  const isSinRespuesta = !!esc.noHuboRespuesta
+  const isCorriendo    = !!esc.horaEnvioCorreo && !isRespondido && !isSinRespuesta
+  const horaCreado     = new Date(esc.creadoEn).toLocaleString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
+
+  async function copyTemplate() {
+    await navigator.clipboard.writeText(templateText)
     setCopied(true); setTimeout(() => setCopied(false), 2000)
   }
 
-  async function saveRespuesta() {
-    setSavingResp(true)
-    await fetch(`/api/escalamientos/${esc.id}`, {
+  async function handleEnvio() {
+    await fetch(`/api/escalamientos/${esc.id}/envio`, { method: 'PUT' })
+    onRefresh()
+  }
+
+  async function handleRespuesta() {
+    setSaving(true)
+    await fetch(`/api/escalamientos/${esc.id}/respuesta`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ respuestaTexto: respuesta }),
+      body: JSON.stringify({ respuestaProveedor: respuestaText, tiempoEstimadoSolucion: tiempoEstText }),
     })
-    setSavingResp(false)
+    setSaving(false); onRefresh()
+  }
+
+  async function handleSinRespuesta() {
+    if (!confirm('¿Confirmar que no hubo respuesta del proveedor?')) return
+    await fetch(`/api/escalamientos/${esc.id}/sin-respuesta`, { method: 'PUT' })
+    onRefresh()
   }
 
   async function handleDelete() {
-    if (esc.horaEnvioCorreo && !esc.horaRespuesta) {
-      if (!confirm('El cronómetro ya está corriendo. ¿Eliminar de todas formas este escalamiento?')) return
-    } else {
-      if (!confirm('¿Eliminar este escalamiento?')) return
-    }
-    setDeleting(true)
-    await onDelete()
+    const msg = isCorriendo
+      ? 'El cronómetro ya está corriendo. ¿Eliminar de todas formas?'
+      : '¿Eliminar este escalamiento?'
+    if (!confirm(msg)) return
+    await fetch(`/api/escalamientos/${esc.id}`, { method: 'DELETE' })
+    onRefresh()
   }
 
-  const canDelete = !isClosed && !esc.horaRespuesta
+  async function iniciarAtc() {
+    await fetch(`/api/escalamientos/${esc.id}/atc`, { method: 'POST' })
+    onRefresh()
+  }
 
-  const horaCreado = new Date(esc.creadoEn).toLocaleString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
+  async function finalizarAtc(atcId: string) {
+    await fetch(`/api/atc/${atcId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ finalizar: true }) })
+    onRefresh()
+  }
+
+  async function guardarNotasAtc(atcId: string, notas: string) {
+    await fetch(`/api/atc/${atcId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notas }) })
+  }
+
+  async function eliminarAtc(atcId: string) {
+    if (!confirm('¿Eliminar esta llamada ATC?')) return
+    await fetch(`/api/atc/${atcId}`, { method: 'DELETE' })
+    onRefresh()
+  }
 
   return (
-    <div style={{ padding: '14px', background: 'var(--muted)', borderRadius: '10px', border: '1px solid var(--border)' }}>
+    <div style={{ background: 'var(--muted)', borderRadius: '12px', border: '1px solid var(--border)', marginBottom: '12px', overflow: 'hidden' }}>
+
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-        <div>
-          <div style={{ fontSize: '12px', fontWeight: 600 }}>Nivel {esc.nivel} — {esc.contactoEscalado}</div>
-          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{esc.emailContacto}</div>
-          {esc.telefonoContacto && <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>📞 {esc.telefonoContacto}</div>}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 14px', borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.03)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '13px', fontWeight: 700 }}>Nivel {esc.nivel}</span>
+          <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{esc.contactoEscalado}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {isRespondido && <span style={{ fontSize: '10px', padding: '2px 8px', background: '#dcfce7', color: '#15803d', borderRadius: '20px', fontWeight: 600 }}>Respondido</span>}
+          {isSinRespuesta && <span style={{ fontSize: '10px', padding: '2px 8px', background: '#fee2e2', color: '#b91c1c', borderRadius: '20px', fontWeight: 600 }}>Sin respuesta</span>}
           <span style={{ fontSize: '9px', color: 'var(--muted-foreground)' }}>{horaCreado}</span>
-          {canDelete && (
-            <button onClick={handleDelete} disabled={deleting} title="Eliminar escalamiento"
-              style={{ width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '5px', color: '#dc2626', cursor: deleting ? 'wait' : 'pointer' }}>
+          {!isClosed && !isRespondido && (
+            <button onClick={handleDelete} title="Eliminar escalamiento"
+              style={{ width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '5px', color: '#dc2626', cursor: 'pointer' }}>
               <IcoTrashEsc />
             </button>
           )}
         </div>
       </div>
 
-      {esc.tiempoEstimadoSolucion && (
-        <div style={{ fontSize: '10px', marginBottom: '8px', padding: '4px 8px', background: 'rgba(133,79,11,0.12)', borderRadius: '4px', color: '#854F0B' }}>
-          ⏱ Estimado: {esc.tiempoEstimadoSolucion}
+      <div style={{ padding: '14px' }}>
+
+        {/* 1. Contacto */}
+        <div style={{ marginBottom: '12px', padding: '10px 12px', background: 'var(--card)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+          <div style={{ fontSize: '11px', fontWeight: 600, marginBottom: '4px' }}>{esc.contactoEscalado}</div>
+          {esc.emailContacto && <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>✉ {esc.emailContacto}</div>}
+          {esc.telefonoContacto && <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '3px' }}>📱 {esc.telefonoContacto}</div>}
         </div>
-      )}
 
-      <CronometroEscalamiento horaEnvio={esc.horaEnvioCorreo} horaRespuesta={esc.horaRespuesta} />
+        {/* 2. Plantilla */}
+        <div style={{ marginBottom: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+            <button onClick={() => setShowTemplate(v => !v)}
+              style={{ fontSize: '11px', fontWeight: 600, color: 'var(--foreground)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>
+              📄 Plantilla de correo {showTemplate ? '▲' : '▼'}
+            </button>
+            <button onClick={copyTemplate}
+              style={{ fontSize: '10px', padding: '2px 9px', background: copied ? '#14532d' : 'transparent', color: copied ? '#86efac' : 'var(--muted-foreground)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer' }}>
+              {copied ? '✓ Copiado' : '📋 Copiar'}
+            </button>
+          </div>
+          {showTemplate && (
+            <pre style={{ fontSize: '9px', whiteSpace: 'pre-wrap', background: 'var(--card)', padding: '10px 12px', borderRadius: '8px', color: 'var(--foreground)', lineHeight: 1.55, margin: 0, border: '1px solid var(--border)', fontFamily: 'monospace' }}>
+              {templateText}
+            </pre>
+          )}
+        </div>
 
-      {esc.cuerpoCorreo && (
-        <div style={{ marginTop: '8px' }}>
-          <button onClick={() => setShowCorreo(v => !v)}
-            style={{ fontSize: '10px', color: 'var(--muted-foreground)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
-            {showCorreo ? 'Ocultar borrador' : 'Ver borrador de correo'}
+        {/* 3. Adjuntos */}
+        <div style={{ marginBottom: '12px' }}>
+          <AdjuntosZona escalamientoId={esc.id} disabled={isClosed} />
+        </div>
+
+        {/* 4. Correo enviado */}
+        {!esc.horaEnvioCorreo && !isClosed && !isSinRespuesta && (
+          <button onClick={handleEnvio}
+            style={{ width: '100%', padding: '10px', background: 'hsl(221,83%,45%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', marginBottom: '8px' }}>
+            ✉ Correo enviado → Iniciar cronómetro
           </button>
-          {showCorreo && (
-            <div style={{ marginTop: '6px' }}>
-              <pre style={{ fontSize: '9px', whiteSpace: 'pre-wrap', background: 'var(--card)', padding: '8px', borderRadius: '6px', color: 'var(--foreground)', lineHeight: 1.55, margin: 0 }}>
-                {esc.cuerpoCorreo}
-              </pre>
-              <button onClick={copy}
-                style={{ marginTop: '4px', fontSize: '10px', padding: '3px 10px', background: copied ? '#14532d' : 'transparent', color: copied ? '#86efac' : 'var(--muted-foreground)', border: '1px solid var(--border)', borderRadius: '5px', cursor: 'pointer' }}>
-                {copied ? '✓ Copiado' : 'Copiar correo'}
-              </button>
+        )}
+
+        {/* 5. Cronómetro + respuesta */}
+        {isCorriendo && (
+          <div>
+            <CronometroEscalamiento horaEnvio={esc.horaEnvioCorreo} horaRespuesta={esc.horaRespuesta} />
+            <div style={{ marginTop: '10px' }}>
+              <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Respuesta del proveedor</label>
+              <textarea value={respuestaText} onChange={e => setRespuestaText(e.target.value)}
+                placeholder="Documenta aquí la respuesta recibida..."
+                style={{ width: '100%', padding: '7px 10px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', resize: 'vertical', minHeight: '60px', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            </div>
+            <div style={{ marginTop: '8px' }}>
+              <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Tiempo estimado de solución</label>
+              <input value={tiempoEstText} onChange={e => setTiempoEstText(e.target.value)}
+                placeholder="Ej: 2 horas, antes de las 3pm"
+                style={{ width: '100%', padding: '7px 10px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }} />
+            </div>
+            {!isClosed && (
+              <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                <button onClick={handleRespuesta} disabled={saving}
+                  style={{ flex: 1, padding: '8px', background: '#14532d', color: '#86efac', border: 'none', borderRadius: '8px', fontSize: '11px', fontWeight: 600, cursor: saving ? 'wait' : 'pointer' }}>
+                  {saving ? 'Guardando...' : '✓ Registrar respuesta recibida'}
+                </button>
+                <button onClick={handleSinRespuesta}
+                  style={{ flex: 1, padding: '8px', background: 'var(--muted)', color: 'var(--muted-foreground)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '8px', fontSize: '11px', cursor: 'pointer' }}>
+                  ✗ No hubo respuesta
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Respondido */}
+        {isRespondido && (
+          <div style={{ padding: '10px 12px', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #86efac', marginBottom: '8px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: '#15803d' }}>
+              ✓ Respondido en {minToHM(esc.tiempoRespuestaMin)} · {new Date(esc.horaRespuesta).toLocaleString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit' })}
+            </div>
+            {esc.tiempoEstimadoSolucion && <div style={{ fontSize: '10px', color: '#15803d', marginTop: '3px' }}>Estimado proveedor: {esc.tiempoEstimadoSolucion}</div>}
+            {esc.respuestaTexto && <div style={{ fontSize: '11px', color: 'var(--foreground)', marginTop: '6px', whiteSpace: 'pre-wrap' }}>{esc.respuestaTexto}</div>}
+          </div>
+        )}
+
+        {/* Sin respuesta */}
+        {isSinRespuesta && !isRespondido && (
+          <div style={{ padding: '8px 12px', background: '#fef2f2', borderRadius: '8px', border: '1px solid rgba(220,38,38,0.3)', marginBottom: '8px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: '#b91c1c' }}>✗ No hubo respuesta del proveedor</div>
+          </div>
+        )}
+
+        {/* ATC */}
+        <div style={{ marginTop: '12px', borderTop: '1px solid var(--border)', paddingTop: '10px' }}>
+          <button onClick={() => setShowAtc(v => !v)}
+            style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <IcoPhone /> Llamadas ATC {(esc.atcLlamadas?.length ?? 0) > 0 ? `(${esc.atcLlamadas.length})` : ''} {showAtc ? '▲' : '▼'}
+          </button>
+          {showAtc && (
+            <div style={{ marginTop: '10px' }}>
+              {(esc.atcLlamadas ?? []).map((atc: any) => (
+                <AtcLlamadaRow key={atc.id} atc={atc} isClosed={isClosed}
+                  onFin={() => finalizarAtc(atc.id)}
+                  onSaveNotas={notas => guardarNotasAtc(atc.id, notas)}
+                  onDelete={() => eliminarAtc(atc.id)}
+                />
+              ))}
+              {!isClosed && (
+                <button onClick={iniciarAtc}
+                  style={{ width: '100%', marginTop: '4px', padding: '7px', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+                  <IcoPhone /> Iniciar nueva llamada ATC
+                </button>
+              )}
             </div>
           )}
         </div>
-      )}
 
-      {/* Respuesta del proveedor */}
-      <div style={{ marginTop: '10px' }}>
-        <div style={{ fontSize: '10px', fontWeight: 500, color: 'var(--muted-foreground)', marginBottom: '4px' }}>Respuesta del proveedor</div>
-        <textarea
-          value={respuesta}
-          onChange={e => setRespuesta(e.target.value)}
-          onBlur={saveRespuesta}
-          placeholder="Anota lo que respondió el proveedor..."
-          disabled={isClosed}
-          style={{ width: '100%', padding: '6px 8px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '6px', background: isClosed ? 'var(--muted)' : 'var(--card)', color: 'var(--foreground)', outline: 'none', resize: 'vertical', minHeight: '56px', fontFamily: 'inherit', lineHeight: 1.5, boxSizing: 'border-box' }}
-        />
-        {!isClosed && (
-          <button onClick={saveRespuesta} disabled={savingResp}
-            style={{ marginTop: '4px', fontSize: '10px', padding: '3px 10px', background: 'transparent', color: 'var(--muted-foreground)', border: '1px solid var(--border)', borderRadius: '5px', cursor: 'pointer' }}>
-            {savingResp ? 'Guardando...' : 'Guardar respuesta'}
-          </button>
-        )}
       </div>
-
-      {/* Adjuntos del escalamiento */}
-      <div style={{ marginTop: '10px' }}>
-        <AdjuntosZona escalamientoId={esc.id} disabled={isClosed} />
-      </div>
-
-      {!esc.horaEnvioCorreo && !isClosed && (
-        <button onClick={onEnvio}
-          style={{ width: '100%', marginTop: '8px', padding: '7px', background: 'hsl(221,83%,45%)', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}>
-          Correo enviado → iniciar cronómetro
-        </button>
-      )}
-      {esc.horaEnvioCorreo && !esc.horaRespuesta && !isClosed && (
-        <button onClick={onRespuesta}
-          style={{ width: '100%', marginTop: '8px', padding: '7px', background: '#14532d', color: '#86efac', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}>
-          Registrar primera respuesta
-        </button>
-      )}
-      {esc.horaRespuesta && (
-        <div style={{ marginTop: '6px', fontSize: '10px', color: 'var(--muted-foreground)', textAlign: 'center' }}>
-          Respondido en {esc.tiempoRespuestaMin}m · {new Date(esc.horaRespuesta).toLocaleString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit' })}
-        </div>
-      )}
     </div>
   )
 }

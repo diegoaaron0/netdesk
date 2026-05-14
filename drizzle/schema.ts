@@ -169,7 +169,18 @@ export const escalamientos = pgTable('escalamientos', {
   estadoCronometro:        estadoCronometroEnum('estado_cronometro').default('CORRIENDO'),
   cuerpoCorreo:            text('cuerpo_correo'),
   respuestaTexto:          text('respuesta_texto'),
+  noHuboRespuesta:         boolean('no_hubo_respuesta').default(false),
   creadoEn:                timestamp('creado_en').defaultNow(),
+})
+
+export const atcLlamadas = pgTable('atc_llamadas', {
+  id:             uuid('id').primaryKey().defaultRandom(),
+  escalamientoId: uuid('escalamiento_id').references(() => escalamientos.id).notNull(),
+  inicio:         timestamp('inicio').notNull(),
+  fin:            timestamp('fin'),
+  duracionMin:    integer('duracion_min'),
+  notas:          text('notas'),
+  creadoEn:       timestamp('creado_en').defaultNow(),
 })
 
 export const adjuntos = pgTable('adjuntos', {

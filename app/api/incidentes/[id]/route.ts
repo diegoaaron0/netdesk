@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { incidentes, tiendas, proveedores, usuarios, escalamientos, nivelesEscalamiento, adjuntos } from '@/drizzle/schema'
-import { eq } from 'drizzle-orm'
+import { incidentes, tiendas, proveedores, usuarios, escalamientos, nivelesEscalamiento, adjuntos, atcLlamadas } from '@/drizzle/schema'
+import { eq, inArray } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 
@@ -86,6 +86,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const escs = await db.select().from(escalamientos)
     .where(eq(escalamientos.incidenteId, id))
 
+  let atcMap: Record<string, any[]> = {}
+  if (escs.length > 0) {
+    const atcs = await db.select().from(atcLlamadas)
+      .where(inArray(atcLlamadas.escalamientoId, escs.map((e: any) => e.id)))
+    for (const atc of atcs) {
+      if (!atcMap[atc.escalamientoId]) atcMap[atc.escalamientoId] = []
+      atcMap[atc.escalamientoId].push(atc)
+    }
+  }
+
   let nivelesProveedor: any[] = []
   if (inc.proveedorId) {
     nivelesProveedor = await db.select({
@@ -99,7 +109,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       .where(eq(nivelesEscalamiento.proveedorId, inc.proveedorId))
   }
 
-  return NextResponse.json({ ...inc, escalamientos: escs, nivelesProveedor })
+  return NextResponse.json({
+    ...inc,
+    escalamientos: escs.map((e: any) => ({ ...e, atcLlamadas: atcMap[e.id] ?? [] })),
+    nivelesProveedor,
+  })
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

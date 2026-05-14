@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { escalamientos, incidentes, adjuntos } from '@/drizzle/schema'
+import { escalamientos, incidentes, adjuntos, atcLlamadas } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
@@ -44,6 +44,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!esc) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
   await db.delete(adjuntos).where(eq(adjuntos.escalamientoId, id))
+  await db.delete(atcLlamadas).where(eq(atcLlamadas.escalamientoId, id))
   await db.delete(escalamientos).where(eq(escalamientos.id, id))
 
   // Si ya no hay escalamientos en este incidente, revertir estado

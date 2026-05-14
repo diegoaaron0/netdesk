@@ -64,6 +64,21 @@ async function main() {
   await sql`ALTER TABLE "incidentes" ADD COLUMN IF NOT EXISTS "evaluable_proveedor" boolean DEFAULT true`
   console.log('[startup] ✓ Columnas gestión operacional (0003)')
 
+  // 0004 — escalamientos v2 + ATC llamadas
+  await sql`ALTER TABLE "escalamientos" ADD COLUMN IF NOT EXISTS "no_hubo_respuesta" boolean DEFAULT false`
+  await sql`
+    CREATE TABLE IF NOT EXISTS "atc_llamadas" (
+      "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      "escalamiento_id" UUID NOT NULL REFERENCES "escalamientos"("id") ON DELETE CASCADE,
+      "inicio" TIMESTAMP NOT NULL,
+      "fin" TIMESTAMP,
+      "duracion_min" INTEGER,
+      "notas" TEXT,
+      "creado_en" TIMESTAMP DEFAULT now()
+    )
+  `
+  console.log('[startup] ✓ Escalamientos v2 + tabla atc_llamadas (0004)')
+
   console.log('[startup] Migraciones completadas.')
   await sql.end()
 }
