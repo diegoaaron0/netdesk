@@ -42,6 +42,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     tiendaAdminCelular: tiendas.administradorCelular,
     tiendaReferencia: tiendas.referencia,
     tiendaInstruccion: tiendas.instruccionReporte,
+    tiendaTieneContingencia: tiendas.tieneContingencia,
     // Operación / gestión
     estadoOperacion:    incidentes.estadoOperacion,
     operacionManual:    incidentes.operacionManual,

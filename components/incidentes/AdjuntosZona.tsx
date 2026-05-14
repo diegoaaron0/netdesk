@@ -48,22 +48,6 @@ export function AdjuntosZona({ incidenteId, escalamientoId, disabled }: { incide
 
   useEffect(() => { load() }, [load])
 
-  // Paste from clipboard
-  useEffect(() => {
-    if (disabled) return
-    const handler = async (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items
-      if (!items) return
-      for (const item of Array.from(items)) {
-        if (item.type.startsWith('image/')) {
-          const file = item.getAsFile()
-          if (file) await uploadFile(file)
-        }
-      }
-    }
-    window.addEventListener('paste', handler)
-    return () => window.removeEventListener('paste', handler)
-  }, [disabled, incidenteId])
 
   const uploadFile = async (file: File) => {
     setUploading(true)
@@ -132,15 +116,26 @@ export function AdjuntosZona({ incidenteId, escalamientoId, disabled }: { incide
         <>
           <div
             style={dropZoneStyle}
+            tabIndex={0}
             onClick={() => fileInputRef.current?.click()}
             onDragOver={e => { e.preventDefault(); setDragging(true) }}
             onDragLeave={() => setDragging(false)}
             onDrop={e => { e.preventDefault(); setDragging(false); handleFiles(e.dataTransfer.files) }}
+            onPaste={async (e) => {
+              const items = e.clipboardData?.items
+              if (!items) return
+              for (const item of Array.from(items)) {
+                if (item.type.startsWith('image/')) {
+                  const file = item.getAsFile()
+                  if (file) await uploadFile(file)
+                }
+              }
+            }}
           >
             <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
               {uploading
                 ? 'Subiendo...'
-                : 'Arrastra archivos, haz clic para seleccionar, o pega con Ctrl+V'}
+                : 'Arrastra, haz clic, o haz clic aquí y pega Ctrl+V'}
             </div>
           </div>
           <input

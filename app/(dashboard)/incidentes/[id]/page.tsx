@@ -91,7 +91,8 @@ const IcoClock  = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="no
 const IcoEdit   = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
 const IcoArrow  = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
 const IcoExt    = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-const IcoLayers = () => <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.35"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 12l10 5 10-5"/><path d="M2 17l10 5 10-5"/></svg>
+const IcoLayers  = () => <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.35"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 12l10 5 10-5"/><path d="M2 17l10 5 10-5"/></svg>
+const IcoShield  = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
 
 function TimeRow({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
@@ -551,18 +552,14 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   </div>
                 </div>
               </div>
-              {/* Detallado */}
-              <div style={{ marginTop:'12px' }}>
-                <label style={{ display:'block',fontSize:'10px',fontWeight:600,color:'var(--muted-foreground)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:'4px' }}>Detallado</label>
-                <textarea disabled={!canEditB} style={{ ...taStyle(!canEditB), minHeight:'90px' }}
+              {/* Notas y evidencias (detallado + adjuntos unificado) */}
+              <div style={{ marginTop:'12px', background:'var(--card)', border:'1px solid var(--border)', borderRadius:'10px', padding:'12px' }}>
+                <div style={{ fontSize:'11px',fontWeight:600,color:'var(--foreground)',marginBottom:'8px' }}>Notas y evidencias</div>
+                <textarea disabled={!canEditB} style={{ ...taStyle(!canEditB), minHeight:'72px', marginBottom:'10px' }}
                   value={editForm.descartesDetallado ?? ''} onChange={e => setEdit('descartesDetallado', e.target.value)}
                   placeholder="Describe qué se validó, resultados, respuesta de tienda, acciones del agente..." />
+                <AdjuntosZona incidenteId={id} disabled={!canEditB} />
               </div>
-            </div>
-
-            {/* Adjuntos */}
-            <div style={{ borderTop:'1px solid var(--border)',paddingTop:'12px',marginBottom:'14px' }}>
-              <AdjuntosZona incidenteId={id} disabled={!canEditB} />
             </div>
 
             {inc.reabiertaInfo && (
@@ -674,7 +671,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               {inc.estadoOperacion && (
                 <ResumenRow icon={<IcoConn />} label="Estado operación">
                   <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', background: 'var(--muted)', color: 'var(--foreground)', border: '1px solid var(--border)', fontWeight: 500 }}>
-                    {{ CONTINGENCIA: 'Contingencia', DATOS_MOVILES: 'Datos móviles', BOLETA_MANUAL: 'Boleta manual', CAIDA: 'Caída' }[inc.estadoOperacion] ?? inc.estadoOperacion}
+                    {({ CONTINGENCIA: 'Contingencia', DATOS_MOVILES: 'Datos móviles', BOLETA_MANUAL: 'Boleta manual', CAIDA: 'Caída' } as Record<string,string>)[inc.estadoOperacion] ?? inc.estadoOperacion}
                   </span>
                 </ResumenRow>
               )}
@@ -683,6 +680,18 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{(parseFloat(inc.factorOperativo) * 100).toFixed(0)}%</span>
                 </ResumenRow>
               )}
+              <ResumenRow icon={<IcoShield />} label="Contingencia">
+                {(() => {
+                  const tiene = inc.tiendaTieneContingencia
+                  if (!tiene) return <span style={{ color: 'var(--muted-foreground)' }}>No</span>
+                  if (inc.estadoOperacion !== 'CONTINGENCIA') return <span style={{ color: '#15803d', fontWeight: 500 }}>Sí</span>
+                  const rend = inc.contRendimiento
+                  if (rend === 'INOPERATIVA' || rend === 'NO_FUNCIONO') {
+                    return <span style={{ color: '#b91c1c', fontWeight: 500 }}>Inoperativa</span>
+                  }
+                  return <span style={{ color: '#15803d', fontWeight: 600 }}>Sí — Activa{rend ? ` (${rend.charAt(0) + rend.slice(1).toLowerCase()})` : ''}</span>
+                })()}
+              </ResumenRow>
 
               {/* Tiempos */}
               <div style={{ marginTop: '10px', padding: '10px 12px', background: 'var(--muted)', borderRadius: '8px' }}>
@@ -790,24 +799,19 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
         </div>{/* end RIGHT */}
       </div>{/* end main grid */}
 
-      {/* ── Block D — Escalamientos ── */}
-      <div ref={escRef} style={{ background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', marginTop: '16px', overflow: 'hidden' }}>
-        <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)' }}>
-          <div style={{ fontSize: '13px', fontWeight: 600 }}>D — Escalamientos</div>
+      {/* ── Block D — Escalamientos (solo visible cuando hay escalamientos) ── */}
+      {inc.escalamientos?.length > 0 && (
+        <div ref={escRef} style={{ background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', marginTop: '16px', overflow: 'hidden' }}>
+          <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ fontSize: '13px', fontWeight: 600 }}>D — Escalamientos</div>
+          </div>
+          <div style={{ padding: '16px 18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '12px' }}>
+            {inc.escalamientos.map((esc: any) => (
+              <EscalamientoCard key={esc.id} esc={esc} allEscs={inc.escalamientos} inc={inc} isClosed={isClosed} onRefresh={fetchInc} />
+            ))}
+          </div>
         </div>
-        <div style={{ padding: '16px 18px' }}>
-          {(!inc.escalamientos || inc.escalamientos.length === 0) && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '36px 20px', gap: '8px' }}>
-              <IcoLayers />
-              <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--muted-foreground)' }}>Sin escalamientos</div>
-              <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', opacity: 0.7 }}>Usa el botón "Escalar incidente" de la barra inferior.</div>
-            </div>
-          )}
-          {inc.escalamientos?.map((esc: any) => (
-            <EscalamientoCard key={esc.id} esc={esc} allEscs={inc.escalamientos} inc={inc} isClosed={isClosed} onRefresh={fetchInc} />
-          ))}
-        </div>
-      </div>
+      )}
 
       {/* ── Sticky bottom bar ── */}
       <div style={{ position: 'fixed', bottom: 0, left: '192px', right: 0, zIndex: 40, background: 'var(--card)', borderTop: '1px solid var(--border)', padding: '10px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -911,10 +915,12 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
   const [tiempoEstText, setTiempoEstText] = useState(esc.tiempoEstimadoSolucion ?? '')
   const [saving, setSaving]             = useState(false)
   const [showAtc, setShowAtc]           = useState(false)
+  const [savingTemplate, setSavingTemplate] = useState(false)
 
   const nivelData  = inc.nivelesProveedor?.find((n: any) => n.nivel === esc.nivel)
   const prevEscs   = allEscs.filter((e: any) => e.nivel < esc.nivel).sort((a: any, b: any) => a.nivel - b.nivel)
   const templateText = buildCorreo(inc, nivelData, esc.nivel, prevEscs)
+  const [templateBody, setTemplateBody] = useState<string>(esc.cuerpoCorreo ?? templateText)
 
   const isRespondido   = !!esc.horaRespuesta
   const isSinRespuesta = !!esc.noHuboRespuesta
@@ -922,8 +928,18 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
   const horaCreado     = new Date(esc.creadoEn).toLocaleString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
 
   async function copyTemplate() {
-    await navigator.clipboard.writeText(templateText)
+    await navigator.clipboard.writeText(templateBody)
     setCopied(true); setTimeout(() => setCopied(false), 2000)
+  }
+
+  async function saveTemplate() {
+    setSavingTemplate(true)
+    await fetch(`/api/escalamientos/${esc.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cuerpoCorreo: templateBody }),
+    })
+    setSavingTemplate(false)
   }
 
   async function handleEnvio() {
@@ -977,7 +993,7 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
   }
 
   return (
-    <div style={{ background: 'var(--muted)', borderRadius: '12px', border: '1px solid var(--border)', marginBottom: '12px', overflow: 'hidden' }}>
+    <div style={{ background: 'var(--muted)', borderRadius: '12px', border: '1px solid var(--border)', overflow: 'hidden' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 14px', borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.03)' }}>
@@ -1014,15 +1030,26 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
               style={{ fontSize: '11px', fontWeight: 600, color: 'var(--foreground)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>
               📄 Plantilla de correo {showTemplate ? '▲' : '▼'}
             </button>
-            <button onClick={copyTemplate}
-              style={{ fontSize: '10px', padding: '2px 9px', background: copied ? '#14532d' : 'transparent', color: copied ? '#86efac' : 'var(--muted-foreground)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer' }}>
-              {copied ? '✓ Copiado' : '📋 Copiar'}
-            </button>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              <button onClick={copyTemplate}
+                style={{ fontSize: '10px', padding: '2px 9px', background: copied ? '#14532d' : 'transparent', color: copied ? '#86efac' : 'var(--muted-foreground)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer' }}>
+                {copied ? '✓ Copiado' : '📋 Copiar'}
+              </button>
+              {showTemplate && !isClosed && (
+                <button onClick={saveTemplate} disabled={savingTemplate}
+                  style={{ fontSize: '10px', padding: '2px 9px', background: savingTemplate ? 'var(--muted)' : 'hsl(221,83%,45%)', color: savingTemplate ? 'var(--muted-foreground)' : 'white', border: 'none', borderRadius: '4px', cursor: savingTemplate ? 'wait' : 'pointer' }}>
+                  {savingTemplate ? 'Guardando...' : '💾 Guardar'}
+                </button>
+              )}
+            </div>
           </div>
           {showTemplate && (
-            <pre style={{ fontSize: '9px', whiteSpace: 'pre-wrap', background: 'var(--card)', padding: '10px 12px', borderRadius: '8px', color: 'var(--foreground)', lineHeight: 1.55, margin: 0, border: '1px solid var(--border)', fontFamily: 'monospace' }}>
-              {templateText}
-            </pre>
+            <textarea
+              value={templateBody}
+              onChange={e => setTemplateBody(e.target.value)}
+              disabled={isClosed}
+              style={{ width: '100%', fontSize: '9px', whiteSpace: 'pre-wrap', background: 'var(--card)', padding: '10px 12px', borderRadius: '8px', color: 'var(--foreground)', lineHeight: 1.55, border: '1px solid var(--border)', fontFamily: 'monospace', resize: 'vertical', minHeight: '220px', outline: 'none', boxSizing: 'border-box' }}
+            />
           )}
         </div>
 
@@ -1054,6 +1081,10 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
               <input value={tiempoEstText} onChange={e => setTiempoEstText(e.target.value)}
                 placeholder="Ej: 2 horas, antes de las 3pm"
                 style={{ width: '100%', padding: '7px 10px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }} />
+            </div>
+            <div style={{ marginTop: '10px' }}>
+              <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Adjuntos respuesta</div>
+              <AdjuntosZona escalamientoId={esc.id} disabled={isClosed} />
             </div>
             {!isClosed && (
               <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>

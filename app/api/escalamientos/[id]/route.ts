@@ -16,6 +16,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if ('horaEnvioCorreo' in body) fields.horaEnvioCorreo = body.horaEnvioCorreo ? new Date(body.horaEnvioCorreo) : null
   if ('horaRespuesta'   in body) fields.horaRespuesta   = body.horaRespuesta   ? new Date(body.horaRespuesta)   : null
   if ('respuestaTexto'  in body) fields.respuestaTexto  = body.respuestaTexto  ?? null
+  if ('cuerpoCorreo'    in body) fields.cuerpoCorreo    = body.cuerpoCorreo    ?? null
 
   const envio = fields.horaEnvioCorreo instanceof Date ? fields.horaEnvioCorreo : null
   const resp  = fields.horaRespuesta   instanceof Date ? fields.horaRespuesta   : null
