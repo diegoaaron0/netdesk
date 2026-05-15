@@ -102,7 +102,23 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const [current] = await db.select().from(tiendas).where(eq(tiendas.id, id))
+  const [current] = await db.select({
+    id: tiendas.id, codigo: tiendas.codigo, nombreCc: tiendas.nombreCc,
+    formato: tiendas.formato, direccion: tiendas.direccion, referencia: tiendas.referencia,
+    distrito: tiendas.distrito, provincia: tiendas.provincia, ubicacion: tiendas.ubicacion,
+    coordenadas: tiendas.coordenadas, cluster: tiendas.cluster,
+    supervisorNombre: tiendas.supervisorNombre, perfilSupervisor: tiendas.perfilSupervisor,
+    proveedorId: tiendas.proveedorId, tipoConexion: tiendas.tipoConexion,
+    tipoServicio: tiendas.tipoServicio, cidServicio: tiendas.cidServicio,
+    tieneContingencia: tiendas.tieneContingencia, contingenciaActiva: tiendas.contingenciaActiva,
+    contingenciaActivadaPor: tiendas.contingenciaActivadaPor,
+    contingenciaDescripcion: tiendas.contingenciaDescripcion,
+    contingenciaFecha: tiendas.contingenciaFecha,
+    costoMensual: tiendas.costoMensual, instruccionReporte: tiendas.instruccionReporte,
+    contactoSoporte: tiendas.contactoSoporte, administradorNombre: tiendas.administradorNombre,
+    administradorEmail: tiendas.administradorEmail, administradorCelular: tiendas.administradorCelular,
+    ventaHoraSoles: tiendas.ventaHoraSoles,
+  }).from(tiendas).where(eq(tiendas.id, id))
   if (!current) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
   const body = await req.json()
@@ -136,21 +152,21 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     ventaHoraSoles:       'ventaHoraSoles'       in body ? (body.ventaHoraSoles       ?? null) : current.ventaHoraSoles,
   }
 
-  // Incluir campos nuevos solo si las columnas existen en la BD
-  let updatedValues: any = baseValues
+  let updated: any
   try {
-    updatedValues = {
+    const fullValues = {
       ...baseValues,
-      supervisorCelular:   'supervisorCelular'   in body ? (body.supervisorCelular   ?? null) : (current as any).supervisorCelular,
-      contingenciaChip:    'contingenciaChip'    in body ? (body.contingenciaChip    ?? null) : (current as any).contingenciaChip,
-      contingenciaPaquete: 'contingenciaPaquete' in body ? (body.contingenciaPaquete ?? null) : (current as any).contingenciaPaquete,
-      extras:              'extras'              in body ? (body.extras              ?? null) : (current as any).extras,
+      supervisorCelular:   'supervisorCelular'   in body ? (body.supervisorCelular   ?? null) : null,
+      contingenciaChip:    'contingenciaChip'    in body ? (body.contingenciaChip    ?? null) : null,
+      contingenciaPaquete: 'contingenciaPaquete' in body ? (body.contingenciaPaquete ?? null) : null,
+      extras:              'extras'              in body ? (body.extras              ?? null) : null,
     }
+    const [r] = await db.update(tiendas).set(fullValues).where(eq(tiendas.id, id)).returning()
+    updated = r
   } catch {
-    // columnas no migradas aún
+    const [r] = await db.update(tiendas).set(baseValues).where(eq(tiendas.id, id)).returning()
+    updated = r
   }
-
-  const [updated] = await db.update(tiendas).set(updatedValues).where(eq(tiendas.id, id)).returning()
 
   const userId = (session.user as any)?.id
   const histRows: any[] = []
