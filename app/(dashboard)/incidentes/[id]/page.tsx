@@ -603,13 +603,32 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   </div>
                 </div>
               </div>
-              {/* Comentarios (texto + adjuntos compactos) */}
+              {/* Comentarios (texto + paste de imágenes inline) */}
               <div style={{ marginTop:'12px', background:'var(--card)', border:'1px solid var(--border)', borderRadius:'10px', padding:'12px' }}>
                 <div style={{ fontSize:'11px',fontWeight:600,color:'var(--foreground)',marginBottom:'8px' }}>Comentarios</div>
-                <textarea disabled={!canEditB} style={{ ...taStyle(!canEditB), minHeight:'72px', marginBottom:'10px' }}
-                  value={editForm.descartesDetallado ?? ''} onChange={e => setEdit('descartesDetallado', e.target.value)}
-                  placeholder="Describe qué se validó, resultados, respuesta de tienda, acciones del agente..." />
-                <AdjuntosZona incidenteId={id} disabled={!canEditB} noGrid />
+                <div style={{ position:'relative' }}>
+                  <textarea disabled={!canEditB}
+                    style={{ ...taStyle(!canEditB), minHeight:'72px' }}
+                    value={editForm.descartesDetallado ?? ''} onChange={e => setEdit('descartesDetallado', e.target.value)}
+                    placeholder="Describe qué se validó, resultados, respuesta de tienda, acciones del agente..."
+                    onPaste={canEditB ? async (e) => {
+                      const items = e.clipboardData?.items
+                      if (!items) return
+                      for (const item of Array.from(items)) {
+                        if (item.type.startsWith('image/')) {
+                          const file = item.getAsFile()
+                          if (!file) continue
+                          const reader = new FileReader()
+                          const dataUrl = await new Promise<string>(res => { reader.onload = ev => res(ev.target!.result as string); reader.readAsDataURL(file) })
+                          const canvas = document.createElement('canvas'); const img = new Image()
+                          await new Promise<void>(res => { img.onload = () => { const r = Math.min(1,1400/img.width); canvas.width=Math.round(img.width*r); canvas.height=Math.round(img.height*r); canvas.getContext('2d')!.drawImage(img,0,0,canvas.width,canvas.height); res() }; img.src=dataUrl })
+                          const compressed = canvas.toDataURL('image/jpeg', 0.82)
+                          await fetch('/api/adjuntos', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url: compressed, nombre:`captura-${Date.now()}.jpg`, tipo:'image/jpeg', tamanoBytes: Math.round(compressed.length*0.75), incidenteId: id }) })
+                        }
+                      }
+                    } : undefined}
+                  />
+                </div>
               </div>
             </div>
 
