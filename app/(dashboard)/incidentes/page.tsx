@@ -1,8 +1,71 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Badge, estadoToVariant, impactoToVariant } from '@/components/ui/Badge'
+
+function TiendaFiltroInput({ value, label, onSelect, onClear }: {
+  value: string; label: string
+  onSelect: (id: string, label: string) => void
+  onClear: () => void
+}) {
+  const [query, setQuery]     = useState(label)
+  const [results, setResults] = useState<any[]>([])
+  const [open, setOpen]       = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => { if (!value) setQuery('') }, [value])
+  useEffect(() => { if (value && label) setQuery(label) }, [value, label])
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h)
+  }, [])
+
+  useEffect(() => {
+    if (value || query.length < 2) { setResults([]); setOpen(false); return }
+    const t = setTimeout(async () => {
+      const res = await fetch(`/api/tiendas?q=${encodeURIComponent(query)}`)
+      const data = await res.json()
+      setResults(Array.isArray(data) ? data : []); setOpen(true)
+    }, 250)
+    return () => clearTimeout(t)
+  }, [query, value])
+
+  return (
+    <div ref={ref} style={{ position: 'relative', minWidth: '220px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', overflow: 'hidden' }}>
+        <input value={query}
+          onChange={e => { setQuery(e.target.value); if (value) onClear() }}
+          placeholder="Filtrar por tienda..."
+          style={{ flex: 1, padding: '5px 10px', fontSize: '12px', border: 'none', background: 'transparent', color: 'var(--foreground)', outline: 'none', minWidth: 0 }}
+        />
+        {value && (
+          <button onClick={() => { onClear(); setQuery('') }}
+            style={{ padding: '0 8px', background: 'transparent', border: 'none', color: 'var(--muted-foreground)', cursor: 'pointer', fontSize: '16px', lineHeight: 1, flexShrink: 0 }}>
+            ×
+          </button>
+        )}
+      </div>
+      {open && results.length > 0 && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', marginTop: '3px', overflow: 'hidden', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', maxHeight: '220px', overflowY: 'auto' }}>
+          {results.map((t: any) => (
+            <button key={t.id} type="button"
+              onClick={() => { onSelect(t.id, `${t.codigo} — ${t.nombreCc}`); setOpen(false) }}
+              style={{ display: 'block', width: '100%', padding: '8px 12px', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer', fontSize: '12px' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            >
+              <span style={{ fontFamily: 'monospace', fontSize: '10px', color: 'var(--muted-foreground)', marginRight: '8px' }}>{t.codigo}</span>
+              <span style={{ fontWeight: 500 }}>{t.nombreCc}</span>
+              {t.proveedor && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginLeft: '6px' }}>· {t.proveedor.nombre} · {t.distrito}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function tiempoTranscurrido(desde: string | Date, hasta?: string | Date | null) {
   const ms = (hasta ? new Date(hasta).getTime() : Date.now()) - new Date(desde).getTime()
@@ -68,6 +131,8 @@ export default function IncidentesPage() {
   const [estado, setEstado]                   = useState('')
   const [agente, setAgente]                   = useState('')
   const [filtroProveedor, setFiltroProveedor] = useState('')
+  const [filtroTiendaId,    setFiltroTiendaId]    = useState('')
+  const [filtroTiendaLabel, setFiltroTiendaLabel] = useState('')
   const [misRegistros, setMisRegistros]       = useState(false)
   const [q, setQ]                             = useState('')
   const [debouncedQ, setDebouncedQ]           = useState('')
@@ -114,6 +179,7 @@ export default function IncidentesPage() {
     const t = limaToday()
     setFechaDesde(t); setFechaHasta(t)
     setEstado(''); setAgente(''); setFiltroProveedor('')
+    setFiltroTiendaId(''); setFiltroTiendaLabel('')
     setMisRegistros(false); setQ(''); setPage(1)
   }
 
@@ -128,6 +194,7 @@ export default function IncidentesPage() {
   const filtered = sortIncidentes(data).filter(inc => {
     if (misRegistros && myId && inc.agenteId !== myId) return false
     if (filtroProveedor && inc.proveedorNombre !== filtroProveedor) return false
+    if (filtroTiendaId && inc.tiendaId !== filtroTiendaId) return false
     if (debouncedQ) {
       const sq = debouncedQ.toLowerCase().replace('#', '')
       if (
@@ -198,13 +265,19 @@ export default function IncidentesPage() {
 
       {/* Filtros */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {/* Fila 1: búsqueda + mis registros */}
+        {/* Fila 1: búsqueda + tienda + mis registros */}
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <input
             placeholder="Buscar por ID de InvGate o ID de incidente..."
             value={q}
             onChange={e => { setQ(e.target.value); setPage(1) }}
             style={{ ...inputStyle }}
+          />
+          <TiendaFiltroInput
+            value={filtroTiendaId}
+            label={filtroTiendaLabel}
+            onSelect={(id, label) => { setFiltroTiendaId(id); setFiltroTiendaLabel(label); setPage(1) }}
+            onClear={() => { setFiltroTiendaId(''); setFiltroTiendaLabel(''); setPage(1) }}
           />
           <button
             onClick={() => { setMisRegistros(v => !v); setPage(1) }}

@@ -29,6 +29,7 @@ const COLS = {
   horaRegistro:   incidentes.horaRegistro,
   horaFin:        incidentes.horaFin,
   mttrMinutos:    incidentes.mttrMinutos,
+  tiendaId:       tiendas.id,
   tiendaCodigo:   tiendas.codigo,
   tiendaNombre:   tiendas.nombreCc,
   tiendaDistrito: tiendas.distrito,
