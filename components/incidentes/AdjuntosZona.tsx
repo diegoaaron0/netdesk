@@ -31,7 +31,7 @@ function formatBytes(b: number | null) {
   return `${(b / 1024 / 1024).toFixed(1)} MB`
 }
 
-export function AdjuntosZona({ incidenteId, escalamientoId, disabled }: { incidenteId?: string; escalamientoId?: string; disabled?: boolean }) {
+export function AdjuntosZona({ incidenteId, escalamientoId, disabled, noGrid }: { incidenteId?: string; escalamientoId?: string; disabled?: boolean; noGrid?: boolean }) {
   const [adjuntos, setAdjuntos] = useState<Adjunto[]>([])
   const [uploading, setUploading] = useState(false)
   const [lightbox, setLightbox] = useState<string | null>(null)
@@ -149,7 +149,7 @@ export function AdjuntosZona({ incidenteId, escalamientoId, disabled }: { incide
         </>
       )}
 
-      {adjuntos.length > 0 && (
+      {!noGrid && adjuntos.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginTop: '10px' }}>
           {adjuntos.map(adj => (
             <div key={adj.id} style={{ position: 'relative', borderRadius: '6px', overflow: 'hidden', border: '0.5px solid var(--border)', background: 'var(--muted)', aspectRatio: '1' }}>
