@@ -35,31 +35,25 @@ function relTime(d: string) {
 const CAMPO_LABELS: Record<string, string> = {
   nombreCc: 'Nombre CC', direccion: 'Dirección', distrito: 'Distrito',
   provincia: 'Provincia', cluster: 'Cluster', supervisorNombre: 'Supervisor',
-  perfilSupervisor: 'Perfil sup.', tipoConexion: 'Tipo conexión', tipoServicio: 'Tipo servicio',
+  supervisorCelular: 'Celular supervisor', perfilSupervisor: 'Clasificación',
+  tipoConexion: 'Tipo conexión', tipoServicio: 'Tipo servicio',
   cidServicio: 'CID', tieneContingencia: 'Tiene contingencia', contingenciaActiva: 'Contingencia activa',
-  contingenciaDescripcion: 'Desc. contingencia', costoMensual: 'Costo mensual',
-  instruccionReporte: 'Instrucción reporte', contactoSoporte: 'Contacto soporte',
-  administradorNombre: 'Admin nombre', administradorEmail: 'Admin email',
-  administradorCelular: 'Admin celular', proveedorId: 'Proveedor', ventaHoraSoles: 'Venta/hora S/.',
-  formato: 'Formato',
+  contingenciaDescripcion: 'Desc. contingencia', contingenciaChip: 'Chip contingencia',
+  contingenciaPaquete: 'Paquete contingencia', costoMensual: 'Costo mensual',
+  instruccionReporte: 'I.E.', contactoSoporte: 'Contacto soporte',
+  administradorNombre: 'Admin nombre', administradorEmail: 'Email',
+  administradorCelular: 'Admin celular', proveedorId: 'Proveedor',
+  ventaHoraSoles: 'Venta/hora S/.', formato: 'Formato', extras: 'Extras',
 }
 
 const BLANK = {
   codigo: '', nombreCc: '', formato: '', direccion: '', referencia: '',
   distrito: '', provincia: '', ubicacion: '', cluster: '',
-  supervisorNombre: '', perfilSupervisor: '', proveedorId: '', tipoConexion: '',
+  supervisorNombre: '', proveedorId: '', tipoConexion: '',
   tipoServicio: '', cidServicio: '', tieneContingencia: false, costoMensual: '',
   instruccionReporte: '', contactoSoporte: '', administradorNombre: '',
   administradorEmail: '', administradorCelular: '',
 }
-
-const PERFILES_SUPERVISOR = [
-  { emoji: '',   label: 'Sin definir' },
-  { emoji: '😡', label: 'Crítico' },
-  { emoji: '😤', label: 'Exigente' },
-  { emoji: '😐', label: 'Neutral' },
-  { emoji: '🙂', label: 'Colaborativo' },
-]
 
 function inp(): React.CSSProperties {
   return { width: '100%', padding: '6px 9px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', boxSizing: 'border-box' }
@@ -67,7 +61,7 @@ function inp(): React.CSSProperties {
 
 const PAGE_SIZE = 20
 
-export default function MantenimientoPage() {
+export default function TiendasPage() {
   const { data: session } = useSession()
   const router = useRouter()
   const userRol = (session?.user as any)?.rol ?? 'AGENTE'
@@ -82,6 +76,7 @@ export default function MantenimientoPage() {
   const [historial, setHistorial] = useState<any[]>([])
   const [showHistorial, setShowHistorial] = useState(false)
   const [loadingHist, setLoadingHist] = useState(false)
+  const [sinProveedorPanel, setSinProveedorPanel] = useState(false)
 
   const fetchTiendas = useCallback(async () => {
     const params = new URLSearchParams()
@@ -132,15 +127,15 @@ export default function MantenimientoPage() {
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const totalContingencia = tiendas.filter(t => t.contingenciaActiva).length
-  const totalConIncidentes = tiendas.filter(t => Number(t.incidentCount) > 0).length
-  const totalSinProveedor = tiendas.filter(t => !t.proveedorId).length
+  const totalIncidentes30d = tiendas.reduce((sum, t) => sum + (Number(t.incidentCount) || 0), 0)
+  const sinProveedor = tiendas.filter(t => !t.proveedorId)
 
   return (
     <div>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Mantenimiento de tiendas</h1>
+          <h1 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Tiendas</h1>
           <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{filtered.length} tiendas</div>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
@@ -159,18 +154,45 @@ export default function MantenimientoPage() {
 
       {/* Metric cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '16px' }}>
-        {[
-          { label: 'Total tiendas', value: tiendas.length, color: '#3b82f6' },
-          { label: 'En contingencia', value: totalContingencia, color: '#f59e0b' },
-          { label: 'Con incidentes (30d)', value: totalConIncidentes, color: '#ef4444' },
-          { label: 'Sin proveedor', value: totalSinProveedor, color: '#8b5cf6' },
-        ].map(m => (
-          <div key={m.label} style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
-            <div style={{ fontSize: '20px', fontWeight: 700, color: m.color }}>{m.value}</div>
-            <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{m.label}</div>
-          </div>
-        ))}
+        <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+          <div style={{ fontSize: '20px', fontWeight: 700, color: '#3b82f6' }}>{tiendas.length}</div>
+          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Total tiendas</div>
+        </div>
+        <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+          <div style={{ fontSize: '20px', fontWeight: 700, color: '#f59e0b' }}>{totalContingencia}</div>
+          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>En contingencia</div>
+        </div>
+        <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+          <div style={{ fontSize: '20px', fontWeight: 700, color: '#ef4444' }}>{totalIncidentes30d}</div>
+          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Incidentes (30d)</div>
+        </div>
+        <div
+          onClick={() => sinProveedor.length > 0 && setSinProveedorPanel(true)}
+          style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px', cursor: sinProveedor.length > 0 ? 'pointer' : 'default' }}
+          onMouseEnter={e => { if (sinProveedor.length > 0) (e.currentTarget as HTMLDivElement).style.borderColor = '#8b5cf6' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)' }}>
+          <div style={{ fontSize: '20px', fontWeight: 700, color: '#8b5cf6' }}>{sinProveedor.length}</div>
+          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Sin proveedor</div>
+        </div>
       </div>
+
+      {/* Panel sin proveedor */}
+      {sinProveedorPanel && (
+        <div style={{ background: 'var(--card)', border: '0.5px solid #8b5cf6', borderRadius: '10px', padding: '12px 14px', marginBottom: '14px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: '#7c3aed' }}>Tiendas sin proveedor ({sinProveedor.length})</div>
+            <button onClick={() => setSinProveedorPanel(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: 'var(--muted-foreground)' }}>✕</button>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            {sinProveedor.map(t => (
+              <span key={t.id} onClick={() => router.push(`/tiendas/${t.id}`)}
+                style={{ fontSize: '11px', padding: '3px 8px', background: 'var(--muted)', borderRadius: '5px', cursor: 'pointer', fontFamily: 'monospace', fontWeight: 600 }}>
+                {t.codigo}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Filtros */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', flexWrap: 'wrap' }}>
@@ -199,19 +221,17 @@ export default function MantenimientoPage() {
         {paginated.map(t => {
           const prov = provColor(t.proveedorNombre)
           return (
-            <div key={t.id} onClick={() => router.push(`/mantenimiento/${t.id}`)}
+            <div key={t.id} onClick={() => router.push(`/tiendas/${t.id}`)}
               style={{ background: 'var(--card)', border: t.contingenciaActiva ? '1.5px solid #f59e0b' : '0.5px solid var(--border)', borderRadius: '12px', padding: '14px', cursor: 'pointer', transition: 'box-shadow 0.15s', position: 'relative' }}
               onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.1)')}
               onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>
 
-              {/* Contingencia badge */}
               {t.contingenciaActiva && (
                 <div style={{ position: 'absolute', top: '10px', right: '10px', background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '6px', padding: '2px 7px', fontSize: '9px', fontWeight: 700, color: '#92400e', textTransform: 'uppercase' }}>
                   ⚠ Contingencia
                 </div>
               )}
 
-              {/* Código */}
               <div style={{ fontFamily: 'monospace', fontSize: '18px', fontWeight: 700, color: 'var(--foreground)', letterSpacing: '-0.01em', marginBottom: '2px' }}>
                 {t.codigo}
               </div>
@@ -220,14 +240,12 @@ export default function MantenimientoPage() {
                 {t.nombreCc || '—'}
               </div>
 
-              {t.direccion && (
+              {t.direccion ? (
                 <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px', marginBottom: '8px', lineHeight: 1.3 }}>
                   {t.direccion}
                 </div>
-              )}
-              {!t.direccion && <div style={{ marginBottom: '8px' }} />}
+              ) : <div style={{ marginBottom: '8px' }} />}
 
-              {/* Badges */}
               <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '10px' }}>
                 {t.proveedorNombre && (
                   <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px', background: prov.bg, color: prov.color }}>
@@ -246,22 +264,12 @@ export default function MantenimientoPage() {
                 )}
               </div>
 
-              {/* Detalles */}
               <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: 1.7 }}>
                 {t.tipoConexion && <div><span style={{ fontWeight: 500 }}>Conexión:</span> {t.tipoConexion}</div>}
                 {t.cidServicio  && <div><span style={{ fontWeight: 500 }}>CID:</span> <span style={{ fontFamily: 'monospace' }}>{t.cidServicio}</span></div>}
                 {(t.distrito || t.provincia) && <div><span style={{ fontWeight: 500 }}>Ubic.:</span> {[t.distrito, t.provincia].filter(Boolean).join(', ')}</div>}
                 {t.supervisorNombre && (
-                  <div>
-                    <span style={{ fontWeight: 500 }}>Supervisor:</span>{' '}
-                    {t.perfilSupervisor ? `${t.perfilSupervisor} ` : ''}{t.supervisorNombre}
-                  </div>
-                )}
-                {t.administradorCelular && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-                    {t.administradorCelular}
-                  </div>
+                  <div><span style={{ fontWeight: 500 }}>Supervisor:</span> {t.supervisorNombre}</div>
                 )}
               </div>
             </div>
@@ -342,7 +350,7 @@ export default function MantenimientoPage() {
                 ['supervisorNombre',     'Supervisor',        'text'],
                 ['tipoConexion',         'Tipo conexión',     'text'],
                 ['cidServicio',          'CID / Servicio',    'text'],
-                ['instruccionReporte',   'Instrucción',       'textarea'],
+                ['instruccionReporte',   'I.E.',              'textarea'],
                 ['administradorCelular', 'Admin celular',     'text'],
               ] as [string, string, string][]).map(([key, label, type]) => (
                 <div key={key} style={{ marginBottom: '10px' }}>
@@ -354,7 +362,6 @@ export default function MantenimientoPage() {
                 </div>
               ))}
 
-              {/* Cluster */}
               <div style={{ marginBottom: '10px' }}>
                 <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '3px' }}>Cluster</label>
                 <select value={modal.data.cluster ?? ''} onChange={e => setField('cluster', e.target.value)} style={inp()}>
@@ -363,7 +370,6 @@ export default function MantenimientoPage() {
                 </select>
               </div>
 
-              {/* Proveedor */}
               <div style={{ marginBottom: '10px' }}>
                 <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '3px' }}>Proveedor</label>
                 <select value={modal.data.proveedorId ?? ''} onChange={e => setField('proveedorId', e.target.value)} style={inp()}>

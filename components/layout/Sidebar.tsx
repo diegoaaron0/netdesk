@@ -68,7 +68,7 @@ const NAV = [
   {
     section: 'Configuración',
     items: [
-      { href: '/mantenimiento', label: 'Mantenimiento', icon: <IcoMantenimiento />, color: '#F59E0B', permiso: 'mantenimiento.ver' },
+      { href: '/tiendas', label: 'Tiendas', icon: <IcoMantenimiento />, color: '#F59E0B', permiso: 'mantenimiento.ver' },
       { href: '/usuarios',      label: 'Usuarios',      icon: <IcoUsuarios />,      color: '#A78BFA', permiso: 'usuarios.ver' },
     ],
   },

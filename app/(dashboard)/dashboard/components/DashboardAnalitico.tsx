@@ -481,7 +481,7 @@ export default function DashboardAnalitico() {
           </div>
           {cards.tiendasAfectadas.lista.map((t, i) => (
             <div key={t.id}
-              onClick={() => router.push(`/mantenimiento/${t.id}`)}
+              onClick={() => router.push(`/tiendas/${t.id}`)}
               style={{ display: 'grid', gridTemplateColumns: '70px 1fr 1fr 1fr 70px 100px auto', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center', cursor: 'pointer' }}>
               <span style={{ fontSize: '12px', fontWeight: 500, color: '#185FA5' }}>{t.codigo}</span>
               <span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.nombre}</span>

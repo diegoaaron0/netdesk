@@ -346,8 +346,8 @@ export default function NuevoIncidentePage() {
                   <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '1px' }}>Últimos incidentes registrados en esta tienda.</div>
                 </div>
                 <a
-                  href={`/mantenimiento/${tienda.id}`}
-                  onClick={e => { e.preventDefault(); router.push(`/mantenimiento/${tienda.id}`) }}
+                  href={`/tiendas/${tienda.id}`}
+                  onClick={e => { e.preventDefault(); router.push(`/tiendas/${tienda.id}`) }}
                   style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'hsl(221,83%,50%)', textDecoration: 'none', whiteSpace: 'nowrap', marginTop: '2px' }}>
                   Ver historial completo <IcoExt />
                 </a>

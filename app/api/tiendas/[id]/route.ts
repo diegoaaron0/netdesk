@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { tiendas, proveedores, incidentes, tiendasHistorial } from '@/drizzle/schema'
-import { eq, count } from 'drizzle-orm'
+import { eq, count, and, notInArray, isNotNull } from 'drizzle-orm'
 import { auth } from '@/auth'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -22,6 +22,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     coordenadas: tiendas.coordenadas,
     cluster: tiendas.cluster,
     supervisorNombre: tiendas.supervisorNombre,
+    supervisorCelular: tiendas.supervisorCelular,
     perfilSupervisor: tiendas.perfilSupervisor,
     proveedorId: tiendas.proveedorId,
     proveedorNombre: proveedores.nombre,
@@ -35,6 +36,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     contingenciaActivadaPor: tiendas.contingenciaActivadaPor,
     contingenciaDescripcion: tiendas.contingenciaDescripcion,
     contingenciaFecha: tiendas.contingenciaFecha,
+    contingenciaChip: tiendas.contingenciaChip,
+    contingenciaPaquete: tiendas.contingenciaPaquete,
     costoMensual: tiendas.costoMensual,
     instruccionReporte: tiendas.instruccionReporte,
     contactoSoporte: tiendas.contactoSoporte,
@@ -42,6 +45,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     administradorEmail: tiendas.administradorEmail,
     administradorCelular: tiendas.administradorCelular,
     ventaHoraSoles: tiendas.ventaHoraSoles,
+    extras: tiendas.extras,
     tipoPersonalizadoHabilitado: tiendas.tipoPersonalizadoHabilitado,
     creadoEn: tiendas.creadoEn,
   })
@@ -55,16 +59,24 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .from(incidentes)
     .where(eq(incidentes.tiendaId, id))
 
-  return NextResponse.json({ ...tienda, totalIncidentes: total })
+  const [{ movCount }] = await db.select({ movCount: count() })
+    .from(incidentes)
+    .where(and(
+      eq(incidentes.tiendaId, id),
+      notInArray(incidentes.estado, ['RESUELTO', 'CANCELADO', 'CERRADO']),
+      isNotNull(incidentes.movActivadoPor),
+    ))
+
+  return NextResponse.json({ ...tienda, totalIncidentes: total, datosMovilesActivos: movCount > 0 })
 }
 
 const TRACKED_FIELDS = [
   'nombreCc', 'formato', 'direccion', 'referencia', 'distrito', 'provincia',
-  'ubicacion', 'cluster', 'supervisorNombre', 'perfilSupervisor',
+  'ubicacion', 'cluster', 'supervisorNombre', 'supervisorCelular', 'perfilSupervisor',
   'tipoConexion', 'tipoServicio', 'cidServicio', 'tieneContingencia',
-  'contingenciaActiva', 'contingenciaDescripcion', 'costoMensual',
-  'instruccionReporte', 'contactoSoporte', 'administradorNombre',
-  'administradorEmail', 'administradorCelular', 'proveedorId', 'ventaHoraSoles',
+  'contingenciaActiva', 'contingenciaDescripcion', 'contingenciaChip', 'contingenciaPaquete',
+  'costoMensual', 'instruccionReporte', 'contactoSoporte', 'administradorNombre',
+  'administradorEmail', 'administradorCelular', 'proveedorId', 'ventaHoraSoles', 'extras',
 ] as const
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -91,6 +103,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     ubicacion:            'ubicacion'            in body ? (body.ubicacion            ?? null) : current.ubicacion,
     cluster:              'cluster'              in body ? (body.cluster              ?? null) : current.cluster,
     supervisorNombre:     'supervisorNombre'     in body ? (body.supervisorNombre     ?? null) : current.supervisorNombre,
+    supervisorCelular:    'supervisorCelular'    in body ? (body.supervisorCelular    ?? null) : current.supervisorCelular,
     perfilSupervisor:     'perfilSupervisor'     in body ? (body.perfilSupervisor     ?? null) : current.perfilSupervisor,
     proveedorId:          'proveedorId'          in body ? (body.proveedorId          ?? null) : current.proveedorId,
     tipoConexion:         'tipoConexion'         in body ? (body.tipoConexion         ?? null) : current.tipoConexion,
@@ -101,6 +114,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     contingenciaActivadaPor: 'contingenciaActivadaPor' in body ? (body.contingenciaActivadaPor ?? null) : current.contingenciaActivadaPor,
     contingenciaDescripcion: 'contingenciaDescripcion' in body ? (body.contingenciaDescripcion ?? null) : current.contingenciaDescripcion,
     contingenciaFecha:    'contingenciaFecha'    in body ? (body.contingenciaFecha ? new Date(body.contingenciaFecha) : null) : current.contingenciaFecha,
+    contingenciaChip:     'contingenciaChip'     in body ? (body.contingenciaChip     ?? null) : current.contingenciaChip,
+    contingenciaPaquete:  'contingenciaPaquete'  in body ? (body.contingenciaPaquete  ?? null) : current.contingenciaPaquete,
     costoMensual:         'costoMensual'         in body ? (body.costoMensual         ?? null) : current.costoMensual,
     instruccionReporte:   'instruccionReporte'   in body ? (body.instruccionReporte   ?? null) : current.instruccionReporte,
     contactoSoporte:      'contactoSoporte'      in body ? (body.contactoSoporte      ?? null) : current.contactoSoporte,
@@ -108,6 +123,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     administradorEmail:   'administradorEmail'   in body ? (body.administradorEmail   ?? null) : current.administradorEmail,
     administradorCelular: 'administradorCelular' in body ? (body.administradorCelular ?? null) : current.administradorCelular,
     ventaHoraSoles:       'ventaHoraSoles'       in body ? (body.ventaHoraSoles       ?? null) : current.ventaHoraSoles,
+    extras:               'extras'               in body ? (body.extras               ?? null) : current.extras,
   }
 
   const [updated] = await db.update(tiendas).set(updatedValues).where(eq(tiendas.id, id)).returning()

@@ -829,8 +829,8 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '1px' }}>Últimos incidentes registrados en esta tienda.</div>
               </div>
               {inc.tiendaId && (
-                <a href={`/mantenimiento/${inc.tiendaId}`}
-                  onClick={e => { e.preventDefault(); router.push(`/mantenimiento/${inc.tiendaId}`) }}
+                <a href={`/tiendas/${inc.tiendaId}`}
+                  onClick={e => { e.preventDefault(); router.push(`/tiendas/${inc.tiendaId}`) }}
                   style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'hsl(221,83%,50%)', textDecoration: 'none', whiteSpace: 'nowrap', marginTop: '2px' }}>
                   Ver historial completo <IcoExt />
                 </a>
