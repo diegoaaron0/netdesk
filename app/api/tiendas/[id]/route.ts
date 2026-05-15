@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { tiendas, proveedores, incidentes, tiendasHistorial } from '@/drizzle/schema'
-import { eq, count, and, notInArray, isNotNull } from 'drizzle-orm'
+import { eq, count, and, isNotNull } from 'drizzle-orm'
 import { auth } from '@/auth'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -22,7 +22,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     coordenadas: tiendas.coordenadas,
     cluster: tiendas.cluster,
     supervisorNombre: tiendas.supervisorNombre,
-    supervisorCelular: tiendas.supervisorCelular,
     perfilSupervisor: tiendas.perfilSupervisor,
     proveedorId: tiendas.proveedorId,
     proveedorNombre: proveedores.nombre,
@@ -36,8 +35,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     contingenciaActivadaPor: tiendas.contingenciaActivadaPor,
     contingenciaDescripcion: tiendas.contingenciaDescripcion,
     contingenciaFecha: tiendas.contingenciaFecha,
-    contingenciaChip: tiendas.contingenciaChip,
-    contingenciaPaquete: tiendas.contingenciaPaquete,
     costoMensual: tiendas.costoMensual,
     instruccionReporte: tiendas.instruccionReporte,
     contactoSoporte: tiendas.contactoSoporte,
@@ -45,7 +42,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     administradorEmail: tiendas.administradorEmail,
     administradorCelular: tiendas.administradorCelular,
     ventaHoraSoles: tiendas.ventaHoraSoles,
-    extras: tiendas.extras,
     tipoPersonalizadoHabilitado: tiendas.tipoPersonalizadoHabilitado,
     creadoEn: tiendas.creadoEn,
   })
@@ -63,11 +59,29 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .from(incidentes)
     .where(and(
       eq(incidentes.tiendaId, id),
-      notInArray(incidentes.estado, ['RESUELTO', 'CANCELADO', 'CERRADO']),
       isNotNull(incidentes.movActivadoPor),
     ))
 
-  return NextResponse.json({ ...tienda, totalIncidentes: total, datosMovilesActivos: movCount > 0 })
+  // Columnas nuevas (pueden no existir en producción hasta aplicar migración)
+  let extended: Record<string, string | null> = {
+    supervisorCelular: null,
+    contingenciaChip: null,
+    contingenciaPaquete: null,
+    extras: null,
+  }
+  try {
+    const [ext] = await db.select({
+      supervisorCelular: tiendas.supervisorCelular,
+      contingenciaChip: tiendas.contingenciaChip,
+      contingenciaPaquete: tiendas.contingenciaPaquete,
+      extras: tiendas.extras,
+    }).from(tiendas).where(eq(tiendas.id, id))
+    if (ext) extended = ext as any
+  } catch {
+    // columnas no migradas aún — se retornan null
+  }
+
+  return NextResponse.json({ ...tienda, ...extended, totalIncidentes: total, datosMovilesActivos: movCount > 0 })
 }
 
 const TRACKED_FIELDS = [
@@ -92,7 +106,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!current) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
   const body = await req.json()
-  const updatedValues = {
+  const baseValues = {
     codigo:               body.codigo              ?? current.codigo,
     nombreCc:             'nombreCc'             in body ? (body.nombreCc             ?? null) : current.nombreCc,
     formato:              'formato'              in body ? (body.formato              ?? null) : current.formato,
@@ -103,7 +117,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     ubicacion:            'ubicacion'            in body ? (body.ubicacion            ?? null) : current.ubicacion,
     cluster:              'cluster'              in body ? (body.cluster              ?? null) : current.cluster,
     supervisorNombre:     'supervisorNombre'     in body ? (body.supervisorNombre     ?? null) : current.supervisorNombre,
-    supervisorCelular:    'supervisorCelular'    in body ? (body.supervisorCelular    ?? null) : current.supervisorCelular,
     perfilSupervisor:     'perfilSupervisor'     in body ? (body.perfilSupervisor     ?? null) : current.perfilSupervisor,
     proveedorId:          'proveedorId'          in body ? (body.proveedorId          ?? null) : current.proveedorId,
     tipoConexion:         'tipoConexion'         in body ? (body.tipoConexion         ?? null) : current.tipoConexion,
@@ -114,8 +127,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     contingenciaActivadaPor: 'contingenciaActivadaPor' in body ? (body.contingenciaActivadaPor ?? null) : current.contingenciaActivadaPor,
     contingenciaDescripcion: 'contingenciaDescripcion' in body ? (body.contingenciaDescripcion ?? null) : current.contingenciaDescripcion,
     contingenciaFecha:    'contingenciaFecha'    in body ? (body.contingenciaFecha ? new Date(body.contingenciaFecha) : null) : current.contingenciaFecha,
-    contingenciaChip:     'contingenciaChip'     in body ? (body.contingenciaChip     ?? null) : current.contingenciaChip,
-    contingenciaPaquete:  'contingenciaPaquete'  in body ? (body.contingenciaPaquete  ?? null) : current.contingenciaPaquete,
     costoMensual:         'costoMensual'         in body ? (body.costoMensual         ?? null) : current.costoMensual,
     instruccionReporte:   'instruccionReporte'   in body ? (body.instruccionReporte   ?? null) : current.instruccionReporte,
     contactoSoporte:      'contactoSoporte'      in body ? (body.contactoSoporte      ?? null) : current.contactoSoporte,
@@ -123,7 +134,20 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     administradorEmail:   'administradorEmail'   in body ? (body.administradorEmail   ?? null) : current.administradorEmail,
     administradorCelular: 'administradorCelular' in body ? (body.administradorCelular ?? null) : current.administradorCelular,
     ventaHoraSoles:       'ventaHoraSoles'       in body ? (body.ventaHoraSoles       ?? null) : current.ventaHoraSoles,
-    extras:               'extras'               in body ? (body.extras               ?? null) : current.extras,
+  }
+
+  // Incluir campos nuevos solo si las columnas existen en la BD
+  let updatedValues: any = baseValues
+  try {
+    updatedValues = {
+      ...baseValues,
+      supervisorCelular:   'supervisorCelular'   in body ? (body.supervisorCelular   ?? null) : (current as any).supervisorCelular,
+      contingenciaChip:    'contingenciaChip'    in body ? (body.contingenciaChip    ?? null) : (current as any).contingenciaChip,
+      contingenciaPaquete: 'contingenciaPaquete' in body ? (body.contingenciaPaquete ?? null) : (current as any).contingenciaPaquete,
+      extras:              'extras'              in body ? (body.extras              ?? null) : (current as any).extras,
+    }
+  } catch {
+    // columnas no migradas aún
   }
 
   const [updated] = await db.update(tiendas).set(updatedValues).where(eq(tiendas.id, id)).returning()
