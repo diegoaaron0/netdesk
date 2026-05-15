@@ -1,6 +1,6 @@
 import {
   pgTable, pgEnum, uuid, text, boolean,
-  timestamp, integer, numeric,
+  timestamp, integer, numeric, date,
 } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
 
@@ -38,19 +38,31 @@ export const proveedores = pgTable('proveedores', {
   correoSoporte:      text('correo_soporte'),
   telefonoSoporte:    text('telefono_soporte'),
   instruccionGeneral: text('instruccion_general'),
+  tipoServicio:       text('tipo_servicio'),
+  planPrincipal:      text('plan_principal'),
+  canalAtencion:      text('canal_atencion'),
+  observaciones:      text('observaciones'),
+  estadoContrato:     text('estado_contrato').default('VIGENTE'),
   creadoEn:           timestamp('creado_en').defaultNow(),
 })
 
 export const nivelesEscalamiento = pgTable('niveles_escalamiento', {
-  id:             uuid('id').primaryKey().defaultRandom(),
-  proveedorId:    uuid('proveedor_id').references(() => proveedores.id),
-  nivel:          integer('nivel').notNull(),
-  nombreContacto: text('nombre_contacto').notNull(),
-  email:          text('email'),
-  celular:        text('celular'),
-  tiempoRespSev1: text('tiempo_resp_sev1'),
-  tiempoRespSev2: text('tiempo_resp_sev2'),
-  tiempoRespSev3: text('tiempo_resp_sev3'),
+  id:                      uuid('id').primaryKey().defaultRandom(),
+  proveedorId:             uuid('proveedor_id').references(() => proveedores.id),
+  nivel:                   integer('nivel').notNull(),
+  nombreContacto:          text('nombre_contacto').notNull(),
+  email:                   text('email'),
+  celular:                 text('celular'),
+  tiempoRespSev1:          text('tiempo_resp_sev1'),
+  tiempoRespSev2:          text('tiempo_resp_sev2'),
+  tiempoRespSev3:          text('tiempo_resp_sev3'),
+  correosCopia:            text('correos_copia').array(),
+  whatsapp:                text('whatsapp'),
+  canal:                   text('canal').default('correo'),
+  horarioAtencion:         text('horario_atencion'),
+  tiempoEsperadoSolucion:  integer('tiempo_esperado_solucion'),
+  instruccion:             text('instruccion'),
+  activo:                  boolean('activo').default(true),
 })
 
 export const tiendas = pgTable('tiendas', {
@@ -88,7 +100,32 @@ export const tiendas = pgTable('tiendas', {
   contingenciaChip:              text('contingencia_chip'),
   contingenciaPaquete:           text('contingencia_paquete'),
   extras:                        text('extras'),
+  fechaAltaServicio:             date('fecha_alta_servicio'),
+  estadoServicio:                text('estado_servicio').default('ACTIVO'),
+  velocidad:                     text('velocidad'),
+  planAplicado:                  text('plan_aplicado'),
   creadoEn:                      timestamp('creado_en').defaultNow(),
+})
+
+export const contratosProveedor = pgTable('contratos_proveedor', {
+  id:                   uuid('id').primaryKey().defaultRandom(),
+  proveedorId:          uuid('proveedor_id').references(() => proveedores.id).notNull(),
+  tiendaId:             uuid('tienda_id').references(() => tiendas.id),
+  codigoContrato:       text('codigo_contrato'),
+  plan:                 text('plan'),
+  tipoServicio:         text('tipo_servicio'),
+  velocidadCapacidad:   text('velocidad_capacidad'),
+  costoMensual:         numeric('costo_mensual'),
+  fechaInicio:          date('fecha_inicio'),
+  fechaFin:             date('fecha_fin'),
+  renovacionAutomatica: boolean('renovacion_automatica').default(false),
+  penalidad:            text('penalidad'),
+  slaComprometido:      text('sla_comprometido'),
+  tiempoRespuestaSla:   integer('tiempo_respuesta_sla'),
+  tiempoResolucionSla:  integer('tiempo_resolucion_sla'),
+  documentoUrl:         text('documento_url'),
+  estado:               text('estado').default('VIGENTE'),
+  creadoEn:             timestamp('creado_en').defaultNow(),
 })
 
 export const tiendasHistorial = pgTable('tiendas_historial', {
@@ -198,39 +235,55 @@ export const adjuntos = pgTable('adjuntos', {
   creadoEn:       timestamp('creado_en').defaultNow(),
 })
 
+// ── Relations ─────────────────────────────────────────────────────────────────
+
 export const usuariosRelations = relations(usuarios, ({ many }) => ({
-  incidentes:        many(incidentes),
-  tiendasHistorial:  many(tiendasHistorial),
+  incidentes:       many(incidentes),
+  tiendasHistorial: many(tiendasHistorial),
 }))
+
 export const proveedoresRelations = relations(proveedores, ({ many }) => ({
-  tiendas: many(tiendas),
-  niveles: many(nivelesEscalamiento),
+  tiendas:   many(tiendas),
+  niveles:   many(nivelesEscalamiento),
+  contratos: many(contratosProveedor),
 }))
+
 export const nivelesRelations = relations(nivelesEscalamiento, ({ one }) => ({
   proveedor: one(proveedores, { fields: [nivelesEscalamiento.proveedorId], references: [proveedores.id] }),
 }))
+
 export const tiendasRelations = relations(tiendas, ({ one, many }) => ({
   proveedor:  one(proveedores, { fields: [tiendas.proveedorId], references: [proveedores.id] }),
   incidentes: many(incidentes),
   historial:  many(tiendasHistorial),
+  contratos:  many(contratosProveedor),
 }))
+
+export const contratosProveedorRelations = relations(contratosProveedor, ({ one }) => ({
+  proveedor: one(proveedores, { fields: [contratosProveedor.proveedorId], references: [proveedores.id] }),
+  tienda:    one(tiendas,     { fields: [contratosProveedor.tiendaId],    references: [tiendas.id] }),
+}))
+
 export const incidentesRelations = relations(incidentes, ({ one, many }) => ({
-  tienda:        one(tiendas,     { fields: [incidentes.tiendaId],      references: [tiendas.id] }),
+  tienda:        one(tiendas,     { fields: [incidentes.tiendaId],        references: [tiendas.id] }),
   registradoPor: one(usuarios,    { fields: [incidentes.registradoPorId], references: [usuarios.id] }),
-  proveedor:     one(proveedores, { fields: [incidentes.proveedorId],   references: [proveedores.id] }),
+  proveedor:     one(proveedores, { fields: [incidentes.proveedorId],     references: [proveedores.id] }),
   escalamientos: many(escalamientos),
   adjuntos:      many(adjuntos),
 }))
+
 export const escalamientosRelations = relations(escalamientos, ({ one, many }) => ({
-  incidente: one(incidentes, { fields: [escalamientos.incidenteId], references: [incidentes.id] }),
-  nivelEsc:  one(nivelesEscalamiento, { fields: [escalamientos.nivelEscId], references: [nivelesEscalamiento.id] }),
+  incidente: one(incidentes,        { fields: [escalamientos.incidenteId], references: [incidentes.id] }),
+  nivelEsc:  one(nivelesEscalamiento, { fields: [escalamientos.nivelEscId],  references: [nivelesEscalamiento.id] }),
   adjuntos:  many(adjuntos),
 }))
+
 export const adjuntosRelations = relations(adjuntos, ({ one }) => ({
   incidente:    one(incidentes,    { fields: [adjuntos.incidenteId],    references: [incidentes.id] }),
   escalamiento: one(escalamientos, { fields: [adjuntos.escalamientoId], references: [escalamientos.id] }),
 }))
+
 export const tiendasHistorialRelations = relations(tiendasHistorial, ({ one }) => ({
-  tienda:  one(tiendas,   { fields: [tiendasHistorial.tiendaId],  references: [tiendas.id] }),
-  usuario: one(usuarios,  { fields: [tiendasHistorial.usuarioId], references: [usuarios.id] }),
+  tienda:  one(tiendas,  { fields: [tiendasHistorial.tiendaId],  references: [tiendas.id] }),
+  usuario: one(usuarios, { fields: [tiendasHistorial.usuarioId], references: [usuarios.id] }),
 }))
