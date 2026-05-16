@@ -9,7 +9,7 @@ interface Adjunto {
   tamanoBytes: number | null
 }
 
-function compressImage(dataUrl: string, maxWidth = 1400): Promise<string> {
+export function compressImage(dataUrl: string, maxWidth = 1400): Promise<string> {
   return new Promise(resolve => {
     const img = new Image()
     img.onload = () => {

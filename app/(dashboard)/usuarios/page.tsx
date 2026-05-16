@@ -132,7 +132,11 @@ export default function UsuariosPage() {
   }
 
   async function handleDelete(u: any) {
-    if (!confirm(`¿Eliminar al usuario "${u.nombre}"? Esta acción no se puede deshacer.`)) return
+    if (u.activo) {
+      alert('Desactiva primero al usuario antes de eliminarlo.')
+      return
+    }
+    if (!confirm(`¿Eliminar permanentemente a "${u.nombre}"? Sus tickets quedarán intactos pero el usuario no podrá acceder.`)) return
     await fetch(`/api/usuarios/${u.id}`, { method: 'DELETE' })
     fetchUsuarios()
   }

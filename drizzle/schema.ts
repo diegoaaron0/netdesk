@@ -29,8 +29,9 @@ export const usuarios = pgTable('usuarios', {
   cluster:  clusterEnum('cluster'),
   permisos:         text('permisos').array(),
   modulosVisibles:  text('modulos_visibles').array(),
-  activo:           boolean('activo').default(true),
-  creadoEn: timestamp('creado_en').defaultNow(),
+  activo:      boolean('activo').default(true),
+  eliminadoEn: timestamp('eliminado_en'),
+  creadoEn:    timestamp('creado_en').defaultNow(),
 })
 
 export const proveedores = pgTable('proveedores', {

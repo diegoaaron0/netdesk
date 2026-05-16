@@ -11,9 +11,15 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   if (!can(session, 'usuarios.editar')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
-  // Soft delete: desactiva el usuario sin borrar el registro.
-  // Así sus tickets e historial permanecen intactos con su nombre.
-  await db.update(usuarios).set({ activo: false }).where(eq(usuarios.id, id))
+  const [u] = await db.select({ activo: usuarios.activo }).from(usuarios).where(eq(usuarios.id, id))
+  if (!u) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+  if (u.activo) return NextResponse.json({ error: 'Desactiva el usuario antes de eliminarlo' }, { status: 400 })
+
+  try {
+    await db.update(usuarios).set({ eliminadoEn: new Date() }).where(eq(usuarios.id, id))
+  } catch {
+    await db.update(usuarios).set({ activo: false }).where(eq(usuarios.id, id))
+  }
   return NextResponse.json({ ok: true })
 }
 

@@ -83,6 +83,10 @@ async function main() {
   await sql`ALTER TABLE "usuarios" ADD COLUMN IF NOT EXISTS "modulos_visibles" TEXT[]`
   console.log('[startup] ✓ Columna usuarios.modulos_visibles (0005)')
 
+  // 0006 — usuarios.eliminado_en
+  await sql`ALTER TABLE "usuarios" ADD COLUMN IF NOT EXISTS "eliminado_en" TIMESTAMP`
+  console.log('[startup] ✓ Columna usuarios.eliminado_en (0006)')
+
   console.log('[startup] Migraciones completadas.')
   await sql.end()
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { usuarios } from '@/drizzle/schema'
-import { eq } from 'drizzle-orm'
+import { eq, isNull } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 
@@ -18,7 +18,7 @@ export async function GET() {
     cluster:  usuarios.cluster,
     permisos: usuarios.permisos,
     activo:   usuarios.activo,
-  }).from(usuarios).orderBy(usuarios.nombre)
+  }).from(usuarios).where(isNull(usuarios.eliminadoEn)).orderBy(usuarios.nombre)
 
   return NextResponse.json(data)
 }

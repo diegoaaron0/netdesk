@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Badge, estadoToVariant, impactoToVariant } from '@/components/ui/Badge'
 
@@ -116,7 +116,8 @@ const IconTrash = () => (
 )
 
 export default function IncidentesPage() {
-  const router   = useRouter()
+  const router       = useRouter()
+  const searchParams = useSearchParams()
   const { data: session } = useSession()
   const userRol  = (session?.user as any)?.rol ?? 'AGENTE'
   const today    = limaToday()
@@ -142,6 +143,32 @@ export default function IncidentesPage() {
 
   useEffect(() => { const t = setTimeout(() => setDebouncedQ(q), 300); return () => clearTimeout(t) }, [q])
   useEffect(() => { const id = setInterval(() => setTick(t => t + 1), 30000); return () => clearInterval(id) }, [])
+
+  useEffect(() => {
+    const tiendaId    = searchParams.get('tiendaId')
+    const proveedorId = searchParams.get('proveedorId')
+    if (!tiendaId && !proveedorId) return
+    if (tiendaId) {
+      fetch(`/api/tiendas?q=a`).then(r => r.json()).catch(() => [])
+      fetch('/api/tiendas').then(r => r.json()).then((list: any[]) => {
+        if (!Array.isArray(list)) return
+        const t = list.find((x: any) => x.id === tiendaId)
+        if (t) {
+          setFiltroTiendaId(t.id)
+          setFiltroTiendaLabel(`${t.codigo} — ${t.nombreCc}`)
+          setFechaDesde('2024-01-01')
+        }
+      }).catch(() => {})
+    }
+    if (proveedorId) {
+      fetch('/api/proveedores').then(r => r.json()).then((list: any[]) => {
+        if (!Array.isArray(list)) return
+        const p = list.find((x: any) => x.id === proveedorId)
+        if (p) setFiltroProveedor(p.nombre)
+      }).catch(() => {})
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const fetchData = useCallback(async () => {
     const params = new URLSearchParams()

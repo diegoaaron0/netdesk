@@ -6,7 +6,7 @@ import { Badge, estadoToVariant, impactoToVariant } from '@/components/ui/Badge'
 import { CronometroPrincipal } from '@/components/incidentes/CronometroPrincipal'
 import { CronometroEscalamiento } from '@/components/incidentes/CronometroEscalamiento'
 import { GuiaEscalamiento } from '@/components/incidentes/GuiaEscalamiento'
-import { AdjuntosZona } from '@/components/incidentes/AdjuntosZona'
+import { AdjuntosZona, compressImage } from '@/components/incidentes/AdjuntosZona'
 import { can } from '@/lib/permisos'
 
 const TIPO_LABELS: Record<string, string> = {
@@ -41,6 +41,25 @@ function mttrFromHoras(h1: string, h2: string) {
   return Math.round((new Date(h2).getTime() - new Date(h1).getTime()) / 60000)
 }
 
+function buildDescartes(inc: any): string {
+  const parts: string[] = []
+  if (inc.descEnergia === true)  parts.push('Energía verificada: OK')
+  if (inc.descEnergia === false) parts.push('Energía verificada: Falla')
+  if (inc.descRouter  === true)  parts.push('Router/ONT verificado: OK')
+  if (inc.descRouter  === false) parts.push('Router/ONT verificado: Falla')
+  if (inc.descDns     === true)  parts.push('Cambio DNS aplicado: OK')
+  if (inc.descDns     === false) parts.push('Cambio DNS aplicado: Falla')
+  if (inc.checkIpconfig)     parts.push('Ipconfig ejecutado')
+  if (inc.checkPingGw)       parts.push('Ping a gateway')
+  if (inc.checkPingInternet) parts.push('Ping a internet')
+  if (inc.checkTracert)      parts.push('Tracert ejecutado')
+  if (inc.checkDns)          parts.push('Validó DNS')
+  if (inc.checkRenovarIp)    parts.push('Renovó IP')
+  if (inc.descartesDetallado) parts.push(inc.descartesDetallado)
+  else if (inc.descartesRealizados) parts.push(inc.descartesRealizados)
+  return parts.length > 0 ? parts.join('\n') : 'Pendiente de documentar'
+}
+
 function buildCorreo(inc: any, nivelData: any, nivel: number = 1, prevEscs: any[] = []) {
   const fmtH = (d: string | null | undefined) => d
     ? new Date(d).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -67,7 +86,7 @@ Hora de inicio: ${new Date(inc.horaRegistro).toLocaleString('es-PE', { timeZone:
 Usuarios afectados: ${inc.usuariosAfectados ?? '—'}
 
 Descartes realizados:
-${inc.descartesRealizados ?? 'Pendiente de documentar'}
+${buildDescartes(inc)}
 
 Adjuntamos evidencias.
 Quedamos atentos a su respuesta.
@@ -139,6 +158,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   const [reopening, setReopening]   = useState(false)
   const [showGuia, setShowGuia]       = useState(false)
   const [showSolucionado, setShowSolucionado] = useState(false)
+  const [bgAdjKey, setBGAdjKey] = useState(0)
 
   // Escalamiento
   const [showNivelMenu, setShowNivelMenu] = useState(false)
@@ -266,7 +286,11 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
 
   async function handleResolver() {
     if (!confirm('¿Marcar como resuelto? Se registrará la hora actual como fin del incidente.')) return
-    await fetch(`/api/incidentes/${id}/resolver`, { method: 'POST' })
+    await fetch(`/api/incidentes/${id}/resolver`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resueltoPor: 'PROVEEDOR' }),
+    })
     fetchInc()
   }
 
@@ -318,6 +342,11 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               <span style={{ fontFamily: 'monospace', fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>{inc.codigo}</span>
               <Badge variant={impactoToVariant(inc.nivelImpacto)} />
               <Badge variant={estadoToVariant(inc.estado)} />
+              {inc.estado === 'RESUELTO' && inc.resueltoPor && (
+                <span style={{ fontSize: '10px', background: inc.resueltoPor === 'AGENTE' ? 'rgba(59,130,246,0.25)' : 'rgba(34,197,94,0.25)', color: inc.resueltoPor === 'AGENTE' ? '#93c5fd' : '#86efac', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
+                  {inc.resueltoPor === 'AGENTE' ? 'Resuelto por Agente' : 'Resuelto por Proveedor'}
+                </span>
+              )}
               <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.55)', padding: '2px 8px', borderRadius: '4px' }}>
                 {TIPO_LABELS[inc.tipo] ?? inc.tipo}
               </span>
@@ -603,31 +632,33 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   </div>
                 </div>
               </div>
-              {/* Comentarios (texto + paste de imágenes inline) */}
-              <div style={{ marginTop:'12px', background:'var(--card)', border:'1px solid var(--border)', borderRadius:'10px', padding:'12px' }}>
+              {/* Comentarios */}
+              <div
+                style={{ marginTop:'12px', background:'var(--card)', border:'1px solid var(--border)', borderRadius:'10px', padding:'12px' }}
+                onPaste={canEditB ? async (e) => {
+                  const items = e.clipboardData?.items
+                  if (!items) return
+                  for (const item of Array.from(items)) {
+                    if (item.type.startsWith('image/')) {
+                      const file = item.getAsFile()
+                      if (!file) continue
+                      const reader = new FileReader()
+                      const dataUrl = await new Promise<string>(res => { reader.onload = ev => res(ev.target!.result as string); reader.readAsDataURL(file) })
+                      const compressed = await compressImage(dataUrl)
+                      await fetch('/api/adjuntos', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url: compressed, nombre:`captura-${Date.now()}.jpg`, tipo:'image/jpeg', tamanoBytes: Math.round(compressed.length*0.75), incidenteId: id }) })
+                      setBGAdjKey(k => k + 1)
+                    }
+                  }
+                } : undefined}
+              >
                 <div style={{ fontSize:'11px',fontWeight:600,color:'var(--foreground)',marginBottom:'8px' }}>Comentarios</div>
-                <div style={{ position:'relative' }}>
-                  <textarea disabled={!canEditB}
-                    style={{ ...taStyle(!canEditB), minHeight:'72px' }}
-                    value={editForm.descartesDetallado ?? ''} onChange={e => setEdit('descartesDetallado', e.target.value)}
-                    placeholder="Describe qué se validó, resultados, respuesta de tienda, acciones del agente..."
-                    onPaste={canEditB ? async (e) => {
-                      const items = e.clipboardData?.items
-                      if (!items) return
-                      for (const item of Array.from(items)) {
-                        if (item.type.startsWith('image/')) {
-                          const file = item.getAsFile()
-                          if (!file) continue
-                          const reader = new FileReader()
-                          const dataUrl = await new Promise<string>(res => { reader.onload = ev => res(ev.target!.result as string); reader.readAsDataURL(file) })
-                          const canvas = document.createElement('canvas'); const img = new Image()
-                          await new Promise<void>(res => { img.onload = () => { const r = Math.min(1,1400/img.width); canvas.width=Math.round(img.width*r); canvas.height=Math.round(img.height*r); canvas.getContext('2d')!.drawImage(img,0,0,canvas.width,canvas.height); res() }; img.src=dataUrl })
-                          const compressed = canvas.toDataURL('image/jpeg', 0.82)
-                          await fetch('/api/adjuntos', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url: compressed, nombre:`captura-${Date.now()}.jpg`, tipo:'image/jpeg', tamanoBytes: Math.round(compressed.length*0.75), incidenteId: id }) })
-                        }
-                      }
-                    } : undefined}
-                  />
+                <textarea disabled={!canEditB}
+                  style={{ ...taStyle(!canEditB), minHeight:'72px' }}
+                  value={editForm.descartesDetallado ?? ''} onChange={e => setEdit('descartesDetallado', e.target.value)}
+                  placeholder="Describe qué se validó, resultados, respuesta de tienda, acciones del agente..."
+                />
+                <div style={{ marginTop:'10px' }}>
+                  <AdjuntosZona key={bgAdjKey} incidenteId={id} disabled={!canEditB} />
                 </div>
               </div>
             </div>
@@ -985,6 +1016,7 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
   const [saving, setSaving]             = useState(false)
   const [showAtc, setShowAtc]           = useState(false)
   const [savingTemplate, setSavingTemplate] = useState(false)
+  const [escAdjKey, setEscAdjKey] = useState(0)
 
   const nivelData  = inc.nivelesProveedor?.find((n: any) => n.nivel === esc.nivel)
   const prevEscs   = allEscs.filter((e: any) => e.nivel < esc.nivel).sort((a: any, b: any) => a.nivel - b.nivel)
@@ -1083,7 +1115,23 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
         </div>
       </div>
 
-      <div style={{ padding: '14px' }}>
+      <div style={{ padding: '14px' }}
+        onPaste={!isClosed ? async (e) => {
+          const items = e.clipboardData?.items
+          if (!items) return
+          for (const item of Array.from(items)) {
+            if (item.type.startsWith('image/')) {
+              const file = item.getAsFile()
+              if (!file) continue
+              const reader = new FileReader()
+              const dataUrl = await new Promise<string>(res => { reader.onload = ev => res(ev.target!.result as string); reader.readAsDataURL(file) })
+              const compressed = await compressImage(dataUrl)
+              await fetch('/api/adjuntos', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url: compressed, nombre:`captura-${Date.now()}.jpg`, tipo:'image/jpeg', tamanoBytes: Math.round(compressed.length*0.75), escalamientoId: esc.id }) })
+              setEscAdjKey(k => k + 1)
+            }
+          }
+        } : undefined}
+      >
 
         {/* 1. Contacto */}
         <div style={{ marginBottom: '12px', padding: '10px 12px', background: 'var(--card)', borderRadius: '8px', border: '1px solid var(--border)' }}>
@@ -1104,6 +1152,12 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
                 style={{ fontSize: '10px', padding: '2px 9px', background: copied ? '#14532d' : 'transparent', color: copied ? '#86efac' : 'var(--muted-foreground)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer' }}>
                 {copied ? '✓ Copiado' : '📋 Copiar'}
               </button>
+              {!isClosed && (
+                <button onClick={() => setTemplateBody(buildCorreo(inc, nivelData, esc.nivel, prevEscs))}
+                  style={{ fontSize: '10px', padding: '2px 9px', background: 'transparent', color: 'var(--muted-foreground)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer' }}>
+                  🔄 Actualizar
+                </button>
+              )}
               {showTemplate && !isClosed && (
                 <button onClick={saveTemplate} disabled={savingTemplate}
                   style={{ fontSize: '10px', padding: '2px 9px', background: savingTemplate ? 'var(--muted)' : 'hsl(221,83%,45%)', color: savingTemplate ? 'var(--muted-foreground)' : 'white', border: 'none', borderRadius: '4px', cursor: savingTemplate ? 'wait' : 'pointer' }}>
@@ -1124,7 +1178,7 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
 
         {/* 3. Adjuntos */}
         <div style={{ marginBottom: '12px' }}>
-          <AdjuntosZona escalamientoId={esc.id} disabled={isClosed} />
+          <AdjuntosZona key={`${escAdjKey}-1`} escalamientoId={esc.id} disabled={isClosed} />
         </div>
 
         {/* 4. Correo enviado */}
@@ -1153,7 +1207,7 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
             </div>
             <div style={{ marginTop: '10px' }}>
               <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Adjuntos respuesta</div>
-              <AdjuntosZona escalamientoId={esc.id} disabled={isClosed} />
+              <AdjuntosZona key={`${escAdjKey}-2`} escalamientoId={esc.id} disabled={isClosed} />
             </div>
             {!isClosed && (
               <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>

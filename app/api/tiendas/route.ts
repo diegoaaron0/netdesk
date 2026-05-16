@@ -15,9 +15,10 @@ const PROVEEDOR_COLORS: Record<string, { bg: string; color: string }> = {
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
-  const q          = searchParams.get('q') ?? ''
-  const proveedorF = searchParams.get('proveedor') ?? ''
-  const clusterF   = searchParams.get('cluster') ?? ''
+  const q           = searchParams.get('q') ?? ''
+  const proveedorF  = searchParams.get('proveedor') ?? ''
+  const clusterF    = searchParams.get('cluster') ?? ''
+  const supervisorF = searchParams.get('supervisor') ?? ''
 
   // ── Autocomplete mode (q presente) ──────────────────────────
   if (q.length >= 2) {
@@ -95,7 +96,8 @@ export async function GET(req: NextRequest) {
   for (const c of counts) if (c.tiendaId) countMap[c.tiendaId] = c.total
 
   let filtered = rows.map(r => ({ ...r, incidentCount: countMap[r.id] ?? 0 }))
-  if (proveedorF) filtered = filtered.filter(r => r.proveedorNombre === proveedorF)
+  if (proveedorF)  filtered = filtered.filter(r => r.proveedorNombre === proveedorF)
+  if (supervisorF) filtered = filtered.filter(r => r.supervisorNombre === supervisorF)
 
   return NextResponse.json(filtered)
 }

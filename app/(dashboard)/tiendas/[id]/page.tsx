@@ -422,7 +422,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                 </div>
               )}
 
-              <a href={`/incidentes?tienda=${tienda.codigo}`}
+              <a href={`/incidentes?tiendaId=${tienda.id}`}
                 style={{ display: 'block', padding: '9px 12px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--foreground)', cursor: 'pointer', textDecoration: 'none', textAlign: 'center' }}>
                 Ver incidentes
               </a>

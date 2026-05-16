@@ -69,7 +69,7 @@ export default function TiendasPage() {
 
   const [tiendas, setTiendas] = useState<any[]>([])
   const [proveedores, setProveedores] = useState<{ id: string; nombre: string }[]>([])
-  const [filtros, setFiltros] = useState({ q: '', proveedor: '', cluster: '', sort: '' })
+  const [filtros, setFiltros] = useState({ q: '', proveedor: '', cluster: '', sort: '', supervisor: '' })
   const [page, setPage] = useState(1)
   const [modal, setModal] = useState<{ open: boolean; data: any }>({ open: false, data: BLANK })
   const [saving, setSaving] = useState(false)
@@ -80,8 +80,9 @@ export default function TiendasPage() {
 
   const fetchTiendas = useCallback(async () => {
     const params = new URLSearchParams()
-    if (filtros.proveedor) params.set('proveedor', filtros.proveedor)
-    if (filtros.cluster)   params.set('cluster', filtros.cluster)
+    if (filtros.proveedor)  params.set('proveedor', filtros.proveedor)
+    if (filtros.cluster)    params.set('cluster', filtros.cluster)
+    if (filtros.supervisor) params.set('supervisor', filtros.supervisor)
     const res = await fetch(`/api/tiendas?${params}`)
     if (!res.ok) return
     const data = await res.json()
@@ -90,7 +91,7 @@ export default function TiendasPage() {
     const map = new Map<string, string>()
     data.forEach((t: any) => { if (t.proveedorId && t.proveedorNombre) map.set(t.proveedorId, t.proveedorNombre) })
     setProveedores(Array.from(map.entries()).map(([id, nombre]) => ({ id, nombre })).sort((a, b) => a.nombre.localeCompare(b.nombre)))
-  }, [filtros.proveedor, filtros.cluster])
+  }, [filtros.proveedor, filtros.cluster, filtros.supervisor])
 
   useEffect(() => { fetchTiendas() }, [fetchTiendas])
 
@@ -113,6 +114,8 @@ export default function TiendasPage() {
   }
 
   function setField(k: string, v: any) { setModal(m => ({ ...m, data: { ...m.data, [k]: v } })) }
+
+  const supervisores = Array.from(new Set(tiendas.map(t => t.supervisorNombre).filter(Boolean))).sort()
 
   let filtered = tiendas.filter(t => {
     if (!filtros.q) return true
@@ -213,6 +216,11 @@ export default function TiendasPage() {
           style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
           <option value="">Ordenar: Código</option>
           <option value="incidentes">Ordenar: Mayor incidentes (30d)</option>
+        </select>
+        <select value={filtros.supervisor} onChange={e => { setFiltros(f => ({ ...f, supervisor: e.target.value })); setPage(1) }}
+          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
+          <option value="">Todos los supervisores</option>
+          {supervisores.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
 
