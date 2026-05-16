@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { proveedores, tiendas, incidentes, escalamientos, contratosProveedor, nivelesEscalamiento } from '@/drizzle/schema'
+import { proveedores, tiendas, incidentes, contratosProveedor, nivelesEscalamiento } from '@/drizzle/schema'
 import { eq, gte, sql, and, asc, desc, isNotNull } from 'drizzle-orm'
 import { auth } from '@/auth'
 
-function calcEstado(fechaFin: string | null): 'VIGENTE' | 'POR_VENCER' | 'VENCIDO' {
+function calcEstado(fechaFin: string | null | undefined): 'VIGENTE' | 'POR_VENCER' | 'VENCIDO' {
   if (!fechaFin) return 'VIGENTE'
-  const fin = new Date(fechaFin)
-  const hoy = new Date()
+  const fin = new Date(fechaFin), hoy = new Date()
   const en7 = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
   if (fin < hoy) return 'VENCIDO'
   if (fin <= en7) return 'POR_VENCER'
@@ -19,77 +18,118 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const [proveedor] = await db.select().from(proveedores).where(eq(proveedores.id, id))
-  if (!proveedor) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+  // Base query — original columns only (safe)
+  const [base] = await db.select({
+    id:                 proveedores.id,
+    nombre:             proveedores.nombre,
+    correoSoporte:      proveedores.correoSoporte,
+    telefonoSoporte:    proveedores.telefonoSoporte,
+    instruccionGeneral: proveedores.instruccionGeneral,
+    creadoEn:           proveedores.creadoEn,
+  }).from(proveedores).where(eq(proveedores.id, id))
+  if (!base) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+  // New columns
+  let ext: any = { tipoServicio: null, planPrincipal: null, canalAtencion: null, observaciones: null, estadoContrato: null }
+  try {
+    const [r] = await db.select({
+      tipoServicio:   proveedores.tipoServicio,
+      planPrincipal:  proveedores.planPrincipal,
+      canalAtencion:  proveedores.canalAtencion,
+      observaciones:  proveedores.observaciones,
+      estadoContrato: proveedores.estadoContrato,
+    }).from(proveedores).where(eq(proveedores.id, id))
+    if (r) ext = r
+  } catch { /* columns not migrated yet */ }
 
-  const [niveles, contratos, tiendasRow, incPerTienda, mttrRow, slaRows] = await Promise.all([
-    db.select().from(nivelesEscalamiento)
+  const thirtyDaysAgo    = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+  const thirtyDaysAgoStr = thirtyDaysAgo.toISOString()
+
+  // Niveles de escalamiento
+  let niveles: any[] = []
+  try {
+    niveles = await db.select().from(nivelesEscalamiento)
       .where(eq(nivelesEscalamiento.proveedorId, id))
-      .orderBy(asc(nivelesEscalamiento.nivel)),
+      .orderBy(asc(nivelesEscalamiento.nivel))
+  } catch { /* skip */ }
 
-    db.select().from(contratosProveedor)
+  // Contratos
+  let contratos: any[] = []
+  try {
+    const rows = await db.select().from(contratosProveedor)
       .where(eq(contratosProveedor.proveedorId, id))
-      .orderBy(desc(contratosProveedor.creadoEn)),
+      .orderBy(desc(contratosProveedor.creadoEn))
+    contratos = rows.map(c => ({ ...c, estadoCalc: calcEstado(c.fechaFin) }))
+  } catch { /* table not migrated yet */ }
 
-    db.select({
+  // Tiendas count + costo
+  let tiendasData = { count: 0, costoTotal: '0' }
+  try {
+    const [r] = await db.select({
       count:      sql<number>`count(*)::int`,
-      costoTotal: sql<string>`coalesce(sum(${tiendas.costoMensual}::numeric), 0)::text`,
-    }).from(tiendas).where(eq(tiendas.proveedorId, id)),
+      costoTotal: sql<string>`coalesce(sum(costo_mensual::numeric), 0)::text`,
+    }).from(tiendas).where(eq(tiendas.proveedorId, id))
+    if (r) tiendasData = { count: r.count, costoTotal: r.costoTotal }
+  } catch { /* skip */ }
 
-    db.select({
+  // Incidentes 30d por tienda
+  let incPerTienda: { tiendaId: string; count: number }[] = []
+  try {
+    incPerTienda = await db.select({
       tiendaId: incidentes.tiendaId,
       count:    sql<number>`count(*)::int`,
     }).from(incidentes)
       .where(and(eq(incidentes.proveedorId, id), gte(incidentes.horaRegistro, thirtyDaysAgo)))
-      .groupBy(incidentes.tiendaId),
+      .groupBy(incidentes.tiendaId) as any
+  } catch { /* skip */ }
 
-    db.select({
+  const totalInc30d     = incPerTienda.reduce((s, r) => s + r.count, 0)
+  const tiendasCriticas = incPerTienda.filter(r => r.count >= 2).length
+
+  // MTTR
+  let mttrData = { avg: null as number | null, total: 0 }
+  try {
+    const [r] = await db.select({
       mttrAvg:   sql<number>`round(avg(${incidentes.mttrMinutos}))::int`,
       mttrTotal: sql<number>`coalesce(sum(${incidentes.mttrMinutos}), 0)::int`,
-    }).from(incidentes)
-      .where(and(
-        eq(incidentes.proveedorId, id),
-        gte(incidentes.horaRegistro, thirtyDaysAgo),
-        isNotNull(incidentes.mttrMinutos),
-      )),
+    }).from(incidentes).where(and(
+      eq(incidentes.proveedorId, id),
+      gte(incidentes.horaRegistro, thirtyDaysAgo),
+      isNotNull(incidentes.mttrMinutos),
+    ))
+    if (r) mttrData = { avg: r.mttrAvg, total: r.mttrTotal }
+  } catch { /* skip */ }
 
-    db.execute(sql`
+  // SLA
+  let slaPromedio: number | null = null
+  try {
+    const slaRows = await db.execute(sql`
       SELECT
         count(*) filter (where e.estado_cronometro in ('RESPONDIDO','VENCIDO')) as total_closed,
         count(*) filter (where e.estado_cronometro = 'RESPONDIDO')              as respondidos
       FROM escalamientos e
       JOIN incidentes i ON e.incidente_id = i.id
       WHERE i.proveedor_id = ${id}
-        AND e.hora_envio_correo >= ${thirtyDaysAgo}
-    `),
-  ])
+        AND e.hora_envio_correo >= ${thirtyDaysAgoStr}::timestamptz
+    `)
+    const slaRow   = (slaRows as any[])[0]
+    const tc       = Number(slaRow?.total_closed ?? 0)
+    if (tc > 0) slaPromedio = Math.round((Number(slaRow.respondidos) / tc) * 100)
+  } catch { /* skip */ }
 
-  const totalInc30d     = incPerTienda.reduce((s, r) => s + r.count, 0)
-  const tiendasCriticas = incPerTienda.filter(r => r.count >= 2).length
-  const slaRow          = (slaRows as any[])[0]
-  const totalClosed     = Number(slaRow?.total_closed ?? 0)
-  const slaPromedio     = totalClosed > 0 ? Math.round((Number(slaRow.respondidos) / totalClosed) * 100) : null
-
-  // SLA comprometido from vigente contract (general, no tiendaId)
-  const contratoVigente = contratos.find(c => calcEstado(c.fechaFin) === 'VIGENTE' && !c.tiendaId)
-
-  const contratosConEstado = contratos.map(c => ({
-    ...c,
-    estadoCalc: calcEstado(c.fechaFin),
-  }))
+  const contratoVigente = contratos.find(c => c.estadoCalc === 'VIGENTE' && !c.tiendaId)
 
   return NextResponse.json({
-    ...proveedor,
+    ...base,
+    ...ext,
     niveles,
-    contratos: contratosConEstado,
+    contratos,
     metricas: {
-      totalTiendas:    tiendasRow[0]?.count     ?? 0,
-      costoTotal:      tiendasRow[0]?.costoTotal ?? '0',
+      totalTiendas:    tiendasData.count,
+      costoTotal:      tiendasData.costoTotal,
       slaPromedio,
-      mttrPromedio:    mttrRow[0]?.mttrAvg       ?? null,
-      mttrTotal:       mttrRow[0]?.mttrTotal     ?? 0,
+      mttrPromedio:    mttrData.avg,
+      mttrTotal:       mttrData.total,
       incidentes30d:   totalInc30d,
       tiendasCriticas,
       slaComprometido: contratoVigente?.slaComprometido ?? null,
@@ -105,16 +145,25 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
   const body = await req.json()
-  const [p] = await db.update(proveedores).set({
-    nombre:             body.nombre             ?? undefined,
-    correoSoporte:      'correoSoporte'      in body ? (body.correoSoporte      ?? null) : undefined,
-    telefonoSoporte:    'telefonoSoporte'    in body ? (body.telefonoSoporte    ?? null) : undefined,
-    instruccionGeneral: 'instruccionGeneral' in body ? (body.instruccionGeneral ?? null) : undefined,
-    tipoServicio:       'tipoServicio'       in body ? (body.tipoServicio       ?? null) : undefined,
-    planPrincipal:      'planPrincipal'      in body ? (body.planPrincipal      ?? null) : undefined,
-    canalAtencion:      'canalAtencion'      in body ? (body.canalAtencion      ?? null) : undefined,
-    observaciones:      'observaciones'      in body ? (body.observaciones      ?? null) : undefined,
-    estadoContrato:     'estadoContrato'     in body ? (body.estadoContrato     ?? null) : undefined,
-  }).where(eq(proveedores.id, id)).returning()
+  const baseSet: any = {}
+  if ('nombre'             in body) baseSet.nombre             = body.nombre
+  if ('correoSoporte'      in body) baseSet.correoSoporte      = body.correoSoporte      ?? null
+  if ('telefonoSoporte'    in body) baseSet.telefonoSoporte    = body.telefonoSoporte    ?? null
+  if ('instruccionGeneral' in body) baseSet.instruccionGeneral = body.instruccionGeneral ?? null
+
+  let p: any
+  try {
+    const fullSet = { ...baseSet }
+    if ('tipoServicio'   in body) fullSet.tipoServicio   = body.tipoServicio   ?? null
+    if ('planPrincipal'  in body) fullSet.planPrincipal  = body.planPrincipal  ?? null
+    if ('canalAtencion'  in body) fullSet.canalAtencion  = body.canalAtencion  ?? null
+    if ('observaciones'  in body) fullSet.observaciones  = body.observaciones  ?? null
+    if ('estadoContrato' in body) fullSet.estadoContrato = body.estadoContrato ?? null
+    const [r] = await db.update(proveedores).set(fullSet).where(eq(proveedores.id, id)).returning()
+    p = r
+  } catch {
+    const [r] = await db.update(proveedores).set(baseSet).where(eq(proveedores.id, id)).returning()
+    p = r
+  }
   return NextResponse.json(p)
 }
