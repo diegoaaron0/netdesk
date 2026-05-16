@@ -79,6 +79,10 @@ async function main() {
   `
   console.log('[startup] ✓ Escalamientos v2 + tabla atc_llamadas (0004)')
 
+  // 0005 — usuarios.modulos_visibles
+  await sql`ALTER TABLE "usuarios" ADD COLUMN IF NOT EXISTS "modulos_visibles" TEXT[]`
+  console.log('[startup] ✓ Columna usuarios.modulos_visibles (0005)')
+
   console.log('[startup] Migraciones completadas.')
   await sql.end()
 }

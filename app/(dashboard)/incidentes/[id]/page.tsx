@@ -1021,7 +1021,7 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
     await fetch(`/api/escalamientos/${esc.id}/respuesta`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ respuestaProveedor: respuestaText, tiempoEstimadoSolucion: tiempoEstText }),
+      body: JSON.stringify({ respuestaTexto: respuestaText, tiempoEstimadoSolucion: tiempoEstText }),
     })
     setSaving(false); onRefresh()
   }

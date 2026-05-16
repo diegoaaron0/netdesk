@@ -27,8 +27,9 @@ export const usuarios = pgTable('usuarios', {
   password: text('password').default('soporte123'),
   rol:      rolEnum('rol').notNull().default('AGENTE'),
   cluster:  clusterEnum('cluster'),
-  permisos: text('permisos').array(),
-  activo:   boolean('activo').default(true),
+  permisos:         text('permisos').array(),
+  modulosVisibles:  text('modulos_visibles').array(),
+  activo:           boolean('activo').default(true),
   creadoEn: timestamp('creado_en').defaultNow(),
 })
 

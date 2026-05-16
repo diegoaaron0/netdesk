@@ -24,7 +24,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       horaRespuesta,
       tiempoRespuestaMin,
       estadoCronometro: 'RESPONDIDO',
-      respuestaTexto:         body.respuestaProveedor      ?? null,
+      respuestaTexto:         body.respuestaTexto          ?? null,
       tiempoEstimadoSolucion: body.tiempoEstimadoSolucion  ?? null,
     })
     .where(eq(escalamientos.id, id))
