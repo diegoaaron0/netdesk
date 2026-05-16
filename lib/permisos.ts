@@ -3,12 +3,14 @@ export const PERMISOS_POR_ROL: Record<string, string[]> = {
     'incidentes.ver', 'incidentes.crear', 'incidentes.reabrir',
     'escalamientos.crear', 'escalamientos.envio', 'escalamientos.respuesta',
     'mantenimiento.ver',
+    'proveedores.ver',
   ],
   INFRAESTRUCTURA: [
     'incidentes.ver', 'incidentes.crear', 'incidentes.reabrir',
     'escalamientos.crear', 'escalamientos.envio', 'escalamientos.respuesta',
     'mantenimiento.ver', 'mantenimiento.editar', 'mantenimiento.agregar',
     'dashboard.ver',
+    'proveedores.ver', 'proveedores.editar',
   ],
   SUPERVISOR: [
     'incidentes.ver', 'incidentes.crear', 'incidentes.reabrir',
@@ -17,10 +19,12 @@ export const PERMISOS_POR_ROL: Record<string, string[]> = {
     'mantenimiento.ver', 'mantenimiento.editar', 'mantenimiento.agregar',
     'dashboard.ver', 'reportes.ver', 'reportes.exportar',
     'usuarios.ver', 'usuarios.editar', 'usuarios.crear',
+    'proveedores.ver', 'proveedores.editar',
   ],
   GERENCIA: [
     'dashboard.ver', 'reportes.ver', 'reportes.exportar',
     'mantenimiento.ver',
+    'proveedores.ver',
   ],
 }
 

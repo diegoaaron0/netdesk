@@ -43,6 +43,14 @@ const IcoUsuarios = () => (
     <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
   </svg>
 )
+const IcoProveedores = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="7" width="20" height="14" rx="2"/>
+    <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+    <line x1="12" y1="12" x2="12" y2="16"/>
+    <line x1="10" y1="14" x2="14" y2="14"/>
+  </svg>
+)
 const IcoSalir = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -68,8 +76,9 @@ const NAV = [
   {
     section: 'Configuración',
     items: [
-      { href: '/tiendas', label: 'Tiendas', icon: <IcoMantenimiento />, color: '#F59E0B', permiso: 'mantenimiento.ver' },
-      { href: '/usuarios',      label: 'Usuarios',      icon: <IcoUsuarios />,      color: '#A78BFA', permiso: 'usuarios.ver' },
+      { href: '/tiendas',      label: 'Tiendas',      icon: <IcoMantenimiento />, color: '#F59E0B', permiso: 'mantenimiento.ver' },
+      { href: '/proveedores',  label: 'Proveedores',  icon: <IcoProveedores />,   color: '#06B6D4', permiso: 'proveedores.ver' },
+      { href: '/usuarios',     label: 'Usuarios',     icon: <IcoUsuarios />,      color: '#A78BFA', permiso: 'usuarios.ver' },
     ],
   },
 ]

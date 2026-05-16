@@ -426,6 +426,13 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                 style={{ display: 'block', padding: '9px 12px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--foreground)', cursor: 'pointer', textDecoration: 'none', textAlign: 'center' }}>
                 Ver incidentes
               </a>
+
+              {tienda.proveedorId && (
+                <a href={`/proveedores/${tienda.proveedorId}`}
+                  style={{ display: 'block', padding: '9px 12px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--foreground)', cursor: 'pointer', textDecoration: 'none', textAlign: 'center' }}>
+                  Ver proveedor →
+                </a>
+              )}
             </div>
           </div>
 
