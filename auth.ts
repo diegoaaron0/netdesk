@@ -3,15 +3,15 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import { db } from '@/lib/db'
 import { usuarios } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
+import authConfig from './auth.config'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  secret: process.env.NEXTAUTH_SECRET,
-  trustHost: true,
+  ...authConfig,
   providers: [
     CredentialsProvider({
       name: 'credentials',
       credentials: {
-        email: { label: 'Email', type: 'text' },
+        email:    { label: 'Email',     type: 'text' },
         password: { label: 'Contraseña', type: 'password' },
       },
       async authorize(credentials) {
@@ -28,7 +28,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.rol = (user as any).rol
-        // Traer permisos reales desde la BD en cada login
         const [dbUser] = await db.select({ permisos: usuarios.permisos })
           .from(usuarios).where(eq(usuarios.email, user.email!))
         token.permisos = dbUser?.permisos ?? null
@@ -37,11 +36,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async session({ session, token }) {
       if (session.user) {
-        ;(session.user as any).rol     = token.rol
+        ;(session.user as any).rol      = token.rol
         ;(session.user as any).permisos = token.permisos ?? null
       }
       return session
     },
   },
-  pages: { signIn: '/login' },
 })

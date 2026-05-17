@@ -1,0 +1,17 @@
+import type { NextAuthConfig } from 'next-auth'
+
+export default {
+  secret: process.env.NEXTAUTH_SECRET,
+  trustHost: true,
+  providers: [],
+  callbacks: {
+    async session({ session, token }) {
+      if (session.user) {
+        ;(session.user as any).rol      = token.rol
+        ;(session.user as any).permisos = token.permisos ?? null
+      }
+      return session
+    },
+  },
+  pages: { signIn: '/login' },
+} satisfies NextAuthConfig
