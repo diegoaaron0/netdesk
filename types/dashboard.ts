@@ -58,6 +58,12 @@ export interface CostoTienda {
   ventaAfectada: number
   factor: number
   motivo: string
+  ventaHora: number | null
+  margen: number
+  horasAfectadas: number
+  huboContingencia: boolean
+  huboMovil: boolean
+  huboBoleta: boolean
 }
 
 export interface ReincidenciaTienda {

@@ -200,6 +200,7 @@ export default function DashboardAnalitico() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [slaProvSelected, setSlaProvSelected] = useState<string | null>(null)
   const [ieiProvSelected, setIeiProvSelected] = useState<string | null>(null)
+  const [ieiTiendaSelected, setIeiTiendaSelected] = useState<string | null>(null)
   const [mttrProvSelected, setMttrProvSelected] = useState<string | null>(null)
 
   const fetchData = useCallback(async (d = desde, h = hasta, pId = proveedorId) => {
@@ -599,6 +600,7 @@ export default function DashboardAnalitico() {
 
       {openCard === 'costo' && cards && (
         <Panel title="Desglose de Impacto Económico de Indisponibilidad" onClose={() => setOpenCard(null)}>
+          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '10px', marginTop: '-4px' }}>Impacto Económico Estimado de Indisponibilidad</div>
           <div style={{ background: 'var(--muted)', borderRadius: '8px', padding: '12px', marginBottom: '12px', display: 'grid', gridTemplateColumns: '1fr auto', rowGap: '4px', columnGap: '16px' }}>
             <span style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>Venta afectada estimada:</span>
             <span style={{ fontSize: '12px', fontWeight: 500, textAlign: 'right' }}>{fmtCosto(cards.costoEstimado.ventaAfectadaTotal)}</span>
@@ -646,19 +648,51 @@ export default function DashboardAnalitico() {
                       </div>
                       {isSelected && filteredTiendas.length > 0 && (
                         <div style={{ margin: '4px 0 8px 8px', padding: '8px', background: 'var(--muted)', borderRadius: '8px' }}>
-                          <div style={{ display: 'grid', gridTemplateColumns: '60px 90px 50px 1fr', gap: '8px', marginBottom: '4px' }}>
-                            {['Tienda', 'I.E.I', 'Factor', 'Motivo'].map((h) => (
+                          <div style={{ display: 'grid', gridTemplateColumns: '60px 90px 1fr', gap: '8px', marginBottom: '4px' }}>
+                            {['Tienda', 'I.E.I', 'Motivo'].map((h) => (
                               <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
                             ))}
                           </div>
-                          {filteredTiendas.map((t, j) => (
-                            <div key={j} style={{ display: 'grid', gridTemplateColumns: '60px 90px 50px 1fr', gap: '8px', padding: '4px 0', borderTop: j > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
-                              <span style={{ fontSize: '11px', fontWeight: 500 }}>{t.codigo}</span>
-                              <span style={{ fontSize: '11px', fontFamily: 'monospace' }}>{fmtCosto(t.costo)}</span>
-                              <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{(t.factor * 100).toFixed(0)}%</span>
-                              <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.motivo}</span>
-                            </div>
-                          ))}
+                          {filteredTiendas.map((t, j) => {
+                            const isTiendaSel = ieiTiendaSelected === t.codigo
+                            return (
+                              <div key={j}>
+                                <div
+                                  onClick={() => setIeiTiendaSelected(isTiendaSel ? null : t.codigo)}
+                                  style={{ display: 'grid', gridTemplateColumns: '60px 90px 1fr', gap: '8px', padding: '4px 0', borderTop: j > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center', cursor: 'pointer', background: isTiendaSel ? '#e2e8f0' : 'transparent', borderRadius: isTiendaSel ? '4px' : undefined }}>
+                                  <span style={{ fontSize: '11px', fontWeight: 500 }}>{t.codigo}</span>
+                                  <span style={{ fontSize: '11px', fontFamily: 'monospace' }}>{fmtCosto(t.costo)}</span>
+                                  <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.motivo}</span>
+                                </div>
+                                {isTiendaSel && (
+                                  <div style={{ margin: '4px 0 6px 0', padding: '10px 12px', background: 'white', border: '0.5px solid var(--border)', borderRadius: '8px' }}>
+                                    <div style={{ fontSize: '11px', fontWeight: 600, marginBottom: '6px' }}>{t.codigo} · {t.proveedor}</div>
+                                    <div style={{ fontSize: '11px', fontFamily: 'monospace', background: '#f8fafc', padding: '8px 10px', borderRadius: '6px', marginBottom: '8px', lineHeight: 1.9 }}>
+                                      {'IEI = S/'}{t.ventaHora != null ? t.ventaHora.toLocaleString('es-PE') : '—'}{'/h'}
+                                      {' × '}{t.horasAfectadas}{'h'}
+                                      {' × '}{Math.round(t.margen * 100)}{'% margen'}
+                                      {' × '}{t.factor}{' factor'}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                                      {t.huboContingencia && (
+                                        <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: '#F1F5F9', color: '#475569', fontWeight: 500 }}>Contingencia activa</span>
+                                      )}
+                                      {t.huboMovil && (
+                                        <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: '#F1F5F9', color: '#475569', fontWeight: 500 }}>Datos móviles</span>
+                                      )}
+                                      {t.huboBoleta && (
+                                        <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: '#F1F5F9', color: '#475569', fontWeight: 500 }}>Boleta manual</span>
+                                      )}
+                                      {!t.huboContingencia && !t.huboMovil && !t.huboBoleta && (
+                                        <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: '#FCEBEB', color: '#A32D2D', fontWeight: 500 }}>Sin operación alternativa</span>
+                                      )}
+                                    </div>
+                                    <div style={{ fontSize: '16px', fontWeight: 700, fontFamily: 'monospace', color: '#0f172a' }}>{fmtCosto(t.costo)}</div>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
                         </div>
                       )}
                     </div>
@@ -668,16 +702,16 @@ export default function DashboardAnalitico() {
             )
           })()}
           <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: '6px', marginTop: '12px' }}>Top tiendas por I.E.I</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '60px 60px 80px 50px 1fr 90px', gap: '8px', padding: '0 0 6px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
-            {['Tienda','V.Afectada','Factor','Margen','Motivo','I.E.I'].map((h) => (
+          <div style={{ display: 'grid', gridTemplateColumns: '60px 80px 70px 50px 1fr 90px', gap: '8px', padding: '0 0 6px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
+            {['Tienda','Proveedor','V.Afectada','Margen','Motivo','I.E.I'].map((h) => (
               <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
             ))}
           </div>
           {cards.costoEstimado.top5Tiendas.map((t, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '60px 60px 80px 50px 1fr 90px', gap: '8px', padding: '6px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '60px 80px 70px 50px 1fr 90px', gap: '8px', padding: '6px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
               <span style={{ fontSize: '12px', fontWeight: 500 }}>{t.codigo}</span>
+              <span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.proveedor}</span>
               <span style={{ fontSize: '11px', fontFamily: 'monospace' }}>{fmtCosto(t.ventaAfectada)}</span>
-              <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{(t.factor * 100).toFixed(0)}%</span>
               <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>35%</span>
               <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.motivo}</span>
               <span style={{ fontSize: '12px', fontWeight: 600, fontFamily: 'monospace', textAlign: 'right' }}>{fmtCosto(t.costo)}</span>

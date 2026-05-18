@@ -88,7 +88,7 @@ function calcExcessoMin(escs: RawEscalamiento[]): number {
 function calcCostoIncidente(
   inc: RawIncidente,
   ventasDiarias: RawVentaDiaria[],
-): { costo: number; ventaAfectada: number; factor: number; motivo: string } {
+): { costo: number; ventaAfectada: number; factor: number; motivo: string; ventaHora: number | null; margen: number } {
   const ventaHora = getVentaHoraEstimadaOrNull(
     inc.tienda_codigo, inc.dia_semana, inc.venta_hora_soles, inc.cluster, ventasDiarias,
   )
@@ -105,6 +105,8 @@ function calcCostoIncidente(
     ventaAfectada: res.ventaEsperadaAfectada ?? 0,
     factor: res.factorAplicado,
     motivo: res.motivoFactor,
+    ventaHora: res.ventaHora,
+    margen: res.margenUsado,
   }
 }
 
@@ -392,11 +394,11 @@ function buildCards(
   let costoTotal = 0
   let ventaAfectadaTotal = 0
   const costoByProv   = new Map<string, number>()
-  type CostoAccum = { codigo: string; proveedor: string; horas: number; costo: number; ventaAfectada: number; topCosto: number; topFactor: number; topMotivo: string }
+  type CostoAccum = { codigo: string; proveedor: string; horas: number; costo: number; ventaAfectada: number; topCosto: number; topFactor: number; topMotivo: string; topVentaHora: number | null; topMargen: number; topContingencia: boolean }
   const costoByTienda = new Map<string, CostoAccum>()
 
   for (const i of incs) {
-    const { costo, ventaAfectada, factor, motivo } = calcCostoIncidente(i, ventasDiarias)
+    const { costo, ventaAfectada, factor, motivo, ventaHora, margen } = calcCostoIncidente(i, ventasDiarias)
     costoTotal += costo
     ventaAfectadaTotal += ventaAfectada
 
@@ -408,12 +410,16 @@ function buildCards(
       existing.costo += costo
       existing.ventaAfectada += ventaAfectada
       existing.horas += (i.mttr_minutos ?? 0) / 60
-      if (costo > existing.topCosto) { existing.topCosto = costo; existing.topFactor = factor; existing.topMotivo = motivo }
+      if (costo > existing.topCosto) {
+        existing.topCosto = costo; existing.topFactor = factor; existing.topMotivo = motivo
+        existing.topVentaHora = ventaHora; existing.topMargen = margen; existing.topContingencia = i.contingencia_activa
+      }
     } else {
       costoByTienda.set(i.tienda_id, {
         codigo: i.tienda_codigo, proveedor: prov,
         horas: (i.mttr_minutos ?? 0) / 60,
         costo, ventaAfectada, topCosto: costo, topFactor: factor, topMotivo: motivo,
+        topVentaHora: ventaHora, topMargen: margen, topContingencia: i.contingencia_activa,
       })
     }
   }
@@ -434,6 +440,12 @@ function buildCards(
     ventaAfectada: Math.round(t.ventaAfectada),
     factor: t.topFactor,
     motivo: t.topMotivo,
+    ventaHora: t.topVentaHora != null ? Math.round(t.topVentaHora) : null,
+    margen: t.topMargen,
+    horasAfectadas: Math.round(t.horas * 10) / 10,
+    huboContingencia: t.topContingencia,
+    huboMovil: false,
+    huboBoleta: false,
   }))
 
   // ── CARD 6: Reincidencia ────────────────────────────────────────────────
