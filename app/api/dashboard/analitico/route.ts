@@ -233,7 +233,9 @@ function buildCards(
   const dMttr = mttrActual != null && mttrPrev != null ? mttrActual - mttrPrev : null
 
   type MttrAccum = { sum: number; count: number; min: number | null; max: number | null; incidentesResueltos: number }
+  type MttrTiendaAccum = { sum: number; count: number; min: number | null; max: number | null }
   const mttrByProv = new Map<string, MttrAccum>()
+  const mttrByProvTienda = new Map<string, Map<string, MttrTiendaAccum>>()
   for (const i of incs) {
     if (!i.prov_nombre || !i.mttr_minutos) continue
     if (!mttrByProv.has(i.prov_nombre)) mttrByProv.set(i.prov_nombre, { sum: 0, count: 0, min: null, max: null, incidentesResueltos: 0 })
@@ -242,6 +244,13 @@ function buildCards(
     m.min = m.min == null ? i.mttr_minutos : Math.min(m.min, i.mttr_minutos)
     m.max = m.max == null ? i.mttr_minutos : Math.max(m.max, i.mttr_minutos)
     m.incidentesResueltos++
+    if (!mttrByProvTienda.has(i.prov_nombre)) mttrByProvTienda.set(i.prov_nombre, new Map())
+    const tMap = mttrByProvTienda.get(i.prov_nombre)!
+    if (!tMap.has(i.tienda_codigo)) tMap.set(i.tienda_codigo, { sum: 0, count: 0, min: null, max: null })
+    const t = tMap.get(i.tienda_codigo)!
+    t.sum += i.mttr_minutos; t.count++
+    t.min = t.min == null ? i.mttr_minutos : Math.min(t.min, i.mttr_minutos)
+    t.max = t.max == null ? i.mttr_minutos : Math.max(t.max, i.mttr_minutos)
   }
 
   const prevMttrByProv = new Map<string, MttrAccum>()
@@ -258,6 +267,7 @@ function buildCards(
   const mttrPorProveedor = [...mttrByProv.entries()]
     .map(([nombre, { sum, count, min, max, incidentesResueltos }]) => {
       const prev = prevMttrByProv.get(nombre)
+      const tiendaMap = mttrByProvTienda.get(nombre) ?? new Map()
       return {
         nombre,
         mttrMinutos: Math.round(sum / count),
@@ -265,6 +275,15 @@ function buildCards(
         mejorTiempo: min,
         peorTiempo: max,
         mttrPrevMinutos: prev && prev.count > 0 ? Math.round(prev.sum / prev.count) : null,
+        tiendas: [...tiendaMap.entries()]
+          .map(([codigo, t]) => ({
+            codigo,
+            mttrMinutos: Math.round(t.sum / t.count),
+            incidentes: t.count,
+            mejorTiempo: t.min,
+            peorTiempo: t.max,
+          }))
+          .sort((a, b) => b.mttrMinutos - a.mttrMinutos),
       }
     })
     .sort((a, b) => a.mttrMinutos - b.mttrMinutos)

@@ -200,6 +200,7 @@ export default function DashboardAnalitico() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [slaProvSelected, setSlaProvSelected] = useState<string | null>(null)
   const [ieiProvSelected, setIeiProvSelected] = useState<string | null>(null)
+  const [mttrProvSelected, setMttrProvSelected] = useState<string | null>(null)
 
   const fetchData = useCallback(async (d = desde, h = hasta, pId = proveedorId) => {
     setLoading(true)
@@ -472,17 +473,52 @@ export default function DashboardAnalitico() {
             {cards.mttrPromedio.porProveedor.map((p, i) => {
               const b = mttrBadge(p.mttrMinutos)
               const deltaMin = p.mttrPrevMinutos != null ? p.mttrMinutos - p.mttrPrevMinutos : null
+              const isSelected = mttrProvSelected === p.nombre
               return (
-                <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 55px 70px 60px 60px 70px auto', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
-                  <span style={{ fontSize: '12px' }}>{p.nombre}</span>
-                  <span style={{ fontSize: '12px', textAlign: 'right' }}>{p.incidentesResueltos}</span>
-                  <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'monospace', color: b.color }}>{fmtMttr(p.mttrMinutos)}</span>
-                  <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#3B6D11' }}>{fmtMttr(p.mejorTiempo)}</span>
-                  <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#A32D2D' }}>{fmtMttr(p.peorTiempo)}</span>
-                  <span style={{ fontSize: '11px', color: deltaMin == null ? 'var(--muted-foreground)' : deltaMin > 0 ? '#A32D2D' : '#3B6D11' }}>
-                    {deltaMin == null ? '—' : `${deltaMin > 0 ? '↑' : '↓'} ${fmtMttr(Math.abs(deltaMin))}`}
-                  </span>
-                  <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: b.bg, color: b.color, whiteSpace: 'nowrap' }}>{b.label}</span>
+                <div key={i}>
+                  <div
+                    onClick={() => setMttrProvSelected(isSelected ? null : p.nombre)}
+                    style={{ display: 'grid', gridTemplateColumns: '1fr 55px 70px 60px 60px 70px auto', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center', cursor: 'pointer', background: isSelected ? 'var(--muted)' : 'transparent', borderRadius: isSelected ? '6px' : undefined }}>
+                    <span style={{ fontSize: '12px' }}>{p.nombre}</span>
+                    <span style={{ fontSize: '12px', textAlign: 'right' }}>{p.incidentesResueltos}</span>
+                    <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'monospace', color: b.color }}>{fmtMttr(p.mttrMinutos)}</span>
+                    <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#3B6D11' }}>{fmtMttr(p.mejorTiempo)}</span>
+                    <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#A32D2D' }}>{fmtMttr(p.peorTiempo)}</span>
+                    <span style={{ fontSize: '11px', color: deltaMin == null ? 'var(--muted-foreground)' : deltaMin > 0 ? '#A32D2D' : '#3B6D11' }}>
+                      {deltaMin == null ? '—' : `${deltaMin > 0 ? '↑' : '↓'} ${fmtMttr(Math.abs(deltaMin))}`}
+                    </span>
+                    <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: b.bg, color: b.color, whiteSpace: 'nowrap' }}>{b.label}</span>
+                  </div>
+                  {isSelected && p.tiendas.length > 0 && (
+                    <div style={{ margin: '4px 0 8px 8px', padding: '8px', background: 'var(--muted)', borderRadius: '8px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '70px 60px 70px 60px 60px', gap: '8px', marginBottom: '4px' }}>
+                        {['Tienda', 'Incidentes', 'MTTR', 'Mejor', 'Peor'].map((h) => (
+                          <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
+                        ))}
+                      </div>
+                      {(() => {
+                        const maxMttr = Math.max(...p.tiendas.map((t) => t.mttrMinutos), 1)
+                        return p.tiendas.map((t, j) => {
+                          const barPct = Math.round((t.mttrMinutos / maxMttr) * 100)
+                          const barColor = barPct >= 80 ? '#A32D2D' : barPct >= 50 ? '#854F0B' : '#3B6D11'
+                          return (
+                            <div key={j} style={{ display: 'grid', gridTemplateColumns: '70px 60px 70px 60px 60px', gap: '8px', padding: '5px 0', borderTop: j > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
+                              <span style={{ fontSize: '11px', fontWeight: 500 }}>{t.codigo}</span>
+                              <span style={{ fontSize: '11px', textAlign: 'center' }}>{t.incidentes}</span>
+                              <div>
+                                <span style={{ fontSize: '11px', fontFamily: 'monospace', color: barColor }}>{fmtMttr(t.mttrMinutos)}</span>
+                                <div style={{ height: '3px', background: '#e5e7eb', borderRadius: '2px', marginTop: '3px', overflow: 'hidden' }}>
+                                  <div style={{ height: '3px', width: `${barPct}%`, background: barColor, borderRadius: '2px' }} />
+                                </div>
+                              </div>
+                              <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#3B6D11' }}>{fmtMttr(t.mejorTiempo)}</span>
+                              <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#A32D2D' }}>{fmtMttr(t.peorTiempo)}</span>
+                            </div>
+                          )
+                        })
+                      })()}
+                    </div>
+                  )}
                 </div>
               )
             })}

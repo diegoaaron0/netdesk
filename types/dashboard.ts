@@ -30,6 +30,7 @@ export interface MttrProveedor {
   mejorTiempo: number | null
   peorTiempo: number | null
   mttrPrevMinutos: number | null
+  tiendas: Array<{ codigo: string; mttrMinutos: number; incidentes: number; mejorTiempo: number | null; peorTiempo: number | null }>
 }
 
 export interface SlaProveedor {
