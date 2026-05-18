@@ -10,6 +10,7 @@ export interface RawSLAProvRow {
   tipo: string
   hora_registro: Date | string
   hora_fin: Date | string | null
+  evaluable_proveedor?: boolean | null
   proveedor_id: string | null
   prov_nombre: string | null
   tienda_codigo: string
@@ -30,6 +31,17 @@ function topEntry(counts: Record<number, number>): number | null {
 }
 
 function calcRow(row: RawSLAProvRow) {
+  if (row.evaluable_proveedor === false) {
+    return {
+      evaluable: false, slaGeneral: false, slaRespuesta: false, slaResolucion: false,
+      escaladoN2: false,
+      tPrimeraRespuestaMin: null as number | null,
+      tResolucionMin: null as number | null,
+      motivoIncumplimiento: null as string | null,
+      slaResolucionObj: null as number | null,
+      nivelQueRespondio: null as number | null,
+    }
+  }
   const sla = calcSLARow({
     tipo: row.tipo,
     hora_correo_n1: row.hora_correo_n1,

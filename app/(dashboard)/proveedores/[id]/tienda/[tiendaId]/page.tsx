@@ -41,6 +41,12 @@ function tipoLabel(t: string | null | undefined) {
   return m[t ?? ''] ?? t ?? '—'
 }
 
+function fmtMttr(mins: number | null | undefined) {
+  if (!mins) return '—'
+  const h = Math.floor(mins / 60), m = mins % 60
+  return h > 0 ? `${h}h ${m}m` : `${m}m`
+}
+
 function slaColor(v: number | null) {
   if (v == null) return '#9ca3af'
   if (v >= 80) return '#16a34a'
@@ -205,6 +211,47 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
           </div>
         </div>
       </div>
+
+      {/* Comparativa con proveedores anteriores */}
+      {(data.proveedoresAnteriores ?? []).length > 0 && (
+        <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', overflow: 'hidden', marginBottom: '14px' }}>
+          <div style={{ padding: '12px 14px', borderBottom: '0.5px solid var(--border)' }}>
+            <SectionTitle>Comparativa con proveedores anteriores</SectionTitle>
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+            <thead>
+              <tr style={{ background: 'var(--muted)' }}>
+                {['Proveedor', 'Incidentes', 'MTTR prom', 'SLA', 'Último incidente'].map(h => (
+                  <th key={h} style={{ padding: '7px 10px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr style={{ borderTop: '0.5px solid var(--border)', background: 'color-mix(in srgb, hsl(221,83%,23%) 6%, var(--card))' }}>
+                <td style={{ padding: '8px 10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 600 }}>{tienda.proveedorNombre}</span>
+                    <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', background: 'hsl(221,83%,23%)', color: 'white' }}>Actual</span>
+                  </div>
+                </td>
+                <td style={{ padding: '8px 10px', fontWeight: 600 }}>{metricas?.incidentesHistoricos ?? 0}</td>
+                <td style={{ padding: '8px 10px' }}>{metricas?.mttrPromFmt ?? '—'}</td>
+                <td style={{ padding: '8px 10px', fontWeight: 600, color: slaColor(metricas?.slaTienda ?? null) }}>{metricas?.slaTienda != null ? `${metricas.slaTienda}%` : '—'}</td>
+                <td style={{ padding: '8px 10px', color: 'var(--muted-foreground)', fontSize: '11px' }}>{fmtTs(lastIncidente?.horaRegistro)}</td>
+              </tr>
+              {(data.proveedoresAnteriores ?? []).map((p: any) => (
+                <tr key={p.proveedorId} style={{ borderTop: '0.5px solid var(--border)' }}>
+                  <td style={{ padding: '8px 10px', fontWeight: 600 }}>{p.proveedorNombre ?? '—'}</td>
+                  <td style={{ padding: '8px 10px' }}>{p.totalIncidentes}</td>
+                  <td style={{ padding: '8px 10px' }}>{fmtMttr(p.mttrPromedio)}</td>
+                  <td style={{ padding: '8px 10px', fontWeight: 600, color: slaColor(p.slaPromedio) }}>{p.slaPromedio != null ? `${p.slaPromedio}%` : '—'}</td>
+                  <td style={{ padding: '8px 10px', color: 'var(--muted-foreground)', fontSize: '11px' }}>{fmtDate(p.ultimoIncidente)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Acciones + Historial */}
       <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '14px', alignItems: 'start' }}>

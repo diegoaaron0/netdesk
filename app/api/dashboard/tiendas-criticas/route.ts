@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
         i.estado,
         i.hora_registro,
         i.hora_fin,
+        i.evaluable_proveedor,
         i.mttr_minutos,
         i.proveedor_id,
         COALESCE(p.nombre, pt.nombre) AS prov_nombre,

@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
       i.tipo,
       i.hora_registro,
       i.hora_fin,
+      i.evaluable_proveedor,
       COALESCE(p.nombre, pt.nombre) AS prov_nombre,
       t.codigo    AS tienda_codigo,
       t.nombre_cc AS tienda_nombre,

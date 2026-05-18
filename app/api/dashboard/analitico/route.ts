@@ -10,7 +10,7 @@ import {
   getMTTRTexto,
 } from '@/lib/dashboard-calculations'
 import { calcImpactoRow } from '@/lib/impacto-calc'
-import { calcSLARow } from '@/lib/sla-core'
+import { calcSLARow, SLA_RESPUESTA_MIN } from '@/lib/sla-core'
 import {
   fetchIncidentesPeriodo,
   fetchEscalamientosPeriodo,
@@ -232,24 +232,57 @@ function buildCards(
 
   const dMttr = mttrActual != null && mttrPrev != null ? mttrActual - mttrPrev : null
 
-  const mttrByProv = new Map<string, { sum: number; count: number }>()
+  type MttrAccum = { sum: number; count: number; min: number | null; max: number | null; incidentesResueltos: number }
+  const mttrByProv = new Map<string, MttrAccum>()
   for (const i of incs) {
     if (!i.prov_nombre || !i.mttr_minutos) continue
-    if (!mttrByProv.has(i.prov_nombre)) mttrByProv.set(i.prov_nombre, { sum: 0, count: 0 })
+    if (!mttrByProv.has(i.prov_nombre)) mttrByProv.set(i.prov_nombre, { sum: 0, count: 0, min: null, max: null, incidentesResueltos: 0 })
     const m = mttrByProv.get(i.prov_nombre)!
     m.sum += i.mttr_minutos; m.count++
+    m.min = m.min == null ? i.mttr_minutos : Math.min(m.min, i.mttr_minutos)
+    m.max = m.max == null ? i.mttr_minutos : Math.max(m.max, i.mttr_minutos)
+    m.incidentesResueltos++
   }
+
+  const prevMttrByProv = new Map<string, MttrAccum>()
+  for (const i of prevIncs) {
+    if (!i.prov_nombre || !i.mttr_minutos) continue
+    if (!prevMttrByProv.has(i.prov_nombre)) prevMttrByProv.set(i.prov_nombre, { sum: 0, count: 0, min: null, max: null, incidentesResueltos: 0 })
+    const m = prevMttrByProv.get(i.prov_nombre)!
+    m.sum += i.mttr_minutos; m.count++
+    m.min = m.min == null ? i.mttr_minutos : Math.min(m.min, i.mttr_minutos)
+    m.max = m.max == null ? i.mttr_minutos : Math.max(m.max, i.mttr_minutos)
+    m.incidentesResueltos++
+  }
+
   const mttrPorProveedor = [...mttrByProv.entries()]
-    .map(([nombre, { sum, count }]) => ({ nombre, mttrMinutos: Math.round(sum / count) }))
+    .map(([nombre, { sum, count, min, max, incidentesResueltos }]) => {
+      const prev = prevMttrByProv.get(nombre)
+      return {
+        nombre,
+        mttrMinutos: Math.round(sum / count),
+        incidentesResueltos,
+        mejorTiempo: min,
+        peorTiempo: max,
+        mttrPrevMinutos: prev && prev.count > 0 ? Math.round(prev.sum / prev.count) : null,
+      }
+    })
     .sort((a, b) => a.mttrMinutos - b.mttrMinutos)
 
   // ── CARD 4: SLA ─────────────────────────────────────────────────────────
-  const slaByProv = new Map<string, { ok: number; total: number; excessSum: number; excessCount: number }>()
+  type SlaProvAccum = {
+    ok: number; total: number
+    excessRespSum: number; excessRespCount: number
+    excessResolSum: number; excessResolCount: number
+  }
+  const slaByProv = new Map<string, SlaProvAccum>()
+  const slaByProvTiendas = new Map<string, Map<string, { ok: number; total: number }>>()
 
   let slaCumplidos = 0
   let slaEvaluablesCount = 0
   const evaluables: { codigo: string; tiendaCodigo: string; proveedor: string; tipo: string; fecha: string; cumplido: boolean }[] = []
   for (const i of incs) {
+    if (i.evaluable_proveedor === false) continue
     const slaRes = calcSLARow({
       tipo: i.tipo,
       hora_correo_n1: i.hora_correo_n1,
@@ -273,13 +306,28 @@ function buildCards(
     })
 
     const prov = i.prov_nombre ?? '—'
-    if (!slaByProv.has(prov)) slaByProv.set(prov, { ok: 0, total: 0, excessSum: 0, excessCount: 0 })
+    if (!slaByProv.has(prov)) slaByProv.set(prov, { ok: 0, total: 0, excessRespSum: 0, excessRespCount: 0, excessResolSum: 0, excessResolCount: 0 })
     const s = slaByProv.get(prov)!
     s.total++
-    if (cumplido) { s.ok++ } else {
-      const ex = calcExcessoMin(escMap.get(i.id) ?? [])
-      if (ex > 0) { s.excessSum += ex; s.excessCount++ }
+    if (cumplido) {
+      s.ok++
+    } else {
+      if (slaRes.tPrimeraRespuestaMin != null) {
+        const exResp = slaRes.tPrimeraRespuestaMin - SLA_RESPUESTA_MIN
+        if (exResp > 0) { s.excessRespSum += exResp; s.excessRespCount++ }
+      }
+      if (slaRes.tResolucionMin != null) {
+        const exResol = slaRes.tResolucionMin - slaRes.slaResolucionObj
+        if (exResol > 0) { s.excessResolSum += exResol; s.excessResolCount++ }
+      }
     }
+
+    if (!slaByProvTiendas.has(prov)) slaByProvTiendas.set(prov, new Map())
+    const tiendaMap = slaByProvTiendas.get(prov)!
+    if (!tiendaMap.has(i.tienda_codigo)) tiendaMap.set(i.tienda_codigo, { ok: 0, total: 0 })
+    const t = tiendaMap.get(i.tienda_codigo)!
+    t.total++
+    if (cumplido) t.ok++
   }
   const slaPct = slaEvaluablesCount > 0 ? Math.round(slaCumplidos / slaEvaluablesCount * 100) : 0
 
@@ -304,7 +352,11 @@ function buildCards(
     .map(([nombre, s]) => ({
       nombre,
       slaPct: s.total > 0 ? Math.round(s.ok / s.total * 100) : 0,
-      excessoPromMin: s.excessCount > 0 ? Math.round(s.excessSum / s.excessCount) : 0,
+      excessoRespuestaMin: s.excessRespCount > 0 ? Math.round(s.excessRespSum / s.excessRespCount) : 0,
+      excessoResolucionMin: s.excessResolCount > 0 ? Math.round(s.excessResolSum / s.excessResolCount) : 0,
+      tiendas: [...(slaByProvTiendas.get(nombre) ?? new Map()).entries()]
+        .map(([codigo, td]) => ({ codigo, slaPct: td.total > 0 ? Math.round(td.ok / td.total * 100) : 0 }))
+        .sort((a, b) => a.slaPct - b.slaPct),
     }))
     .sort((a, b) => b.slaPct - a.slaPct)
 
@@ -362,6 +414,11 @@ function buildCards(
     if (!incsByTienda.has(i.tienda_id)) incsByTienda.set(i.tienda_id, [])
     incsByTienda.get(i.tienda_id)!.push(i)
   }
+  const prevIncsByTienda = new Map<string, number>()
+  for (const i of prevIncs) {
+    prevIncsByTienda.set(i.tienda_id, (prevIncsByTienda.get(i.tienda_id) ?? 0) + 1)
+  }
+
   const reincidentes = [...incsByTienda.values()]
     .filter((arr) => arr.length >= 2)
     .sort((a, b) => b.length - a.length)
@@ -370,6 +427,26 @@ function buildCards(
       for (const r of arr) tipoCounts[r.tipo] = (tipoCounts[r.tipo] ?? 0) + 1
       const tipoRepetido = topKey(tipoCounts)
       const costoEstimado = Math.round(costoByTienda.get(arr[0].tienda_id)?.costo ?? 0)
+
+      const tieneContingencia: boolean = arr[0].tiene_contingencia ?? false
+
+      const sorted = [...arr].sort((a, b) => new Date(a.hora_registro).getTime() - new Date(b.hora_registro).getTime())
+      let diasEntreCaidas: number | null = null
+      if (sorted.length >= 2) {
+        const diffs: number[] = []
+        for (let idx = 1; idx < sorted.length; idx++) {
+          const diffMs = new Date(sorted[idx].hora_registro).getTime() - new Date(sorted[idx - 1].hora_registro).getTime()
+          diffs.push(diffMs / 86400000)
+        }
+        diasEntreCaidas = Math.round((diffs.reduce((a, b) => a + b, 0) / diffs.length) * 10) / 10
+      }
+
+      const prevCount = prevIncsByTienda.get(arr[0].tienda_id) ?? 0
+      const tendencia: 'EMPEORA' | 'ESTABLE' | 'NUEVO' =
+        prevCount >= 2
+          ? arr.length > prevCount ? 'EMPEORA' : 'ESTABLE'
+          : 'NUEVO'
+
       return {
         id: arr[0].tienda_id,
         codigo: arr[0].tienda_codigo,
@@ -379,6 +456,9 @@ function buildCards(
         incidenteCodigos: arr.map((r) => r.codigo),
         tipoRepetido,
         costoEstimado,
+        tieneContingencia,
+        diasEntreCaidas,
+        tendencia,
       }
     })
 
@@ -462,6 +542,9 @@ function buildCards(
         tipo: i.tipo,
         estado: i.estado,
         fecha: fmtFechaInc(i.hora_registro),
+        horaInicio: new Date(i.hora_registro).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Lima' }),
+        horaFin: i.hora_fin ? new Date(i.hora_fin).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Lima' }) : null,
+        tiendaIncCount: tiendasDetailMap.get(i.tienda_id)?.count ?? 1,
       })),
       byDay,
     },

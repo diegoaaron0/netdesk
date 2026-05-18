@@ -13,6 +13,7 @@ export interface RawTiendaRow {
   estado: string
   hora_registro: Date | string
   hora_fin: Date | string | null
+  evaluable_proveedor?: boolean | null
   mttr_minutos: number | null
   proveedor_id: string | null
   prov_nombre: string | null

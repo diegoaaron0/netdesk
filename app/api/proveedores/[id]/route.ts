@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { proveedores, tiendas, incidentes, contratosProveedor, nivelesEscalamiento } from '@/drizzle/schema'
 import { eq, gte, sql, and, asc, desc, isNotNull } from 'drizzle-orm'
+import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
 
 function calcEstado(fechaFin: string | null | undefined): 'VIGENTE' | 'POR_VENCER' | 'VENCIDO' {
@@ -119,6 +120,31 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const contratoVigente = contratos.find(c => c.estadoCalc === 'VIGENTE' && !c.tiendaId)
 
+  // Tiendas históricas: tienen incidentes con este proveedor pero ya no lo tienen asignado
+  let tiendasHistoricas: any[] = []
+  try {
+    const provActual = alias(proveedores, 'prov_actual')
+    tiendasHistoricas = await db.select({
+      tiendaId:        tiendas.id,
+      codigo:          tiendas.codigo,
+      nombreCc:        tiendas.nombreCc,
+      distrito:        tiendas.distrito,
+      totalIncidentes: sql<number>`count(${incidentes.id})::int`,
+      mttrPromedio:    sql<number>`round(avg(${incidentes.mttrMinutos}))::int`,
+      ultimoIncidente: sql<string>`max(${incidentes.horaRegistro})`,
+      proveedorActual: provActual.nombre,
+    })
+      .from(incidentes)
+      .innerJoin(tiendas, eq(incidentes.tiendaId, tiendas.id))
+      .leftJoin(provActual, eq(tiendas.proveedorId, provActual.id))
+      .where(and(
+        eq(incidentes.proveedorId, id),
+        sql`${tiendas.proveedorId} IS DISTINCT FROM ${id}::uuid`,
+      ))
+      .groupBy(tiendas.id, tiendas.codigo, tiendas.nombreCc, tiendas.distrito, provActual.nombre)
+      .orderBy(desc(sql`count(${incidentes.id})`)) as any[]
+  } catch { /* skip */ }
+
   return NextResponse.json({
     ...base,
     ...ext,
@@ -134,6 +160,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       tiendasCriticas,
       slaComprometido: contratoVigente?.slaComprometido ?? null,
     },
+    tiendasHistoricas,
   })
 }
 

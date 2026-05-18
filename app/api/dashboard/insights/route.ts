@@ -36,6 +36,7 @@ export async function GET(req: NextRequest) {
         i.tipo,
         i.hora_registro,
         i.hora_fin,
+        i.evaluable_proveedor,
         i.estado,
         i.otros_clasificacion,
         i.proveedor_id,

@@ -7,6 +7,7 @@ export interface RawIncidente {
   tipo: string
   estado: string
   mttr_minutos: number | null
+  evaluable_proveedor: boolean | null
   hora_registro: Date
   hora_fin: Date | null
   proveedor_id: string | null
@@ -55,6 +56,7 @@ export async function fetchIncidentesPeriodo(
       i.tipo,
       i.estado,
       i.mttr_minutos,
+      i.evaluable_proveedor,
       i.hora_registro,
       i.hora_fin,
       i.proveedor_id,
@@ -133,8 +135,14 @@ export async function fetchEscalamientosPeriodo(
 export async function fetchVentasDiarias(): Promise<RawVentaDiaria[]> {
   try {
     const rows = await db.execute(sql`
-      SELECT tienda_codigo, dia_semana::int, venta_hora_promedio::float
-      FROM tiendas_ventas_diarias
+      SELECT
+        t.codigo          AS tienda_codigo,
+        gs.dia::int       AS dia_semana,
+        t.venta_hora_soles::float AS venta_hora_promedio
+      FROM tiendas t
+      CROSS JOIN generate_series(0, 6) AS gs(dia)
+      WHERE t.venta_hora_soles IS NOT NULL
+        AND t.venta_hora_soles > 0
     `)
     return rows as unknown as RawVentaDiaria[]
   } catch {

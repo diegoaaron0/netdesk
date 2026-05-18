@@ -2,8 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { incidentes, tiendas, usuarios, proveedores } from '@/drizzle/schema'
 import { eq, desc, and, gte, lt, sql, inArray } from 'drizzle-orm'
+import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
+
+// ─── Aliases para dos joins a la misma tabla proveedores ─────────────────────
+// provInc → proveedor registrado en el incidente (histórico, inmutable)
+// provTda → proveedor actual de la tienda (fallback si el incidente es muy antiguo)
+const provInc = alias(proveedores, 'pi')
+const provTda = alias(proveedores, 'pt')
 
 const OPEN_ESTADOS = ['ABIERTO', 'EN_SEGUIMIENTO', 'ESCALADO_N1', 'ESCALADO_N2', 'ESCALADO_N3']
 
@@ -34,7 +41,9 @@ const COLS = {
   tiendaNombre:   tiendas.nombreCc,
   tiendaDistrito: tiendas.distrito,
   tiendaCluster:  tiendas.cluster,
-  proveedorNombre:proveedores.nombre,
+  // COALESCE: primero el proveedor grabado en el incidente (histórico),
+  // si es null usa el proveedor actual de la tienda (incidentes muy antiguos pre-módulo)
+  proveedorNombre: sql<string>`COALESCE(pi.nombre, pt.nombre)`,
   agenteName:     usuarios.nombre,
   agenteId:       usuarios.id,
 }
@@ -44,27 +53,34 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   const { searchParams } = req.nextUrl
-  const estado   = searchParams.get('estado')
-  const agenteId = searchParams.get('agente')
+  const estado    = searchParams.get('estado')
+  const agenteId  = searchParams.get('agente')
+  const tiendaId  = searchParams.get('tiendaId')   // → NUEVO: filtro por tienda
   const fechaDesde = searchParams.get('fechaDesde') ?? todayLima()
   const fechaHasta = searchParams.get('fechaHasta') ?? fechaDesde
 
   const { start } = limaDateRange(fechaDesde)
   const { end }   = limaDateRange(fechaHasta)
 
+  // Condiciones para incidentes del rango de fechas
   const rangeConds: any[] = [gte(incidentes.horaRegistro, start), lt(incidentes.horaRegistro, end)]
   if (estado)   rangeConds.push(eq(incidentes.estado, estado as any))
   if (agenteId) rangeConds.push(eq(incidentes.registradoPorId, agenteId))
+  if (tiendaId) rangeConds.push(eq(incidentes.tiendaId, tiendaId))   // → filtro server-side
 
+  // Condiciones para incidentes vencidos (abiertos de días anteriores)
   const overdueConds: any[] = [
     lt(incidentes.horaRegistro, start),
     inArray(incidentes.estado, OPEN_ESTADOS as any),
   ]
+  if (tiendaId) overdueConds.push(eq(incidentes.tiendaId, tiendaId)) // → también en overdue
 
+  // Join con dos aliases de proveedores para el COALESCE histórico
   const joins = (q: any) => q
-    .leftJoin(tiendas,     eq(incidentes.tiendaId,         tiendas.id))
-    .leftJoin(proveedores, eq(tiendas.proveedorId,         proveedores.id))
-    .leftJoin(usuarios,    eq(incidentes.registradoPorId,  usuarios.id))
+    .leftJoin(tiendas,  eq(incidentes.tiendaId,        tiendas.id))
+    .leftJoin(provInc,  eq(incidentes.proveedorId,     provInc.id))  // histórico del incidente
+    .leftJoin(provTda,  eq(tiendas.proveedorId,        provTda.id))  // actual de la tienda (fallback)
+    .leftJoin(usuarios, eq(incidentes.registradoPorId, usuarios.id))
 
   const [regular, overdue] = await Promise.all([
     joins(db.select(COLS).from(incidentes)).where(and(...rangeConds)).orderBy(desc(incidentes.horaRegistro)),

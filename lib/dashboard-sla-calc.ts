@@ -6,6 +6,7 @@ export interface RawSLARow {
   tipo: string
   hora_registro: Date | string
   hora_fin: Date | string | null
+  evaluable_proveedor?: boolean | null
   prov_nombre: string | null
   tienda_codigo: string
   tienda_nombre: string | null
@@ -48,6 +49,17 @@ export function getMotivoIncumplimiento(
 
 export function calcSLACaso(row: RawSLARow): SLACaso {
   const dia = new Date(row.hora_registro).toLocaleDateString('sv-SE', { timeZone: 'America/Lima' })
+  if (row.evaluable_proveedor === false) {
+    return {
+      id: row.id, codigo: row.codigo, tipo: row.tipo, dia,
+      provNombre: row.prov_nombre ?? '—',
+      tiendaCodigo: row.tienda_codigo, tiendaNombre: row.tienda_nombre ?? '',
+      evaluable: false, escaladoN2: false,
+      tPrimeraRespuestaMin: null, tResolucionMin: null, nivelQueRespondio: null,
+      slaRespuesta: false, slaResolucion: false, slaGeneral: false,
+      motivoIncumplimiento: null,
+    }
+  }
   const sla = calcSLARow({
     tipo: row.tipo,
     hora_correo_n1: row.hora_correo_n1,

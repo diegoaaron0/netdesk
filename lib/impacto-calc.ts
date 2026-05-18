@@ -109,8 +109,8 @@ function calcFactorAfectacion(
         factor = 0.35
         motivo = 'Intermitencia con venta parcial reportada.'
       } else {
-        factor = 0.50
-        motivo = 'Intermitencia: impacto parcial estimado (servicio degradado).'
+        factor = 0.75
+        motivo = 'Intermitencia sin operación alternativa: impacto significativo estimado.'
       }
       break
 

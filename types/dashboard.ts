@@ -7,6 +7,9 @@ export interface IncidenteListItem {
   tipo: string
   estado: string
   fecha: string
+  horaInicio: string
+  horaFin: string | null
+  tiendaIncCount: number
 }
 
 export interface TiendaDetalle {
@@ -23,12 +26,18 @@ export interface TiendaDetalle {
 export interface MttrProveedor {
   nombre: string
   mttrMinutos: number
+  incidentesResueltos: number
+  mejorTiempo: number | null
+  peorTiempo: number | null
+  mttrPrevMinutos: number | null
 }
 
 export interface SlaProveedor {
   nombre: string
   slaPct: number
-  excessoPromMin: number
+  excessoRespuestaMin: number
+  excessoResolucionMin: number
+  tiendas: Array<{ codigo: string; slaPct: number }>
 }
 
 export interface SlaEvaluableItem {
@@ -59,6 +68,9 @@ export interface ReincidenciaTienda {
   incidenteCodigos: string[]
   tipoRepetido: string
   costoEstimado: number
+  tieneContingencia: boolean
+  diasEntreCaidas: number | null
+  tendencia: 'EMPEORA' | 'ESTABLE' | 'NUEVO'
 }
 
 export interface DayCount {

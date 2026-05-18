@@ -31,55 +31,59 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     tipoPersonalizado:  incidentes.tipoPersonalizado,
     otrosClasificacion: incidentes.otrosClasificacion,
     actualizadoEn:      incidentes.actualizadoEn,
-    tiendaId: tiendas.id,
-    tiendaCodigo: tiendas.codigo,
-    tiendaNombre: tiendas.nombreCc,
-    tiendaDireccion: tiendas.direccion,
-    tiendaDistrito: tiendas.distrito,
-    tiendaCid: tiendas.cidServicio,
-    tiendaTipoConexion: tiendas.tipoConexion,
-    tiendaCluster: tiendas.cluster,
-    tiendaAdminCelular: tiendas.administradorCelular,
-    tiendaReferencia: tiendas.referencia,
-    tiendaInstruccion: tiendas.instruccionReporte,
+    // Tienda → siempre el estado actual (dirección, CID, instrucción pueden cambiar y está bien)
+    tiendaId:                tiendas.id,
+    tiendaCodigo:            tiendas.codigo,
+    tiendaNombre:            tiendas.nombreCc,
+    tiendaDireccion:         tiendas.direccion,
+    tiendaDistrito:          tiendas.distrito,
+    tiendaCid:               tiendas.cidServicio,
+    tiendaTipoConexion:      tiendas.tipoConexion,
+    tiendaCluster:           tiendas.cluster,
+    tiendaAdminCelular:      tiendas.administradorCelular,
+    tiendaReferencia:        tiendas.referencia,
+    tiendaInstruccion:       tiendas.instruccionReporte,
     tiendaTieneContingencia: tiendas.tieneContingencia,
     // Operación / gestión
-    estadoOperacion:    incidentes.estadoOperacion,
-    operacionManual:    incidentes.operacionManual,
+    estadoOperacion:     incidentes.estadoOperacion,
+    operacionManual:     incidentes.operacionManual,
     tipoOperacionManual: incidentes.tipoOperacionManual,
-    factorOperativo:    incidentes.factorOperativo,
-    contActivadoPor:    incidentes.contActivadoPor,
-    contHoraActivacion: incidentes.contHoraActivacion,
-    contRendimiento:    incidentes.contRendimiento,
-    contObservacion:    incidentes.contObservacion,
-    movActivadoPor:     incidentes.movActivadoPor,
-    movHoraActivacion:  incidentes.movHoraActivacion,
-    movRendimiento:     incidentes.movRendimiento,
-    movObservacion:     incidentes.movObservacion,
-    descEnergia:        incidentes.descEnergia,
-    descRouter:         incidentes.descRouter,
-    descDns:            incidentes.descDns,
-    checkIpconfig:      incidentes.checkIpconfig,
-    checkPingGw:        incidentes.checkPingGw,
-    checkPingInternet:  incidentes.checkPingInternet,
-    checkTracert:       incidentes.checkTracert,
-    checkDns:           incidentes.checkDns,
-    checkRenovarIp:     incidentes.checkRenovarIp,
-    descartesDetallado: incidentes.descartesDetallado,
-    resueltoPor:        incidentes.resueltoPor,
-    atribucionFinal:    incidentes.atribucionFinal,
-    evaluableProveedor: incidentes.evaluableProveedor,
-    proveedorId: proveedores.id,
-    proveedorNombre: proveedores.nombre,
+    factorOperativo:     incidentes.factorOperativo,
+    contActivadoPor:     incidentes.contActivadoPor,
+    contHoraActivacion:  incidentes.contHoraActivacion,
+    contRendimiento:     incidentes.contRendimiento,
+    contObservacion:     incidentes.contObservacion,
+    movActivadoPor:      incidentes.movActivadoPor,
+    movHoraActivacion:   incidentes.movHoraActivacion,
+    movRendimiento:      incidentes.movRendimiento,
+    movObservacion:      incidentes.movObservacion,
+    descEnergia:         incidentes.descEnergia,
+    descRouter:          incidentes.descRouter,
+    descDns:             incidentes.descDns,
+    checkIpconfig:       incidentes.checkIpconfig,
+    checkPingGw:         incidentes.checkPingGw,
+    checkPingInternet:   incidentes.checkPingInternet,
+    checkTracert:        incidentes.checkTracert,
+    checkDns:            incidentes.checkDns,
+    checkRenovarIp:      incidentes.checkRenovarIp,
+    descartesDetallado:  incidentes.descartesDetallado,
+    resueltoPor:         incidentes.resueltoPor,
+    atribucionFinal:     incidentes.atribucionFinal,
+    evaluableProveedor:  incidentes.evaluableProveedor,
+    // Proveedor → via incidentes.proveedorId (registro histórico del momento del incidente)
+    // Esto garantiza que si la tienda cambia de proveedor en el futuro, el incidente
+    // sigue mostrando quién era el proveedor responsable cuando ocurrió.
+    proveedorId:          incidentes.proveedorId,
+    proveedorNombre:      proveedores.nombre,
     proveedorInstruccion: proveedores.instruccionGeneral,
-    proveedorTelefono: proveedores.telefonoSoporte,
+    proveedorTelefono:    proveedores.telefonoSoporte,
     agenteNombre: usuarios.nombre,
-    agenteEmail: usuarios.email,
+    agenteEmail:  usuarios.email,
   })
     .from(incidentes)
-    .leftJoin(tiendas, eq(incidentes.tiendaId, tiendas.id))
-    .leftJoin(proveedores, eq(tiendas.proveedorId, proveedores.id))
-    .leftJoin(usuarios, eq(incidentes.registradoPorId, usuarios.id))
+    .leftJoin(tiendas,    eq(incidentes.tiendaId,    tiendas.id))
+    .leftJoin(proveedores, eq(incidentes.proveedorId, proveedores.id))  // → histórico del incidente
+    .leftJoin(usuarios,   eq(incidentes.registradoPorId, usuarios.id))
     .where(eq(incidentes.id, id))
 
   if (!inc) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
@@ -97,15 +101,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
+  // Niveles del proveedor registrado en el incidente → los que corresponden al momento del incidente.
+  // Si el proveedor cambió sus niveles de escalamiento después, el incidente sigue usando
+  // los niveles actuales del proveedor histórico (que son los vigentes para ese proveedor hoy).
   let nivelesProveedor: any[] = []
   if (inc.proveedorId) {
     nivelesProveedor = await db.select({
-      id: nivelesEscalamiento.id,
-      nivel: nivelesEscalamiento.nivel,
-      nombreContacto: nivelesEscalamiento.nombreContacto,
-      email: nivelesEscalamiento.email,
-      celular: nivelesEscalamiento.celular,
-      tiempoRespSev1: nivelesEscalamiento.tiempoRespSev1,
+      id:              nivelesEscalamiento.id,
+      nivel:           nivelesEscalamiento.nivel,
+      nombreContacto:  nivelesEscalamiento.nombreContacto,
+      email:           nivelesEscalamiento.email,
+      celular:         nivelesEscalamiento.celular,
+      tiempoRespSev1:  nivelesEscalamiento.tiempoRespSev1,
     }).from(nivelesEscalamiento)
       .where(eq(nivelesEscalamiento.proveedorId, inc.proveedorId))
   }

@@ -98,7 +98,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
   const canEdit = ['SUPERVISOR', 'INFRAESTRUCTURA'].includes((session?.user as any)?.rol ?? '')
 
   const [data, setData]   = useState<any>(null)
-  const [tab, setTab]     = useState<'resumen' | 'tiendas' | 'contrato' | 'escalamiento'>('resumen')
+  const [tab, setTab]     = useState<'resumen' | 'tiendas' | 'contrato' | 'escalamiento' | 'historicas'>('resumen')
   const [buscarT, setBuscarT] = useState('')
 
   // Edit proveedor modal
@@ -234,10 +234,10 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '2px', borderBottom: '0.5px solid var(--border)', marginBottom: '16px' }}>
-        {(['resumen', 'tiendas', 'contrato', 'escalamiento'] as const).map(t => (
+        {(['resumen', 'tiendas', 'contrato', 'escalamiento', 'historicas'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
             style={{ padding: '8px 16px', fontSize: '12px', fontWeight: tab === t ? 600 : 400, background: 'none', border: 'none', cursor: 'pointer', color: tab === t ? 'var(--foreground)' : 'var(--muted-foreground)', borderBottom: tab === t ? '2px solid hsl(221,83%,23%)' : '2px solid transparent', textTransform: 'capitalize', transition: 'color 0.15s' }}>
-            {t === 'resumen' ? 'Resumen' : t === 'tiendas' ? 'Tiendas asignadas' : t === 'contrato' ? 'Contrato' : 'Escalamiento'}
+            {t === 'resumen' ? 'Resumen' : t === 'tiendas' ? 'Tiendas asignadas' : t === 'contrato' ? 'Contrato' : t === 'escalamiento' ? 'Escalamiento' : 'Históricas'}
           </button>
         ))}
       </div>
@@ -515,6 +515,42 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Tab: Históricas ──────────────────────────────────────────────────── */}
+      {tab === 'historicas' && (
+        <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+            <thead>
+              <tr style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--muted)' }}>
+                {['Tienda', 'Distrito', 'Incidentes', 'MTTR prom', 'Último incidente', 'Proveedor actual'].map(h => (
+                  <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {(data.tiendasHistoricas ?? []).length === 0 ? (
+                <tr><td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: 'var(--muted-foreground)' }}>Sin tiendas históricas</td></tr>
+              ) : (data.tiendasHistoricas ?? []).map((t: any, i: number) => (
+                <tr key={t.tiendaId}
+                  style={{ borderBottom: i < (data.tiendasHistoricas.length - 1) ? '0.5px solid var(--border)' : 'none', cursor: 'pointer' }}
+                  onClick={() => router.push(`/proveedores/${id}/tienda/${t.tiendaId}`)}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                  <td style={{ padding: '8px 10px' }}>
+                    <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '11px' }}>{t.codigo}</div>
+                    <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{t.nombreCc}</div>
+                  </td>
+                  <td style={{ padding: '8px 10px', color: 'var(--muted-foreground)', fontSize: '11px' }}>{t.distrito ?? '—'}</td>
+                  <td style={{ padding: '8px 10px', fontWeight: 600 }}>{t.totalIncidentes}</td>
+                  <td style={{ padding: '8px 10px', fontSize: '11px' }}>{fmtMttr(t.mttrPromedio)}</td>
+                  <td style={{ padding: '8px 10px', fontSize: '11px', color: 'var(--muted-foreground)' }}>{fmtDate(t.ultimoIncidente)}</td>
+                  <td style={{ padding: '8px 10px', fontSize: '11px' }}>{t.proveedorActual ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

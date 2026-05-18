@@ -14,6 +14,7 @@ export interface RawInsightsRow {
   tipo: string
   hora_registro: string
   hora_fin: string | null
+  evaluable_proveedor?: boolean | null
   estado: string
   otros_clasificacion: string | null
   proveedor_id: string | null
@@ -45,6 +46,7 @@ function calcMTTR(row: RawInsightsRow): number | null {
 }
 
 function calcSLA(row: RawInsightsRow): boolean | null {
+  if (row.evaluable_proveedor === false) return null
   if (row.estado !== 'RESUELTO' || !row.hora_fin) return null
   const res = calcSLARow({
     tipo: row.tipo,

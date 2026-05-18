@@ -66,6 +66,12 @@ function initials(nombre: string, apellido?: string) {
   return parts.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
 }
 
+function fmtMttr(mins: number | null | undefined) {
+  if (!mins) return '—'
+  const h = Math.floor(mins / 60), m = mins % 60
+  return h > 0 ? `${h}h ${m}m` : `${m}m`
+}
+
 function inputStyle(): React.CSSProperties {
   return { width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', boxSizing: 'border-box' }
 }
@@ -80,6 +86,7 @@ export default function UsuariosPage() {
   const [modal, setModal] = useState<{ open: boolean; data: any; isNew: boolean }>({ open: false, data: BLANK, isNew: false })
   const [saving, setSaving] = useState(false)
   const [showPass, setShowPass] = useState(false)
+  const [historial, setHistorial] = useState<{ open: boolean; usuario: any; items: any[]; loading: boolean }>({ open: false, usuario: null, items: [], loading: false })
 
   const fetchUsuarios = useCallback(async () => {
     const res = await fetch('/api/usuarios')
@@ -146,6 +153,13 @@ export default function UsuariosPage() {
     fetchUsuarios()
   }
 
+  async function openHistorial(u: any) {
+    setHistorial({ open: true, usuario: u, items: [], loading: true })
+    const res = await fetch(`/api/usuarios/${u.id}/incidentes-resueltos`)
+    const items = res.ok ? await res.json() : []
+    setHistorial(prev => ({ ...prev, items, loading: false }))
+  }
+
   function setField(k: string, v: any) {
     if (k === 'rol') {
       setModal(m => ({ ...m, data: { ...m.data, rol: v, permisos: [...(PERMISOS_POR_ROL[v] ?? [])] } }))
@@ -195,7 +209,11 @@ export default function UsuariosPage() {
               const rc = ROL_COLORS[u.rol] ?? ROL_COLORS.AGENTE
               const nombreCompleto = [u.nombre, u.apellido].filter(Boolean).join(' ')
               return (
-                <tr key={u.id} style={{ borderTop: idx > 0 ? '0.5px solid var(--border)' : 'none', opacity: u.activo ? 1 : 0.5 }}>
+                <tr key={u.id}
+                  style={{ borderTop: idx > 0 ? '0.5px solid var(--border)' : 'none', opacity: u.activo ? 1 : 0.5, cursor: 'pointer' }}
+                  onClick={() => openHistorial(u)}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                   <td style={{ padding: '10px 14px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'rgba(59,130,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: '#3b82f6', flexShrink: 0 }}>
@@ -209,13 +227,13 @@ export default function UsuariosPage() {
                   <td style={{ padding: '10px 14px' }}>
                     <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: rc.bg, color: rc.color }}>{u.rol}</span>
                   </td>
-                  <td style={{ padding: '10px 14px' }}>
+                  <td style={{ padding: '10px 14px' }} onClick={e => e.stopPropagation()}>
                     <button onClick={() => toggleActivo(u)}
                       style={{ position: 'relative', width: '36px', height: '20px', borderRadius: '10px', border: 'none', cursor: 'pointer', background: u.activo ? '#22c55e' : '#d1d5db', transition: 'background 0.2s' }}>
                       <span style={{ position: 'absolute', top: '2px', left: u.activo ? '18px' : '2px', width: '16px', height: '16px', borderRadius: '50%', background: 'white', transition: 'left 0.2s' }} />
                     </button>
                   </td>
-                  <td style={{ padding: '10px 14px' }}>
+                  <td style={{ padding: '10px 14px' }} onClick={e => e.stopPropagation()}>
                     <div style={{ display: 'flex', gap: '4px' }}>
                       <button onClick={() => openEdit(u)}
                         style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted-foreground)', fontSize: '13px', padding: '3px 7px', borderRadius: '5px' }}
@@ -240,6 +258,53 @@ export default function UsuariosPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Panel historial */}
+      {historial.open && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 90, display: 'flex' }}>
+          <div style={{ flex: 1, background: 'rgba(0,0,0,0.3)' }} onClick={() => setHistorial(p => ({ ...p, open: false }))} />
+          <div style={{ width: '520px', background: 'var(--card)', borderLeft: '0.5px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ padding: '14px 18px', borderBottom: '0.5px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+              <div style={{ fontSize: '13px', fontWeight: 600 }}>Historial de gestión — {historial.usuario?.nombre}</div>
+              <button onClick={() => setHistorial(p => ({ ...p, open: false }))}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--muted-foreground)' }}>✕</button>
+            </div>
+            <div style={{ flex: 1, overflow: 'auto' }}>
+              {historial.loading ? (
+                <div style={{ padding: '32px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Cargando...</div>
+              ) : historial.items.length === 0 ? (
+                <div style={{ padding: '32px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Sin incidentes registrados</div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--muted)', position: 'sticky', top: 0 }}>
+                      {['Código', 'Tienda', 'Tipo', 'MTTR', 'Estado', 'Fecha'].map(h => (
+                        <th key={h} style={{ padding: '7px 10px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historial.items.map((inc: any) => (
+                      <tr key={inc.id} style={{ borderTop: '0.5px solid var(--border)' }}>
+                        <td style={{ padding: '7px 10px', fontFamily: 'monospace', fontWeight: 600, fontSize: '11px' }}>{inc.codigo}</td>
+                        <td style={{ padding: '7px 10px', fontSize: '11px', color: 'var(--muted-foreground)' }}>{inc.tiendaCodigo ?? '—'}</td>
+                        <td style={{ padding: '7px 10px', fontSize: '11px' }}>{inc.tipo ?? '—'}</td>
+                        <td style={{ padding: '7px 10px', fontSize: '11px' }}>{fmtMttr(inc.mttrMinutos)}</td>
+                        <td style={{ padding: '7px 10px' }}>
+                          <span style={{ fontSize: '10px', fontWeight: 600, padding: '1px 6px', borderRadius: '4px', background: '#f3f4f6', color: '#374151' }}>{inc.estado}</span>
+                        </td>
+                        <td style={{ padding: '7px 10px', fontSize: '10px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>
+                          {inc.horaRegistro ? new Date(inc.horaRegistro).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal */}
       {modal.open && (

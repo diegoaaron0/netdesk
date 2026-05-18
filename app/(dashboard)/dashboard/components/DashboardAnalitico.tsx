@@ -44,7 +44,7 @@ function DeltaBadge({ delta, invertir = false }: { delta: number | null; inverti
   const arrow = delta > 0 ? '↑' : '↓'
   return (
     <span style={{ fontSize: '11px', fontWeight: 500, padding: '2px 7px', borderRadius: '999px', background: bg, color }}>
-      {arrow} {Math.abs(delta)}% vs período anterior
+      {arrow} {Math.abs(delta)}% vs. período equivalente anterior
     </span>
   )
 }
@@ -197,10 +197,11 @@ export default function DashboardAnalitico() {
   const [openCard, setOpenCard] = useState<string | null>(null)
   const [rotatingIdx, setRotatingIdx] = useState(0)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [slaProvSelected, setSlaProvSelected] = useState<string | null>(null)
+  const [ieiProvSelected, setIeiProvSelected] = useState<string | null>(null)
 
   const fetchData = useCallback(async (d = desde, h = hasta, pId = proveedorId) => {
     setLoading(true)
-    setRefreshKey((k) => k + 1)
     try {
       const params = new URLSearchParams({ desde: d, hasta: h })
       if (pId) params.set('proveedorId', pId)
@@ -247,15 +248,15 @@ export default function DashboardAnalitico() {
         <select value={proveedorId} onChange={(e) => setProveedorId(e.target.value)}
           style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
           <option value="">Todos los proveedores</option>
-          {['CLARO','BITEL','ENTEL','CONVERGIA','MOVISTAR','WIN','OTROS'].map((n) => (
-            <option key={n} value={n}>{n}</option>
+          {(data.proveedores ?? []).map((p: any) => (
+            <option key={p.nombre} value={p.nombre}>{p.nombre}</option>
           ))}
         </select>
-        <button onClick={() => fetchData()}
+        <button onClick={() => { fetchData(); setRefreshKey(k => k + 1) }}
           style={{ padding: '6px 14px', fontSize: '12px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 500 }}>
           Actualizar
         </button>
-        <button onClick={() => { setDesde(firstDayOfMonth()); setHasta(todayStr()); setProveedorId(''); fetchData(firstDayOfMonth(), todayStr(), '') }}
+        <button onClick={() => { setDesde(firstDayOfMonth()); setHasta(todayStr()); setProveedorId(''); fetchData(firstDayOfMonth(), todayStr(), ''); setRefreshKey(k => k + 1) }}
           style={{ padding: '6px 14px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'pointer', background: 'var(--card)', color: 'var(--foreground)' }}>
           Limpiar filtros
         </button>
@@ -278,32 +279,11 @@ export default function DashboardAnalitico() {
             <div style={{ fontSize: '30px', fontWeight: 600, color: '#0f172a', lineHeight: 1 }}>{cards?.incidentes.total ?? 0}</div>
           )}
           <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>incidentes</div>
+          {!loading && cards && (
+            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{cards.tiendasAfectadas.total} tiendas afectadas</div>
+          )}
           {!loading && <DeltaBadge delta={cards?.incidentes.deltaVsAnterior ?? null} />}
           {!loading && cards?.incidentes.byDay.length ? <MiniBarChart data={cards.incidentes.byDay} /> : null}
-          <div style={{ marginTop: 'auto', fontSize: '11px', color: '#185FA5', fontWeight: 500 }}>Ver detalle →</div>
-        </Card>
-
-        {/* CARD 2 — Tiendas afectadas */}
-        <Card onClick={() => toggle('tiendas')} isOpen={openCard === 'tiendas'}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)' }}>2. Tiendas afectadas</span>
-            <IconTienda />
-          </div>
-          {loading ? <Sk w="40%" h={32} /> : (
-            <div style={{ fontSize: '30px', fontWeight: 600, color: '#0f172a', lineHeight: 1 }}>{cards?.tiendasAfectadas.total ?? 0}</div>
-          )}
-          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
-            {loading ? null : `${cards?.tiendasAfectadas.porcentajeRed ?? 0}% de la red`}
-          </div>
-          {!loading && <DeltaBadge delta={cards?.tiendasAfectadas.deltaVsAnterior ?? null} />}
-          {!loading && (
-            <>
-              <ProgressBar value={cards?.tiendasAfectadas.total ?? 0} max={156} color="#1D9E75" />
-              <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>
-                {cards?.tiendasAfectadas.total ?? 0} / 156 tiendas activas
-              </div>
-            </>
-          )}
           <div style={{ marginTop: 'auto', fontSize: '11px', color: '#185FA5', fontWeight: 500 }}>Ver detalle →</div>
         </Card>
 
@@ -353,7 +333,7 @@ export default function DashboardAnalitico() {
         {/* CARD 5 — Costo estimado */}
         <Card onClick={() => toggle('costo')} isOpen={openCard === 'costo'}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)' }}>5. Costo estimado de indisponibilidad</span>
+            <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)' }}>5. I.E.I</span>
             <IconDollar />
           </div>
           {loading ? <Sk w="55%" h={28} /> : (
@@ -392,6 +372,17 @@ export default function DashboardAnalitico() {
                 <div style={{ fontSize: '13px', fontWeight: 600, color: '#A32D2D' }}>{t.codigo} · {t.proveedor}</div>
                 <div style={{ fontSize: '10px', color: '#854F0B', marginTop: '2px' }}>{t.caidas} caídas</div>
                 <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{t.razon}</div>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px', alignItems: 'center' }}>
+                  {!t.tieneContingencia && (
+                    <span style={{ fontSize: '10px', color: '#A32D2D' }}>Sin contingencia</span>
+                  )}
+                  {t.diasEntreCaidas != null && (
+                    <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Cada ~{t.diasEntreCaidas}d</span>
+                  )}
+                  {t.tendencia === 'EMPEORA' && (
+                    <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '999px', background: '#FCEBEB', color: '#A32D2D', fontWeight: 500 }}>↑ Empeora</span>
+                  )}
+                </div>
                 <div style={{ display: 'flex', gap: '4px', marginTop: '6px', justifyContent: 'center' }}>
                   {tiendas.map((_, i) => (
                     <div key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: i === rotatingIdx % tiendas.length ? '#A32D2D' : '#FCA5A5' }} />
@@ -425,22 +416,6 @@ export default function DashboardAnalitico() {
           <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
             {loading ? null : cards?.proveedorCritico ? 'Mayor impacto operativo del período' : 'Todos en nivel aceptable'}
           </div>
-          {!loading && cards?.proveedorCritico && (
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-                <div style={{ flex: 1, height: '6px', background: 'linear-gradient(90deg,#3B6D11,#EAB308,#EA580C,#A32D2D)', borderRadius: '3px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${cards.proveedorCritico.score}%`, background: 'transparent' }} />
-                </div>
-                <span style={{ fontSize: '11px', fontWeight: 600, color: '#EA580C', whiteSpace: 'nowrap' }}>{cards.proveedorCritico.score}/100</span>
-              </div>
-              <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>
-                · Mayor impacto operativo del período
-              </div>
-              <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>
-                · Score de criticidad: {cards.proveedorCritico.score}/100
-              </div>
-            </>
-          )}
           <div style={{ marginTop: 'auto', fontSize: '11px', color: '#185FA5', fontWeight: 500 }}>Ver detalle →</div>
         </Card>
       </div>
@@ -448,8 +423,8 @@ export default function DashboardAnalitico() {
       {/* Panel detail */}
       {openCard === 'incidentes' && cards && (
         <Panel title={`Incidentes del período (${cards.incidentes.total})`} onClose={() => setOpenCard(null)}>
-          <div style={{ display: 'grid', gridTemplateColumns: '100px 70px 1fr 1fr 120px auto', gap: '8px', padding: '0 0 8px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
-            {['Código','Tienda','Nombre','Proveedor','Tipo','Estado'].map((h) => (
+          <div style={{ display: 'grid', gridTemplateColumns: '90px 60px 100px 100px 80px 90px 55px 55px 40px', gap: '8px', padding: '0 0 8px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
+            {['Código','Tienda','Proveedor','Tipo','Estado','Fecha','Inicio','Fin','Incs.'].map((h) => (
               <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
             ))}
           </div>
@@ -457,55 +432,45 @@ export default function DashboardAnalitico() {
             {cards.incidentes.lista.map((inc, i) => (
               <div key={inc.id}
                 onClick={() => router.push(`/incidentes/${inc.id}`)}
-                style={{ display: 'grid', gridTemplateColumns: '100px 70px 1fr 1fr 120px auto', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center', cursor: 'pointer' }}>
+                style={{ display: 'grid', gridTemplateColumns: '90px 60px 100px 100px 80px 90px 55px 55px 40px', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center', cursor: 'pointer' }}>
                 <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#185FA5' }}>{inc.codigo}</span>
                 <span style={{ fontSize: '11px', fontWeight: 500 }}>{inc.tiendaCodigo}</span>
-                <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inc.tiendaNombre}</span>
                 <span style={{ fontSize: '12px' }}>{inc.proveedor}</span>
                 <span style={{ fontSize: '11px' }}>{fmtTipo(inc.tipo)}</span>
                 <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: inc.estado === 'RESUELTO' ? '#EAF3DE' : '#E6F1FB', color: inc.estado === 'RESUELTO' ? '#3B6D11' : '#185FA5', whiteSpace: 'nowrap' }}>
                   {fmtEstado(inc.estado)}
                 </span>
+                <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{inc.fecha}</span>
+                <span style={{ fontSize: '11px', fontFamily: 'monospace' }}>{inc.horaInicio}</span>
+                <span style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--muted-foreground)' }}>{inc.horaFin ?? '—'}</span>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: inc.tiendaIncCount > 2 ? '#A32D2D' : '#0f172a' }}>{inc.tiendaIncCount}</span>
               </div>
             ))}
           </div>
         </Panel>
       )}
 
-      {openCard === 'tiendas' && cards && (
-        <Panel title={`Tiendas con incidentes (${cards.tiendasAfectadas.total})`} onClose={() => setOpenCard(null)}>
-          <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr 1fr 1fr 70px 100px auto', gap: '8px', padding: '0 0 8px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
-            {['Código','Nombre','Proveedor','Distrito','Incs.','Último','Estado'].map((h) => (
+      {openCard === 'mttr' && cards && (
+        <Panel title="MTTR por proveedor" onClose={() => setOpenCard(null)}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 55px 70px 60px 60px 70px auto', gap: '8px', padding: '0 0 8px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
+            {['Proveedor','Resueltos','MTTR prom','Mejor','Peor','Δ vs ant.','Estado'].map((h) => (
               <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
             ))}
           </div>
-          {cards.tiendasAfectadas.lista.map((t, i) => (
-            <div key={t.id}
-              onClick={() => router.push(`/tiendas/${t.id}`)}
-              style={{ display: 'grid', gridTemplateColumns: '70px 1fr 1fr 1fr 70px 100px auto', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center', cursor: 'pointer' }}>
-              <span style={{ fontSize: '12px', fontWeight: 500, color: '#185FA5' }}>{t.codigo}</span>
-              <span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.nombre}</span>
-              <span style={{ fontSize: '11px' }}>{t.proveedor}</span>
-              <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{t.distrito ?? '—'}</span>
-              <span style={{ fontSize: '12px', fontWeight: 600, color: t.incidentesCount >= 3 ? '#A32D2D' : t.incidentesCount >= 2 ? '#854F0B' : '#0f172a' }}>{t.incidentesCount}</span>
-              <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{t.ultimoIncidente}</span>
-              <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: t.estadoReciente === 'RESUELTO' ? '#EAF3DE' : '#E6F1FB', color: t.estadoReciente === 'RESUELTO' ? '#3B6D11' : '#185FA5', whiteSpace: 'nowrap' }}>
-                {fmtEstado(t.estadoReciente)}
-              </span>
-            </div>
-          ))}
-        </Panel>
-      )}
-
-      {openCard === 'mttr' && cards && (
-        <Panel title="MTTR por proveedor" onClose={() => setOpenCard(null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
             {cards.mttrPromedio.porProveedor.map((p, i) => {
               const b = mttrBadge(p.mttrMinutos)
+              const deltaMin = p.mttrPrevMinutos != null ? p.mttrMinutos - p.mttrPrevMinutos : null
               return (
-                <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 80px auto', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 55px 70px 60px 60px 70px auto', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
                   <span style={{ fontSize: '12px' }}>{p.nombre}</span>
+                  <span style={{ fontSize: '12px', textAlign: 'right' }}>{p.incidentesResueltos}</span>
                   <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'monospace', color: b.color }}>{fmtMttr(p.mttrMinutos)}</span>
+                  <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#3B6D11' }}>{fmtMttr(p.mejorTiempo)}</span>
+                  <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#A32D2D' }}>{fmtMttr(p.peorTiempo)}</span>
+                  <span style={{ fontSize: '11px', color: deltaMin == null ? 'var(--muted-foreground)' : deltaMin > 0 ? '#A32D2D' : '#3B6D11' }}>
+                    {deltaMin == null ? '—' : `${deltaMin > 0 ? '↑' : '↓'} ${fmtMttr(Math.abs(deltaMin))}`}
+                  </span>
                   <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: b.bg, color: b.color, whiteSpace: 'nowrap' }}>{b.label}</span>
                 </div>
               )
@@ -534,21 +499,48 @@ export default function DashboardAnalitico() {
             </div>
           ))}
           <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '14px 0 6px' }}>Resumen por proveedor</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 80px auto', gap: '8px', padding: '0 0 8px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
-            {['Proveedor', 'SLA%', 'Exceso prom', 'Estado'].map((h) => (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 80px 80px auto', gap: '8px', padding: '0 0 8px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
+            {['Proveedor', 'SLA%', 'Exceso resp.', 'Exceso resol.', 'Estado'].map((h) => (
               <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
             ))}
           </div>
           {cards.cumplimientoSLA.porProveedor.map((p, i) => {
             const b = slaBadge(p.slaPct)
+            const isSelected = slaProvSelected === p.nombre
             return (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 80px auto', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
-                <span style={{ fontSize: '12px' }}>{p.nombre}</span>
-                <span style={{ fontSize: '12px', fontWeight: 500, color: b.color }}>{p.slaPct}%</span>
-                <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
-                  {p.excessoPromMin > 0 ? `+${fmtMttr(p.excessoPromMin)}` : '—'}
-                </span>
-                <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: b.bg, color: b.color, whiteSpace: 'nowrap' }}>{b.label}</span>
+              <div key={i}>
+                <div
+                  onClick={() => setSlaProvSelected(isSelected ? null : p.nombre)}
+                  style={{ display: 'grid', gridTemplateColumns: '1fr 60px 80px 80px auto', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center', cursor: 'pointer', background: isSelected ? 'var(--muted)' : 'transparent' }}>
+                  <span style={{ fontSize: '12px' }}>{p.nombre}</span>
+                  <span style={{ fontSize: '12px', fontWeight: 500, color: b.color }}>{p.slaPct}%</span>
+                  <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
+                    {p.excessoRespuestaMin > 0 ? `+${fmtMttr(p.excessoRespuestaMin)}` : '—'}
+                  </span>
+                  <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
+                    {p.excessoResolucionMin > 0 ? `+${fmtMttr(p.excessoResolucionMin)}` : '—'}
+                  </span>
+                  <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: b.bg, color: b.color, whiteSpace: 'nowrap' }}>{b.label}</span>
+                </div>
+                {isSelected && p.tiendas.length > 0 && (
+                  <div style={{ margin: '4px 0 8px 8px', padding: '8px', background: 'var(--muted)', borderRadius: '8px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px auto', gap: '8px', marginBottom: '4px' }}>
+                      {['Tienda', 'SLA%', 'Estado'].map((h) => (
+                        <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
+                      ))}
+                    </div>
+                    {p.tiendas.map((t, j) => {
+                      const tb = slaBadge(t.slaPct)
+                      return (
+                        <div key={j} style={{ display: 'grid', gridTemplateColumns: '1fr 60px auto', gap: '8px', padding: '4px 0', borderTop: j > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
+                          <span style={{ fontSize: '11px' }}>{t.codigo}</span>
+                          <span style={{ fontSize: '11px', fontWeight: 500, color: tb.color }}>{t.slaPct}%</span>
+                          <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', background: tb.bg, color: tb.color, whiteSpace: 'nowrap' }}>{tb.label}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             )
           })}
@@ -556,13 +548,13 @@ export default function DashboardAnalitico() {
       )}
 
       {openCard === 'costo' && cards && (
-        <Panel title="Desglose de costo estimado" onClose={() => setOpenCard(null)}>
+        <Panel title="Desglose de Impacto Económico de Indisponibilidad" onClose={() => setOpenCard(null)}>
           <div style={{ background: 'var(--muted)', borderRadius: '8px', padding: '12px', marginBottom: '12px', display: 'grid', gridTemplateColumns: '1fr auto', rowGap: '4px', columnGap: '16px' }}>
             <span style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>Venta afectada estimada:</span>
             <span style={{ fontSize: '12px', fontWeight: 500, textAlign: 'right' }}>{fmtCosto(cards.costoEstimado.ventaAfectadaTotal)}</span>
             <span style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>Margen aplicado:</span>
             <span style={{ fontSize: '12px', fontWeight: 500, textAlign: 'right' }}>35%</span>
-            <span style={{ fontSize: '12px', fontWeight: 600 }}>Costo estimado total:</span>
+            <span style={{ fontSize: '12px', fontWeight: 600 }}>I.E.I total:</span>
             <span style={{ fontSize: '12px', fontWeight: 600, textAlign: 'right' }}>{fmtCosto(cards.costoEstimado.total)}</span>
           </div>
           {cards.costoEstimado.proveedorMayorImpacto && (
@@ -575,9 +567,59 @@ export default function DashboardAnalitico() {
               Tienda con mayor impacto: <strong>{cards.costoEstimado.tiendaMayorImpacto.codigo}</strong> → {fmtCosto(cards.costoEstimado.tiendaMayorImpacto.costo)}
             </div>
           )}
-          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: '6px' }}>Top tiendas por costo</div>
+          {(() => {
+            const top5 = cards.costoEstimado.top5Tiendas
+            const provMap = new Map<string, number>()
+            for (const t of top5) provMap.set(t.proveedor, (provMap.get(t.proveedor) ?? 0) + t.costo)
+            const provList = [...provMap.entries()].sort((a, b) => b[1] - a[1])
+            const total = cards.costoEstimado.total
+            return (
+              <>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: '6px' }}>I.E.I por proveedor</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 45px', gap: '8px', padding: '0 0 6px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
+                  {['Proveedor', 'I.E.I', '%'].map((h) => (
+                    <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
+                  ))}
+                </div>
+                {provList.map(([prov, costo], i) => {
+                  const pct = total > 0 ? Math.round(costo / total * 100) : 0
+                  const isSelected = ieiProvSelected === prov
+                  const filteredTiendas = top5.filter((t) => t.proveedor === prov)
+                  return (
+                    <div key={i}>
+                      <div
+                        onClick={() => setIeiProvSelected(isSelected ? null : prov)}
+                        style={{ display: 'grid', gridTemplateColumns: '1fr 90px 45px', gap: '8px', padding: '6px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center', cursor: 'pointer', background: isSelected ? 'var(--muted)' : 'transparent' }}>
+                        <span style={{ fontSize: '12px' }}>{prov}</span>
+                        <span style={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 500 }}>{fmtCosto(Math.round(costo))}</span>
+                        <span style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>{pct}%</span>
+                      </div>
+                      {isSelected && filteredTiendas.length > 0 && (
+                        <div style={{ margin: '4px 0 8px 8px', padding: '8px', background: 'var(--muted)', borderRadius: '8px' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '60px 90px 50px 1fr', gap: '8px', marginBottom: '4px' }}>
+                            {['Tienda', 'I.E.I', 'Factor', 'Motivo'].map((h) => (
+                              <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
+                            ))}
+                          </div>
+                          {filteredTiendas.map((t, j) => (
+                            <div key={j} style={{ display: 'grid', gridTemplateColumns: '60px 90px 50px 1fr', gap: '8px', padding: '4px 0', borderTop: j > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
+                              <span style={{ fontSize: '11px', fontWeight: 500 }}>{t.codigo}</span>
+                              <span style={{ fontSize: '11px', fontFamily: 'monospace' }}>{fmtCosto(t.costo)}</span>
+                              <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{(t.factor * 100).toFixed(0)}%</span>
+                              <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.motivo}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </>
+            )
+          })()}
+          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: '6px', marginTop: '12px' }}>Top tiendas por I.E.I</div>
           <div style={{ display: 'grid', gridTemplateColumns: '60px 60px 80px 50px 1fr 90px', gap: '8px', padding: '0 0 6px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
-            {['Tienda','V.Afectada','Factor','Margen','Motivo','Costo estimado'].map((h) => (
+            {['Tienda','V.Afectada','Factor','Margen','Motivo','I.E.I'].map((h) => (
               <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
             ))}
           </div>
@@ -596,18 +638,24 @@ export default function DashboardAnalitico() {
 
       {openCard === 'reincidencia' && cards && (
         <Panel title="Tiendas con reincidencia" onClose={() => setOpenCard(null)}>
-          <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr 50px 80px 1fr 80px', gap: '8px', padding: '0 0 8px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
-            {['Tienda','Proveedor','Caídas','Tipo rep.','Incidentes','Costo est.'].map((h) => (
+          <div style={{ display: 'grid', gridTemplateColumns: '65px 80px 45px 55px 80px 90px 80px 80px', gap: '8px', padding: '0 0 8px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
+            {['Tienda','Prov.','Caídas','Cada','Tipo rep.','Contingencia','Tendencia','I.E.I'].map((h) => (
               <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
             ))}
           </div>
           {cards.reincidenciaCritica.tiendas.map((t, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '70px 1fr 50px 80px 1fr 80px', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '65px 80px 45px 55px 80px 90px 80px 80px', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
               <span style={{ fontSize: '12px', fontWeight: 500 }}>{t.codigo}</span>
-              <span style={{ fontSize: '12px' }}>{t.proveedor}</span>
+              <span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.proveedor}</span>
               <span style={{ fontSize: '12px', fontWeight: 600, color: t.caidas >= 3 ? '#A32D2D' : '#854F0B' }}>{t.caidas}</span>
+              <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{t.diasEntreCaidas != null ? `~${t.diasEntreCaidas}d` : '—'}</span>
               <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{fmtTipo(t.tipoRepetido)}</span>
-              <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.incidenteCodigos.join(', ')}</span>
+              <span style={{ fontSize: '11px', fontWeight: 500, color: t.tieneContingencia ? '#3B6D11' : '#A32D2D' }}>{t.tieneContingencia ? '✓ Sí' : '✗ No'}</span>
+              <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', whiteSpace: 'nowrap',
+                background: t.tendencia === 'EMPEORA' ? '#FCEBEB' : t.tendencia === 'ESTABLE' ? '#FAEEDA' : '#EAF3DE',
+                color:      t.tendencia === 'EMPEORA' ? '#A32D2D' : t.tendencia === 'ESTABLE' ? '#854F0B' : '#3B6D11' }}>
+                {t.tendencia}
+              </span>
               <span style={{ fontSize: '11px', fontFamily: 'monospace' }}>{fmtCosto(t.costoEstimado)}</span>
             </div>
           ))}
@@ -632,30 +680,13 @@ export default function DashboardAnalitico() {
             {[
               { label: 'SLA', valor: `${cards.proveedorCritico.metricas.slaPct}%`, ok: cards.proveedorCritico.metricas.slaPct >= 90 },
               { label: 'MTTR prom.', valor: fmtMttr(cards.proveedorCritico.metricas.mttrMinutos), ok: cards.proveedorCritico.metricas.mttrMinutos < 120 },
-              { label: 'Costo estimado', valor: fmtCosto(cards.proveedorCritico.metricas.costoEstimado), ok: false },
+              { label: 'I.E.I', valor: fmtCosto(cards.proveedorCritico.metricas.costoEstimado), ok: false },
               { label: 'Incidentes', valor: String(cards.proveedorCritico.metricas.incidentes), ok: cards.proveedorCritico.metricas.incidentes <= 2 },
               { label: 'Tiendas reinc.', valor: String(cards.proveedorCritico.metricas.reincidenciaTiendas), ok: cards.proveedorCritico.metricas.reincidenciaTiendas === 0 },
             ].map(({ label, valor, ok }) => (
               <div key={label} style={{ background: 'var(--muted)', borderRadius: '8px', padding: '8px 10px' }}>
                 <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '2px' }}>{label}</div>
                 <div style={{ fontSize: '14px', fontWeight: 600, color: ok ? '#3B6D11' : '#A32D2D' }}>{valor}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            {[
-              { label: 'Impacto ec.', pts: cards.proveedorCritico.scoreBreakdown.costo },
-              { label: 'SLA',   pts: cards.proveedorCritico.scoreBreakdown.sla },
-              { label: 'MTTR',  pts: cards.proveedorCritico.scoreBreakdown.mttr },
-              { label: 'Reinc.', pts: cards.proveedorCritico.scoreBreakdown.reincidencia },
-              { label: 'Incid.', pts: cards.proveedorCritico.scoreBreakdown.incidentes },
-            ].map(({ label, pts }) => (
-              <div key={label} style={{ display: 'grid', gridTemplateColumns: '55px 1fr 36px', gap: '6px', alignItems: 'center' }}>
-                <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{label}</span>
-                <div style={{ height: '4px', background: 'var(--muted)', borderRadius: '2px', overflow: 'hidden' }}>
-                  <div style={{ height: '4px', width: `${pts}%`, background: '#EA580C', borderRadius: '2px' }} />
-                </div>
-                <span style={{ fontSize: '11px', fontWeight: 500, textAlign: 'right' }}>{pts}</span>
               </div>
             ))}
           </div>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { tiendas, proveedores, incidentes, contratosProveedor } from '@/drizzle/schema'
 import { eq, gte, sql, and, isNotNull, desc, count } from 'drizzle-orm'
+import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
 import { DASHBOARD_CONFIG } from '@/lib/dashboard-config'
 
@@ -75,7 +76,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       mttrAvg:   sql<number>`round(avg(${incidentes.mttrMinutos}))::int`,
       mttrTotal: sql<number>`coalesce(sum(${incidentes.mttrMinutos}), 0)::int`,
     }).from(incidentes)
-      .where(and(eq(incidentes.tiendaId, tiendaId), eq(incidentes.proveedorId, id)))
+      .leftJoin(tiendas, eq(incidentes.tiendaId, tiendas.id))
+      .where(and(
+        eq(incidentes.tiendaId, tiendaId),
+        sql`(${incidentes.proveedorId} = ${id}::uuid OR (${incidentes.proveedorId} IS NULL AND ${tiendas.proveedorId} = ${id}::uuid))`,
+      ))
     if (r) historicData = { total: r.total, mttrAvg: r.mttrAvg, mttrTotal: r.mttrTotal }
   } catch { /* skip */ }
 
@@ -126,6 +131,51 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     ? Math.round((mttrTotal / 60) * ventaHora * DASHBOARD_CONFIG.MARGEN_BRUTO * 100) / 100
     : null
 
+  // Proveedores anteriores: distintos a id que tienen incidentes en esta tienda
+  let proveedoresAnteriores: any[] = []
+  try {
+    const provAnterior = alias(proveedores, 'pa')
+    const rows = await db.select({
+      proveedorId:     incidentes.proveedorId,
+      proveedorNombre: provAnterior.nombre,
+      totalIncidentes: sql<number>`count(${incidentes.id})::int`,
+      mttrPromedio:    sql<number>`round(avg(${incidentes.mttrMinutos}))::int`,
+      ultimoIncidente: sql<string>`max(${incidentes.horaRegistro})`,
+    }).from(incidentes)
+      .leftJoin(provAnterior, eq(incidentes.proveedorId, provAnterior.id))
+      .where(and(
+        eq(incidentes.tiendaId, tiendaId),
+        isNotNull(incidentes.proveedorId),
+        sql`${incidentes.proveedorId} IS DISTINCT FROM ${id}::uuid`,
+      ))
+      .groupBy(incidentes.proveedorId, provAnterior.nombre)
+      .orderBy(desc(sql`count(${incidentes.id})`)) as any[]
+
+    // SLA por proveedor anterior (misma lógica que slaTienda)
+    const slaRows = await db.execute(sql`
+      SELECT
+        i.proveedor_id,
+        count(*) filter (where e.estado_cronometro in ('RESPONDIDO','VENCIDO')) as total_closed,
+        count(*) filter (where e.estado_cronometro = 'RESPONDIDO')              as respondidos
+      FROM escalamientos e
+      JOIN incidentes i ON e.incidente_id = i.id
+      WHERE i.tienda_id    = ${tiendaId}
+        AND i.proveedor_id IS NOT NULL
+        AND i.proveedor_id != ${id}::uuid
+      GROUP BY i.proveedor_id
+    `)
+    const slaMap: Record<string, number | null> = {}
+    for (const r of slaRows as any[]) {
+      const tc = Number(r.total_closed ?? 0)
+      slaMap[r.proveedor_id] = tc > 0 ? Math.round((Number(r.respondidos) / tc) * 100) : null
+    }
+
+    proveedoresAnteriores = rows.map((r: any) => ({
+      ...r,
+      slaPromedio: slaMap[r.proveedorId] ?? null,
+    }))
+  } catch { /* skip */ }
+
   return NextResponse.json({
     tienda,
     contrato,
@@ -141,5 +191,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     },
     lastIncidente: lastInc ?? null,
     historial,
+    proveedoresAnteriores,
   })
 }

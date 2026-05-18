@@ -11,15 +11,15 @@ export const SLA_RESPUESTA_MIN = 60
 
 /** Tiempo máximo (min) para resolución total, medido desde hora_correo_n1 */
 export const SLA_RESOLUCION_POR_TIPO: Record<string, number> = {
-  CAIDA_TOTAL:   240,  // 4h
-  INTERMITENCIA: 480,  // 8h
-  LENTITUD:      720,  // 12h
-  POS:           240,  // 4h
-  OTROS:         240,  // 4h
+  CAIDA_TOTAL:   60,
+  INTERMITENCIA: 120,
+  LENTITUD:      240,
+  POS:           60,
+  OTROS:         120,
 }
 
 export function getSlaResolucionMin(tipo: string): number {
-  return SLA_RESOLUCION_POR_TIPO[tipo] ?? 240
+  return SLA_RESOLUCION_POR_TIPO[tipo] ?? 60
 }
 
 // ─── Helpers de tiempo ────────────────────────────────────────────────────────
