@@ -194,6 +194,7 @@ export default function DashboardAnalitico() {
   const [proveedorId, setProveedorId] = useState('')
   const [data, setData] = useState<DashboardAnaliticoResponse | null>(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(false)
   const [openCard, setOpenCard] = useState<string | null>(null)
   const [rotatingIdx, setRotatingIdx] = useState(0)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -202,11 +203,15 @@ export default function DashboardAnalitico() {
 
   const fetchData = useCallback(async (d = desde, h = hasta, pId = proveedorId) => {
     setLoading(true)
+    setError(false)
     try {
       const params = new URLSearchParams({ desde: d, hasta: h })
       if (pId) params.set('proveedorId', pId)
       const res = await fetch(`/api/dashboard/analitico?${params}`)
       if (res.ok) setData(await res.json())
+      else setError(true)
+    } catch {
+      setError(true)
     } finally {
       setLoading(false)
     }
@@ -248,7 +253,7 @@ export default function DashboardAnalitico() {
         <select value={proveedorId} onChange={(e) => setProveedorId(e.target.value)}
           style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
           <option value="">Todos los proveedores</option>
-          {(data.proveedores ?? []).map((p: any) => (
+          {(data?.proveedores ?? []).map((p: any) => (
             <option key={p.nombre} value={p.nombre}>{p.nombre}</option>
           ))}
         </select>
@@ -266,6 +271,12 @@ export default function DashboardAnalitico() {
         </button>
       </div>
 
+      {!loading && error && (
+        <div style={{ padding: '32px', textAlign: 'center', color: '#A32D2D', fontSize: '14px', fontWeight: 500 }}>
+          Error cargando datos. Intenta de nuevo.
+        </div>
+      )}
+      {!error && <>
       {/* 7 Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '10px', marginBottom: '8px' }}>
 
@@ -774,6 +785,7 @@ export default function DashboardAnalitico() {
           />
         </div>
       </div>
+      </>}
     </>
   )
 }
