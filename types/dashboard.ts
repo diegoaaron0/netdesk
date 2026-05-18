@@ -38,7 +38,7 @@ export interface SlaProveedor {
   slaPct: number
   excessoRespuestaMin: number
   excessoResolucionMin: number
-  tiendas: Array<{ codigo: string; slaPct: number }>
+  tiendas: Array<{ codigo: string; fecha: string; tipo: string; excRespMin: number | null; excResolMin: number | null; duracionMin: number | null; cumplido: boolean }>
 }
 
 export interface SlaEvaluableItem {

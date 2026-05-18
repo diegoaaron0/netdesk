@@ -528,24 +528,7 @@ export default function DashboardAnalitico() {
 
       {openCard === 'sla' && cards && (
         <Panel title="Cumplimiento SLA" onClose={() => setOpenCard(null)}>
-          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Incidentes evaluables</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '100px 70px 1fr 80px auto', gap: '8px', padding: '0 0 6px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
-            {['Código','Tienda','Proveedor','Tipo','SLA'].map((h) => (
-              <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
-            ))}
-          </div>
-          {cards.cumplimientoSLA.evaluables.map((e, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '100px 70px 1fr 80px auto', gap: '8px', padding: '5px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
-              <span style={{ fontFamily: 'monospace', fontSize: '11px', color: 'var(--muted-foreground)' }}>{e.codigo}</span>
-              <span style={{ fontSize: '11px', fontWeight: 500 }}>{e.tiendaCodigo}</span>
-              <span style={{ fontSize: '11px' }}>{e.proveedor}</span>
-              <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{fmtTipo(e.tipo)}</span>
-              <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: e.cumplido ? '#EAF3DE' : '#FCEBEB', color: e.cumplido ? '#3B6D11' : '#A32D2D', whiteSpace: 'nowrap' }}>
-                {e.cumplido ? '✓ OK' : '✗ Fuera'}
-              </span>
-            </div>
-          ))}
-          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '14px 0 6px' }}>Resumen por proveedor</div>
+          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Resumen por proveedor</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 80px 80px auto', gap: '8px', padding: '0 0 8px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
             {['Proveedor', 'SLA%', 'Exceso resp.', 'Exceso resol.', 'Estado'].map((h) => (
               <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
@@ -571,26 +554,46 @@ export default function DashboardAnalitico() {
                 </div>
                 {isSelected && p.tiendas.length > 0 && (
                   <div style={{ margin: '4px 0 8px 8px', padding: '8px', background: 'var(--muted)', borderRadius: '8px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px auto', gap: '8px', marginBottom: '4px' }}>
-                      {['Tienda', 'SLA%', 'Estado'].map((h) => (
+                    <div style={{ display: 'grid', gridTemplateColumns: '70px 85px 90px 75px 75px 90px 55px', gap: '8px', marginBottom: '4px' }}>
+                      {['Código','Fecha','Tipo','Exc.Resp.','Exc.Resol.','Duración total','SLA'].map((h) => (
                         <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
                       ))}
                     </div>
-                    {p.tiendas.map((t, j) => {
-                      const tb = slaBadge(t.slaPct)
-                      return (
-                        <div key={j} style={{ display: 'grid', gridTemplateColumns: '1fr 60px auto', gap: '8px', padding: '4px 0', borderTop: j > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
-                          <span style={{ fontSize: '11px' }}>{t.codigo}</span>
-                          <span style={{ fontSize: '11px', fontWeight: 500, color: tb.color }}>{t.slaPct}%</span>
-                          <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', background: tb.bg, color: tb.color, whiteSpace: 'nowrap' }}>{tb.label}</span>
-                        </div>
-                      )
-                    })}
+                    {p.tiendas.map((t, j) => (
+                      <div key={j} style={{ display: 'grid', gridTemplateColumns: '70px 85px 90px 75px 75px 90px 55px', gap: '8px', padding: '5px 0', borderTop: j > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 500 }}>{t.codigo}</span>
+                        <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{t.fecha}</span>
+                        <span style={{ fontSize: '11px' }}>{fmtTipo(t.tipo)}</span>
+                        <span style={{ fontSize: '11px', fontFamily: 'monospace', color: t.excRespMin ? '#A32D2D' : 'var(--muted-foreground)' }}>{t.excRespMin ? `+${fmtMttr(t.excRespMin)}` : '—'}</span>
+                        <span style={{ fontSize: '11px', fontFamily: 'monospace', color: t.excResolMin ? '#A32D2D' : 'var(--muted-foreground)' }}>{t.excResolMin ? `+${fmtMttr(t.excResolMin)}` : '—'}</span>
+                        <span style={{ fontSize: '11px', fontFamily: 'monospace' }}>{t.duracionMin ? fmtMttr(t.duracionMin) : '—'}</span>
+                        <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', background: t.cumplido ? '#EAF3DE' : '#FCEBEB', color: t.cumplido ? '#3B6D11' : '#A32D2D', whiteSpace: 'nowrap' }}>
+                          {t.cumplido ? '✓ OK' : '✗ Fuera'}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
             )
           })}
+          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '14px 0 6px' }}>Incidentes evaluables</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '100px 70px 1fr 80px auto', gap: '8px', padding: '0 0 6px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
+            {['Código','Tienda','Proveedor','Tipo','SLA'].map((h) => (
+              <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
+            ))}
+          </div>
+          {cards.cumplimientoSLA.evaluables.map((e, i) => (
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '100px 70px 1fr 80px auto', gap: '8px', padding: '5px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
+              <span style={{ fontFamily: 'monospace', fontSize: '11px', color: 'var(--muted-foreground)' }}>{e.codigo}</span>
+              <span style={{ fontSize: '11px', fontWeight: 500 }}>{e.tiendaCodigo}</span>
+              <span style={{ fontSize: '11px' }}>{e.proveedor}</span>
+              <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{fmtTipo(e.tipo)}</span>
+              <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: e.cumplido ? '#EAF3DE' : '#FCEBEB', color: e.cumplido ? '#3B6D11' : '#A32D2D', whiteSpace: 'nowrap' }}>
+                {e.cumplido ? '✓ OK' : '✗ Fuera'}
+              </span>
+            </div>
+          ))}
         </Panel>
       )}
 

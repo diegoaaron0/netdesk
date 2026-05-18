@@ -295,7 +295,8 @@ function buildCards(
     excessResolSum: number; excessResolCount: number
   }
   const slaByProv = new Map<string, SlaProvAccum>()
-  const slaByProvTiendas = new Map<string, Map<string, { ok: number; total: number }>>()
+  type SlaIncRow = { codigo: string; fecha: string; tipo: string; excRespMin: number | null; excResolMin: number | null; duracionMin: number | null; cumplido: boolean }
+  const slaByProvIncidentes = new Map<string, SlaIncRow[]>()
 
   let slaCumplidos = 0
   let slaEvaluablesCount = 0
@@ -341,12 +342,22 @@ function buildCards(
       }
     }
 
-    if (!slaByProvTiendas.has(prov)) slaByProvTiendas.set(prov, new Map())
-    const tiendaMap = slaByProvTiendas.get(prov)!
-    if (!tiendaMap.has(i.tienda_codigo)) tiendaMap.set(i.tienda_codigo, { ok: 0, total: 0 })
-    const t = tiendaMap.get(i.tienda_codigo)!
-    t.total++
-    if (cumplido) t.ok++
+    const excRespMin = slaRes.tPrimeraRespuestaMin != null
+      ? Math.max(0, slaRes.tPrimeraRespuestaMin - SLA_RESPUESTA_MIN)
+      : null
+    const excResolMin = slaRes.tResolucionMin != null
+      ? Math.max(0, slaRes.tResolucionMin - slaRes.slaResolucionObj)
+      : null
+    if (!slaByProvIncidentes.has(prov)) slaByProvIncidentes.set(prov, [])
+    slaByProvIncidentes.get(prov)!.push({
+      codigo: i.tienda_codigo,
+      fecha: fmtFechaInc(i.hora_registro),
+      tipo: i.tipo,
+      excRespMin: excRespMin != null && excRespMin > 0 ? excRespMin : null,
+      excResolMin: excResolMin != null && excResolMin > 0 ? excResolMin : null,
+      duracionMin: i.mttr_minutos ?? null,
+      cumplido,
+    })
   }
   const slaPct = slaEvaluablesCount > 0 ? Math.round(slaCumplidos / slaEvaluablesCount * 100) : 0
 
@@ -373,9 +384,7 @@ function buildCards(
       slaPct: s.total > 0 ? Math.round(s.ok / s.total * 100) : 0,
       excessoRespuestaMin: s.excessRespCount > 0 ? Math.round(s.excessRespSum / s.excessRespCount) : 0,
       excessoResolucionMin: s.excessResolCount > 0 ? Math.round(s.excessResolSum / s.excessResolCount) : 0,
-      tiendas: [...(slaByProvTiendas.get(nombre) ?? new Map()).entries()]
-        .map(([codigo, td]) => ({ codigo, slaPct: td.total > 0 ? Math.round(td.ok / td.total * 100) : 0 }))
-        .sort((a, b) => a.slaPct - b.slaPct),
+      tiendas: slaByProvIncidentes.get(nombre) ?? [],
     }))
     .sort((a, b) => b.slaPct - a.slaPct)
 
