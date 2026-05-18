@@ -201,6 +201,7 @@ export default function DashboardAnalitico() {
   const [slaProvSelected, setSlaProvSelected] = useState<string | null>(null)
   const [ieiProvSelected, setIeiProvSelected] = useState<string | null>(null)
   const [ieiTiendaSelected, setIeiTiendaSelected] = useState<string | null>(null)
+  const [provIncOpen, setProvIncOpen] = useState(false)
   const [mttrProvSelected, setMttrProvSelected] = useState<string | null>(null)
 
   const fetchData = useCallback(async (d = desde, h = hasta, pId = proveedorId) => {
@@ -762,18 +763,48 @@ export default function DashboardAnalitico() {
         <Panel title={`${cards.proveedorCritico.nombre} — proveedor más crítico`} onClose={() => setOpenCard(null)}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '14px' }}>
             {[
-              { label: 'SLA', valor: `${cards.proveedorCritico.metricas.slaPct}%`, ok: cards.proveedorCritico.metricas.slaPct >= 90 },
-              { label: 'MTTR prom.', valor: fmtMttr(cards.proveedorCritico.metricas.mttrMinutos), ok: cards.proveedorCritico.metricas.mttrMinutos < 120 },
-              { label: 'I.E.I', valor: fmtCosto(cards.proveedorCritico.metricas.costoEstimado), ok: false },
-              { label: 'Incidentes', valor: String(cards.proveedorCritico.metricas.incidentes), ok: cards.proveedorCritico.metricas.incidentes <= 2 },
-              { label: 'Tiendas reinc.', valor: String(cards.proveedorCritico.metricas.reincidenciaTiendas), ok: cards.proveedorCritico.metricas.reincidenciaTiendas === 0 },
-            ].map(({ label, valor, ok }) => (
-              <div key={label} style={{ background: 'var(--muted)', borderRadius: '8px', padding: '8px 10px' }}>
-                <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '2px' }}>{label}</div>
+              { label: 'SLA', valor: `${cards.proveedorCritico.metricas.slaPct}%`, ok: cards.proveedorCritico.metricas.slaPct >= 90, click: false },
+              { label: 'MTTR prom.', valor: fmtMttr(cards.proveedorCritico.metricas.mttrMinutos), ok: cards.proveedorCritico.metricas.mttrMinutos < 120, click: false },
+              { label: 'I.E.I', valor: fmtCosto(cards.proveedorCritico.metricas.costoEstimado), ok: false, click: false },
+              { label: 'Incidentes', valor: String(cards.proveedorCritico.metricas.incidentes), ok: cards.proveedorCritico.metricas.incidentes <= 2, click: true },
+              { label: 'Tiendas reinc.', valor: String(cards.proveedorCritico.metricas.reincidenciaTiendas), ok: cards.proveedorCritico.metricas.reincidenciaTiendas === 0, click: false },
+            ].map(({ label, valor, ok, click }) => (
+              <div
+                key={label}
+                onClick={click ? () => setProvIncOpen((v) => !v) : undefined}
+                style={{ background: (click && provIncOpen) ? '#e2e8f0' : 'var(--muted)', borderRadius: '8px', padding: '8px 10px', cursor: click ? 'pointer' : 'default' }}>
+                <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '2px' }}>{label}{click ? ' ↓' : ''}</div>
                 <div style={{ fontSize: '14px', fontWeight: 600, color: ok ? '#3B6D11' : '#A32D2D' }}>{valor}</div>
               </div>
             ))}
           </div>
+          {provIncOpen && cards.proveedorCritico.incidentesDetalle.length > 0 && (
+            <div>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Incidentes del proveedor</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '80px 60px 90px 65px 55px 75px 90px', gap: '8px', padding: '0 0 6px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
+                {['Código','Tienda','Tipo','MTTR','SLA','IEI','Fecha'].map((h) => (
+                  <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
+                ))}
+              </div>
+              {[...cards.proveedorCritico.incidentesDetalle].sort((a, b) => b.iei - a.iei).map((inc, i) => (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '80px 60px 90px 65px 55px 75px 90px', gap: '8px', padding: '5px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
+                  <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#185FA5' }}>{inc.codigo}</span>
+                  <span style={{ fontSize: '11px', fontWeight: 500 }}>{inc.tiendaCodigo}</span>
+                  <span style={{ fontSize: '11px' }}>{fmtTipo(inc.tipo)}</span>
+                  <span style={{ fontSize: '11px', fontFamily: 'monospace', color: mttrColor(inc.mttrMinutos) }}>{fmtMttr(inc.mttrMinutos)}</span>
+                  {inc.slaCumplido == null ? (
+                    <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', background: '#F1F5F9', color: '#475569', whiteSpace: 'nowrap' }}>N/A</span>
+                  ) : (
+                    <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', background: inc.slaCumplido ? '#EAF3DE' : '#FCEBEB', color: inc.slaCumplido ? '#3B6D11' : '#A32D2D', whiteSpace: 'nowrap' }}>
+                      {inc.slaCumplido ? '✓ OK' : '✗ Fuera'}
+                    </span>
+                  )}
+                  <span style={{ fontSize: '11px', fontFamily: 'monospace' }}>{fmtCosto(inc.iei)}</span>
+                  <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{inc.horaRegistro}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </Panel>
       )}
 

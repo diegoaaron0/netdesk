@@ -149,6 +149,16 @@ export interface ProveedorCriticoCard {
     reincidencia: number
     incidentes: number
   }
+  incidentesDetalle: Array<{
+    codigo: string
+    tiendaCodigo: string
+    tipo: string
+    estado: string
+    mttrMinutos: number | null
+    slaCumplido: boolean | null
+    iei: number
+    horaRegistro: string
+  }>
 }
 
 export interface DashboardAnaliticoResponse {

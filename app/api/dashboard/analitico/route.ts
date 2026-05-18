@@ -554,6 +554,26 @@ function buildCards(
     scored.sort((a, b) => b.score - a.score)
     const top = scored[0]
     if (top.score >= 30) {
+      const provIncs = incs.filter((i) => (i.prov_nombre ?? '—') === top.nombre)
+      const incidentesDetalle = provIncs.slice(0, 20).map((i) => {
+        const slaRes = calcSLARow({
+          tipo: i.tipo, hora_correo_n1: i.hora_correo_n1,
+          hora_primera_resp: i.hora_primera_resp, hora_fin: i.hora_fin, max_nivel: i.max_nivel,
+        })
+        const { costo } = calcCostoIncidente(i, ventasDiarias)
+        const fecha = new Date(i.hora_registro).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', timeZone: 'America/Lima' })
+        const hora  = new Date(i.hora_registro).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Lima' })
+        return {
+          codigo: i.codigo,
+          tiendaCodigo: i.tienda_codigo,
+          tipo: i.tipo,
+          estado: i.estado,
+          mttrMinutos: i.mttr_minutos ?? null,
+          slaCumplido: slaRes.evaluable ? slaRes.slaGeneral : null,
+          iei: Math.round(costo),
+          horaRegistro: `${fecha} ${hora}`,
+        }
+      })
       proveedorCritico = {
         nombre: top.nombre,
         score: top.score,
@@ -565,6 +585,7 @@ function buildCards(
           incidentes: top.incidentes,
         },
         scoreBreakdown: top.breakdown as { costo: number; sla: number; mttr: number; reincidencia: number; incidentes: number },
+        incidentesDetalle,
       }
     }
   }
