@@ -9,6 +9,7 @@ export async function GET(req: Request) {
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   if (!can(session, 'reportes.ver')) return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
 
+  try {
   const { searchParams } = new URL(req.url)
   const desde  = searchParams.get('desde') ?? new Date(Date.now() - 30 * 86400000).toISOString()
   const hasta  = searchParams.get('hasta') ?? new Date().toISOString()
@@ -208,4 +209,7 @@ export async function GET(req: Request) {
       'Content-Disposition': `attachment; filename="netdesk_incidentes_operativos_${desdeLabel}_${hastaLabel}.csv"`,
     },
   })
+  } catch (err: any) {
+    return NextResponse.json({ error: String(err), stack: err?.stack }, { status: 500 })
+  }
 }
