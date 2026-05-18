@@ -136,7 +136,7 @@ export default function SlaTrendSixMonthsCard({ proveedorId, refreshKey }: Props
     finally { setLoading(false) }
   }, [proveedorId])
 
-  useEffect(() => { fetchData() }, [refreshKey])
+  useEffect(() => { fetchData() }, [refreshKey, proveedorId])
 
   const proveedores = data?.proveedoresEnGrafico ?? []
   const chartData   = data?.chartData ?? []

@@ -110,7 +110,7 @@ export default function GeographicImpactCard({ desde, hasta, proveedorId, refres
     finally { setLoading(false) }
   }, [desde, hasta, proveedorId])
 
-  useEffect(() => { fetchData() }, [refreshKey])
+  useEffect(() => { fetchData() }, [refreshKey, proveedorId])
 
   const zonas = data?.zonas ?? []
   const maxInc = Math.max(...zonas.map((z) => z.incidentes), 1)

@@ -118,7 +118,7 @@ export default function TendenciaSLACard({ desde, hasta, proveedorId, refreshKey
     } finally { setLoading(false) }
   }, [desde, hasta, proveedorId])
 
-  useEffect(() => { fetchData() }, [refreshKey])
+  useEffect(() => { fetchData() }, [refreshKey, proveedorId])
 
   const alertas = (data ?? []).filter((d) => d.slaPct != null && d.slaPct < 70)
 
