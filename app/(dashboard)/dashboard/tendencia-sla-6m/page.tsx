@@ -103,6 +103,7 @@ function TendenciaSLA6mInner() {
   const [data, setData]               = useState<SLATrendResponse | null>(null)
   const [loading, setLoading]         = useState(false)
   const [mostrarTodosMeses, setMostrarTodosMeses] = useState(false)
+  const [mostrarCeroEvaluables, setMostrarCeroEvaluables] = useState(false)
 
   const fetchData = useCallback(async (d = desde, h = hasta, pId = proveedorFiltro) => {
     setLoading(true)
@@ -228,106 +229,10 @@ function TendenciaSLA6mInner() {
         ))}
       </div>
 
-      {/* 1. Resumen mensual */}
-      <div style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
-        <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>1. Resumen mensual por proveedor</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr 90px 80px 75px 65px 90px 75px', gap: '8px', padding: '0 0 8px', borderBottom: '0.5px solid var(--border)' }}>
-          {['Mes', 'Proveedor', 'Evaluables', 'Dentro SLA', 'Fuera SLA', 'SLA %', 'Variación', 'Estado'].map((h) => (
-            <span key={h} style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</span>
-          ))}
-        </div>
-        {loading ? (
-          Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '90px 1fr 90px 80px 75px 65px 90px 75px', gap: '8px', padding: '9px 0', borderBottom: '0.5px solid var(--border)', alignItems: 'center' }}>
-              {Array.from({ length: 8 }).map((_, j) => <Sk key={j} w={j < 2 ? '80%' : '50%'} />)}
-            </div>
-          ))
-        ) : (
-          <>
-            {mesesVisibles.map((mesKey) => {
-              const pp = puntos.filter((p) => p.mesKey === mesKey).sort((a, b) => a.proveedor.localeCompare(b.proveedor))
-              return pp.map((p, i) => (
-                <div key={`${mesKey}-${p.proveedor}`} style={{ display: 'grid', gridTemplateColumns: '90px 1fr 90px 80px 75px 65px 90px 75px', gap: '8px', padding: '9px 0', borderBottom: '0.5px solid var(--border)', alignItems: 'center', background: i === 0 ? '#FAFAFA' : 'transparent' }}>
-                  <span style={{ fontSize: '12px', fontWeight: i === 0 ? 600 : 400, color: i === 0 ? '#0f172a' : 'transparent' }}>{i === 0 ? p.mesLabel : ''}</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: getProvColor(p.proveedor), flexShrink: 0 }} />
-                    <span style={{ fontSize: '12px' }}>{p.proveedor}</span>
-                  </div>
-                  <span style={{ fontSize: '12px', textAlign: 'center' }}>{p.evaluables}</span>
-                  <span style={{ fontSize: '12px', textAlign: 'center' }}>{p.dentraSLA}</span>
-                  <span style={{ fontSize: '12px', textAlign: 'center', color: p.fueraSLA > 0 ? '#A32D2D' : 'var(--muted-foreground)' }}>{p.fueraSLA}</span>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: estadoColor(p.estado) }}>{p.slaPct != null ? `${p.slaPct}%` : '—'}</span>
-                  <span style={{ fontSize: '11px', fontWeight: 500, color: p.variacionPP == null ? '#94A3B8' : p.variacionPP >= 0 ? '#3B6D11' : '#A32D2D' }}>
-                    {fmtPP(p.variacionPP)}
-                  </span>
-                  <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 6px', borderRadius: '999px', background: estadoBg(p.estado), color: estadoColor(p.estado), whiteSpace: 'nowrap' }}>
-                    {estadoLabel(p.estado)}
-                  </span>
-                </div>
-              ))
-            })}
-            {meses.length > 3 && (
-              <button
-                onClick={() => setMostrarTodosMeses(!mostrarTodosMeses)}
-                style={{ marginTop: '8px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: '#185FA5', fontWeight: 500 }}
-              >
-                {mostrarTodosMeses ? `Mostrar menos ↑` : `Ver todos los meses (${meses.length}) ↓`}
-              </button>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* 2. Comparativo de tendencia */}
-      <div style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
-        <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>2. Comparativo de tendencia ({meses.length} meses)</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 110px 110px 80px 100px 140px', gap: '8px', padding: '0 0 8px', borderBottom: '0.5px solid var(--border)' }}>
-          {['Proveedor', 'SLA prom.', 'Mejor mes', 'Peor mes', 'Variación', 'Meses bajo meta', 'Estado tendencia'].map((h) => (
-            <span key={h} style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</span>
-          ))}
-        </div>
-        {loading ? (
-          Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 110px 110px 80px 100px 140px', gap: '8px', padding: '10px 0', borderBottom: '0.5px solid var(--border)', alignItems: 'center' }}>
-              {Array.from({ length: 7 }).map((_, j) => <Sk key={j} w={j === 0 ? '80%' : '55%'} />)}
-            </div>
-          ))
-        ) : resumen.length === 0 ? (
-          <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', padding: '20px 0', textAlign: 'center' }}>Sin datos</div>
-        ) : (
-          resumen.map((r, i) => {
-            const criticoSostenido = (r.mejorMes != null && r.mejorMes === r.peorMes) || r.slaPromedio === 0
-            return (
-            <div key={r.proveedor} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 110px 110px 80px 100px 140px', gap: '8px', padding: '10px 0', borderBottom: i < resumen.length - 1 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: getProvColor(r.proveedor), flexShrink: 0 }} />
-                <span style={{ fontSize: '12px', fontWeight: 600 }}>{r.proveedor}</span>
-              </div>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: r.slaPromedio != null ? estadoColor(r.slaPromedio >= 90 ? 'optimo' : r.slaPromedio >= 70 ? 'revisar' : 'critico') : '#94A3B8' }}>
-                {r.slaPromedio != null ? `${r.slaPromedio}%` : '—'}
-              </span>
-              <span style={{ fontSize: criticoSostenido ? '10px' : '11px', fontWeight: criticoSostenido ? 600 : 400, color: criticoSostenido ? '#A32D2D' : '#3B6D11' }}>
-                {criticoSostenido ? 'SLA crítico sostenido' : (r.mejorMes ? `${r.mejorMes} ${r.mejorMesSLA}%` : '—')}
-              </span>
-              <span style={{ fontSize: criticoSostenido ? '10px' : '11px', fontWeight: criticoSostenido ? 600 : 400, color: '#A32D2D' }}>
-                {criticoSostenido ? 'SLA crítico sostenido' : (r.peorMes ? `${r.peorMes} ${r.peorMesSLA}%` : '—')}
-              </span>
-              <span style={{ fontSize: '12px', fontWeight: 500, color: r.variacionTotal == null ? '#94A3B8' : r.variacionTotal >= 0 ? '#3B6D11' : '#A32D2D' }}>
-                {fmtPP(r.variacionTotal)}
-              </span>
-              <span style={{ fontSize: '12px', textAlign: 'center' }}>{r.mesesBajoMeta}</span>
-              <span style={{ fontSize: '10px', fontWeight: 600, padding: '3px 8px', borderRadius: '999px', background: tendenciaBg(r.estadoTendencia), color: tendenciaColor(r.estadoTendencia), whiteSpace: 'nowrap' }}>
-                {r.estadoTendencia}
-              </span>
-            </div>
-          )})
-        )}
-      </div>
-
-      {/* 3. Meses críticos */}
+      {/* 1. Meses críticos y recomendaciones */}
       {(loading || mesCrit.length > 0) && (
         <div style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
-          <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>3. Meses críticos (SLA &lt; 70% o caída &gt; 10 pp)</div>
+          <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>1. Meses críticos y recomendaciones (SLA &lt; 70% o caída &gt; 10 pp)</div>
           <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr 60px 65px 75px 1fr 1fr', gap: '8px', padding: '0 0 8px', borderBottom: '0.5px solid var(--border)' }}>
             {['Mes', 'Proveedor', 'SLA %', 'Fuera SLA', 'Variación', 'Causa principal', 'Recomendación'].map((h) => (
               <span key={h} style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</span>
@@ -360,61 +265,135 @@ function TendenciaSLA6mInner() {
         </div>
       )}
 
-      {/* 4. Análisis de tendencia — mini sparklines per provider */}
-      {!loading && proveedores.length > 0 && chartData.length > 0 && (
-        <div style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
-          <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>4. Análisis de tendencia</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-            {proveedores.map((prov) => {
-              const r = resumen.find((rr) => rr.proveedor === prov)
-              const sinEvaluables = chartData.every((d) => (d as Record<string, unknown>)[prov] == null)
-              return (
-                <div key={prov} style={{ flex: '1 1 200px', minWidth: '180px', maxWidth: '280px', background: '#FAFAFA', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: getProvColor(prov), flexShrink: 0 }} />
-                    <span style={{ fontSize: '13px', fontWeight: 700 }}>{prov}</span>
-                  </div>
+      {/* 2. Tendencia por proveedor */}
+      <div style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
+        <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>2. Tendencia por proveedor ({meses.length} meses)</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 110px 110px 80px 100px 140px 84px', gap: '8px', padding: '0 0 8px', borderBottom: '0.5px solid var(--border)' }}>
+          {['Proveedor', 'SLA prom.', 'Mejor mes', 'Peor mes', 'Variación', 'Meses bajo meta', 'Estado tendencia', 'Evolución'].map((h) => (
+            <span key={h} style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</span>
+          ))}
+        </div>
+        {loading ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 110px 110px 80px 100px 140px 84px', gap: '8px', padding: '10px 0', borderBottom: '0.5px solid var(--border)', alignItems: 'center' }}>
+              {Array.from({ length: 8 }).map((_, j) => <Sk key={j} w={j === 0 ? '80%' : '55%'} />)}
+            </div>
+          ))
+        ) : resumen.length === 0 ? (
+          <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', padding: '20px 0', textAlign: 'center' }}>Sin datos</div>
+        ) : (
+          resumen.map((r, i) => {
+            const criticoSostenido = (r.mejorMes != null && r.mejorMes === r.peorMes) || r.slaPromedio === 0
+            const sinEvaluables = chartData.every((d) => (d as Record<string, unknown>)[r.proveedor] == null)
+            return (
+              <div key={r.proveedor} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 110px 110px 80px 100px 140px 84px', gap: '8px', padding: '10px 0', borderBottom: i < resumen.length - 1 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: getProvColor(r.proveedor), flexShrink: 0 }} />
+                  <span style={{ fontSize: '12px', fontWeight: 600 }}>{r.proveedor}</span>
+                </div>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: r.slaPromedio != null ? estadoColor(r.slaPromedio >= 90 ? 'optimo' : r.slaPromedio >= 70 ? 'revisar' : 'critico') : '#94A3B8' }}>
+                  {r.slaPromedio != null ? `${r.slaPromedio}%` : '—'}
+                </span>
+                <span style={{ fontSize: criticoSostenido ? '10px' : '11px', fontWeight: criticoSostenido ? 600 : 400, color: criticoSostenido ? '#A32D2D' : '#3B6D11' }}>
+                  {criticoSostenido ? 'SLA crítico sostenido' : (r.mejorMes ? `${r.mejorMes} ${r.mejorMesSLA}%` : '—')}
+                </span>
+                <span style={{ fontSize: criticoSostenido ? '10px' : '11px', fontWeight: criticoSostenido ? 600 : 400, color: '#A32D2D' }}>
+                  {criticoSostenido ? 'SLA crítico sostenido' : (r.peorMes ? `${r.peorMes} ${r.peorMesSLA}%` : '—')}
+                </span>
+                <span style={{ fontSize: '12px', fontWeight: 500, color: r.variacionTotal == null ? '#94A3B8' : r.variacionTotal >= 0 ? '#3B6D11' : '#A32D2D' }}>
+                  {fmtPP(r.variacionTotal)}
+                </span>
+                <span style={{ fontSize: '12px', textAlign: 'center' }}>{r.mesesBajoMeta}</span>
+                <span style={{ fontSize: '10px', fontWeight: 600, padding: '3px 8px', borderRadius: '999px', background: tendenciaBg(r.estadoTendencia), color: tendenciaColor(r.estadoTendencia), whiteSpace: 'nowrap' }}>
+                  {r.estadoTendencia}
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {sinEvaluables ? (
-                    <div style={{ height: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <span style={{ fontSize: '11px', color: '#94A3B8', fontStyle: 'italic', textAlign: 'center', lineHeight: 1.4 }}>
-                        Sin incidentes evaluables en el período
-                      </span>
-                    </div>
+                    <span style={{ fontSize: '10px', color: '#94A3B8' }}>—</span>
                   ) : (
-                    <ResponsiveContainer width="100%" height={60}>
-                      <LineChart data={chartData} margin={{ top: 6, right: 6, bottom: 0, left: 0 }}>
-                        <ReferenceLine y={90} stroke="#6366F1" strokeDasharray="4 2" strokeWidth={1} />
-                        <Line type="monotone" dataKey={prov} stroke={getProvColor(prov)} strokeWidth={2} dot={{ r: 3, fill: getProvColor(prov) }} connectNulls />
-                        <XAxis dataKey="mesLabel" hide />
-                        <YAxis domain={[0, 100]} hide />
-                        <Tooltip formatter={(v: any) => [`${v}%`, 'SLA']} labelFormatter={(l) => String(l)} contentStyle={{ fontSize: '10px', padding: '4px 8px' }} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  )}
-                  {r && (
-                    <div style={{ marginTop: '6px' }}>
-                      <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Tendencia:</div>
-                      <span style={{ fontSize: '10px', fontWeight: 600, padding: '1px 7px', borderRadius: '999px', background: tendenciaBg(r.estadoTendencia), color: tendenciaColor(r.estadoTendencia) }}>
-                        {r.estadoTendencia}
-                      </span>
-                      {r.variacionTotal != null && (
-                        <div style={{ fontSize: '11px', fontWeight: 500, color: r.variacionTotal >= 0 ? '#3B6D11' : '#A32D2D', marginTop: '4px' }}>
-                          {fmtPP(r.variacionTotal)} en {meses.length} meses
-                        </div>
-                      )}
-                    </div>
+                    <LineChart width={80} height={32} data={chartData} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
+                      <Line type="monotone" dataKey={r.proveedor} stroke={getProvColor(r.proveedor)} strokeWidth={1.5} dot={false} connectNulls />
+                    </LineChart>
                   )}
                 </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
+              </div>
+            )
+          })
+        )}
+      </div>
 
-      {/* 5. Conclusiones */}
+      {/* 3. Resumen mensual detallado */}
+      <div style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
+        <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>3. Resumen mensual detallado</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr 90px 80px 75px 65px 90px 75px', gap: '8px', padding: '0 0 8px', borderBottom: '0.5px solid var(--border)' }}>
+          {['Mes', 'Proveedor', 'Evaluables', 'Dentro SLA', 'Fuera SLA', 'SLA %', 'Variación', 'Estado'].map((h) => (
+            <span key={h} style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</span>
+          ))}
+        </div>
+        {loading ? (
+          Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '90px 1fr 90px 80px 75px 65px 90px 75px', gap: '8px', padding: '9px 0', borderBottom: '0.5px solid var(--border)', alignItems: 'center' }}>
+              {Array.from({ length: 8 }).map((_, j) => <Sk key={j} w={j < 2 ? '80%' : '50%'} />)}
+            </div>
+          ))
+        ) : (
+          <>
+            {mesesVisibles.map((mesKey) => {
+              const ppAll = puntos.filter((p) => p.mesKey === mesKey).sort((a, b) => a.proveedor.localeCompare(b.proveedor))
+              const todosCero = ppAll.every((p) => p.evaluables === 0)
+              if (todosCero && !mostrarCeroEvaluables) {
+                return (
+                  <div key={mesKey} style={{ display: 'grid', gridTemplateColumns: '90px 1fr', gap: '8px', padding: '9px 0', borderBottom: '0.5px solid var(--border)', alignItems: 'center', background: '#FAFAFA' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#0f172a' }}>{ppAll[0]?.mesLabel ?? mesKey}</span>
+                    <span style={{ fontSize: '11px', color: '#94A3B8', fontStyle: 'italic' }}>Sin evaluables en este mes</span>
+                  </div>
+                )
+              }
+              const ppMostrar = mostrarCeroEvaluables ? ppAll : ppAll.filter((p) => p.evaluables > 0)
+              return ppMostrar.map((p, i) => (
+                <div key={`${mesKey}-${p.proveedor}`} style={{ display: 'grid', gridTemplateColumns: '90px 1fr 90px 80px 75px 65px 90px 75px', gap: '8px', padding: '9px 0', borderBottom: '0.5px solid var(--border)', alignItems: 'center', background: i === 0 ? '#FAFAFA' : 'transparent' }}>
+                  <span style={{ fontSize: '12px', fontWeight: i === 0 ? 600 : 400, color: i === 0 ? '#0f172a' : 'transparent' }}>{i === 0 ? p.mesLabel : ''}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: getProvColor(p.proveedor), flexShrink: 0 }} />
+                    <span style={{ fontSize: '12px' }}>{p.proveedor}</span>
+                  </div>
+                  <span style={{ fontSize: '12px', textAlign: 'center' }}>{p.evaluables}</span>
+                  <span style={{ fontSize: '12px', textAlign: 'center' }}>{p.dentraSLA}</span>
+                  <span style={{ fontSize: '12px', textAlign: 'center', color: p.fueraSLA > 0 ? '#A32D2D' : 'var(--muted-foreground)' }}>{p.fueraSLA}</span>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: estadoColor(p.estado) }}>{p.slaPct != null ? `${p.slaPct}%` : '—'}</span>
+                  <span style={{ fontSize: '11px', fontWeight: 500, color: p.variacionPP == null ? '#94A3B8' : p.variacionPP >= 0 ? '#3B6D11' : '#A32D2D' }}>
+                    {fmtPP(p.variacionPP)}
+                  </span>
+                  <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 6px', borderRadius: '999px', background: estadoBg(p.estado), color: estadoColor(p.estado), whiteSpace: 'nowrap' }}>
+                    {estadoLabel(p.estado)}
+                  </span>
+                </div>
+              ))
+            })}
+            <div style={{ display: 'flex', gap: '16px', marginTop: '8px', alignItems: 'center' }}>
+              {meses.length > 3 && (
+                <button
+                  onClick={() => setMostrarTodosMeses(!mostrarTodosMeses)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: '#185FA5', fontWeight: 500 }}
+                >
+                  {mostrarTodosMeses ? 'Mostrar menos ↑' : `Ver todos los meses (${meses.length}) ↓`}
+                </button>
+              )}
+              <button
+                onClick={() => setMostrarCeroEvaluables(!mostrarCeroEvaluables)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: '#94A3B8', fontWeight: 500 }}
+              >
+                {mostrarCeroEvaluables ? 'Ocultar sin evaluables ↑' : 'Ver detalle completo ↓'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* 4. Conclusiones automáticas */}
       {!loading && conclusiones.length > 0 && (
         <div style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px', marginBottom: '20px' }}>
-          <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>5. Conclusiones automáticas</div>
+          <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>4. Conclusiones automáticas</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             {conclusiones.map((c, i) => (
               <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', padding: '10px 12px', background: '#FAFAFA', borderRadius: '8px', border: '0.5px solid var(--border)' }}>
