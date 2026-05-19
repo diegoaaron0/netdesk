@@ -113,6 +113,7 @@ export function buildTiposResumen(
       pct: total > 0 ? Math.round((tRows.length / total) * 1000) / 10 : 0,
       tiendasAfectadas: tiendasSet.size,
       proveedorMasAsociado: topEntry(provCount),
+      totalProveedores: Object.keys(provCount).length,
       mttrPromedioMin: avgOrNull(mttrVals),
       slaPct,
       impactoEstimado: Math.round(impactoEstimado),

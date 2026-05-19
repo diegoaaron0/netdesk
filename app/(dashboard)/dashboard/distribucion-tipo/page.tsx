@@ -272,7 +272,14 @@ function DistribucionTipoContent() {
                           <TD align="center"><strong>{t.cantidad}</strong></TD>
                           <TD align="center">{t.pct}%</TD>
                           <TD align="center">{t.tiendasAfectadas}</TD>
-                          <TD><ProvBadge nombre={t.proveedorMasAsociado} /></TD>
+                          <TD>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'nowrap' }}>
+                              <ProvBadge nombre={t.proveedorMasAsociado} />
+                              {t.totalProveedores > 1 && (
+                                <span style={{ fontSize: '10px', color: '#888780', whiteSpace: 'nowrap' }}>+{t.totalProveedores - 1} más</span>
+                              )}
+                            </div>
+                          </TD>
                           <TD mono>{fmtMin(t.mttrPromedioMin)}</TD>
                           <TD align="center"><span style={{ fontWeight: 600, color: slaColor }}>{t.slaPct != null ? `${t.slaPct}%` : '—'}</span></TD>
                           <TD mono>{t.impactoEstimado > 0 ? fmtCosto(t.impactoEstimado) : '—'}</TD>
@@ -415,37 +422,46 @@ function DistribucionTipoContent() {
           </div>
 
           {/* Tabla 4: Patrón detectado */}
-          {patrones.length > 0 && (
-            <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', marginBottom: '12px' }}>Tabla 4 — Patrón detectado por tipo</div>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                  <thead>
-                    <tr>
-                      <TH>Tipo incidente</TH>
-                      <TH>Patrón detectado</TH>
-                      <TH>Proveedor asociado</TH>
-                      <TH align="center">Tiendas repetidas</TH>
-                      <TH>Causa probable</TH>
-                      <TH>Recomendación</TH>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {patrones.map((p, i) => (
-                      <tr key={i}>
-                        <TD><TipoBadge tipo={p.tipo} /></TD>
-                        <TD>{p.patronDetectado}</TD>
-                        <TD><ProvBadge nombre={p.proveedorAsociado} /></TD>
-                        <TD align="center"><strong style={{ color: p.tiendasRepetidas >= 3 ? '#A32D2D' : p.tiendasRepetidas >= 2 ? '#854F0B' : '#0f172a' }}>{p.tiendasRepetidas}</strong></TD>
-                        <TD><span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{p.causaProbable}</span></TD>
-                        <TD><span style={{ fontSize: '11px', color: '#185FA5' }}>{p.recomendacion}</span></TD>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {patrones.length > 0 && (() => {
+            const patronesFiltrados = patrones.filter((p) => p.tiendasRepetidas > 0)
+            return (
+              <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', marginBottom: '12px' }}>Tabla 4 — Patrón detectado por tipo</div>
+                {patronesFiltrados.length === 0 ? (
+                  <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', padding: '12px 0' }}>
+                    No se detectaron patrones de reincidencia en el período.
+                  </div>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                      <thead>
+                        <tr>
+                          <TH>Tipo incidente</TH>
+                          <TH>Patrón detectado</TH>
+                          <TH>Proveedor asociado</TH>
+                          <TH align="center">Tiendas repetidas</TH>
+                          <TH>Causa probable</TH>
+                          <TH>Recomendación</TH>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {patronesFiltrados.map((p, i) => (
+                          <tr key={i}>
+                            <TD><TipoBadge tipo={p.tipo} /></TD>
+                            <TD>{p.patronDetectado}</TD>
+                            <TD><ProvBadge nombre={p.proveedorAsociado} /></TD>
+                            <TD align="center"><strong style={{ color: p.tiendasRepetidas >= 3 ? '#A32D2D' : '#854F0B' }}>{p.tiendasRepetidas}</strong></TD>
+                            <TD><span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{p.causaProbable}</span></TD>
+                            <TD><span style={{ fontSize: '11px', color: '#185FA5' }}>{p.recomendacion}</span></TD>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            )
+          })()}
 
           {/* Conclusiones */}
           {conclusiones.length > 0 && (

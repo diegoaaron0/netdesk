@@ -22,6 +22,7 @@ export interface TipoResumen {
   pct: number
   tiendasAfectadas: number
   proveedorMasAsociado: string | null
+  totalProveedores: number
   mttrPromedioMin: number | null
   slaPct: number | null
   impactoEstimado: number
