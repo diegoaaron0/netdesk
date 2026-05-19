@@ -212,16 +212,45 @@ export function buildPatrones(rows: RawGeoRow[]): PatronGeografico[] {
     byZona.get(zona)!.push(row)
   }
 
+  // Proveedores dominantes en más de una zona → reincidentes
+  const provZonaSet = new Map<string, Set<string>>()
+  for (const [zona, zRows] of byZona.entries()) {
+    const provCounts: Record<string, number> = {}
+    for (const r of zRows) {
+      if (r.prov_nombre) provCounts[r.prov_nombre] = (provCounts[r.prov_nombre] ?? 0) + 1
+    }
+    const provTop = topKey(provCounts)
+    const provPct = provTop ? Math.round((provCounts[provTop] / zRows.length) * 100) : 0
+    if (provTop && provPct > 50) {
+      if (!provZonaSet.has(provTop)) provZonaSet.set(provTop, new Set())
+      provZonaSet.get(provTop)!.add(zona)
+    }
+  }
+  const provReincidentes = new Set<string>(
+    [...provZonaSet.entries()].filter(([, zs]) => zs.size > 1).map(([p]) => p),
+  )
+
+  const TIPO_LABELS: Record<string, string> = {
+    CAIDA_TOTAL: 'caída total', INTERMITENCIA: 'intermitencia',
+    LENTITUD: 'lentitud', POS: 'POS', OTROS: 'otros',
+  }
+  const causaMap: Record<string, string> = {
+    CAIDA_TOTAL: 'Enlace principal caído o falla de nodo',
+    INTERMITENCIA: 'Inestabilidad de enlace o saturación',
+    LENTITUD: 'Degradación de servicio o congestión',
+    POS: 'Falla de terminal POS o conectividad',
+    OTROS: 'Causa diversa no clasificada',
+  }
+
   const result: PatronGeografico[] = []
   for (const [zona, zRows] of byZona.entries()) {
     if (zRows.length < 2) continue
 
-    // Tipo más frecuente
     const tipoCounts: Record<string, number> = {}
     for (const r of zRows) tipoCounts[r.tipo] = (tipoCounts[r.tipo] ?? 0) + 1
     const tipoTop = topKey(tipoCounts)
+    if (!tipoTop) continue
 
-    // Proveedor dominante
     const provCounts: Record<string, number> = {}
     for (const r of zRows) {
       if (r.prov_nombre) provCounts[r.prov_nombre] = (provCounts[r.prov_nombre] ?? 0) + 1
@@ -229,7 +258,6 @@ export function buildPatrones(rows: RawGeoRow[]): PatronGeografico[] {
     const provTop = topKey(provCounts)
     const provPct = provTop ? Math.round((provCounts[provTop] / zRows.length) * 100) : 0
 
-    // Distritos con más de 1 incidente
     const distCounts: Record<string, number> = {}
     for (const r of zRows) {
       const d = r.tienda_distrito ?? 'Sin distrito'
@@ -240,24 +268,36 @@ export function buildPatrones(rows: RawGeoRow[]): PatronGeografico[] {
       .sort((a, b) => b[1] - a[1])
       .map(([d]) => d)
 
-    if (!tipoTop) continue
+    // MTTR real de la zona
+    const mttrVals = zRows
+      .filter((r) => r.estado === 'RESUELTO' && r.hora_fin)
+      .map((r) => calcMTTRMin(r.hora_registro, r.hora_fin))
+      .filter((v): v is number => v != null && v > 0)
+    const mttrProm = avg(mttrVals)
 
-    const TIPO_LABELS: Record<string, string> = {
-      CAIDA_TOTAL: 'caída total', INTERMITENCIA: 'intermitencia', LENTITUD: 'lentitud', POS: 'POS', OTROS: 'otros',
-    }
     const tipoLabel = TIPO_LABELS[tipoTop] ?? tipoTop.toLowerCase()
-
     let patronDetectado = `Concentración de incidentes por ${tipoLabel}`
     if (provPct > 50 && provTop) patronDetectado += ` con ${provTop} como proveedor principal`
     if (distritosRepetidos.length > 0) patronDetectado += ` en distritos con reincidencia`
 
-    const causaMap: Record<string, string> = {
-      CAIDA_TOTAL: 'Enlace principal caído o falla de nodo',
-      INTERMITENCIA: 'Inestabilidad de enlace o saturación',
-      LENTITUD: 'Degradación de servicio o congestión',
-      POS: 'Falla de terminal POS o conectividad',
-      OTROS: 'Causa diversa no clasificada',
+    // Recomendación con datos reales: MTTR > 10h y/o proveedor reincidente
+    const insights: string[] = []
+    if (mttrProm != null && mttrProm > 600) {
+      const h = Math.round(mttrProm / 60)
+      insights.push(`MTTR promedio de ${h}h en ${zona}`)
     }
+    if (provTop && provPct > 50) {
+      if (provReincidentes.has(provTop)) {
+        const zonas = [...provZonaSet.get(provTop)!].join(' y ')
+        insights.push(`${provTop} es proveedor dominante con reincidencia en ${zonas}`)
+      } else {
+        insights.push(`revisar cumplimiento SLA con ${provTop} en ${zona}`)
+      }
+    }
+
+    const recomendacion = insights.length > 0
+      ? `Se recomienda atender: ${insights.join('; ')}.`
+      : `Validar infraestructura y contingencia en ${zona}.`
 
     result.push({
       zona,
@@ -265,9 +305,7 @@ export function buildPatrones(rows: RawGeoRow[]): PatronGeografico[] {
       proveedorAsociado: provTop,
       distritosRepetidos: distritosRepetidos.slice(0, 4),
       causaProbable: causaMap[tipoTop] ?? 'Sin determinar',
-      recomendacion: provPct > 50 && provTop
-        ? `Revisar SLA y contingencia con ${provTop} en ${zona}`
-        : `Validar infraestructura y contingencia en ${zona}`,
+      recomendacion,
     })
   }
 
@@ -318,38 +356,39 @@ export function buildConclusiones(zonas: ZonaResumen[], patrones: PatronGeografi
   const top = zonas[0]
   if (top) out.push(`${top.zona} concentra la mayor cantidad de incidentes del período (${top.incidentes}).`)
 
-  // Regla 2: zona con mayor impacto
+  // Regla 2: zona con mayor impacto económico
   const topImpacto = [...zonas].sort((a, b) => b.impactoEstimado - a.impactoEstimado)[0]
   if (topImpacto && topImpacto.impactoEstimado > 0) {
     const s = topImpacto.impactoEstimado.toLocaleString('es-PE')
     out.push(`${topImpacto.zona} genera el mayor impacto estimado del período (S/ ${s}).`)
   }
 
-  // Regla 3: SLA crítico
-  for (const z of zonas) {
-    if (z.slaPct != null && z.slaPct < 70) {
-      out.push(`${z.zona} presenta cumplimiento SLA crítico (${z.slaPct}%).`)
+  // Regla 3: SLA crítico — agrupado si todas son 0%, individual si difieren
+  const zonasConSLA = zonas.filter((z) => z.slaPct != null)
+  const criticas    = zonasConSLA.filter((z) => z.slaPct! < 70)
+  if (criticas.length > 0) {
+    const todos0 = criticas.every((z) => z.slaPct === 0)
+    if (todos0 && criticas.length === zonasConSLA.length) {
+      out.push('Todas las zonas evaluadas presentan SLA crítico (0%) en el período.')
+    } else if (todos0 && criticas.length > 1) {
+      out.push(`Las zonas ${criticas.map((z) => z.zona).join(', ')} presentan SLA crítico (0%) en el período.`)
+    } else {
+      for (const z of criticas) {
+        out.push(`${z.zona} presenta cumplimiento SLA crítico (${z.slaPct}%).`)
+      }
     }
   }
 
-  // Regla 4: proveedor concentra >50% en una zona
-  for (const z of zonas) {
-    if (z.proveedorDominante) {
-      out.push(`Los incidentes de ${z.zona} están asociados principalmente a ${z.proveedorDominante}.`)
-    }
+  // Regla 4: insights de patrones (MTTR alto, proveedor reincidente) — superficie los datos reales
+  for (const p of patrones) {
+    if (p.recomendacion) out.push(p.recomendacion)
   }
 
-  // Regla 5: zonas con alto impacto + SLA bajo → priorizar
-  for (const z of zonas) {
-    if (z.slaPct != null && z.slaPct < 80 && z.impactoEstimado > 0) {
-      out.push(`Se recomienda priorizar revisión operativa y contractual en ${z.zona}.`)
-    }
-  }
-
-  // Regla 6: MTTR alto fuera de Lima
+  // Regla 5: MTTR elevado en Provincia
   const provincia = zonas.find((z) => z.zona === 'Provincia')
   if (provincia?.mttrPromMin && provincia.mttrPromMin > 240) {
-    out.push('Se recomienda revisar tiempos de atención para tiendas fuera de Lima o zonas alejadas.')
+    const h = Math.round(provincia.mttrPromMin / 60)
+    out.push(`Se recomienda revisar tiempos de atención en Provincia (MTTR promedio ${h}h).`)
   }
 
   return out.slice(0, 8)

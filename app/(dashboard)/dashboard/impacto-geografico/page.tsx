@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import type {
-  GeographicImpactResponse, ZonaResumen, DistritoDetalle, TiendaZonaDetalle, PatronGeografico,
+  GeographicImpactResponse, ZonaResumen, DistritoDetalle,
 } from '@/types/geographic-impact'
 
 const PeruLeafletMap = dynamic(() => import('../components/PeruLeafletMap'), { ssr: false })
@@ -67,9 +67,6 @@ function ImpactoGeograficoInner() {
   const [proveedorFiltro, setProveedorFiltro] = useState(sp.get('proveedorId') ?? '')
   const [data, setData]             = useState<GeographicImpactResponse | null>(null)
   const [loading, setLoading]       = useState(false)
-  const [zonaSeleccionada, setZonaSeleccionada] = useState<string | null>(null)
-  const [tiendas, setTiendas]       = useState<TiendaZonaDetalle[]>([])
-  const [loadingTiendas, setLoadingTiendas] = useState(false)
   const [busquedaDist, setBusquedaDist] = useState('')
 
   const fetchData = useCallback(async (d = desde, h = hasta, pId = proveedorFiltro) => {
@@ -83,18 +80,6 @@ function ImpactoGeograficoInner() {
   }, [desde, hasta, proveedorFiltro])
 
   useEffect(() => { fetchData() }, [])
-
-  async function seleccionarZona(zona: string) {
-    if (zonaSeleccionada === zona) { setZonaSeleccionada(null); setTiendas([]); return }
-    setZonaSeleccionada(zona)
-    setLoadingTiendas(true)
-    try {
-      const params = new URLSearchParams({ desde, hasta, zona })
-      if (proveedorFiltro) params.set('proveedorId', proveedorFiltro)
-      const res = await fetch(`/api/dashboard/impacto-geografico/tiendas?${params}`)
-      if (res.ok) setTiendas(await res.json())
-    } finally { setLoadingTiendas(false) }
-  }
 
   function exportCSV() {
     const zonas = data?.zonas ?? []
@@ -116,7 +101,6 @@ function ImpactoGeograficoInner() {
     return d.distrito.toLowerCase().includes(q) || d.zona.toLowerCase().includes(q)
   })
   const provList = data?.proveedoresList ?? []
-  const patrones = data?.patrones ?? []
   const conclusiones = data?.conclusiones ?? []
 
   return (
@@ -215,13 +199,10 @@ function ImpactoGeograficoInner() {
                   zonas.map((z, i) => (
                     <div
                       key={z.zona}
-                      onClick={() => seleccionarZona(z.zona)}
                       style={{
                         display: 'grid', gridTemplateColumns: '1fr 60px 65px 75px 70px 70px 70px', gap: '6px',
                         padding: '8px 0', borderBottom: i < zonas.length - 1 ? '0.5px solid var(--border)' : 'none',
-                        alignItems: 'center', cursor: 'pointer',
-                        background: zonaSeleccionada === z.zona ? '#EFF6FF' : 'transparent',
-                        borderRadius: '4px',
+                        alignItems: 'center',
                       }}
                     >
                       <span style={{ fontSize: '12px', fontWeight: 500 }}>{z.zona}</span>
@@ -241,11 +222,6 @@ function ImpactoGeograficoInner() {
                   ))
                 )}
               </div>
-            {!loading && zonas.length > 0 && (
-              <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '8px' }}>
-                Haz clic en una zona para ver el detalle de tiendas afectadas.
-              </div>
-            )}
           </div>
         </div>
 
@@ -274,56 +250,6 @@ function ImpactoGeograficoInner() {
           )}
         </div>
       </div>
-
-      {/* Tabla 3 — Tiendas de zona seleccionada */}
-      {zonaSeleccionada && (
-        <div style={{ background: 'white', border: '0.5px solid #BFDBFE', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <div>
-              <div style={{ fontSize: '13px', fontWeight: 600 }}>Tabla 3 — Tiendas afectadas en {zonaSeleccionada}</div>
-              <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Detalle por tienda en la zona seleccionada</div>
-            </div>
-            <button onClick={() => { setZonaSeleccionada(null); setTiendas([]) }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--muted-foreground)', lineHeight: 1 }}>✕</button>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr 100px 60px 70px 70px 90px 90px 80px', gap: '8px', padding: '0 0 8px', borderBottom: '0.5px solid var(--border)' }}>
-            {['Tienda', 'Nombre', 'Distrito', 'Inc.', 'MTTR', 'SLA%', 'Impacto', 'Contingencia', 'Estado'].map((h) => (
-              <span key={h} style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</span>
-            ))}
-          </div>
-
-          {loadingTiendas ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 100px 60px 70px 70px 90px 90px 80px', gap: '8px', padding: '8px 0', borderBottom: '0.5px solid var(--border)', alignItems: 'center' }}>
-                {Array.from({ length: 9 }).map((_, j) => <Sk key={j} w={j === 1 ? '80%' : '50%'} />)}
-              </div>
-            ))
-          ) : tiendas.length === 0 ? (
-            <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', padding: '16px 0', textAlign: 'center' }}>Sin tiendas para esta zona</div>
-          ) : (
-            tiendas.map((t, i) => (
-              <div key={t.tiendaId} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 100px 60px 70px 70px 90px 90px 80px', gap: '8px', padding: '8px 0', borderBottom: i < tiendas.length - 1 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
-                <span style={{ fontSize: '11px', fontWeight: 600, fontFamily: 'monospace' }}>{t.tiendaCodigo}</span>
-                <span style={{ fontSize: '11px' }}>{t.tiendaNombre || '—'}</span>
-                <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{t.distrito || '—'}</span>
-                <span style={{ fontSize: '12px', textAlign: 'center' }}>{t.incidentes}</span>
-                <span style={{ fontSize: '11px', fontFamily: 'monospace' }}>{fmtMin(t.mttrPromMin)}</span>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: slaColor(t.slaPct) }}>
-                  {t.slaPct != null ? `${t.slaPct}%` : '—'}
-                </span>
-                <span style={{ fontSize: '11px', fontFamily: 'monospace' }}>{t.impactoEstimado > 0 ? fmtCosto(t.impactoEstimado) : '—'}</span>
-                <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 6px', borderRadius: '999px', background: t.tieneContingencia ? '#EAF3DE' : '#FCEBEB', color: t.tieneContingencia ? '#3B6D11' : '#A32D2D', textAlign: 'center' }}>
-                  {t.tieneContingencia ? 'Sí' : 'No'}
-                </span>
-                <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 6px', borderRadius: '999px', background: estadoBg(t.estado), color: estadoColor(t.estado), textAlign: 'center' }}>
-                  {estadoLabel(t.estado)}
-                </span>
-              </div>
-            ))
-          )}
-        </div>
-      )}
 
       {/* Tabla 2 — Desglose por distrito */}
       <div style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
@@ -377,30 +303,6 @@ function ImpactoGeograficoInner() {
           )}
         </div>
       </div>
-
-      {/* Tabla 4 — Patrones geográficos */}
-      {patrones.length > 0 && (
-        <div style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px', marginBottom: '20px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>Tabla 4 — Patrones geográficos detectados</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr 120px 1fr 1fr 1fr', gap: '8px', padding: '0 0 8px', borderBottom: '0.5px solid var(--border)' }}>
-            {['Zona', 'Patrón detectado', 'Proveedor', 'Distritos repetidos', 'Causa probable', 'Recomendación'].map((h) => (
-              <span key={h} style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</span>
-            ))}
-          </div>
-          {patrones.map((p, i) => (
-            <div key={p.zona} style={{ display: 'grid', gridTemplateColumns: '110px 1fr 120px 1fr 1fr 1fr', gap: '8px', padding: '10px 0', borderBottom: i < patrones.length - 1 ? '0.5px solid var(--border)' : 'none', alignItems: 'start' }}>
-              <span style={{ fontSize: '12px', fontWeight: 600 }}>{p.zona}</span>
-              <span style={{ fontSize: '11px', lineHeight: 1.4 }}>{p.patronDetectado}</span>
-              <span style={{ fontSize: '12px', color: '#185FA5' }}>{p.proveedorAsociado ?? '—'}</span>
-              <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
-                {p.distritosRepetidos.length ? p.distritosRepetidos.join(', ') : '—'}
-              </span>
-              <span style={{ fontSize: '11px', lineHeight: 1.4 }}>{p.causaProbable}</span>
-              <span style={{ fontSize: '11px', color: '#185FA5', lineHeight: 1.4 }}>{p.recomendacion}</span>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Methodology footer */}
       <div style={{ padding: '14px 16px', background: 'var(--muted)', borderRadius: '10px', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: 1.7 }}>
