@@ -25,13 +25,15 @@ function fmtCosto(n: number) {
 }
 
 export default function PeruLeafletMap({ tiendas }: Props) {
+  console.log('tiendas con coords:', tiendas.filter((t) => t.coordenadas).length)
+
   const maxImpacto = tiendas.reduce((mx, t) => Math.max(mx, t.impacto), 1)
 
   const puntos = tiendas.flatMap((t) => {
     if (!t.coordenadas) return []
-    const parts = t.coordenadas.split(',').map((s) => parseFloat(s.trim()))
-    if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) return []
-    return [{ t, lat: parts[0], lng: parts[1] }]
+    const [lat, lng] = t.coordenadas.split(',').map(Number)
+    if (isNaN(lat) || isNaN(lng)) return []
+    return [{ t, lat, lng }]
   })
 
   return (
