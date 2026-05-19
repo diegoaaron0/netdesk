@@ -201,13 +201,16 @@ function ImpactoProveedorContent() {
                     <TH align="center">Tiendas</TH>
                     <TH align="center">Reincid.</TH>
                     <TH>Estado</TH>
-                    <TH align="center">Score</TH>
+                    <TH align="center">Riesgo</TH>
                   </tr>
                 </thead>
                 <tbody>
                   {proveedores.map((p) => {
                     const badge = estadoBadge(p.estado)
                     const mttrDelta = globalMttr != null && p.mttrMinutos != null ? p.mttrMinutos - globalMttr : null
+                    const riesgoBg    = p.score >= 70 ? '#FCEBEB' : p.score >= 40 ? '#FAEEDA' : '#EAF3DE'
+                    const riesgoColor = p.score >= 70 ? '#A32D2D' : p.score >= 40 ? '#854F0B' : '#3B6D11'
+                    const riesgoLabel = p.score >= 70 ? 'Alto'    : p.score >= 40 ? 'Medio'   : 'Bajo'
                     return (
                       <tr key={p.id} style={{ background: p.estado === 'critico' ? '#FFF8F8' : 'transparent' }}>
                         <TD><span style={{ fontWeight: 500 }}>{p.nombre}</span></TD>
@@ -239,8 +242,8 @@ function ImpactoProveedorContent() {
                           </span>
                         </TD>
                         <TD align="center">
-                          <span style={{ fontWeight: 700, color: p.score > 60 ? '#A32D2D' : p.score > 35 ? '#854F0B' : '#3B6D11' }}>
-                            {p.score}
+                          <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '999px', fontWeight: 600, whiteSpace: 'nowrap', background: riesgoBg, color: riesgoColor }}>
+                            {riesgoLabel}
                           </span>
                         </TD>
                       </tr>
@@ -290,7 +293,7 @@ function ImpactoProveedorContent() {
                       <TD mono><span style={{ fontWeight: 600 }}>{fmtCosto(inc.costoEstimado)}</span></TD>
                       <TD>
                         {inc.slaGeneral === null
-                          ? <span style={{ color: '#888780', fontSize: '10px' }}>No evaluable</span>
+                          ? <span style={{ color: '#888780', fontSize: '10px' }}>Sin escalamiento</span>
                           : inc.slaGeneral
                             ? <span style={{ color: '#3B6D11', fontSize: '10px', fontWeight: 600 }}>✓ OK</span>
                             : <span style={{ color: '#A32D2D', fontSize: '10px', fontWeight: 600 }}>✗ Fuera</span>}
@@ -329,11 +332,14 @@ function ImpactoProveedorContent() {
                   </tr>
                 </thead>
                 <tbody>
-                  {tiendas.map((t, i) => (
+                  {tiendas
+                    .filter((t) => t.costoTotal >= 50)
+                    .sort((a, b) => b.costoTotal - a.costoTotal)
+                    .slice(0, 10)
+                    .map((t, i) => (
                     <tr key={i} style={{ background: t.incidentes >= 3 ? '#FFF8F8' : 'transparent' }}>
                       <TD>
-                        <span style={{ fontWeight: 600 }}>{t.tiendaCodigo}</span>
-                        {t.tiendaNombre && <span style={{ color: 'var(--muted-foreground)', fontSize: '11px', marginLeft: '6px' }}>{t.tiendaNombre}</span>}
+                        <span style={{ fontWeight: 500 }}>{t.tiendaCodigo} — {t.tiendaNombre ?? ''}</span>
                       </TD>
                       <TD align="center">
                         <span style={{ fontWeight: 700, color: t.incidentes >= 3 ? '#A32D2D' : t.incidentes >= 2 ? '#854F0B' : '#0f172a' }}>{t.incidentes}</span>
@@ -354,7 +360,7 @@ function ImpactoProveedorContent() {
                       </TD>
                     </tr>
                   ))}
-                  {tiendas.length === 0 && (
+                  {tiendas.filter((t) => t.costoTotal >= 50).length === 0 && (
                     <tr><td colSpan={6} style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>Sin datos</td></tr>
                   )}
                 </tbody>
