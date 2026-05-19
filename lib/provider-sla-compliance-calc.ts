@@ -235,10 +235,12 @@ export function buildConclusiones(
   }
 
   // Regla 5: N2+ >30%
-  for (const n of niveles) {
-    if (n.pctLlegaronN2 > 30) {
-      conclusiones.push(`${n.nombre} presenta alta dependencia de escalamiento a niveles superiores.`)
-    }
+  const altaDependencia = niveles.filter((n) => n.pctLlegaronN2 > 30)
+  if (altaDependencia.length >= 2) {
+    const nombres = altaDependencia.map((n) => n.nombre).join(' y ')
+    conclusiones.push(`${nombres} presentan alta dependencia de escalamiento a niveles superiores.`)
+  } else if (altaDependencia.length === 1) {
+    conclusiones.push(`${altaDependencia[0].nombre} presenta alta dependencia de escalamiento a niveles superiores.`)
   }
 
   // Regla 6: recomendaciones

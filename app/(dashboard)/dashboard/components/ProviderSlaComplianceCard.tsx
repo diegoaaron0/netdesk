@@ -125,19 +125,14 @@ export default function ProviderSlaComplianceCard({ desde, hasta, proveedorId, r
               <div key={p.proveedorId} style={{ display: 'grid', gridTemplateColumns: '1fr 130px 90px 90px 90px', gap: '8px', padding: '10px 0', borderBottom: i < Math.min(proveedores.length, 5) - 1 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
                 <span style={{ fontSize: '12px', fontWeight: 500, color: '#0f172a' }}>{p.nombre}</span>
 
-                {/* SLA% with inline progress bar */}
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: slaColor(p.slaPct) }}>
-                      {p.slaPct != null ? `${p.slaPct}%` : '—'}
-                    </span>
-                    {p.evaluables > 0 && (
-                      <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>({p.evaluables} casos)</span>
-                    )}
-                  </div>
-                  <div style={{ height: '4px', background: 'var(--muted)', borderRadius: '2px', overflow: 'hidden' }}>
-                    <div style={{ height: '4px', width: `${p.slaPct ?? 0}%`, background: slaColor(p.slaPct), borderRadius: '2px', transition: 'width 0.4s ease' }} />
-                  </div>
+                {/* SLA% — big colored number, no bar */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ fontSize: '18px', fontWeight: 700, color: slaColor(p.slaPct), lineHeight: 1 }}>
+                    {p.slaPct != null ? `${p.slaPct}%` : '—'}
+                  </span>
+                  {p.evaluables > 0 && (
+                    <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>({p.evaluables})</span>
+                  )}
                 </div>
 
                 <span style={{ fontSize: '12px', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{fmtMin(p.tPromRespuestaMin)}</span>

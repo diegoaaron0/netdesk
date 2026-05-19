@@ -228,10 +228,10 @@ function SLAProveedorPageInner() {
               <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Objetivos SLA</div>
               {[
                 { tipo: 'Respuesta N1', obj: '≤60 min' },
-                { tipo: 'Caída total', obj: '≤240 min' },
-                { tipo: 'Intermitencia', obj: '≤480 min' },
-                { tipo: 'Lentitud', obj: '≤720 min' },
-                { tipo: 'Otros/POS', obj: '≤240 min' },
+                { tipo: 'Caída total', obj: '≤60 min' },
+                { tipo: 'Intermitencia', obj: '≤120 min' },
+                { tipo: 'Lentitud', obj: '≤240 min' },
+                { tipo: 'Otros/POS', obj: '≤60 min' },
               ].map(({ tipo, obj }) => (
                 <div key={tipo} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '3px' }}>
                   <span style={{ color: 'var(--muted-foreground)' }}>{tipo}</span>
