@@ -523,7 +523,7 @@ export default function ReportesPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px', marginBottom: '12px' }}>
               {([
                 { fmt: 'CSV'        as Formato, label: 'CSV',        sub: 'Listo',        color: '#1D9E75', bg: '#EAF3DE' },
-                { fmt: 'EXCEL'      as Formato, label: 'Excel',      sub: 'Listo',        color: '#185FA5', bg: '#E6F1FB' },
+                { fmt: 'EXCEL'      as Formato, label: 'Excel',      sub: 'Próximamente', color: '#185FA5', bg: '#E6F1FB' },
                 { fmt: 'PDF'        as Formato, label: 'PDF',        sub: 'Próximamente', color: '#A32D2D', bg: '#FCEBEB' },
                 { fmt: 'IMAGEN_KPI' as Formato, label: 'Imagen KPI', sub: 'Próximamente', color: '#854F0B', bg: '#FAEEDA' },
               ]).map(({ fmt, label, sub, color, bg }) => (
