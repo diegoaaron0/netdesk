@@ -163,6 +163,12 @@ function TiendasCriticasContent() {
     return t.tiendaCodigo.toLowerCase().includes(q) || t.tiendaNombre.toLowerCase().includes(q)
   })
 
+  const reincidentesCount = allTiendas.filter((t) => t.incidentes >= 2).length
+  const mttrGlobal = (() => {
+    const vals = allTiendas.filter((t) => t.mttrPromedioMin != null)
+    return vals.length ? Math.round(vals.reduce((a, t) => a + t.mttrPromedioMin!, 0) / vals.length) : null
+  })()
+
   return (
     <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', fontFamily: 'inherit' }}>
 
@@ -225,9 +231,9 @@ function TiendasCriticasContent() {
         <>
           {/* 6 Summary cards */}
           <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
-            <SumCard icon="🏪" label="Tiendas críticas" value={String(resumen?.totalCriticas ?? 0)} sub="en el período" color="#A32D2D" />
+            <SumCard icon="🏪" label="Tiendas reincidentes" value={String(reincidentesCount)} sub={`${allTiendas.length} tiendas afectadas en el período`} color="#A32D2D" />
             <SumCard icon="💰" label="Costo acumulado" value={fmtCosto(resumen?.costoAcumulado ?? 0)} sub="margen bruto 35%" />
-            <SumCard icon="⏱" label="MTTR promedio crítico" value={fmtMin(resumen?.mttrPromedioCriticoMin)} sub="tiendas críticas" color="#854F0B" />
+            <SumCard icon="⏱" label="MTTR promedio del período" value={fmtMin(mttrGlobal)} sub="todas las tiendas" color="#854F0B" />
             <SumCard icon="⚠️" label="Reincidencias detectadas" value={String(resumen?.reincidenciasDetectadas ?? 0)} sub="tipo repetido" color="#854F0B" />
             <SumCard icon="🛡" label="Sin contingencia" value={`${resumen?.sinContingencia ?? 0} tiendas`} sub="con 2+ incidentes" color="#A32D2D" />
             <SumCard icon="👤" label="Proveedor más asociado" value={resumen?.proveedorMasAsociado ?? '—'} sub="mayor concentración" color="#185FA5" />
@@ -255,7 +261,7 @@ function TiendasCriticasContent() {
                     <TH align="center">SLA %</TH>
                     <TH>Costo estimado</TH>
                     <TH align="center">Contingencia</TH>
-                    <TH align="center">Score</TH>
+                    <TH align="center">Riesgo</TH>
                     <TH>Estado</TH>
                   </tr>
                 </thead>
@@ -282,9 +288,9 @@ function TiendasCriticasContent() {
                           </span>
                         </TD>
                         <TD align="center">
-                          <span style={{ fontWeight: 600, color: slaColor }}>
-                            {t.slaPct != null ? `${t.slaPct}%` : '—'}
-                          </span>
+                          {t.slaPct != null
+                            ? <span style={{ fontWeight: 600, color: slaColor }}>{t.slaPct}%</span>
+                            : <span style={{ color: '#888780', fontSize: '11px' }} title="Sin escalamiento al proveedor">S/E</span>}
                         </TD>
                         <TD mono>{t.costoEstimado > 0 ? fmtCosto(t.costoEstimado) : '—'}</TD>
                         <TD align="center">
@@ -293,7 +299,12 @@ function TiendasCriticasContent() {
                           </span>
                         </TD>
                         <TD align="center">
-                          <span style={{ fontWeight: 700, color: t.score > 60 ? '#A32D2D' : t.score > 35 ? '#854F0B' : '#3B6D11' }}>{t.score}</span>
+                          {(() => {
+                            const rBg    = t.score >= 70 ? '#FCEBEB' : t.score >= 40 ? '#FAEEDA' : '#EAF3DE'
+                            const rColor = t.score >= 70 ? '#A32D2D' : t.score >= 40 ? '#854F0B' : '#3B6D11'
+                            const rLabel = t.score >= 70 ? 'Alto'    : t.score >= 40 ? 'Medio'   : 'Bajo'
+                            return <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '999px', background: rBg, color: rColor, fontWeight: 600, whiteSpace: 'nowrap' }}>{rLabel}</span>
+                          })()}
                         </TD>
                         <TD>
                           <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: badge.bg, color: badge.color, fontWeight: 500, whiteSpace: 'nowrap' }}>
