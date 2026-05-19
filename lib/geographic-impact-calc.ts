@@ -196,6 +196,7 @@ export function buildTiendasPorZona(rows: RawGeoRow[], zona: string): TiendaZona
       impactoEstimado: tRows.reduce((s, r) => s + calcImpacto(r), 0),
       tieneContingencia: first.tiene_contingencia,
       estado: getEstado(slaPct, tRows.length),
+      coordenadas: first.tienda_coordenadas ?? null,
     })
   }
 

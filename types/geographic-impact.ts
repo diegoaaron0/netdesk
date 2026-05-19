@@ -36,6 +36,7 @@ export interface TiendaZonaDetalle {
   impactoEstimado: number
   tieneContingencia: boolean
   estado: ZonaEstado
+  coordenadas: string | null
 }
 
 export interface PatronGeografico {
