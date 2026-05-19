@@ -164,7 +164,7 @@ function TendenciaSLA6mInner() {
         <select value={proveedorFiltro} onChange={(e) => setProveedorFiltro(e.target.value)}
           style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', outline: 'none' }}>
           <option value="">Todos los proveedores</option>
-          {provList.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+          {provList.map((p) => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
         </select>
         <button onClick={() => fetchData()}
           style={{ padding: '6px 14px', fontSize: '12px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 500 }}>

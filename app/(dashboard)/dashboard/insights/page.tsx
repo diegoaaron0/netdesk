@@ -133,6 +133,7 @@ function InsightsPageContent() {
 
   return (
     <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <button onClick={() => router.push('/dashboard')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: '#185FA5', fontWeight: 500, padding: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>← Volver al Dashboard</button>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
@@ -163,7 +164,7 @@ function InsightsPageContent() {
           <select value={proveedorId} onChange={e => setProveedorId(e.target.value)}
             style={{ padding: '5px 8px', fontSize: '12px', border: '0.5px solid #e5e7eb', borderRadius: '6px', outline: 'none' }}>
             <option value=''>Todos</option>
-            {data?.proveedoresList?.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+            {data?.proveedoresList?.map(p => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
           </select>
         </div>
         <button onClick={fetchData}

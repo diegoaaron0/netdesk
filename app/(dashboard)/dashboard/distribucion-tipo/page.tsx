@@ -172,7 +172,7 @@ function DistribucionTipoContent() {
         <select value={proveedorId} onChange={(e) => setProveedorId(e.target.value)}
           style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
           <option value="">Todos los proveedores</option>
-          {provLista.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+          {provLista.map((p) => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
         </select>
         <select value={tipoFiltro} onChange={(e) => setTipoFiltro(e.target.value)}
           style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>

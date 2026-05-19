@@ -1,6 +1,6 @@
 'use client'
 import { Suspense, useState, useCallback, useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import type { ImpactoProveedorResponse, ProveedorMetricas } from '@/types/provider-impact'
 
 function fmtMin(min: number | null | undefined) {
@@ -70,6 +70,7 @@ function TD({ children, align = 'left', mono = false }: { children: React.ReactN
 }
 
 function ImpactoProveedorContent() {
+  const router       = useRouter()
   const searchParams = useSearchParams()
   const initialDesde = searchParams.get('desde') || firstDayOfMonth()
   const initialHasta = searchParams.get('hasta') || todayStr()
@@ -104,6 +105,7 @@ function ImpactoProveedorContent() {
 
   return (
     <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', fontFamily: 'inherit' }}>
+      <button onClick={() => router.push('/dashboard')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: '#185FA5', fontWeight: 500, padding: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>← Volver al Dashboard</button>
       {/* Header */}
       <div style={{ marginBottom: '20px' }}>
         <div style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>B. Impacto por proveedor</div>
@@ -121,7 +123,7 @@ function ImpactoProveedorContent() {
         <select value={proveedorId} onChange={(e) => setProveedorId(e.target.value)}
           style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
           <option value="">Todos los proveedores</option>
-          {provLista.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+          {provLista.map((p) => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
         </select>
         <button onClick={() => fetchData()}
           style={{ padding: '6px 14px', fontSize: '12px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 500 }}>
