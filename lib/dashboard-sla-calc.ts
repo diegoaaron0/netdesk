@@ -123,6 +123,7 @@ export interface DayMetrics {
   proveedorMasAfectado: string | null
   causaPrincipal: string | null
   estado: 'optimo' | 'en_riesgo' | 'critico' | 'sin_datos'
+  proveedoresAfectados: string[]
 }
 
 export function buildDayMetrics(casos: SLACaso[]): DayMetrics[] {
@@ -173,6 +174,7 @@ export function buildDayMetrics(casos: SLACaso[]): DayMetrics[] {
       proveedorMasAfectado: provMasAfectado,
       causaPrincipal,
       estado: getEstadoSLA(slaPct),
+      proveedoresAfectados: [...new Set(evaluables.filter((c) => !c.slaGeneral).map((c) => c.provNombre))],
     }
   })
 }
@@ -182,14 +184,22 @@ export function buildConclusiones(casos: SLACaso[], byDay: DayMetrics[]): string
   const evaluables = casos.filter((c) => c.evaluable)
   const fueraSLA = evaluables.filter((c) => !c.slaGeneral)
 
-  // Regla 1: fechas críticas
-  for (const d of byDay) {
-    if (d.slaPct == null) continue
-    if (d.slaPct < 70) {
-      conclusiones.push(`El ${fmtDia(d.dia)} presenta caída crítica de SLA a ${d.slaPct}%.`)
-    } else if (d.slaPct < 90) {
-      conclusiones.push(`El ${fmtDia(d.dia)} presenta SLA en riesgo con ${d.slaPct}%.`)
-    }
+  // Regla 1: fechas críticas y en riesgo (agrupadas)
+  const diasCriticos = byDay.filter((d) => d.slaPct != null && d.slaPct < 70)
+  const diasRiesgo   = byDay.filter((d) => d.slaPct != null && d.slaPct >= 70 && d.slaPct < 90)
+
+  if (diasCriticos.length === 1) {
+    const d = diasCriticos[0]
+    conclusiones.push(`El ${fmtDia(d.dia)} presenta caída crítica de SLA a ${d.slaPct}%.`)
+  } else if (diasCriticos.length >= 2) {
+    conclusiones.push(`${diasCriticos.length} fechas presentan caída crítica de SLA: ${diasCriticos.map((d) => fmtDia(d.dia)).join(', ')}.`)
+  }
+
+  if (diasRiesgo.length === 1) {
+    const d = diasRiesgo[0]
+    conclusiones.push(`El ${fmtDia(d.dia)} presenta SLA en riesgo con ${d.slaPct}%.`)
+  } else if (diasRiesgo.length >= 2) {
+    conclusiones.push(`${diasRiesgo.length} fechas presentan SLA en riesgo: ${diasRiesgo.map((d) => fmtDia(d.dia)).join(', ')}.`)
   }
 
   // Regla 2: proveedor con más incumplimientos
