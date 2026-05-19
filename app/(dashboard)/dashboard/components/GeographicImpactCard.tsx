@@ -1,8 +1,11 @@
 'use client'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip as RechartTooltip,
+  Cell, ResponsiveContainer,
+} from 'recharts'
 import type { GeographicImpactResponse, ZonaResumen } from '@/types/geographic-impact'
-import PeruMapPlaceholder from './PeruMapPlaceholder'
 
 interface Props {
   desde: string
@@ -25,6 +28,11 @@ function slaColor(pct: number | null) {
   if (pct >= 70) return '#854F0B'
   return '#A32D2D'
 }
+function barColor(slaPct: number | null): string {
+  if (slaPct === 0) return '#A32D2D'
+  if (slaPct != null && slaPct < 90) return '#BA7517'
+  return '#1D9E75'
+}
 
 function Sk({ w = '60%', h = 14 }: { w?: string; h?: number }) {
   return (
@@ -32,7 +40,34 @@ function Sk({ w = '60%', h = 14 }: { w?: string; h?: number }) {
   )
 }
 
-// ─── Tooltip ─────────────────────────────────────────────────────────────────
+// ─── Recharts custom tooltip ──────────────────────────────────────────────────
+
+function ChartTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: ZonaResumen }> }) {
+  if (!active || !payload?.length) return null
+  const z = payload[0].payload
+  return (
+    <div style={{
+      background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '8px',
+      padding: '10px 12px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+      fontSize: '11px', minWidth: '190px',
+    }}>
+      <div style={{ fontWeight: 700, marginBottom: '6px', fontSize: '12px' }}>{z.zona}</div>
+      {([
+        ['Incidentes',       z.incidentes],
+        ['MTTR promedio',    fmtMin(z.mttrPromMin)],
+        ['SLA',              z.slaPct != null ? `${z.slaPct}%` : '—'],
+        ['Impacto estimado', z.impactoEstimado > 0 ? fmtCosto(z.impactoEstimado) : '—'],
+      ] as [string, string | number][]).map(([k, v]) => (
+        <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '2px' }}>
+          <span style={{ color: '#64748B' }}>{k}</span>
+          <span style={{ fontWeight: 500 }}>{v}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ─── Tabla row with hover tooltip ────────────────────────────────────────────
 
 function ZonaTooltip({ zona, visible }: { zona: ZonaResumen; visible: boolean }) {
   if (!visible) return null
@@ -62,12 +97,9 @@ function ZonaTooltip({ zona, visible }: { zona: ZonaResumen; visible: boolean })
   )
 }
 
-// ─── Bar row with tooltip ─────────────────────────────────────────────────────
-
-function ZonaRow({ zona, maxInc, total }: { zona: ZonaResumen; maxInc: number; total: number }) {
+function ZonaRow({ zona, maxInc }: { zona: ZonaResumen; maxInc: number }) {
   const [hover, setHover] = useState(false)
   const pct = Math.round((zona.incidentes / maxInc) * 100)
-
   return (
     <div
       style={{ display: 'grid', gridTemplateColumns: '110px 50px 1fr 90px', gap: '8px', alignItems: 'center', padding: '7px 0', borderBottom: '0.5px solid var(--border)', position: 'relative', cursor: 'default' }}
@@ -114,7 +146,13 @@ export default function GeographicImpactCard({ desde, hasta, proveedorId, refres
 
   const zonas = data?.zonas ?? []
   const maxInc = Math.max(...zonas.map((z) => z.incidentes), 1)
-  const total  = zonas.reduce((s, z) => s + z.incidentes, 0)
+
+  const chartData = zonas.map((z) => ({
+    ...z,
+    impacto: z.impactoEstimado,
+  }))
+
+  const chartHeight = Math.max(zonas.length * 32, 120)
 
   return (
     <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -134,38 +172,90 @@ export default function GeographicImpactCard({ desde, hasta, proveedorId, refres
         </button>
       </div>
 
-      {/* Content: map + table side by side */}
-      <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
-        {/* Map placeholder */}
-        {!loading && (
-          <PeruMapPlaceholder zonas={zonas} />
-        )}
-        {loading && (
-          <div style={{ width: '120px', height: '148px', background: 'var(--muted)', borderRadius: '8px', flexShrink: 0 }} />
-        )}
+      {/* BarChart */}
+      {error ? (
+        <div style={{ fontSize: '12px', color: '#A32D2D', padding: '16px 0', textAlign: 'center' }}>Error al cargar datos</div>
+      ) : loading ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '4px 0' }}>
+          {Array.from({ length: 4 }).map((_, i) => <Sk key={i} w="100%" h={22} />)}
+        </div>
+      ) : zonas.length === 0 ? (
+        <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', padding: '24px 0', textAlign: 'center' }}>Sin datos en el período</div>
+      ) : (
+        <div style={{ position: 'relative' }}>
+          {/* "Mapa próximamente" badge */}
+          <div style={{
+            position: 'absolute', top: 0, right: 0, zIndex: 2,
+            fontSize: '9px', fontWeight: 500, color: '#64748B',
+            background: '#F1F5F9', border: '0.5px solid #CBD5E1',
+            borderRadius: '999px', padding: '2px 8px', pointerEvents: 'none',
+          }}>
+            Mapa próximamente
+          </div>
 
-        {/* Table */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {/* Column headers */}
+          <ResponsiveContainer width="100%" height={chartHeight}>
+            <BarChart
+              layout="vertical"
+              data={chartData}
+              margin={{ top: 2, right: 8, bottom: 2, left: 4 }}
+            >
+              <XAxis
+                type="number"
+                tick={{ fontSize: 9, fill: '#94A3B8' }}
+                tickFormatter={(v: number) => v > 0 ? `S/${(v / 1000).toFixed(0)}k` : '0'}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                type="category"
+                dataKey="zona"
+                width={80}
+                tick={{ fontSize: 11, fill: '#374151' }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <RechartTooltip
+                content={<ChartTooltip />}
+                cursor={{ fill: 'rgba(0,0,0,0.04)' }}
+              />
+              <Bar dataKey="impacto" radius={[0, 3, 3, 0]} maxBarSize={20}>
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={barColor(entry.slaPct)} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+
+          {/* Color legend */}
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '2px' }}>
+            {[['#1D9E75', 'SLA ≥ 90%'], ['#BA7517', 'SLA < 90%'], ['#A32D2D', 'SLA 0%']].map(([color, label]) => (
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <div style={{ width: 8, height: 8, borderRadius: 2, background: color, flexShrink: 0 }} />
+                <span style={{ fontSize: '9px', color: '#64748B' }}>{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Table */}
+      {!error && (
+        <div>
           <div style={{ display: 'grid', gridTemplateColumns: '110px 50px 1fr 90px', gap: '8px', padding: '0 0 6px', borderBottom: '0.5px solid var(--border)' }}>
             {['Zona / ubicación', 'Incidentes', '% del total', 'Impacto estimado'].map((h) => (
               <span key={h} style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</span>
             ))}
           </div>
 
-          {error ? (
-            <div style={{ fontSize: '12px', color: '#A32D2D', padding: '16px 0', textAlign: 'center' }}>Error al cargar datos</div>
-          ) : loading ? (
+          {loading ? (
             Array.from({ length: 4 }).map((_, i) => (
               <div key={i} style={{ display: 'grid', gridTemplateColumns: '110px 50px 1fr 90px', gap: '8px', padding: '10px 0', borderBottom: '0.5px solid var(--border)', alignItems: 'center' }}>
                 <Sk w="80px" /><Sk w="30px" /><Sk w="90%" /><Sk w="60px" />
               </div>
             ))
-          ) : zonas.length === 0 ? (
-            <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', padding: '24px 0', textAlign: 'center' }}>Sin datos en el período</div>
-          ) : (
+          ) : zonas.length === 0 ? null : (
             zonas.slice(0, 5).map((z) => (
-              <ZonaRow key={z.zona} zona={z} maxInc={maxInc} total={total} />
+              <ZonaRow key={z.zona} zona={z} maxInc={maxInc} />
             ))
           )}
 
@@ -181,7 +271,7 @@ export default function GeographicImpactCard({ desde, hasta, proveedorId, refres
             </div>
           )}
         </div>
-      </div>
+      )}
     </div>
   )
 }
