@@ -127,15 +127,37 @@ const AVATAR_COLORS = ['#185FA5','#5B21B6','#A32D2D','#2D7A4A','#854F0B','#0C447
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
 
-function AsignarModal({ activos, equipo, onClose }: { activos: any[]; equipo: any[]; onClose: () => void }) {
-  const [incId, setIncId] = useState('')
+function AsignarModal({ activos, equipo, onClose, onRefresh }: { activos: any[]; equipo: any[]; onClose: () => void; onRefresh: () => void }) {
+  const [incId, setIncId]     = useState('')
   const [agenteId, setAgenteId] = useState('')
-  const [ok, setOk] = useState(false)
-  function confirmar() {
+  const [ok, setOk]           = useState(false)
+  const [saving, setSaving]   = useState(false)
+  const [error, setError]     = useState('')
+
+  async function confirmar() {
     if (!incId || !agenteId) return
-    setOk(true)
-    setTimeout(onClose, 1500)
+    setSaving(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/incidentes/${incId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ registradoPorId: agenteId }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setError(data?.error ?? 'Error al reasignar el incidente')
+        setSaving(false)
+        return
+      }
+      setOk(true)
+      setTimeout(() => { onClose(); onRefresh() }, 1500)
+    } catch {
+      setError('Error de red. Intenta de nuevo.')
+      setSaving(false)
+    }
   }
+
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)' }} onClick={onClose}>
       <div style={{ background: 'white', borderRadius: '14px', padding: '24px', width: '380px', boxShadow: '0 8px 40px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
@@ -164,9 +186,16 @@ function AsignarModal({ activos, equipo, onClose }: { activos: any[]; equipo: an
                 ))}
               </select>
             </div>
+            {error && (
+              <div style={{ fontSize: '11px', color: '#b91c1c', background: '#fee2e2', borderRadius: '6px', padding: '7px 10px', marginBottom: '12px' }}>
+                {error}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button onClick={onClose} style={{ padding: '7px 16px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', cursor: 'pointer' }}>Cancelar</button>
-              <button onClick={confirmar} style={{ padding: '7px 16px', fontSize: '12px', border: 'none', borderRadius: '7px', background: 'hsl(221,83%,23%)', color: 'white', cursor: 'pointer', fontWeight: 600 }}>Confirmar asignación</button>
+              <button onClick={onClose} disabled={saving} style={{ padding: '7px 16px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', cursor: saving ? 'default' : 'pointer' }}>Cancelar</button>
+              <button onClick={confirmar} disabled={saving || !incId || !agenteId} style={{ padding: '7px 16px', fontSize: '12px', border: 'none', borderRadius: '7px', background: saving ? '#93c5fd' : 'hsl(221,83%,23%)', color: 'white', cursor: saving || !incId || !agenteId ? 'default' : 'pointer', fontWeight: 600, opacity: !incId || !agenteId ? 0.5 : 1 }}>
+                {saving ? 'Guardando…' : 'Confirmar asignación'}
+              </button>
             </div>
           </>
         )}
@@ -655,7 +684,7 @@ function OperativoView({ op, tick, router }: { op: any; tick: number; router: an
       </div>
 
       {asignarOpen && (
-        <AsignarModal activos={activos ?? []} equipo={equipoStats ?? []} onClose={() => setAsignarOpen(false)} />
+        <AsignarModal activos={activos ?? []} equipo={equipoStats ?? []} onClose={() => setAsignarOpen(false)} onRefresh={fetchOp} />
       )}
     </>
   )
