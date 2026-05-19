@@ -32,6 +32,7 @@ export interface RawProveedorRow {
   hora_primera_resp: Date | string | null
   nivel_respuesta: number | null
   max_nivel: number | null
+  evaluable_proveedor: boolean | null
 }
 
 function rowCosto(row: RawProveedorRow, ventasDiarias: RawVentaDiaria[]): number {
@@ -66,9 +67,10 @@ export function buildProveedorMetricas(
   for (const [provId, provRows] of map.entries()) {
     const nombre = provRows[0].prov_nombre ?? 'Sin proveedor'
 
-    // SLA: only RESUELTO + hora_fin
+    // SLA: only RESUELTO + hora_fin + evaluable_proveedor !== false
+    // rows with evaluable_proveedor=false still count toward incidentes, mttr and costo
     const slaCasos = provRows
-      .filter((r) => r.estado === 'RESUELTO' && r.hora_fin != null)
+      .filter((r) => r.estado === 'RESUELTO' && r.hora_fin != null && r.evaluable_proveedor !== false)
       .map((r) => calcSLACaso(r as unknown as RawSLARow))
     const evaluables = slaCasos.filter((c) => c.evaluable)
     const dentraSLA = evaluables.filter((c) => c.slaGeneral).length

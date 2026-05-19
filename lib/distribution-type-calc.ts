@@ -32,6 +32,7 @@ export interface RawDistribucionRow {
   hora_primera_resp: Date | string | null
   nivel_respuesta: number | null
   max_nivel: number | null
+  evaluable_proveedor: boolean | null
 }
 
 const TIPOS_INDIVIDUALES: TipoVisible[] = ['CAIDA_TOTAL', 'INTERMITENCIA', 'LENTITUD']
@@ -77,8 +78,9 @@ export function buildTiposResumen(
   for (const [tipo, tRows] of map.entries()) {
     if (!tRows.length) continue
 
+    // SLA: exclude evaluable_proveedor=false; quantity and impacto include all rows
     const slaCasos = tRows
-      .filter((r) => r.estado === 'RESUELTO' && r.hora_fin != null)
+      .filter((r) => r.estado === 'RESUELTO' && r.hora_fin != null && r.evaluable_proveedor !== false)
       .map((r) => calcSLACaso(r as unknown as RawSLARow))
     const evaluables = slaCasos.filter((c) => c.evaluable)
     const dentraSLA = evaluables.filter((c) => c.slaGeneral).length
@@ -142,8 +144,9 @@ export function buildOtrosDesglose(
 
   const result: OtroDesglose[] = []
   for (const [causa, cRows] of map.entries()) {
+    // SLA: exclude evaluable_proveedor=false; cantidad and impacto include all rows
     const slaCasos = cRows
-      .filter((r) => r.estado === 'RESUELTO' && r.hora_fin != null)
+      .filter((r) => r.estado === 'RESUELTO' && r.hora_fin != null && r.evaluable_proveedor !== false)
       .map((r) => calcSLACaso(r as unknown as RawSLARow))
     const evaluables = slaCasos.filter((c) => c.evaluable)
     const dentraSLA = evaluables.filter((c) => c.slaGeneral).length
