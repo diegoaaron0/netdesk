@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  ComposedChart, Bar, Line, XAxis, YAxis, Tooltip,
+  ComposedChart, Area, Line, XAxis, YAxis, Tooltip,
   ReferenceLine, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
 
@@ -50,41 +50,56 @@ function estadoLabel(estado: string) {
   return 'Sin muestra suficiente'
 }
 
-function CustomTooltip({ active, payload, label }: any) {
+function getSlaStroke(data: DayData[]): string {
+  const valid = data.filter(d => d.slaPct != null)
+  if (valid.length === 0) return '#1D9E75'
+  const avg = valid.reduce((sum, d) => sum + (d.slaPct ?? 0), 0) / valid.length
+  if (avg < 70) return '#A32D2D'
+  if (avg < 90) return '#BA7517'
+  return '#1D9E75'
+}
+
+function CustomTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null
   const d: DayData = payload[0]?.payload
   if (!d) return null
-  const diasVsMeta = d.slaPct != null ? d.slaPct - 90 : null
   const shortDia = d.dia.slice(5).split('-').reverse().join('/')
+  const slaColor = d.slaPct == null ? '#64748b'
+    : d.slaPct < 70 ? '#A32D2D'
+    : d.slaPct < 90 ? '#BA7517'
+    : '#1D9E75'
+  const tResolvColor = d.tPromResolucionMin == null ? '#64748b'
+    : d.tPromResolucionMin > 240 ? '#A32D2D'
+    : d.tPromResolucionMin > 60  ? '#BA7517'
+    : '#1D9E75'
 
   return (
-    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '12px 14px', fontSize: '12px', minWidth: '220px', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }}>
-      <div style={{ fontWeight: 700, marginBottom: '8px', fontSize: '13px' }}>Fecha: {shortDia}</div>
-      <div style={{ color: 'var(--muted-foreground)', marginBottom: '6px' }}>
-        <div>Incidentes registrados: <strong>{d.registrados}</strong></div>
-        <div>Incidentes evaluables SLA: <strong>{d.evaluables}</strong></div>
+    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '12px 14px', fontSize: '12px', minWidth: '260px', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', paddingBottom: '8px', borderBottom: '0.5px solid #e5e7eb' }}>
+        <span style={{ fontWeight: 700, fontSize: '13px' }}>{shortDia}</span>
+        <span style={{ fontWeight: 700, fontSize: '15px', color: slaColor }}>
+          {d.slaPct != null ? `${d.slaPct}%` : '—'} SLA
+        </span>
       </div>
-      <div style={{ borderTop: '0.5px solid #e5e7eb', paddingTop: '6px', marginBottom: '6px' }}>
-        <div>Dentro SLA: <strong style={{ color: '#3B6D11' }}>{d.dentraSLA}</strong></div>
-        <div>Fuera SLA: <strong style={{ color: '#A32D2D' }}>{d.fueraSLA}</strong></div>
-        <div>SLA: <strong style={{ color: estadoColor(d.estado) }}>{d.slaPct != null ? `${d.slaPct}%` : '—'}</strong></div>
-        <div>Meta SLA: <strong>90%</strong></div>
-        {diasVsMeta != null && (
-          <div>Diferencia vs meta: <strong style={{ color: diasVsMeta < 0 ? '#A32D2D' : '#3B6D11' }}>{diasVsMeta >= 0 ? '+' : ''}{diasVsMeta} pp</strong></div>
-        )}
-      </div>
-      <div style={{ borderTop: '0.5px solid #e5e7eb', paddingTop: '6px', marginBottom: '6px' }}>
-        <div>T. prom. primera respuesta: <strong>{fmtMin(d.tPromRespuestaMin)}</strong></div>
-        <div>T. prom. resolución: <strong>{fmtMin(d.tPromResolucionMin)}</strong></div>
-        {d.nivelPromedioAlcanzado != null && <div>Nivel promedio alcanzado: <strong>Nivel {d.nivelPromedioAlcanzado}</strong></div>}
-        <div>Casos escalados a N2+: <strong>{d.casosEscaladosN2}</strong></div>
-      </div>
-      {d.proveedorMasAfectado && (
-        <div style={{ borderTop: '0.5px solid #e5e7eb', paddingTop: '6px' }}>
-          <div>Proveedor más afectado: <strong style={{ color: '#185FA5' }}>{d.proveedorMasAfectado}</strong></div>
-          {d.causaPrincipal && <div>Principal causa: <strong>{d.causaPrincipal}</strong></div>}
+      {/* Two columns */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ fontSize: '10px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', marginBottom: '2px' }}>Volumen</div>
+          <div>Registrados: <strong>{d.registrados}</strong></div>
+          <div>Evaluables: <strong>{d.evaluables}</strong></div>
+          <div>Dentro SLA: <strong style={{ color: '#1D9E75' }}>{d.dentraSLA}</strong></div>
+          <div>Fuera SLA: <strong style={{ color: '#A32D2D' }}>{d.fueraSLA}</strong></div>
         </div>
-      )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ fontSize: '10px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', marginBottom: '2px' }}>Tiempos</div>
+          <div>T. Respuesta: <strong>{fmtMin(d.tPromRespuestaMin)}</strong></div>
+          <div>T. Resolución: <strong style={{ color: tResolvColor }}>{fmtMin(d.tPromResolucionMin)}</strong></div>
+          {d.proveedorMasAfectado && (
+            <div style={{ marginTop: '2px' }}>Prov.: <strong style={{ color: '#185FA5' }}>{d.proveedorMasAfectado}</strong></div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -120,7 +135,9 @@ export default function TendenciaSLACard({ desde, hasta, proveedorId, refreshKey
 
   useEffect(() => { fetchData() }, [refreshKey, proveedorId])
 
-  const alertas = (data ?? []).filter((d) => d.slaPct != null && d.slaPct < 70)
+  const alertas      = (data ?? []).filter((d) => d.slaPct != null && d.slaPct < 70)
+  const diasCriticos = alertas.length
+  const slaStroke    = data ? getSlaStroke(data) : '#1D9E75'
 
   const goDetalle = () => {
     const params = new URLSearchParams({ desde, hasta })
@@ -133,8 +150,17 @@ export default function TendenciaSLACard({ desde, hasta, proveedorId, refreshKey
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>A. Tendencia de incidentes y SLA</div>
-          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>
-            Evolución diaria de incidentes y cumplimiento SLA en el período
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
+              Evolución diaria de incidentes y cumplimiento SLA en el período
+            </div>
+            <span style={{
+              padding: '2px 8px', borderRadius: '999px', fontSize: '10px', fontWeight: 600,
+              background: diasCriticos > 0 ? '#FCEBEB' : '#F5F5F3',
+              color: diasCriticos > 0 ? '#A32D2D' : '#888780',
+            }}>
+              {diasCriticos} días críticos
+            </span>
           </div>
         </div>
         <button onClick={goDetalle}
@@ -146,15 +172,19 @@ export default function TendenciaSLACard({ desde, hasta, proveedorId, refreshKey
       {/* Leyenda */}
       <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px' }}>
-          <div style={{ width: 10, height: 10, background: '#185FA5', borderRadius: 2 }} />
+          <div style={{ width: 16, height: 10, background: '#185FA540', border: '1px solid #185FA5', borderRadius: 2 }} />
           Incidentes registrados
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px' }}>
-          <div style={{ width: 16, height: 2, background: '#1D9E75', borderRadius: 1 }} />
+          <div style={{ width: 16, height: 2, background: slaStroke, borderRadius: 1 }} />
           SLA (%)
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px' }}>
+          <div style={{ width: 16, height: 0, borderTop: '2px dashed #F59E0B' }} />
+          T. resolución prom.
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--muted-foreground)' }}>
-          <div style={{ width: 16, height: 2, background: '#888', borderRadius: 1, borderTop: '2px dashed #888' }} />
+          <div style={{ width: 16, height: 0, borderTop: '2px dashed #888' }} />
           Meta SLA 90%
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', fontSize: '10px' }}>
@@ -189,16 +219,32 @@ export default function TendenciaSLACard({ desde, hasta, proveedorId, refreshKey
               />
               <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#888780' }} tickLine={false} axisLine={false} label={{ value: 'Incidentes', angle: -90, position: 'insideLeft', fontSize: 10, fill: '#888780', dx: -4 }} />
               <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={{ fontSize: 10, fill: '#888780' }} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
+              <YAxis yAxisId="right2" orientation="right" domain={[0, 600]} hide={true} />
               <Tooltip content={<CustomTooltip />} />
               <ReferenceLine yAxisId="right" y={90} stroke="#888780" strokeDasharray="4 3" strokeWidth={1.5} />
-              <Bar yAxisId="left" dataKey="registrados" fill="#185FA5" radius={[2, 2, 0, 0]} barSize={Math.max(4, Math.min(18, 400 / Math.max(data.length, 1)))} />
+              <Area
+                yAxisId="left"
+                dataKey="registrados"
+                fill="#185FA580"
+                stroke="#185FA5"
+                strokeWidth={1.5}
+              />
               <Line
                 yAxisId="right"
                 dataKey="slaPct"
-                stroke="#1D9E75"
+                stroke={slaStroke}
                 strokeWidth={2}
                 dot={<CustomDot />}
-                activeDot={{ r: 5, fill: '#1D9E75' }}
+                activeDot={{ r: 5, fill: slaStroke }}
+                connectNulls
+              />
+              <Line
+                yAxisId="right2"
+                dataKey="tPromResolucionMin"
+                stroke="#F59E0B"
+                strokeWidth={1.5}
+                strokeDasharray="4 2"
+                dot={false}
                 connectNulls
               />
             </ComposedChart>

@@ -20,12 +20,13 @@ interface DayData {
   estado: string
 }
 
-interface FechaCritica {
-  dia: string
-  slaPct: number
-  estado: string
-  proveedorMasAfectado: string
-  causaPrincipal: string
+interface TiendaResumen {
+  tiendaCodigo: string
+  tiendaNombre: string
+  proveedorNombre: string
+  evaluables: number
+  slaPct: number | null
+  tPromResolucionMin: number | null
 }
 
 interface Resumen {
@@ -82,6 +83,13 @@ function slaStyle(v: boolean): { bg: string; color: string; label: string } {
     : { bg: '#FCEBEB', color: '#A32D2D', label: 'No cumplió' }
 }
 
+function slaPctColor(v: number | null): string {
+  if (v == null) return '#888780'
+  if (v < 70) return '#A32D2D'
+  if (v < 90) return '#BA7517'
+  return '#1D9E75'
+}
+
 function Badge({ bg, color, label }: { bg: string; color: string; label: string }) {
   return (
     <span style={{ fontSize: '10px', fontWeight: 500, padding: '2px 8px', borderRadius: '999px', background: bg, color, whiteSpace: 'nowrap' }}>
@@ -118,9 +126,9 @@ function TendenciaSLAPageInner() {
   const [data, setData] = useState<{
     byDay: DayData[]
     resumen: Resumen
-    fechasCriticas: FechaCritica[]
     conclusiones: string[]
     proveedores: Array<{ id: string; nombre: string }>
+    byTienda?: TiendaResumen[]
   } | null>(null)
   const [loading, setLoading] = useState(false)
   const [selectedDia, setSelectedDia] = useState<string | null>(null)
@@ -149,13 +157,16 @@ function TendenciaSLAPageInner() {
     } finally { setLoadingCasos(false) }
   }, [proveedorId])
 
-  const resumen = data?.resumen
-  const byDay   = data?.byDay ?? []
-  const fechasCriticas = data?.fechasCriticas ?? []
-  const conclusiones   = data?.conclusiones ?? []
-  const proveedores    = data?.proveedores ?? []
+  const resumen      = data?.resumen
+  const byDay        = data?.byDay ?? []
+  const conclusiones = data?.conclusiones ?? []
+  const proveedores  = data?.proveedores ?? []
+  const byTienda     = (data?.byTienda ?? []).slice().sort((a, b) => {
+    if (a.slaPct == null) return 1
+    if (b.slaPct == null) return -1
+    return a.slaPct - b.slaPct
+  })
 
-  // Detectar filtros desde dashboard
   const fromDesde = searchParams.get('desde')
   const fromHasta = searchParams.get('hasta')
   const fromProv  = proveedores.find((p) => p.id === searchParams.get('proveedorId'))
@@ -220,85 +231,95 @@ function TendenciaSLAPageInner() {
             <ResumenCard label="T. prom. resolución final" value={fmtMin(resumen.tPromResolucionMin)} />
           </div>
 
-          {/* Tabla 1 + Tabla 2 en columnas */}
-          <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: '12px', marginBottom: '12px', alignItems: 'start' }}>
-
-            {/* TABLA 1 — Resumen por fecha */}
-            <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden' }}>
-              <div style={{ padding: '12px 14px', borderBottom: '0.5px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '13px', fontWeight: 600 }}>2. Resumen por fecha</span>
-                <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>ⓘ SLA evaluado por tiempo de respuesta por correo + tiempo de resolución.</span>
-              </div>
-              <div style={{ overflowY: 'auto', maxHeight: '420px' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead style={{ position: 'sticky', top: 0, background: '#f9fafb', zIndex: 1 }}>
-                    <tr>
-                      {['Fecha', 'Inc. reg.', 'Eval. SLA', 'Dentro', 'Fuera', 'SLA%', 'T. resp.', 'T. resol.', 'Nivel prom.', 'Esc. N2+', 'Proveedor', 'Estado'].map((h) => (
-                        <th key={h} style={{ padding: '8px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', whiteSpace: 'nowrap', borderBottom: '0.5px solid #e5e7eb' }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {byDay.length === 0 && (
-                      <tr><td colSpan={12} style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>Sin datos</td></tr>
-                    )}
-                    {byDay.map((d, i) => {
-                      const est = estadoStyle(d.estado)
-                      return (
-                        <tr key={d.dia} style={{ borderTop: i > 0 ? '0.5px solid #e5e7eb' : 'none', background: d.slaPct != null && d.slaPct < 70 ? '#FFF5F5' : 'transparent' }}>
-                          <td style={{ padding: '7px 8px', fontWeight: 500, fontSize: '12px', whiteSpace: 'nowrap', color: d.slaPct != null && d.slaPct < 70 ? '#A32D2D' : '#0f172a' }}>{fmtDia(d.dia)}</td>
-                          <td style={{ padding: '7px 8px', fontSize: '12px', textAlign: 'center' }}>{d.registrados}</td>
-                          <td style={{ padding: '7px 8px', fontSize: '12px', textAlign: 'center' }}>{d.evaluables}</td>
-                          <td style={{ padding: '7px 8px', fontSize: '12px', textAlign: 'center', color: '#3B6D11', fontWeight: 500 }}>{d.dentraSLA}</td>
-                          <td style={{ padding: '7px 8px', fontSize: '12px', textAlign: 'center', color: '#A32D2D', fontWeight: 500 }}>{d.fueraSLA}</td>
-                          <td style={{ padding: '7px 8px', fontSize: '12px', fontWeight: 600, color: est.color, whiteSpace: 'nowrap' }}>{d.slaPct != null ? `${d.slaPct}%` : '—'}</td>
-                          <td style={{ padding: '7px 8px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{fmtMin(d.tPromRespuestaMin)}</td>
-                          <td style={{ padding: '7px 8px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{fmtMin(d.tPromResolucionMin)}</td>
-                          <td style={{ padding: '7px 8px', fontSize: '12px', textAlign: 'center' }}>{d.nivelPromedioAlcanzado != null ? `Nivel ${d.nivelPromedioAlcanzado}` : '—'}</td>
-                          <td style={{ padding: '7px 8px', fontSize: '12px', textAlign: 'center' }}>{d.casosEscaladosN2}</td>
-                          <td style={{ padding: '7px 8px', fontSize: '11px', maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.proveedorMasAfectado ?? '—'}</td>
-                          <td style={{ padding: '7px 8px' }}><Badge bg={est.bg} color={est.color} label={est.label} /></td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+          {/* TABLA 1 — Resumen por fecha (full width) */}
+          <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden', marginBottom: '12px' }}>
+            <div style={{ padding: '12px 14px', borderBottom: '0.5px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600 }}>2. Resumen por fecha</span>
+              <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>ⓘ Haz clic en una fila para ver los casos del día.</span>
             </div>
-
-            {/* TABLA 2 — Fechas críticas */}
-            <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden' }}>
-              <div style={{ padding: '12px 14px', borderBottom: '0.5px solid #e5e7eb', fontSize: '13px', fontWeight: 600 }}>
-                3. Fechas críticas y causas
-              </div>
-              <div style={{ overflowY: 'auto', maxHeight: '420px', padding: '10px' }}>
-                {fechasCriticas.length === 0 && (
-                  <div style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>Sin fechas críticas</div>
-                )}
-                {fechasCriticas.map((fc) => {
-                  const est = estadoStyle(fc.estado)
-                  const isSelected = selectedDia === fc.dia
-                  return (
-                    <div key={fc.dia}
-                      onClick={() => fetchCasos(fc.dia)}
-                      style={{ marginBottom: '8px', padding: '10px 12px', border: `0.5px solid ${isSelected ? '#185FA5' : '#e5e7eb'}`, borderRadius: '8px', cursor: 'pointer', background: isSelected ? '#F0F6FF' : 'white', transition: 'all 0.15s' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                        <span style={{ fontSize: '15px', fontWeight: 700, color: est.color }}>{fmtDia(fc.dia).slice(0, 2)} {new Date(fc.dia + 'T12:00:00').toLocaleDateString('es-PE', { month: 'short' }).toUpperCase()}</span>
-                        <span style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                          <span style={{ fontSize: '13px', fontWeight: 600, color: est.color }}>{fc.slaPct}%</span>
-                          <Badge bg={est.bg} color={est.color} label={est.label} />
-                        </span>
-                      </div>
-                      <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Proveedor más afectado: <strong>{fc.proveedorMasAfectado}</strong></div>
-                      <div style={{ fontSize: '11px', color: '#854F0B', marginTop: '2px' }}>{fc.causaPrincipal}</div>
-                    </div>
-                  )
-                })}
-              </div>
+            <div style={{ overflowY: 'auto', maxHeight: '420px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead style={{ position: 'sticky', top: 0, background: '#f9fafb', zIndex: 1 }}>
+                  <tr>
+                    {['Fecha', 'Inc. reg.', 'Eval. SLA', 'Dentro', 'Fuera', 'SLA%', 'T. resp.', 'T. resol.', 'Nivel prom.', 'Esc. N2+', 'Proveedor', 'Estado'].map((h) => (
+                      <th key={h} style={{ padding: '8px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', whiteSpace: 'nowrap', borderBottom: '0.5px solid #e5e7eb' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {byDay.length === 0 && (
+                    <tr><td colSpan={12} style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>Sin datos</td></tr>
+                  )}
+                  {byDay.map((d, i) => {
+                    const est = estadoStyle(d.estado)
+                    const isSelected = selectedDia === d.dia
+                    return (
+                      <tr key={d.dia}
+                        onClick={() => fetchCasos(d.dia)}
+                        style={{
+                          borderTop: i > 0 ? '0.5px solid #e5e7eb' : 'none',
+                          background: isSelected ? '#F0F6FF' : d.slaPct != null && d.slaPct < 70 ? '#FFF5F5' : 'transparent',
+                          cursor: 'pointer',
+                        }}>
+                        <td style={{ padding: '7px 8px', fontWeight: 500, fontSize: '12px', whiteSpace: 'nowrap', color: d.slaPct != null && d.slaPct < 70 ? '#A32D2D' : '#0f172a' }}>{fmtDia(d.dia)}</td>
+                        <td style={{ padding: '7px 8px', fontSize: '12px', textAlign: 'center' }}>{d.registrados}</td>
+                        <td style={{ padding: '7px 8px', fontSize: '12px', textAlign: 'center' }}>{d.evaluables}</td>
+                        <td style={{ padding: '7px 8px', fontSize: '12px', textAlign: 'center', color: '#3B6D11', fontWeight: 500 }}>{d.dentraSLA}</td>
+                        <td style={{ padding: '7px 8px', fontSize: '12px', textAlign: 'center', color: '#A32D2D', fontWeight: 500 }}>{d.fueraSLA}</td>
+                        <td style={{ padding: '7px 8px', fontSize: '12px', fontWeight: 600, color: est.color, whiteSpace: 'nowrap' }}>{d.slaPct != null ? `${d.slaPct}%` : '—'}</td>
+                        <td style={{ padding: '7px 8px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{fmtMin(d.tPromRespuestaMin)}</td>
+                        <td style={{ padding: '7px 8px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{fmtMin(d.tPromResolucionMin)}</td>
+                        <td style={{ padding: '7px 8px', fontSize: '12px', textAlign: 'center' }}>{d.nivelPromedioAlcanzado != null ? `Nivel ${d.nivelPromedioAlcanzado}` : '—'}</td>
+                        <td style={{ padding: '7px 8px', fontSize: '12px', textAlign: 'center' }}>{d.casosEscaladosN2}</td>
+                        <td style={{ padding: '7px 8px', fontSize: '11px', maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.proveedorMasAfectado ?? '—'}</td>
+                        <td style={{ padding: '7px 8px' }}><Badge bg={est.bg} color={est.color} label={est.label} /></td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
 
-          {/* TABLA 3 — Drill-down */}
+          {/* TABLA 2 — Resumen por tienda */}
+          <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden', marginBottom: '12px' }}>
+            <div style={{ padding: '12px 14px', borderBottom: '0.5px solid #e5e7eb', fontSize: '13px', fontWeight: 600 }}>
+              3. Resumen por tienda
+              <span style={{ fontSize: '10px', fontWeight: 400, color: 'var(--muted-foreground)', marginLeft: '8px' }}>Ordenado por SLA% ascendente — peor primero</span>
+            </div>
+            <div style={{ overflowY: 'auto', maxHeight: '380px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead style={{ position: 'sticky', top: 0, background: '#f9fafb', zIndex: 1 }}>
+                  <tr>
+                    {['Tienda', 'Proveedor', 'Evaluables', 'SLA%', 'T. Resol. prom.'].map((h) => (
+                      <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', whiteSpace: 'nowrap', borderBottom: '0.5px solid #e5e7eb' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {byTienda.length === 0 && (
+                    <tr><td colSpan={5} style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>Sin datos de tienda disponibles</td></tr>
+                  )}
+                  {byTienda.map((t, i) => (
+                    <tr key={t.tiendaCodigo} style={{ borderTop: i > 0 ? '0.5px solid #e5e7eb' : 'none' }}>
+                      <td style={{ padding: '8px 10px', fontSize: '12px' }}>
+                        <span style={{ fontFamily: 'monospace', fontSize: '11px', color: 'var(--muted-foreground)', marginRight: '6px' }}>{t.tiendaCodigo}</span>
+                        {t.tiendaNombre}
+                      </td>
+                      <td style={{ padding: '8px 10px', fontSize: '12px' }}>{t.proveedorNombre}</td>
+                      <td style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'center' }}>{t.evaluables}</td>
+                      <td style={{ padding: '8px 10px', fontSize: '12px', fontWeight: 600, color: slaPctColor(t.slaPct) }}>
+                        {t.slaPct != null ? `${t.slaPct}%` : '—'}
+                      </td>
+                      <td style={{ padding: '8px 10px', fontSize: '11px', fontFamily: 'monospace' }}>{fmtMin(t.tPromResolucionMin)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* TABLA 3 — Drill-down por fecha */}
           {selectedDia && (
             <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', marginBottom: '12px', overflow: 'hidden' }}>
               <div style={{ padding: '12px 14px', borderBottom: '0.5px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
