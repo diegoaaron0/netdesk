@@ -17,6 +17,13 @@ export const clusterEnum = pgEnum('cluster_tienda', ['A', 'B', 'C', 'D'])
 export const estadoCronometroEnum = pgEnum('estado_cronometro', [
   'CORRIENDO', 'RESPONDIDO', 'VENCIDO',
 ])
+export const tipoDecisionEnum = pgEnum('tipo_decision', [
+  'CAMBIO_PROVEEDOR', 'RENEGOCIACION_CONTRATO', 'ACTIVACION_CONTINGENCIA',
+  'REVISION_SLA', 'BAJA_TIENDA', 'CAMBIO_PLAN', 'AUDITORIA_PROVEEDOR', 'OTRO',
+])
+export const estadoDecisionEnum = pgEnum('estado_decision', [
+  'PENDIENTE', 'EN_EJECUCION', 'EJECUTADA', 'CANCELADA',
+])
 
 export const usuarios = pgTable('usuarios', {
   id:       uuid('id').primaryKey().defaultRandom(),
@@ -237,17 +244,45 @@ export const adjuntos = pgTable('adjuntos', {
   creadoEn:       timestamp('creado_en').defaultNow(),
 })
 
+export const decisiones = pgTable('decisiones', {
+  id:               uuid('id').primaryKey().defaultRandom(),
+  tipo:             tipoDecisionEnum('tipo').notNull(),
+  titulo:           text('titulo').notNull(),
+  descripcion:      text('descripcion'),
+  motivo:           text('motivo').notNull(),
+  estado:           estadoDecisionEnum('estado').default('PENDIENTE'),
+  tiendaId:         uuid('tienda_id').references(() => tiendas.id),
+  proveedorId:      uuid('proveedor_id').references(() => proveedores.id),
+  responsableId:    uuid('responsable_id').references(() => usuarios.id).notNull(),
+  fechaSeguimiento: date('fecha_seguimiento'),
+  snapSlaPct:       numeric('snap_sla_pct'),
+  snapMttrMinutos:  integer('snap_mttr_minutos'),
+  snapIei:          numeric('snap_iei'),
+  snapIncidentes:   integer('snap_incidentes'),
+  snapPeriodo:      text('snap_periodo'),
+  ejecutadaEn:      timestamp('ejecutada_en'),
+  resultadoNota:    text('resultado_nota'),
+  postSlaPct:       numeric('post_sla_pct'),
+  postMttrMinutos:  integer('post_mttr_minutos'),
+  postIei:          numeric('post_iei'),
+  postIncidentes:   integer('post_incidentes'),
+  creadoEn:         timestamp('creado_en').defaultNow(),
+  actualizadoEn:    timestamp('actualizado_en').defaultNow(),
+})
+
 // ── Relations ─────────────────────────────────────────────────────────────────
 
 export const usuariosRelations = relations(usuarios, ({ many }) => ({
   incidentes:       many(incidentes),
   tiendasHistorial: many(tiendasHistorial),
+  decisiones:       many(decisiones),
 }))
 
 export const proveedoresRelations = relations(proveedores, ({ many }) => ({
-  tiendas:   many(tiendas),
-  niveles:   many(nivelesEscalamiento),
-  contratos: many(contratosProveedor),
+  tiendas:    many(tiendas),
+  niveles:    many(nivelesEscalamiento),
+  contratos:  many(contratosProveedor),
+  decisiones: many(decisiones),
 }))
 
 export const nivelesRelations = relations(nivelesEscalamiento, ({ one }) => ({
@@ -259,6 +294,7 @@ export const tiendasRelations = relations(tiendas, ({ one, many }) => ({
   incidentes: many(incidentes),
   historial:  many(tiendasHistorial),
   contratos:  many(contratosProveedor),
+  decisiones: many(decisiones),
 }))
 
 export const contratosProveedorRelations = relations(contratosProveedor, ({ one }) => ({
@@ -288,4 +324,10 @@ export const adjuntosRelations = relations(adjuntos, ({ one }) => ({
 export const tiendasHistorialRelations = relations(tiendasHistorial, ({ one }) => ({
   tienda:  one(tiendas,  { fields: [tiendasHistorial.tiendaId],  references: [tiendas.id] }),
   usuario: one(usuarios, { fields: [tiendasHistorial.usuarioId], references: [usuarios.id] }),
+}))
+
+export const decisionesRelations = relations(decisiones, ({ one }) => ({
+  tienda:      one(tiendas,     { fields: [decisiones.tiendaId],      references: [tiendas.id] }),
+  proveedor:   one(proveedores, { fields: [decisiones.proveedorId],   references: [proveedores.id] }),
+  responsable: one(usuarios,    { fields: [decisiones.responsableId], references: [usuarios.id] }),
 }))

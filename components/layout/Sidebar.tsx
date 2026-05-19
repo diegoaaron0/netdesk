@@ -51,6 +51,13 @@ const IcoProveedores = () => (
     <line x1="10" y1="14" x2="14" y2="14"/>
   </svg>
 )
+const IcoDecisiones = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+    <polyline points="14 2 14 8 20 8"/>
+    <polyline points="9 15 11 17 15 13"/>
+  </svg>
+)
 const IcoSalir = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -69,8 +76,9 @@ const NAV = [
   {
     section: 'Análisis',
     items: [
-      { href: '/dashboard', label: 'Dashboard', icon: <IcoDashboard />,    color: '#1D9E75', permiso: 'dashboard.ver' },
-      { href: '/reportes',  label: 'Reportes',  icon: <IcoReportes />,     color: '#7F77DD', permiso: 'reportes.ver' },
+      { href: '/dashboard',  label: 'Dashboard',  icon: <IcoDashboard />,    color: '#1D9E75', permiso: 'dashboard.ver' },
+      { href: '/reportes',   label: 'Reportes',   icon: <IcoReportes />,     color: '#7F77DD', permiso: 'reportes.ver' },
+      { href: '/decisiones', label: 'Decisiones', icon: <IcoDecisiones />,   color: '#F59E0B', permiso: 'decisiones.ver' },
     ],
   },
   {
