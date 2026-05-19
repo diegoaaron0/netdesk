@@ -282,9 +282,14 @@ export function buildConclusiones(
   }
 
   // Regla 3: SLA < 70%
-  for (const t of tiposResumen) {
-    if (t.slaPct != null && t.slaPct < 70) {
-      conclusiones.push(`${t.label} presenta cumplimiento SLA crítico con ${t.slaPct}%.`)
+  const slaZero = tiposResumen.filter((t) => t.slaPct === 0)
+  if (slaZero.length >= 2) {
+    conclusiones.push('Todos los tipos de incidente presentan SLA crítico (0%). Ningún incidente cumplió el acuerdo de nivel de servicio en el período.')
+  } else {
+    for (const t of tiposResumen) {
+      if (t.slaPct != null && t.slaPct < 70) {
+        conclusiones.push(`${t.label} presenta cumplimiento SLA crítico con ${t.slaPct}%.`)
+      }
     }
   }
 

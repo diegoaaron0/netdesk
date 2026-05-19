@@ -322,8 +322,12 @@ function DistribucionTipoContent() {
                       return (
                         <tr key={i} style={{ background: d.causaClasificada === 'Sin clasificar' ? '#FFFBF0' : 'transparent' }}>
                           <TD>
-                            <span style={{ fontWeight: 500 }}>{d.causaClasificada}</span>
-                            {d.causaClasificada === 'Sin clasificar' && <span style={{ fontSize: '10px', color: '#A32D2D', marginLeft: '6px' }}>⚠ normalizar</span>}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                              <span style={{ fontWeight: 500 }}>{d.causaClasificada}</span>
+                              {d.causaClasificada === 'Sin clasificar' && (
+                                <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '999px', background: '#FAEEDA', color: '#854F0B', fontWeight: 500, whiteSpace: 'nowrap' }}>⚠ Requiere clasificación</span>
+                              )}
+                            </div>
                           </TD>
                           <TD align="center"><strong>{d.cantidad}</strong></TD>
                           <TD align="center">{d.pctDeOtros}%</TD>
@@ -382,7 +386,7 @@ function DistribucionTipoContent() {
                         <TD mono>{fmtMin(inc.duracionMin)}</TD>
                         <TD align="center">
                           {inc.slaGeneral === null
-                            ? <span style={{ color: '#888780', fontSize: '10px' }}>No eval.</span>
+                            ? <span style={{ color: '#888780', fontSize: '10px' }} title="Sin escalamiento al proveedor">S/E</span>
                             : inc.slaGeneral
                               ? <span style={{ color: '#3B6D11', fontWeight: 600, fontSize: '10px' }}>✓ OK</span>
                               : <span style={{ color: '#A32D2D', fontWeight: 600, fontSize: '10px' }}>✗ Fuera</span>}
