@@ -295,7 +295,9 @@ function TendenciaSLA6mInner() {
         ) : resumen.length === 0 ? (
           <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', padding: '20px 0', textAlign: 'center' }}>Sin datos</div>
         ) : (
-          resumen.map((r, i) => (
+          resumen.map((r, i) => {
+            const criticoSostenido = (r.mejorMes != null && r.mejorMes === r.peorMes) || r.slaPromedio === 0
+            return (
             <div key={r.proveedor} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 110px 110px 80px 100px 140px', gap: '8px', padding: '10px 0', borderBottom: i < resumen.length - 1 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: getProvColor(r.proveedor), flexShrink: 0 }} />
@@ -304,11 +306,11 @@ function TendenciaSLA6mInner() {
               <span style={{ fontSize: '13px', fontWeight: 700, color: r.slaPromedio != null ? estadoColor(r.slaPromedio >= 90 ? 'optimo' : r.slaPromedio >= 70 ? 'revisar' : 'critico') : '#94A3B8' }}>
                 {r.slaPromedio != null ? `${r.slaPromedio}%` : '—'}
               </span>
-              <span style={{ fontSize: '11px', color: '#3B6D11' }}>
-                {r.mejorMes ? `${r.mejorMes} ${r.mejorMesSLA}%` : '—'}
+              <span style={{ fontSize: criticoSostenido ? '10px' : '11px', fontWeight: criticoSostenido ? 600 : 400, color: criticoSostenido ? '#A32D2D' : '#3B6D11' }}>
+                {criticoSostenido ? 'SLA crítico sostenido' : (r.mejorMes ? `${r.mejorMes} ${r.mejorMesSLA}%` : '—')}
               </span>
-              <span style={{ fontSize: '11px', color: '#A32D2D' }}>
-                {r.peorMes ? `${r.peorMes} ${r.peorMesSLA}%` : '—'}
+              <span style={{ fontSize: criticoSostenido ? '10px' : '11px', fontWeight: criticoSostenido ? 600 : 400, color: '#A32D2D' }}>
+                {criticoSostenido ? 'SLA crítico sostenido' : (r.peorMes ? `${r.peorMes} ${r.peorMesSLA}%` : '—')}
               </span>
               <span style={{ fontSize: '12px', fontWeight: 500, color: r.variacionTotal == null ? '#94A3B8' : r.variacionTotal >= 0 ? '#3B6D11' : '#A32D2D' }}>
                 {fmtPP(r.variacionTotal)}
@@ -318,7 +320,7 @@ function TendenciaSLA6mInner() {
                 {r.estadoTendencia}
               </span>
             </div>
-          ))
+          )})
         )}
       </div>
 
@@ -365,21 +367,30 @@ function TendenciaSLA6mInner() {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
             {proveedores.map((prov) => {
               const r = resumen.find((rr) => rr.proveedor === prov)
+              const sinEvaluables = chartData.every((d) => (d as Record<string, unknown>)[prov] == null)
               return (
                 <div key={prov} style={{ flex: '1 1 200px', minWidth: '180px', maxWidth: '280px', background: '#FAFAFA', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
                     <span style={{ width: 10, height: 10, borderRadius: '50%', background: getProvColor(prov), flexShrink: 0 }} />
                     <span style={{ fontSize: '13px', fontWeight: 700 }}>{prov}</span>
                   </div>
-                  <ResponsiveContainer width="100%" height={60}>
-                    <LineChart data={chartData} margin={{ top: 6, right: 6, bottom: 0, left: 0 }}>
-                      <ReferenceLine y={90} stroke="#6366F1" strokeDasharray="4 2" strokeWidth={1} />
-                      <Line type="monotone" dataKey={prov} stroke={getProvColor(prov)} strokeWidth={2} dot={{ r: 3, fill: getProvColor(prov) }} connectNulls />
-                      <XAxis dataKey="mesLabel" hide />
-                      <YAxis domain={[0, 100]} hide />
-                      <Tooltip formatter={(v: any) => [`${v}%`, 'SLA']} labelFormatter={(l) => String(l)} contentStyle={{ fontSize: '10px', padding: '4px 8px' }} />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  {sinEvaluables ? (
+                    <div style={{ height: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ fontSize: '11px', color: '#94A3B8', fontStyle: 'italic', textAlign: 'center', lineHeight: 1.4 }}>
+                        Sin incidentes evaluables en el período
+                      </span>
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={60}>
+                      <LineChart data={chartData} margin={{ top: 6, right: 6, bottom: 0, left: 0 }}>
+                        <ReferenceLine y={90} stroke="#6366F1" strokeDasharray="4 2" strokeWidth={1} />
+                        <Line type="monotone" dataKey={prov} stroke={getProvColor(prov)} strokeWidth={2} dot={{ r: 3, fill: getProvColor(prov) }} connectNulls />
+                        <XAxis dataKey="mesLabel" hide />
+                        <YAxis domain={[0, 100]} hide />
+                        <Tooltip formatter={(v: any) => [`${v}%`, 'SLA']} labelFormatter={(l) => String(l)} contentStyle={{ fontSize: '10px', padding: '4px 8px' }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
                   {r && (
                     <div style={{ marginTop: '6px' }}>
                       <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Tendencia:</div>
