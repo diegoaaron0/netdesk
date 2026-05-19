@@ -18,6 +18,7 @@ interface DayData {
   nivelPromedioAlcanzado: number | null
   casosEscaladosN2: number
   proveedorMasAfectado: string | null
+  proveedoresAfectados?: string[]
   causaPrincipal: string | null
   estado: string
   esAlertaFuerte?: boolean
@@ -95,9 +96,21 @@ function CustomTooltip({ active, payload }: any) {
           <div style={{ fontSize: '10px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', marginBottom: '2px' }}>Tiempos</div>
           <div>T. Respuesta: <strong>{fmtMin(d.tPromRespuestaMin)}</strong></div>
           <div>T. Resolución: <strong style={{ color: tResolvColor }}>{fmtMin(d.tPromResolucionMin)}</strong></div>
-          {d.proveedorMasAfectado && (
-            <div style={{ marginTop: '2px' }}>Prov.: <strong style={{ color: '#185FA5' }}>{d.proveedorMasAfectado}</strong></div>
-          )}
+          {(() => {
+            const provs = d.proveedoresAfectados?.length ? d.proveedoresAfectados : (d.proveedorMasAfectado ? [d.proveedorMasAfectado] : [])
+            if (provs.length === 0) return null
+            if (provs.length === 1) return (
+              <div style={{ marginTop: '2px' }}>Prov.: <strong style={{ color: '#185FA5' }}>{provs[0]}</strong></div>
+            )
+            return (
+              <div style={{ marginTop: '2px' }}>
+                <div style={{ color: '#64748b', marginBottom: '2px' }}>Proveedores afectados:</div>
+                {provs.map((p) => (
+                  <div key={p} style={{ color: '#185FA5', fontWeight: 600 }}>· {p}</div>
+                ))}
+              </div>
+            )
+          })()}
         </div>
       </div>
     </div>
@@ -250,23 +263,6 @@ export default function TendenciaSLACard({ desde, hasta, proveedorId, refreshKey
             </ComposedChart>
           </ResponsiveContainer>
 
-          {/* Alertas automáticas */}
-          {alertas.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
-              {alertas.map((d) => (
-                <div key={d.dia} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', background: '#FFF5F5', border: '0.5px solid #FECACA', borderRadius: '8px', fontSize: '11px' }}>
-                  <span style={{ color: '#A32D2D', fontWeight: 600 }}>⚠</span>
-                  <span>
-                    <strong>{d.dia.slice(5).split('-').reverse().join('/')}</strong>
-                    {' → '}SLA <strong style={{ color: '#A32D2D' }}>{d.slaPct}%</strong>
-                    {d.evaluables > 0 && ` (${d.dentraSLA} de ${d.evaluables} evaluables)`}
-                    {d.causaPrincipal && ` — ${d.causaPrincipal}`}
-                    {d.proveedorMasAfectado && d.fueraSLA > 0 && ` — ${d.fueraSLA} caso${d.fueraSLA > 1 ? 's' : ''} fuera de SLA`}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
         </>
       )}
     </div>
