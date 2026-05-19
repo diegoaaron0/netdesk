@@ -88,9 +88,9 @@ export default function CriticalStoresCard({ desde, hasta, proveedorId, refreshK
 
       {!loading && resumen && (
         <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
-          <span style={{ color: '#A32D2D', fontWeight: 600 }}>{resumen.totalCriticas}</span> críticas ·{' '}
-          Costo acumulado: <strong>{fmtCosto(resumen.costoAcumulado)}</strong> ·{' '}
-          Reincidencias: <strong>{resumen.reincidenciasDetectadas}</strong>
+          <span style={{ color: '#A32D2D', fontWeight: 600 }}>{resumen.reincidenciasDetectadas}</span> reincidentes ·{' '}
+          <span style={{ fontWeight: 600 }}>{tiendas.length}</span> afectadas ·{' '}
+          Costo: <strong>{fmtCosto(resumen.costoAcumulado)}</strong>
         </div>
       )}
 
@@ -111,14 +111,13 @@ export default function CriticalStoresCard({ desde, hasta, proveedorId, refreshK
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
             <thead>
               <tr style={{ borderBottom: '0.5px solid #e5e7eb' }}>
-                {['#', 'Tienda', 'Proveedor', 'Distrito', 'Incidentes', 'MTTR prom.', 'Costo est.', 'Estado'].map((h) => (
+                {['#', 'Tienda', 'Proveedor', 'Distrito', 'Incidentes', 'MTTR prom.', 'Alerta', 'Costo est.', 'Reincid.'].map((h) => (
                   <th key={h} style={{ padding: '6px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {tiendas.slice(0, 5).map((t, i) => {
-                const badge = estadoBadge(t.estado)
                 return (
                   <tr key={t.tiendaId} style={{ borderTop: i > 0 ? '0.5px solid #f3f4f6' : 'none' }}>
                     <td style={{ padding: '7px 8px', fontSize: '11px', color: 'var(--muted-foreground)', fontWeight: 500 }}>{i + 1}</td>
@@ -141,6 +140,15 @@ export default function CriticalStoresCard({ desde, hasta, proveedorId, refreshK
                       </TooltipCell>
                     </td>
                     <td style={{ padding: '7px 8px' }}>
+                      {(() => {
+                        const m = t.mttrPromedioMin
+                        if (m == null) return <span style={{ color: '#888780' }}>—</span>
+                        if (m > 240) return <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: '#FCEBEB', color: '#A32D2D', fontWeight: 600, whiteSpace: 'nowrap' }}>● Alto</span>
+                        if (m >= 60) return <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: '#FEF3C7', color: '#B45309', fontWeight: 600, whiteSpace: 'nowrap' }}>● Medio</span>
+                        return              <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: '#EAF3DE', color: '#3B6D11', fontWeight: 600, whiteSpace: 'nowrap' }}>● Bajo</span>
+                      })()}
+                    </td>
+                    <td style={{ padding: '7px 8px' }}>
                       <TooltipCell lines={[
                         `Costo: ${fmtCosto(t.costoEstimado)}`,
                         `Horas caída: ${t.horasAfectadas != null ? `${t.horasAfectadas}h` : '—'}`,
@@ -153,11 +161,9 @@ export default function CriticalStoresCard({ desde, hasta, proveedorId, refreshK
                       </TooltipCell>
                     </td>
                     <td style={{ padding: '7px 8px' }}>
-                      <TooltipCell lines={t.motivosPrincipales.length ? t.motivosPrincipales : ['Sin motivos registrados']}>
-                        <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: badge.bg, color: badge.color, fontWeight: 500, whiteSpace: 'nowrap', cursor: 'help', textDecoration: 'underline dotted' }}>
-                          {badge.label}
-                        </span>
-                      </TooltipCell>
+                      {t.reincidencias > 0
+                        ? <span style={{ fontWeight: 600, color: '#A32D2D' }}>Sí</span>
+                        : <span style={{ color: '#888780' }}>No</span>}
                     </td>
                   </tr>
                 )
