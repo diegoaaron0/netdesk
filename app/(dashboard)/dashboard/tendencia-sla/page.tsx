@@ -281,50 +281,12 @@ function TendenciaSLAPageInner() {
             </div>
           </div>
 
-          {/* TABLA 2 — Resumen por tienda */}
-          <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden', marginBottom: '12px' }}>
-            <div style={{ padding: '12px 14px', borderBottom: '0.5px solid #e5e7eb', fontSize: '13px', fontWeight: 600 }}>
-              3. Resumen por tienda
-              <span style={{ fontSize: '10px', fontWeight: 400, color: 'var(--muted-foreground)', marginLeft: '8px' }}>Ordenado por SLA% ascendente — peor primero</span>
-            </div>
-            <div style={{ overflowY: 'auto', maxHeight: '380px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead style={{ position: 'sticky', top: 0, background: '#f9fafb', zIndex: 1 }}>
-                  <tr>
-                    {['Tienda', 'Proveedor', 'Evaluables', 'SLA%', 'T. Resol. prom.'].map((h) => (
-                      <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', whiteSpace: 'nowrap', borderBottom: '0.5px solid #e5e7eb' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {byTienda.length === 0 && (
-                    <tr><td colSpan={5} style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>Sin datos de tienda disponibles</td></tr>
-                  )}
-                  {byTienda.map((t, i) => (
-                    <tr key={t.tiendaCodigo} style={{ borderTop: i > 0 ? '0.5px solid #e5e7eb' : 'none' }}>
-                      <td style={{ padding: '8px 10px', fontSize: '12px' }}>
-                        <span style={{ fontFamily: 'monospace', fontSize: '11px', color: 'var(--muted-foreground)', marginRight: '6px' }}>{t.tiendaCodigo}</span>
-                        {t.tiendaNombre}
-                      </td>
-                      <td style={{ padding: '8px 10px', fontSize: '12px' }}>{t.proveedorNombre}</td>
-                      <td style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'center' }}>{t.evaluables}</td>
-                      <td style={{ padding: '8px 10px', fontSize: '12px', fontWeight: 600, color: slaPctColor(t.slaPct) }}>
-                        {t.slaPct != null ? `${t.slaPct}%` : '—'}
-                      </td>
-                      <td style={{ padding: '8px 10px', fontSize: '11px', fontFamily: 'monospace' }}>{fmtMin(t.tPromResolucionMin)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
           {/* TABLA 3 — Drill-down por fecha */}
           {selectedDia && (
             <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', marginBottom: '12px', overflow: 'hidden' }}>
               <div style={{ padding: '12px 14px', borderBottom: '0.5px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <span style={{ fontSize: '13px', fontWeight: 600 }}>4. Casos que explican la caída ({fmtDia(selectedDia)})</span>
+                  <span style={{ fontSize: '13px', fontWeight: 600 }}>3. Casos que explican la caída ({fmtDia(selectedDia)})</span>
                   <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginLeft: '8px' }}>ⓘ Incidentes abiertos no incluidos</span>
                 </div>
                 <button onClick={() => { setSelectedDia(null); setCasos([]) }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--muted-foreground)' }}>✕</button>
@@ -378,7 +340,7 @@ function TendenciaSLAPageInner() {
           {conclusiones.length > 0 && (
             <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', marginBottom: '16px', overflow: 'hidden' }}>
               <div style={{ padding: '12px 14px', borderBottom: '0.5px solid #e5e7eb', fontSize: '13px', fontWeight: 600 }}>
-                5. Conclusiones automáticas <span style={{ fontWeight: 400, fontSize: '11px', color: 'var(--muted-foreground)'}}>(generadas por el sistema)</span>
+                4. Conclusiones automáticas <span style={{ fontWeight: 400, fontSize: '11px', color: 'var(--muted-foreground)'}}>(generadas por el sistema)</span>
               </div>
               <div style={{ padding: '14px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '10px' }}>
                 {conclusiones.map((c, i) => {
