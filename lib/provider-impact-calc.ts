@@ -83,6 +83,12 @@ export function buildProveedorMetricas(
       ? Math.round(mttrVals.reduce((a, b) => a + b, 0) / mttrVals.length)
       : null
 
+    // Tiempos promedio de respuesta y resolución (solo evaluables)
+    const avg = (arr: number[]) =>
+      arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : null
+    const tPromRespuestaMin  = avg(evaluables.map((c) => c.tPrimeraRespuestaMin).filter((v): v is number => v != null))
+    const tPromResolucionMin = avg(evaluables.map((c) => c.tResolucionMin).filter((v): v is number => v != null))
+
     // Costo: sum across RESUELTO incidentes
     let costoTotal = 0
     for (const row of provRows) costoTotal += rowCosto(row, ventasDiarias)
@@ -108,6 +114,8 @@ export function buildProveedorMetricas(
       fueraSLA,
       slaPct,
       mttrMinutos,
+      tPromRespuestaMin,
+      tPromResolucionMin,
       costoTotal: Math.round(costoTotal),
       tiendasAfectadas: tiendasSet.size,
       reincidencia,
@@ -217,6 +225,12 @@ export function buildTiendasAfectadas(
   return result.sort((a, b) => b.incidentes - a.incidentes).slice(0, limit)
 }
 
+function fmtMin(min: number): string {
+  const h = Math.floor(min / 60)
+  const m = Math.round(min % 60)
+  return h > 0 ? `${h}h ${m}m` : `${m}m`
+}
+
 export function buildConclusionesProveedor(proveedores: ProveedorMetricas[]): string[] {
   if (!proveedores.length) return []
   const conclusiones: string[] = []
@@ -244,16 +258,31 @@ export function buildConclusionesProveedor(proveedores: ProveedorMetricas[]): st
     )
   }
 
-  // Regla 4: causa principal global
+  // Regla 4: causa principal global con tiempos reales
   const causas = proveedores.flatMap((p) => (p.causaPrincipal ? [p.causaPrincipal] : []))
   if (causas.length) {
     const counts: Record<string, number> = {}
     for (const c of causas) counts[c] = (counts[c] ?? 0) + 1
     const topCausa = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0]
+
+    // Promedio global de respuesta entre proveedores con datos
+    const avgRespuesta = (() => {
+      const vals = proveedores.map((p) => p.tPromRespuestaMin).filter((v): v is number => v != null)
+      return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null
+    })()
+    const avgResolucion = (() => {
+      const vals = proveedores.map((p) => p.tPromResolucionMin).filter((v): v is number => v != null)
+      return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null
+    })()
+
     if (topCausa === 'Nivel 1 sin respuesta') {
       conclusiones.push('La principal causa de incumplimiento SLA es falta de respuesta en Nivel 1.')
+    } else if (topCausa === 'Respuesta fuera de tiempo') {
+      const tiempoReal = avgRespuesta != null ? ` El tiempo promedio de primera respuesta del período fue de ${fmtMin(avgRespuesta)}, vs el límite contractual de 1h.` : ''
+      conclusiones.push(`La principal causa de incumplimiento SLA es respuesta fuera de tiempo.${tiempoReal}`)
     } else if (topCausa === 'Resolución fuera de tiempo') {
-      conclusiones.push('La principal causa de incumplimiento SLA es tiempo de resolución alto.')
+      const tiempoReal = avgResolucion != null ? ` El tiempo promedio de resolución del período fue de ${fmtMin(avgResolucion)}, vs el límite por tipo de incidente (60–240 min).` : ''
+      conclusiones.push(`La principal causa de incumplimiento SLA es tiempo de resolución alto.${tiempoReal}`)
     } else {
       conclusiones.push(`La principal causa de incumplimiento SLA es: ${topCausa}.`)
     }

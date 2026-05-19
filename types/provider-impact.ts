@@ -7,6 +7,8 @@ export interface ProveedorMetricas {
   fueraSLA: number
   slaPct: number | null
   mttrMinutos: number | null
+  tPromRespuestaMin: number | null
+  tPromResolucionMin: number | null
   costoTotal: number
   tiendasAfectadas: number
   reincidencia: number
