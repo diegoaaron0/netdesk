@@ -98,6 +98,7 @@ function TiendaSearch({ tiendas, mapRef }: { tiendas: TiendaMapPoint[]; mapRef: 
 // ─── Mapa ─────────────────────────────────────────────────────────────────────
 
 export default function PeruLeafletMap({ tiendas }: Props) {
+  console.log('tiendasGeo con coords:', tiendas?.filter(t => t.coordenadas)?.length ?? 0)
   const mapRef = useRef<LeafletMap | null>(null)
   const maxImpacto = tiendas.reduce((mx, t) => Math.max(mx, t.impacto), 1)
 
