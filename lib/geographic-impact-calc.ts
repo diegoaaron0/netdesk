@@ -1,6 +1,6 @@
 import type {
   ZonaResumen, DistritoDetalle, TiendaZonaDetalle,
-  PatronGeografico, GeographicResumenGlobal, ZonaEstado,
+  PatronGeografico, GeographicResumenGlobal, ZonaEstado, TiendaMapPoint,
 } from '@/types/geographic-impact'
 import { calcSLARow, calcMTTRMin } from './sla-core'
 import { calcImpactoRow } from './impacto-calc'
@@ -19,6 +19,7 @@ export interface RawGeoRow {
   tienda_codigo: string
   tienda_nombre: string | null
   tienda_distrito: string | null
+  tienda_coordenadas: string | null
   cluster: string | null
   venta_hora_soles: number | null
   tiene_contingencia: boolean
@@ -352,4 +353,52 @@ export function buildConclusiones(zonas: ZonaResumen[], patrones: PatronGeografi
   }
 
   return out.slice(0, 8)
+}
+
+// ─── Build Tiendas para mapa ──────────────────────────────────────────────────
+
+export function buildTiendasGeo(rows: RawGeoRow[]): TiendaMapPoint[] {
+  const map = new Map<string, { rows: RawGeoRow[]; coordenadas: string | null; nombre: string | null; distrito: string | null; proveedor: string | null }>()
+
+  for (const row of rows) {
+    if (!map.has(row.tienda_id)) {
+      map.set(row.tienda_id, {
+        rows: [],
+        coordenadas: row.tienda_coordenadas ?? null,
+        nombre: row.tienda_nombre,
+        distrito: row.tienda_distrito,
+        proveedor: row.prov_nombre,
+      })
+    }
+    map.get(row.tienda_id)!.rows.push(row)
+  }
+
+  const result: TiendaMapPoint[] = []
+  for (const [tiendaId, { rows: tRows, coordenadas, nombre, distrito, proveedor }] of map.entries()) {
+    const mttrVals = tRows
+      .filter((r) => r.estado === 'RESUELTO' && r.hora_fin)
+      .map((r) => calcMTTRMin(r.hora_registro, r.hora_fin))
+      .filter((v): v is number => v != null && v > 0)
+
+    const slaResults = tRows.map(calcSLA).filter((v): v is boolean => v !== null)
+    const slaPct = slaResults.length > 0
+      ? Math.round((slaResults.filter(Boolean).length / slaResults.length) * 100)
+      : null
+
+    const impacto = tRows.reduce((s, r) => s + calcImpacto(r), 0)
+
+    result.push({
+      tiendaId,
+      codigo: tRows[0].tienda_codigo,
+      nombreCc: nombre,
+      distrito,
+      proveedor,
+      coordenadas,
+      slaPct,
+      mttrMin: avg(mttrVals),
+      impacto: Math.round(impacto),
+    })
+  }
+
+  return result.filter((t) => t.coordenadas != null)
 }

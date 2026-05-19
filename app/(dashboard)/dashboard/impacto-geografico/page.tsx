@@ -1,10 +1,12 @@
 'use client'
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import type {
   GeographicImpactResponse, ZonaResumen, DistritoDetalle, TiendaZonaDetalle, PatronGeografico,
 } from '@/types/geographic-impact'
-import PeruMapPlaceholder from '../components/PeruMapPlaceholder'
+
+const PeruLeafletMap = dynamic(() => import('../components/PeruLeafletMap'), { ssr: false })
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -179,14 +181,22 @@ function ImpactoGeograficoInner() {
         {/* Left: map + Tabla 1 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-          {/* Map + Tabla 1 header */}
+          {/* Map */}
+          <div style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>Mapa de impacto por tienda</div>
+            {loading
+              ? <div style={{ height: '400px', background: 'var(--muted)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Cargando mapa…</div>
+              : <PeruLeafletMap tiendas={data?.tiendas ?? []} />
+            }
+            <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '8px' }}>
+              Color: verde ≥90% SLA · naranja 70–89% · rojo &lt;70%. Tamaño proporcional al impacto estimado.
+            </div>
+          </div>
+
+          {/* Tabla 1 */}
           <div style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px' }}>
             <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>Tabla 1 — Resumen por zona</div>
-            <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
-              {!loading && <PeruMapPlaceholder zonas={zonas} />}
-              {loading && <div style={{ width: '120px', height: '148px', background: 'var(--muted)', borderRadius: '8px', flexShrink: 0 }} />}
-
-              <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
                 {/* Table header */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 65px 75px 70px 70px 70px', gap: '6px', padding: '0 0 6px', borderBottom: '0.5px solid var(--border)' }}>
                   {['Zona', 'Inc.', 'Tiendas', 'MTTR prom', 'SLA%', 'Impacto', 'Estado'].map((h) => (
@@ -231,7 +241,6 @@ function ImpactoGeograficoInner() {
                   ))
                 )}
               </div>
-            </div>
             {!loading && zonas.length > 0 && (
               <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '8px' }}>
                 Haz clic en una zona para ver el detalle de tiendas afectadas.

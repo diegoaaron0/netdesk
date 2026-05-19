@@ -58,6 +58,18 @@ export interface GeographicResumenGlobal {
   proveedorDominante: string | null
 }
 
+export interface TiendaMapPoint {
+  tiendaId: string
+  codigo: string
+  nombreCc: string | null
+  distrito: string | null
+  proveedor: string | null
+  coordenadas: string | null
+  slaPct: number | null
+  mttrMin: number | null
+  impacto: number
+}
+
 export interface GeographicImpactResponse {
   zonas: ZonaResumen[]
   distritos: DistritoDetalle[]
@@ -65,4 +77,5 @@ export interface GeographicImpactResponse {
   resumenGlobal: GeographicResumenGlobal
   conclusiones: string[]
   proveedoresList: Array<{ id: string; nombre: string }>
+  tiendas: TiendaMapPoint[]
 }

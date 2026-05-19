@@ -5,7 +5,7 @@ import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import {
   buildZonas, buildDistritos, buildPatrones,
-  buildResumenGlobal, buildConclusiones, type RawGeoRow,
+  buildResumenGlobal, buildConclusiones, buildTiendasGeo, type RawGeoRow,
 } from '@/lib/geographic-impact-calc'
 import { fetchProveedoresList } from '@/lib/dashboard-queries'
 
@@ -37,10 +37,11 @@ export async function GET(req: NextRequest) {
         i.estado,
         i.proveedor_id,
         COALESCE(p.nombre, pt.nombre) AS prov_nombre,
-        t.id        AS tienda_id,
-        t.codigo    AS tienda_codigo,
-        t.nombre_cc AS tienda_nombre,
-        t.distrito  AS tienda_distrito,
+        t.id          AS tienda_id,
+        t.codigo      AS tienda_codigo,
+        t.nombre_cc   AS tienda_nombre,
+        t.distrito    AS tienda_distrito,
+        t.coordenadas AS tienda_coordenadas,
         t.cluster,
         t.venta_hora_soles::float  AS venta_hora_soles,
         t.tiene_contingencia,
@@ -83,6 +84,7 @@ export async function GET(req: NextRequest) {
   const patrones  = buildPatrones(rows)
   const resumenGlobal = buildResumenGlobal(zonas)
   const conclusiones  = buildConclusiones(zonas, patrones)
+  const tiendas       = buildTiendasGeo(rows)
 
-  return NextResponse.json({ zonas, distritos, patrones, resumenGlobal, conclusiones, proveedoresList })
+  return NextResponse.json({ zonas, distritos, patrones, resumenGlobal, conclusiones, proveedoresList, tiendas })
 }
