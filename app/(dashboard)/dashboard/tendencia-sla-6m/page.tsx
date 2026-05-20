@@ -137,6 +137,7 @@ function TendenciaSLA6mInner() {
   const mesCrit    = data?.mesCriticos ?? []
   const conclusiones = data?.conclusiones ?? []
   const provList   = data?.proveedoresList ?? []
+  const mejorIgualPeor = !loading && g?.mejorProveedor != null && g?.peorProveedor != null && g.mejorProveedor === g.peorProveedor
 
   // Tabla 1: rows grouped by mes+proveedor, limited unless expanded
   const meses = Array.from(new Set(puntos.map((p) => p.mesKey))).sort().reverse()
@@ -180,12 +181,9 @@ function TendenciaSLA6mInner() {
       {/* 6 Summary Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '10px', marginBottom: '20px' }}>
         {[
-          {
-            label: 'Proveedor con mejor tendencia',
-            value: g?.mejorProveedor ?? '—',
-            sub: g?.mejorProveedorPP != null ? `${fmtPP(g.mejorProveedorPP)} en 6 meses` : '',
-            color: '#3B6D11', icon: '↑',
-          },
+          ...(mejorIgualPeor
+            ? [{ label: 'Proveedor con mejor tendencia', value: 'Sin mejoras detectadas', sub: 'Todos los proveedores mantienen tendencia crítica', color: '#6B7280', icon: '—' }]
+            : [{ label: 'Proveedor con mejor tendencia', value: g?.mejorProveedor ?? '—', sub: g?.mejorProveedorPP != null ? `${fmtPP(g.mejorProveedorPP)} en 6 meses` : '', color: '#3B6D11', icon: '↑' }]),
           {
             label: 'Proveedor con peor tendencia',
             value: g?.peorProveedor ?? '—',
@@ -310,6 +308,8 @@ function TendenciaSLA6mInner() {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {sinEvaluables ? (
                     <span style={{ fontSize: '10px', color: '#94A3B8' }}>—</span>
+                  ) : chartData.filter((d) => (d as Record<string, unknown>)[r.proveedor] != null).length === 1 ? (
+                    <div title="Solo 1 mes de datos disponible" style={{ width: 8, height: 8, borderRadius: '50%', background: '#DC2626' }} />
                   ) : (
                     <LineChart width={80} height={32} data={chartData} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
                       <Line type="monotone" dataKey={r.proveedor} stroke={getProvColor(r.proveedor)} strokeWidth={1.5} dot={false} connectNulls />

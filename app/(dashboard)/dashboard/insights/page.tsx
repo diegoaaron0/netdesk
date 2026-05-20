@@ -25,6 +25,14 @@ const KPI_LABELS: Record<KpiOrigen, string> = {
   G: 'G - Tendencia SLA',
 }
 
+const KPI_ROUTES: Partial<Record<KpiOrigen, string>> = {
+  C: '/dashboard/tiendas-criticas',
+  D: '/dashboard/distribucion-tipo',
+  E: '/dashboard/sla-proveedor',
+  F: '/dashboard/impacto-geografico',
+  G: '/dashboard/tendencia-sla-6m',
+}
+
 const TIPO_CONFIG = {
   alerta: { label: 'Alerta', bg: '#FEE2E2', color: '#B91C1C', border: '#FECACA', icon: '⚠' },
   accion: { label: 'Acción', bg: '#FEF3C7', color: '#B45309', border: '#FDE68A', icon: '→' },
@@ -106,6 +114,12 @@ const TIPO_DECISION_LABELS: Record<TipoDecision, string> = {
   CAMBIO_PLAN:             'Cambio de plan',
   AUDITORIA_PROVEEDOR:     'Auditoría de proveedor',
   OTRO:                    'Otro',
+}
+
+function calcFechaSeguimiento(tipo: TipoDecision): string {
+  const days = tipo === 'ACTIVACION_CONTINGENCIA' ? 7 : tipo === 'AUDITORIA_PROVEEDOR' ? 15 : 30
+  const d = new Date(); d.setDate(d.getDate() + days)
+  return d.toISOString().split('T')[0]
 }
 
 function buildDecisionPreset(
@@ -360,7 +374,7 @@ function DecisionModal({
   const [tipo,             setTipo]             = useState<TipoDecision>(preset.tipo)
   const [motivo,           setMotivo]           = useState(insight.descripcion)
   const [descripcion,      setDescripcion]      = useState('')
-  const [fechaSeguimiento, setFechaSeguimiento] = useState('')
+  const [fechaSeguimiento, setFechaSeguimiento] = useState(() => calcFechaSeguimiento(preset.tipo))
   const [saving,           setSaving]           = useState(false)
   const [saveError,        setSaveError]        = useState('')
 
@@ -494,6 +508,7 @@ function InsightsPageContent() {
   const [filterTipo,     setFilterTipo]     = useState<'todos' | 'alerta' | 'accion' | 'logro'>('todos')
   const [decisionIns,    setDecisionIns]    = useState<Insight | null>(null)
   const [toast,          setToast]          = useState<string | null>(null)
+  const [hoveredKpi,     setHoveredKpi]     = useState<KpiOrigen | null>(null)
 
   useEffect(() => {
     if (!toast) return
@@ -741,8 +756,16 @@ function InsightsPageContent() {
               const count = insights.filter(i => i.kpisOrigen.includes(k)).length
               if (count === 0) return null
               const c = KPI_COLORS[k]
+              const route = KPI_ROUTES[k]
+              const isHovered = hoveredKpi === k
               return (
-                <div key={k} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 14px', borderRadius: '8px', background: c.bg, border: `0.5px solid ${c.color}22` }}>
+                <div
+                  key={k}
+                  onClick={() => route && router.push(route)}
+                  onMouseEnter={() => route && setHoveredKpi(k)}
+                  onMouseLeave={() => setHoveredKpi(null)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 14px', borderRadius: '8px', background: c.bg, border: `0.5px solid ${isHovered ? c.color : c.color + '22'}`, cursor: route ? 'pointer' : 'default' }}
+                >
                   <span style={{ fontSize: '11px', fontWeight: 700, color: c.color }}>{k}</span>
                   <div>
                     <div style={{ fontSize: '11px', fontWeight: 600, color: c.color }}>{count} insight{count > 1 ? 's' : ''}</div>

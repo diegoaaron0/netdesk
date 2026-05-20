@@ -395,6 +395,11 @@ function deduplicar(insights: Insight[]): Insight[] {
 
 function buildConclusiones(insights: Insight[], resumen: InsightsResumenGlobal): string[] {
   const c: string[] = []
+  const falla = insights.find(i => i.categoria === 'falla_sistemica')
+  if (falla) {
+    const n = typeof falla.metaDatos.proveedoresCriticos === 'number' ? falla.metaDatos.proveedoresCriticos : 0
+    c.push(`ALERTA SISTÉMICA: ${n} proveedores presentan SLA crítico simultáneamente. Esto puede indicar un problema en el proceso interno de escalamiento, no solo fallas individuales de proveedores.`)
+  }
   const alertas = insights.filter(i => i.tipo === 'alerta' && i.prioridad === 'alta')
   if (alertas.length > 0) c.push(`Se detectaron ${alertas.length} alerta(s) de prioridad alta que requieren acción inmediata.`)
   const logros = insights.filter(i => i.tipo === 'logro')
