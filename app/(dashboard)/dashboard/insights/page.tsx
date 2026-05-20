@@ -82,10 +82,11 @@ function fmtText(text: string): string {
   return text.replace(/\b(CAIDA_TOTAL|INTERMITENCIA|LENTITUD|OTROS)\b/g, m => INCIDENTE_READABLE[m] ?? m)
 }
 
-function riskBadge(score: number): { label: string; bg: string; color: string; border: string } {
-  if (score >= 70) return { label: 'Riesgo alto',  bg: '#FEE2E2', color: '#B91C1C', border: '#FECACA' }
-  if (score >= 40) return { label: 'Riesgo medio', bg: '#FEF3C7', color: '#B45309', border: '#FDE68A' }
-  return               { label: 'Riesgo bajo',  bg: '#DCFCE7', color: '#15803D', border: '#BBF7D0' }
+function riskBadge(prioridad: string, score: number): { label: string; bg: string; color: string; border: string } {
+  if (prioridad === 'alta')  return { label: 'Riesgo alto',  bg: '#FEE2E2', color: '#B91C1C', border: '#FECACA' }
+  if (prioridad === 'media') return { label: 'Riesgo medio', bg: '#FEF3C7', color: '#B45309', border: '#FDE68A' }
+  if (score >= 40)           return { label: 'Riesgo medio', bg: '#FEF3C7', color: '#B45309', border: '#FDE68A' }
+  return                            { label: 'Riesgo bajo',  bg: '#DCFCE7', color: '#15803D', border: '#BBF7D0' }
 }
 
 function fmtEvidencia(entidad: string, valor: string): string {
@@ -634,8 +635,13 @@ function InsightsPageContent() {
           <div>
             <div style={{ fontSize: '12px', fontWeight: 700, color: '#B91C1C' }}>Entidad más crítica del período</div>
             <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>
-              {resumen.entidadMasCritica} <span style={{ fontSize: '11px', color: '#6B7280', fontWeight: 400 }}>({resumen.entidadMasCriticaTipo})</span>
+              {resumen.entidadMasCriticaTipo === 'global'
+                ? 'Situación sistémica'
+                : <>{resumen.entidadMasCritica} <span style={{ fontSize: '11px', color: '#6B7280', fontWeight: 400 }}>({resumen.entidadMasCriticaTipo})</span></>}
             </div>
+            {resumen.entidadMasCriticaTipo === 'global' && (
+              <div style={{ fontSize: '11px', color: '#374151', marginTop: '2px' }}>Múltiples proveedores en estado crítico simultáneo</div>
+            )}
             {resumen.slaPromedioGlobal != null && (
               <div style={{ fontSize: '11px', color: '#374151', marginTop: '2px' }}>
                 SLA global: <strong style={{ color: resumen.slaPromedioGlobal >= 90 ? '#15803D' : '#B91C1C' }}>{resumen.slaPromedioGlobal}%</strong>
@@ -671,7 +677,7 @@ function InsightsPageContent() {
             {filteredInsights.map(ins => {
               const tc   = TIPO_CONFIG[ins.tipo]
               const pc   = PRIO_CONFIG[ins.prioridad]
-              const rb   = riskBadge(ins.score)
+              const rb   = riskBadge(ins.prioridad, ins.score)
               const isSel = selectedId === ins.id
               return (
                 <div key={ins.id}
@@ -723,7 +729,7 @@ function InsightsPageContent() {
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '2px' }}>
                       {ins.evidencia.slice(0, 4).map((ev, i) => (
                         <span key={i} style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '999px', background: 'white', border: '0.5px solid #e5e7eb', color: '#374151' }}>
-                          {fmtEvidencia(ev.entidad, ev.valor)}
+                          {ins.categoria === 'falla_sistemica' ? `${ev.entidad}: ${ev.valor}` : fmtEvidencia(ev.entidad, ev.valor)}
                         </span>
                       ))}
                     </div>
@@ -750,14 +756,16 @@ function InsightsPageContent() {
       {/* TABLA 2 — KPIs origen cruzado */}
       {!loading && insights.length > 0 && (
         <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>Tabla 2 — Resumen por KPI de origen</div>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>Tabla 2 — Insight principal por KPI</div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {(Object.keys(KPI_COLORS) as KpiOrigen[]).map(k => {
-              const count = insights.filter(i => i.kpisOrigen.includes(k)).length
-              if (count === 0) return null
+              const kpiInsights = insights.filter(i => i.kpisOrigen.includes(k))
+              if (kpiInsights.length === 0) return null
+              const top = kpiInsights.reduce((a, b) => b.score > a.score ? b : a)
               const c = KPI_COLORS[k]
               const route = KPI_ROUTES[k]
               const isHovered = hoveredKpi === k
+              const pc = PRIO_CONFIG[top.prioridad]
               return (
                 <div
                   key={k}
@@ -768,7 +776,10 @@ function InsightsPageContent() {
                 >
                   <span style={{ fontSize: '11px', fontWeight: 700, color: c.color }}>{k}</span>
                   <div>
-                    <div style={{ fontSize: '11px', fontWeight: 600, color: c.color }}>{count} insight{count > 1 ? 's' : ''}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: pc.dot, flexShrink: 0 }} />
+                      <span style={{ fontSize: '10px', fontWeight: 600, color: pc.textColor }}>Prioridad {pc.label}</span>
+                    </div>
                     <div style={{ fontSize: '10px', color: c.color, opacity: 0.8 }}>{KPI_LABELS[k].replace(`${k} - `, '')}</div>
                   </div>
                 </div>

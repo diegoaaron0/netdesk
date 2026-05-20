@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import type { InsightsResponse, Insight, KpiOrigen } from '@/types/insights'
+import type { InsightsResponse } from '@/types/insights'
 
 interface Props {
   desde: string
@@ -10,42 +10,19 @@ interface Props {
   refreshKey: number
 }
 
-const KPI_COLORS: Record<KpiOrigen, { bg: string; color: string }> = {
-  A: { bg: '#F1F5F9', color: '#475569' },
-  B: { bg: '#DBEAFE', color: '#1D4ED8' },
-  C: { bg: '#CCFBF1', color: '#0F766E' },
-  D: { bg: '#FEF3C7', color: '#B45309' },
-  E: { bg: '#EFF6FF', color: '#3B82F6' },
-  F: { bg: '#DCFCE7', color: '#16A34A' },
-  G: { bg: '#F3E8FF', color: '#9333EA' },
+const DOT_COLOR: Record<string, string> = {
+  alerta: '#EF4444',
+  accion: '#F59E0B',
+  logro:  '#6B7280',
 }
 
-const TIPO_CONFIG = {
-  alerta: { label: 'Alerta', bg: '#FEE2E2', color: '#B91C1C', border: '#FECACA' },
-  accion: { label: 'Acción', bg: '#FEF3C7', color: '#B45309', border: '#FDE68A' },
-  logro:  { label: 'Logro',  bg: '#DCFCE7', color: '#15803D', border: '#BBF7D0' },
+const PRIO_STYLE: Record<string, { bg: string; color: string }> = {
+  alta:  { bg: '#FEE2E2', color: '#B91C1C' },
+  media: { bg: '#FEF3C7', color: '#B45309' },
+  baja:  { bg: '#F1F5F9', color: '#374151' },
 }
 
-const PRIO_CONFIG = {
-  alta:  { dot: '#EF4444' },
-  media: { dot: '#F59E0B' },
-  baja:  { dot: '#6B7280' },
-}
-
-const TIPO_INCIDENTE_MAP: Record<string, string> = {
-  CAIDA_TOTAL:   'Caída total',
-  INTERMITENCIA: 'Intermitencia',
-  LENTITUD:      'Lentitud',
-  OTROS:         'Otros',
-}
-
-function fmtTipo(tipo: string): string {
-  return TIPO_INCIDENTE_MAP[tipo] ?? tipo
-}
-
-function fmtText(text: string): string {
-  return text.replace(/\b(CAIDA_TOTAL|INTERMITENCIA|LENTITUD|OTROS)\b/g, (m) => fmtTipo(m))
-}
+const PRIO_LABEL: Record<string, string> = { alta: 'Alta', media: 'Media', baja: 'Baja' }
 
 export default function InsightsRecommendationsCard({ desde, hasta, proveedorId, refreshKey }: Props) {
   const router = useRouter()
@@ -67,39 +44,29 @@ export default function InsightsRecommendationsCard({ desde, hasta, proveedorId,
 
   useEffect(() => { fetchData() }, [fetchData, refreshKey])
 
-  const insights = (data?.insights ?? []).slice(0, 5)
-  const resumen  = data?.resumenGlobal
+  const allInsights = data?.insights ?? []
+  const resumen     = data?.resumenGlobal
+
+  const detailParams = new URLSearchParams({ desde, hasta })
+  if (proveedorId) detailParams.set('proveedorId', proveedorId)
+  const detailUrl = `/dashboard/insights?${detailParams}`
+
+  const falla = allInsights.find(i => i.categoria === 'falla_sistemica')
+  const top3  = allInsights.filter(i => i.categoria !== 'falla_sistemica').slice(0, 3)
 
   return (
     <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>H. Insights y decisiones sugeridas</div>
-          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Recomendaciones ejecutivas basadas en todos los datos del período</div>
-        </div>
-        <button
-          onClick={() => {
-            const params = new URLSearchParams({ desde, hasta })
-            if (proveedorId) params.set('proveedorId', proveedorId)
-            router.push(`/dashboard/insights?${params}`)
-          }}
-          style={{ padding: '5px 12px', fontSize: '11px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}
-        >
-          Ver detalle →
-        </button>
-      </div>
 
-      {/* KPI strip */}
+      {/* Header */}
+      <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>H. Insights y decisiones sugeridas</div>
+
+      {/* KPI strip: 3 números */}
       {!loading && resumen && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
           {[
-            { label: 'Total insights', value: resumen.totalInsights, color: '#0f172a' },
-            { label: 'Alertas altas', value: resumen.alertasAltas, color: '#B91C1C' },
-            { label: 'Acciones pend.', value: resumen.accionesPendientes, color: '#B45309' },
-            resumen.logros === 0
-              ? { label: 'Áreas críticas', value: resumen.alertasAltas + resumen.accionesPendientes, color: '#B91C1C' }
-              : { label: 'Logros', value: resumen.logros, color: '#15803D' },
+            { label: 'Total insights',  value: resumen.totalInsights,      color: '#0f172a' },
+            { label: 'Alertas altas',   value: resumen.alertasAltas,       color: '#B91C1C' },
+            { label: 'Acciones pend.',  value: resumen.accionesPendientes, color: '#B45309' },
           ].map(({ label, value, color }) => (
             <div key={label} style={{ background: '#F8FAFC', border: '0.5px solid #e5e7eb', borderRadius: '8px', padding: '10px 12px', textAlign: 'center' }}>
               <div style={{ fontSize: '20px', fontWeight: 700, color }}>{value}</div>
@@ -109,49 +76,59 @@ export default function InsightsRecommendationsCard({ desde, hasta, proveedorId,
         </div>
       )}
 
-      {/* Insights list */}
       {loading ? (
-        <div style={{ height: '200px', background: 'var(--muted)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ height: '120px', background: 'var(--muted)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <span style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>Generando insights…</span>
         </div>
       ) : error ? (
-        <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: '#A32D2D' }}>Error al cargar datos</div>
-      ) : insights.length === 0 ? (
-        <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>Sin insights generados para el período</div>
+        <div style={{ height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: '#A32D2D' }}>
+          Error al cargar datos
+        </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {insights.map((ins) => <InsightRow key={ins.id} insight={ins} />)}
-        </div>
-      )}
-    </div>
-  )
-}
+        <>
+          {/* Alerta sistémica banner */}
+          {falla && (
+            <div style={{ background: '#FEF2F2', border: '0.5px solid #FECACA', borderRadius: '7px', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '13px', flexShrink: 0 }}>⚠</span>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: '#B91C1C', lineHeight: 1.3 }}>{falla.titulo}</span>
+            </div>
+          )}
 
-function InsightRow({ insight }: { insight: Insight }) {
-  const tipo = TIPO_CONFIG[insight.tipo]
-  const prio = PRIO_CONFIG[insight.prioridad]
-  return (
-    <div style={{ border: `0.5px solid ${tipo.border}`, borderRadius: '8px', padding: '10px 12px', background: tipo.bg, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-        <span style={{ width: 7, height: 7, borderRadius: '50%', background: prio.dot, flexShrink: 0 }} />
-        <span style={{ fontSize: '10px', fontWeight: 600, padding: '1px 6px', borderRadius: '999px', background: 'white', color: tipo.color, border: `0.5px solid ${tipo.border}` }}>
-          {tipo.label}
-        </span>
-        <span style={{ fontSize: '11px', fontWeight: 600, color: '#0f172a', flex: 1, minWidth: 0 }}>{fmtText(insight.titulo)}</span>
-        <div style={{ display: 'flex', gap: '3px', flexShrink: 0 }}>
-          {insight.kpisOrigen.map(k => {
-            const c = KPI_COLORS[k]
-            return (
-              <span key={k} style={{ fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '999px', background: c.bg, color: c.color }}>
-                {k}
-              </span>
-            )
-          })}
-        </div>
-      </div>
-      <div style={{ fontSize: '11px', color: '#374151', lineHeight: 1.4 }}>{fmtText(insight.descripcion)}</div>
-      <div style={{ fontSize: '10px', color: tipo.color, fontWeight: 500 }}>
-        Acción: {fmtText(insight.accionSugerida)}
+          {/* Top 3 insights */}
+          {top3.length === 0 && !falla ? (
+            <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', textAlign: 'center', padding: '16px 0' }}>
+              Sin insights generados para el período
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {top3.map(ins => {
+                const prio = PRIO_STYLE[ins.prioridad]
+                const dot  = DOT_COLOR[ins.tipo] ?? '#6B7280'
+                return (
+                  <div key={ins.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', borderRadius: '7px', background: '#F8FAFC', border: '0.5px solid #e5e7eb' }}>
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: dot, flexShrink: 0 }} />
+                    <span style={{ fontSize: '11px', fontWeight: 500, color: '#0f172a', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {ins.titulo}
+                    </span>
+                    <span style={{ fontSize: '9px', fontWeight: 600, padding: '1px 6px', borderRadius: '999px', background: prio.bg, color: prio.color, flexShrink: 0, whiteSpace: 'nowrap' }}>
+                      {PRIO_LABEL[ins.prioridad]}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Footer */}
+      <div style={{ textAlign: 'right', borderTop: '0.5px solid #f1f5f9', paddingTop: '8px' }}>
+        <button
+          onClick={() => router.push(detailUrl)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: '#185FA5', fontWeight: 500, padding: 0 }}
+        >
+          Ver detalle →
+        </button>
       </div>
     </div>
   )

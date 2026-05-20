@@ -398,17 +398,18 @@ function buildConclusiones(insights: Insight[], resumen: InsightsResumenGlobal):
   const falla = insights.find(i => i.categoria === 'falla_sistemica')
   if (falla) {
     const n = typeof falla.metaDatos.proveedoresCriticos === 'number' ? falla.metaDatos.proveedoresCriticos : 0
-    c.push(`ALERTA SISTÉMICA: ${n} proveedores presentan SLA crítico simultáneamente. Esto puede indicar un problema en el proceso interno de escalamiento, no solo fallas individuales de proveedores.`)
+    const nombres = falla.evidencia.map(e => e.entidad).join(', ')
+    c.push(`⚠ ALERTA SISTÉMICA: ${n} proveedores (${nombres}) presentan SLA 0% simultáneamente. Revisar urgentemente el proceso interno de escalamiento.`)
   }
   const alertas = insights.filter(i => i.tipo === 'alerta' && i.prioridad === 'alta')
-  if (alertas.length > 0) c.push(`Se detectaron ${alertas.length} alerta(s) de prioridad alta que requieren acción inmediata.`)
+  if (alertas.length > 0) c.push(`${alertas.length} alertas de prioridad alta requieren acción en los próximos 7 días.`)
   const logros = insights.filter(i => i.tipo === 'logro')
   if (logros.length > 0) c.push(`${logros.map(l => l.entidad).join(', ')} muestra(n) tendencia positiva sostenida — modelo a seguir.`)
   if (resumen.slaPromedioGlobal != null) {
     if (resumen.slaPromedioGlobal >= 90) c.push(`El SLA global del período es ${resumen.slaPromedioGlobal}%, cumpliendo la meta institucional del 90%.`)
     else c.push(`El SLA global del período es ${resumen.slaPromedioGlobal}%, por debajo de la meta del 90%. Se requiere plan de mejora.`)
   }
-  if (resumen.impactoEstimadoTotal > 0) c.push(`El impacto económico estimado del período es S/ ${resumen.impactoEstimadoTotal.toLocaleString()}.`)
+  if (resumen.impactoEstimadoTotal > 0) c.push(`El período generó S/ ${resumen.impactoEstimadoTotal.toLocaleString()} en impacto económico estimado por indisponibilidad de red.`)
   const sinCont = insights.filter(i => i.categoria === 'tienda_sin_contingencia')
   if (sinCont.length > 0) c.push(`${sinCont.length} tienda(s) sin plan de contingencia con 2+ incidentes. Priorizar dotación de backup.`)
   return c
