@@ -123,12 +123,7 @@ export default function InsightsRecommendationsCard({ desde, hasta, proveedorId,
 
       {/* Footer */}
       <div style={{ textAlign: 'right', borderTop: '0.5px solid #f1f5f9', paddingTop: '8px' }}>
-        <button
-          onClick={() => router.push(detailUrl)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: '#185FA5', fontWeight: 500, padding: 0 }}
-        >
-          Ver detalle →
-        </button>
+        <button onClick={() => router.push(detailUrl)} style={{ background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '6px 14px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>Ver detalle →</button>
       </div>
     </div>
   )

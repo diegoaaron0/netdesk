@@ -302,7 +302,7 @@ export default function DashboardAnalitico() {
           )}
           {!loading && <DeltaBadge delta={cards?.incidentes.deltaVsAnterior ?? null} />}
           {!loading && cards?.incidentes.byDay.length ? <MiniBarChart data={cards.incidentes.byDay} /> : null}
-          <div style={{ marginTop: 'auto', fontSize: '11px', color: '#185FA5', fontWeight: 500 }}>Ver detalle →</div>
+          <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '6px 14px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver detalle →</button>
         </Card>
 
         {/* CARD 3 — MTTR */}
@@ -322,7 +322,7 @@ export default function DashboardAnalitico() {
             </div>
           )}
           {!loading && cards?.mttrPromedio.byDay.length ? <MiniSparkline data={cards.mttrPromedio.byDay} /> : null}
-          <div style={{ marginTop: 'auto', fontSize: '11px', color: '#185FA5', fontWeight: 500 }}>Ver detalle →</div>
+          <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '6px 14px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver detalle →</button>
         </Card>
 
         {/* CARD 4 — SLA */}
@@ -345,7 +345,7 @@ export default function DashboardAnalitico() {
           {!loading && (
             <ProgressBar value={cards?.cumplimientoSLA.porcentaje ?? 0} color={slaColor(cards?.cumplimientoSLA.porcentaje ?? 0)} />
           )}
-          <div style={{ marginTop: 'auto', fontSize: '11px', color: '#185FA5', fontWeight: 500 }}>Ver detalle →</div>
+          <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '6px 14px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver detalle →</button>
         </Card>
 
         {/* CARD 5 — Costo estimado */}
@@ -365,7 +365,7 @@ export default function DashboardAnalitico() {
           <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', lineHeight: 1.4 }}>
             Basado en horas de caída, venta promedio y margen
           </div>
-          <div style={{ marginTop: 'auto', fontSize: '11px', color: '#185FA5', fontWeight: 500 }}>Ver detalle →</div>
+          <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '6px 14px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver detalle →</button>
         </Card>
 
         {/* CARD 6 — Reincidencia */}
@@ -409,7 +409,7 @@ export default function DashboardAnalitico() {
               </div>
             )
           })()}
-          <div style={{ marginTop: 'auto', fontSize: '11px', color: '#185FA5', fontWeight: 500 }}>Ver detalle →</div>
+          <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '6px 14px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver detalle →</button>
         </Card>
 
         {/* CARD 7 — Proveedor crítico */}
@@ -434,7 +434,7 @@ export default function DashboardAnalitico() {
           <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
             {loading ? null : cards?.proveedorCritico ? 'Mayor impacto operativo del período' : 'Todos en nivel aceptable'}
           </div>
-          <div style={{ marginTop: 'auto', fontSize: '11px', color: '#185FA5', fontWeight: 500 }}>Ver detalle →</div>
+          <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '6px 14px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver detalle →</button>
         </Card>
       </div>
 

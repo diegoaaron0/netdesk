@@ -570,14 +570,10 @@ function InsightsPageContent() {
 
   return (
     <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <button onClick={() => router.push('/dashboard?tab=analitico')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: '#185FA5', fontWeight: 500, padding: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>← Volver al Dashboard</button>
+      <button onClick={() => router.push('/dashboard?tab=analitico')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: '#185FA5', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>← Volver al dashboard</button>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-        <button
-          onClick={() => router.back()}
-          style={{ padding: '6px 12px', fontSize: '12px', background: '#F1F5F9', border: '0.5px solid #e5e7eb', borderRadius: '7px', cursor: 'pointer', fontWeight: 500 }}
-        >← Volver</button>
         <div>
           <div style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>H. Insights y decisiones sugeridas</div>
           <div style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>Recomendaciones ejecutivas generadas automáticamente a partir de los KPIs del período</div>

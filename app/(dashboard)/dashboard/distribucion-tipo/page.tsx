@@ -1,6 +1,6 @@
 'use client'
 import { Suspense, useState, useCallback, useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import type { DistribucionTipoResponse, TipoResumen, TipoVisible } from '@/types/distribution-type'
 import { TIPO_LABELS, TIPO_COLORS } from '@/types/distribution-type'
@@ -88,6 +88,7 @@ function CustomTooltip({ active, payload }: any) {
 // ─── Main content ─────────────────────────────────────────────────────────────
 
 function DistribucionTipoContent() {
+  const router         = useRouter()
   const searchParams   = useSearchParams()
   const initialDesde   = searchParams.get('desde') || firstDayOfMonth()
   const initialHasta   = searchParams.get('hasta') || todayStr()
@@ -153,10 +154,7 @@ function DistribucionTipoContent() {
 
       {/* Header */}
       <div style={{ marginBottom: '20px' }}>
-        <button onClick={() => { window.location.href = '/dashboard?tab=analitico' }}
-          style={{ background: 'none', border: 'none', color: '#185FA5', fontSize: '12px', cursor: 'pointer', padding: 0, marginBottom: '8px', fontWeight: 500 }}>
-          ← Volver al dashboard
-        </button>
+        <button onClick={() => router.push('/dashboard?tab=analitico')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: '#185FA5', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>← Volver al dashboard</button>
         <div style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a' }}>D. Distribución por tipo</div>
         <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginTop: '4px' }}>
           Desglose de incidentes por tipo con impacto económico, SLA y MTTR.

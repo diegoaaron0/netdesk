@@ -74,12 +74,7 @@ export default function ProviderSlaComplianceCard({ desde, hasta, proveedorId, r
           <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>E. Cumplimiento SLA por proveedor</div>
           <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Respuesta y resolución vs objetivos contractuales</div>
         </div>
-        <button
-          onClick={() => router.push(`/dashboard/sla-proveedor?desde=${desde}&hasta=${hasta}${proveedorId ? `&proveedorId=${proveedorId}` : ''}`)}
-          style={{ padding: '5px 12px', fontSize: '11px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}
-        >
-          Ver detalle →
-        </button>
+        <button onClick={() => router.push(`/dashboard/sla-proveedor?desde=${desde}&hasta=${hasta}${proveedorId ? `&proveedorId=${proveedorId}` : ''}`)} style={{ background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '6px 14px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>Ver detalle →</button>
       </div>
 
       {/* KPI strip */}

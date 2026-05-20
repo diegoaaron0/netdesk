@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import type {
   GeographicImpactResponse, ZonaResumen, DistritoDetalle,
@@ -61,6 +61,7 @@ function Sk({ w = '60%', h = 14 }: { w?: string; h?: number }) {
 // ─── Inner Page ───────────────────────────────────────────────────────────────
 
 function ImpactoGeograficoInner() {
+  const router = useRouter()
   const sp = useSearchParams()
   const [desde, setDesde]           = useState(sp.get('desde') ?? firstDayOfMonth())
   const [hasta, setHasta]           = useState(sp.get('hasta') ?? todayStr())
@@ -109,7 +110,7 @@ function ImpactoGeograficoInner() {
 
       {/* Back + Title */}
       <div style={{ marginBottom: '16px' }}>
-        <a href="/dashboard?tab=analitico" style={{ fontSize: '12px', color: '#185FA5', textDecoration: 'none' }}>← Volver al dashboard</a>
+        <button onClick={() => router.push('/dashboard?tab=analitico')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: '#185FA5', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>← Volver al dashboard</button>
         <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', margin: '8px 0 2px' }}>Impacto geográfico</h1>
         <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', margin: 0 }}>Concentración de incidentes e impacto por zona, provincia y distrito</p>
       </div>

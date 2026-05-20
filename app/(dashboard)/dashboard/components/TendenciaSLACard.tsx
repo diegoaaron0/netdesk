@@ -176,10 +176,7 @@ export default function TendenciaSLACard({ desde, hasta, proveedorId, refreshKey
             </span>
           </div>
         </div>
-        <button onClick={goDetalle}
-          style={{ padding: '5px 12px', fontSize: '11px', background: '#E6F1FB', color: '#185FA5', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}>
-          Ver detalle →
-        </button>
+        <button onClick={goDetalle} style={{ background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '6px 14px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>Ver detalle →</button>
       </div>
 
       {/* Leyenda */}

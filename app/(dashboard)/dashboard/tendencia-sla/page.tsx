@@ -175,10 +175,7 @@ function TendenciaSLAPageInner() {
     <div style={{ maxWidth: '100%' }}>
       {/* Header */}
       <div style={{ marginBottom: '16px' }}>
-        <button onClick={() => router.push('/dashboard')}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: '#185FA5', fontWeight: 500, padding: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
-          ← Volver al Dashboard
-        </button>
+        <button onClick={() => router.push('/dashboard?tab=analitico')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: '#185FA5', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>← Volver al dashboard</button>
         <h1 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: '#0f172a' }}>
           Detalle — Tendencia de incidentes y SLA
         </h1>
