@@ -213,12 +213,12 @@ export default function SlaTrendSixMonthsCard({ proveedorId, refreshKey }: Props
 
         {/* Right-side table */}
         {!loading && tableRows.length > 0 && (
-          <div style={{ width: '220px', flexShrink: 0, borderLeft: '0.5px solid var(--border)', paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '0' }}>
+          <div style={{ width: '260px', flexShrink: 0, borderLeft: '0.5px solid var(--border)', paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '0' }}>
             <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '8px' }}>
               {latestMesLabel}
             </div>
             {/* Header */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 52px 52px 65px', gap: '4px', paddingBottom: '6px', borderBottom: '0.5px solid var(--border)', marginBottom: '2px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 40px 52px 70px', gap: '4px', paddingBottom: '6px', borderBottom: '0.5px solid var(--border)', marginBottom: '2px' }}>
               {['Proveedor', 'SLA', 'Var.', 'Estado'].map((h) => (
                 <span key={h} style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>{h}</span>
               ))}
@@ -226,8 +226,8 @@ export default function SlaTrendSixMonthsCard({ proveedorId, refreshKey }: Props
             {tableRows.map(({ prov, slaActual, varPP }) => {
               const estado = slaActual == null ? 'critico' : slaActual >= 90 ? 'optimo' : slaActual >= 70 ? 'revisar' : 'critico'
               return (
-                <div key={prov} style={{ display: 'grid', gridTemplateColumns: '1fr 52px 52px 65px', gap: '4px', padding: '7px 0', borderBottom: '0.5px solid var(--border)', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <div key={prov} style={{ display: 'grid', gridTemplateColumns: '1fr 40px 52px 70px', gap: '4px', padding: '7px 0', borderBottom: '0.5px solid var(--border)', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0 }}>
                     <span style={{ width: 7, height: 7, borderRadius: '50%', background: getProvColor(prov), flexShrink: 0 }} />
                     <span style={{ fontSize: '11px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prov}</span>
                   </div>
@@ -237,7 +237,7 @@ export default function SlaTrendSixMonthsCard({ proveedorId, refreshKey }: Props
                   <span style={{ fontSize: '11px', color: varPP == null ? '#94A3B8' : varPP >= 0 ? '#3B6D11' : '#A32D2D', fontWeight: 500 }}>
                     {varPP != null ? `${varPP >= 0 ? '+' : ''}${varPP} pp` : '—'}
                   </span>
-                  <span style={{ fontSize: '9px', fontWeight: 600, padding: '2px 5px', borderRadius: '999px', background: estadoBg(estado), color: estadoColor(estado), textAlign: 'center', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: '9px', fontWeight: 600, padding: '2px 6px', borderRadius: '999px', background: estadoBg(estado), color: estadoColor(estado), textAlign: 'center', whiteSpace: 'nowrap', display: 'inline-block' }}>
                     {estadoLabel(estado)}
                   </span>
                 </div>
