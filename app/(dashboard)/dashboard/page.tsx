@@ -210,7 +210,13 @@ export default function DashboardPage() {
   const router = useRouter()
   const [op, setOp]     = useState<any>(null)
   const [tick, setTick] = useState(0)
-  const [tab, setTab]   = useState<'operativo' | 'analitico'>('operativo')
+  const [tab, setTab]   = useState<'operativo' | 'analitico'>(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search)
+      return (p.get('tab') as any) || 'operativo'
+    }
+    return 'operativo'
+  })
 
   const fetchOp = useCallback(async () => {
     const res = await fetch('/api/dashboard/operativo')

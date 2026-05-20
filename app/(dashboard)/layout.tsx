@@ -2,6 +2,7 @@ import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 import Sidebar from '@/components/layout/Sidebar'
 import SessionProviderWrapper from '@/components/SessionProviderWrapper'
+import { LayoutShell } from './LayoutShell'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
@@ -12,12 +13,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <SessionProviderWrapper session={session}>
-      <div style={{ display: 'flex', minHeight: '100vh' }}>
-        <Sidebar serverRol={serverRol} serverName={serverName} />
-        <main style={{ flex: 1, overflowY: 'auto', background: 'var(--muted)', padding: '18px', marginLeft: '192px' }}>
-          {children}
-        </main>
-      </div>
+      <LayoutShell sidebar={<Sidebar serverRol={serverRol} serverName={serverName} />}>
+        {children}
+      </LayoutShell>
     </SessionProviderWrapper>
   )
 }

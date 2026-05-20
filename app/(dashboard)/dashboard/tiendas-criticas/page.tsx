@@ -174,7 +174,7 @@ function TiendasCriticasContent() {
 
       {/* Header */}
       <div style={{ marginBottom: '20px' }}>
-        <button onClick={() => window.history.back()}
+        <button onClick={() => { window.location.href = '/dashboard?tab=analitico' }}
           style={{ background: 'none', border: 'none', color: '#185FA5', fontSize: '12px', cursor: 'pointer', padding: 0, marginBottom: '8px', fontWeight: 500 }}>
           ← Volver al dashboard
         </button>

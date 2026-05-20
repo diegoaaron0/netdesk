@@ -149,7 +149,7 @@ function TendenciaSLA6mInner() {
 
       {/* Back + Title */}
       <div style={{ marginBottom: '16px' }}>
-        <a href="/dashboard" style={{ fontSize: '12px', color: '#185FA5', textDecoration: 'none' }}>← Volver al dashboard</a>
+        <a href="/dashboard?tab=analitico" style={{ fontSize: '12px', color: '#185FA5', textDecoration: 'none' }}>← Volver al dashboard</a>
         <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', margin: '8px 0 2px' }}>Detalle — Tendencia SLA últimos 6 meses</h1>
         <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', margin: 0 }}>Análisis de la evolución del cumplimiento SLA por proveedor en el período seleccionado.</p>
       </div>
@@ -266,25 +266,24 @@ function TendenciaSLA6mInner() {
       {/* 2. Tendencia por proveedor */}
       <div style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
         <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>2. Tendencia por proveedor ({meses.length} meses)</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 110px 110px 80px 100px 140px 84px', gap: '8px', padding: '0 0 8px', borderBottom: '0.5px solid var(--border)' }}>
-          {['Proveedor', 'SLA prom.', 'Mejor mes', 'Peor mes', 'Variación', 'Meses bajo meta', 'Estado tendencia', 'Evolución'].map((h) => (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 80px 100px 140px 84px', gap: '8px', padding: '0 0 8px', borderBottom: '0.5px solid var(--border)' }}>
+          {['Proveedor', 'SLA Prom', 'Variación', 'Meses bajo meta', 'Estado', 'Evolución'].map((h) => (
             <span key={h} style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</span>
           ))}
         </div>
         {loading ? (
           Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 110px 110px 80px 100px 140px 84px', gap: '8px', padding: '10px 0', borderBottom: '0.5px solid var(--border)', alignItems: 'center' }}>
-              {Array.from({ length: 8 }).map((_, j) => <Sk key={j} w={j === 0 ? '80%' : '55%'} />)}
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 80px 100px 140px 84px', gap: '8px', padding: '10px 0', borderBottom: '0.5px solid var(--border)', alignItems: 'center' }}>
+              {Array.from({ length: 6 }).map((_, j) => <Sk key={j} w={j === 0 ? '80%' : '55%'} />)}
             </div>
           ))
         ) : resumen.length === 0 ? (
           <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', padding: '20px 0', textAlign: 'center' }}>Sin datos</div>
         ) : (
           resumen.map((r, i) => {
-            const criticoSostenido = (r.mejorMes != null && r.mejorMes === r.peorMes) || r.slaPromedio === 0
             const sinEvaluables = chartData.every((d) => (d as Record<string, unknown>)[r.proveedor] == null)
             return (
-              <div key={r.proveedor} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 110px 110px 80px 100px 140px 84px', gap: '8px', padding: '10px 0', borderBottom: i < resumen.length - 1 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
+              <div key={r.proveedor} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 80px 100px 140px 84px', gap: '8px', padding: '10px 0', borderBottom: i < resumen.length - 1 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: getProvColor(r.proveedor), flexShrink: 0 }} />
                   <span style={{ fontSize: '12px', fontWeight: 600 }}>{r.proveedor}</span>
@@ -292,15 +291,15 @@ function TendenciaSLA6mInner() {
                 <span style={{ fontSize: '13px', fontWeight: 700, color: r.slaPromedio != null ? estadoColor(r.slaPromedio >= 90 ? 'optimo' : r.slaPromedio >= 70 ? 'revisar' : 'critico') : '#94A3B8' }}>
                   {r.slaPromedio != null ? `${r.slaPromedio}%` : '—'}
                 </span>
-                <span style={{ fontSize: criticoSostenido ? '10px' : '11px', fontWeight: criticoSostenido ? 600 : 400, color: criticoSostenido ? '#A32D2D' : '#3B6D11' }}>
-                  {criticoSostenido ? 'SLA crítico sostenido' : (r.mejorMes ? `${r.mejorMes} ${r.mejorMesSLA}%` : '—')}
-                </span>
-                <span style={{ fontSize: criticoSostenido ? '10px' : '11px', fontWeight: criticoSostenido ? 600 : 400, color: '#A32D2D' }}>
-                  {criticoSostenido ? 'SLA crítico sostenido' : (r.peorMes ? `${r.peorMes} ${r.peorMesSLA}%` : '—')}
-                </span>
-                <span style={{ fontSize: '12px', fontWeight: 500, color: r.variacionTotal == null ? '#94A3B8' : r.variacionTotal >= 0 ? '#3B6D11' : '#A32D2D' }}>
-                  {fmtPP(r.variacionTotal)}
-                </span>
+                {r.estadoTendencia === 'Crítico sostenido' ? (
+                  <span style={{ fontSize: '10px', fontWeight: 600, padding: '3px 7px', borderRadius: '999px', background: '#FCEBEB', color: '#A32D2D', whiteSpace: 'nowrap' }}>Crítico sostenido</span>
+                ) : r.variacionTotal != null ? (
+                  <span style={{ fontSize: '12px', fontWeight: 500, color: r.variacionTotal >= 0 ? '#3B6D11' : '#A32D2D' }}>
+                    {r.variacionTotal >= 0 ? '↑' : '↓'} {fmtPP(r.variacionTotal)}
+                  </span>
+                ) : (
+                  <span style={{ fontSize: '12px', color: '#94A3B8' }}>—</span>
+                )}
                 <span style={{ fontSize: '12px', textAlign: 'center' }}>{r.mesesBajoMeta}</span>
                 <span style={{ fontSize: '10px', fontWeight: 600, padding: '3px 8px', borderRadius: '999px', background: tendenciaBg(r.estadoTendencia), color: tendenciaColor(r.estadoTendencia), whiteSpace: 'nowrap' }}>
                   {r.estadoTendencia}
@@ -343,9 +342,8 @@ function TendenciaSLA6mInner() {
               const todosCero = ppAll.every((p) => p.evaluables === 0)
               if (todosCero && !mostrarCeroEvaluables) {
                 return (
-                  <div key={mesKey} style={{ display: 'grid', gridTemplateColumns: '90px 1fr', gap: '8px', padding: '9px 0', borderBottom: '0.5px solid var(--border)', alignItems: 'center', background: '#FAFAFA' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#0f172a' }}>{ppAll[0]?.mesLabel ?? mesKey}</span>
-                    <span style={{ fontSize: '11px', color: '#94A3B8', fontStyle: 'italic' }}>Sin evaluables en este mes</span>
+                  <div key={mesKey} style={{ padding: '9px 12px', borderBottom: '0.5px solid var(--border)', background: '#F8F9FA' }}>
+                    <span style={{ fontSize: '11px', color: '#94A3B8', fontStyle: 'italic' }}>{ppAll[0]?.mesLabel ?? mesKey} — Sin incidentes evaluables</span>
                   </div>
                 )
               }

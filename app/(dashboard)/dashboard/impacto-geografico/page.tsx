@@ -109,7 +109,7 @@ function ImpactoGeograficoInner() {
 
       {/* Back + Title */}
       <div style={{ marginBottom: '16px' }}>
-        <a href="/dashboard" style={{ fontSize: '12px', color: '#185FA5', textDecoration: 'none' }}>← Volver al dashboard</a>
+        <a href="/dashboard?tab=analitico" style={{ fontSize: '12px', color: '#185FA5', textDecoration: 'none' }}>← Volver al dashboard</a>
         <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', margin: '8px 0 2px' }}>Impacto geográfico</h1>
         <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', margin: 0 }}>Concentración de incidentes e impacto por zona, provincia y distrito</p>
       </div>

@@ -268,8 +268,12 @@ export default function DashboardAnalitico() {
           style={{ padding: '6px 14px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'pointer', background: 'var(--card)', color: 'var(--foreground)' }}>
           Limpiar filtros
         </button>
+        <button onClick={() => router.push('/dashboard/pantalla-completa')}
+          style={{ padding: '6px 14px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'pointer', background: 'var(--card)', color: 'var(--foreground)', marginLeft: 'auto' }}>
+          ⛶ Pantalla completa
+        </button>
         <button onClick={() => alert('Exportar CSV — próximamente')}
-          style={{ padding: '6px 14px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'pointer', background: 'var(--card)', color: 'var(--foreground)', marginLeft: 'auto', opacity: 0.5 }}>
+          style={{ padding: '6px 14px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'pointer', background: 'var(--card)', color: 'var(--foreground)', opacity: 0.5 }}>
           Exportar CSV
         </button>
       </div>

@@ -105,7 +105,7 @@ function ImpactoProveedorContent() {
 
   return (
     <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', fontFamily: 'inherit' }}>
-      <button onClick={() => router.push('/dashboard')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: '#185FA5', fontWeight: 500, padding: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>← Volver al Dashboard</button>
+      <button onClick={() => router.push('/dashboard?tab=analitico')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: '#185FA5', fontWeight: 500, padding: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>← Volver al Dashboard</button>
       {/* Header */}
       <div style={{ marginBottom: '20px' }}>
         <div style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>B. Impacto por proveedor</div>
