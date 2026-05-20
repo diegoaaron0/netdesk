@@ -8,6 +8,7 @@ export type InsightCategoria =
   | 'zona_critica'
   | 'otros_repetido'
   | 'mejora_positiva'
+  | 'falla_sistemica'
 
 export type KpiOrigen = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G'
 

@@ -141,11 +141,11 @@ function regla1_proveedorCritico(rows: RawInsightsRow[], provStats: Map<string, 
     const mttr = mttrProm(s)
     if (sla == null) continue
     const slaBajo = sla < 70
-    const mttrAlto = mttr != null && mttr > 300
-    const impactoAlto = s.impacto > 5000
+    const mttrAlto = mttr != null && mttr > 120
+    const impactoAlto = s.impacto > 500
     const triggers = [slaBajo, mttrAlto, impactoAlto].filter(Boolean).length
     if (triggers >= 2) {
-      const prioridad: InsightPrioridad = triggers === 3 ? 'alta' : 'media'
+      const prioridad: InsightPrioridad = triggers === 3 ? 'alta' : (slaBajo ? 'alta' : 'media')
       const score = calcScore({ impacto: s.impacto, evaluables: s.evaluables, fueraSLA: s.fueraSLA, mttrProm: mttr ?? 0, sinContingencia: 0 })
       insights.push(makeInsight(
         'proveedor_critico', 'alerta', prioridad,
@@ -409,6 +409,27 @@ function buildConclusiones(insights: Insight[], resumen: InsightsResumenGlobal):
   return c
 }
 
+function regla8_fallasSistemicas(_rows: RawInsightsRow[], provStats: Map<string, ProvStat>): Insight[] {
+  const criticos: string[] = []
+  for (const [, s] of provStats) {
+    if (s.evaluables < 1) continue
+    const sla = slaPct(s)
+    if (sla != null && sla < 70) criticos.push(s.nombre)
+  }
+  if (criticos.length < 3) return []
+  const n = criticos.length
+  return [makeInsight(
+    'falla_sistemica', 'alerta', 'alta',
+    `Falla sistémica: ${n} proveedores con SLA crítico simultáneo`,
+    `${n} proveedores (${criticos.join(', ')}) presentan SLA por debajo del 70% en el mismo período. Cuando múltiples proveedores fallan simultáneamente, la causa suele ser interna: proceso de escalamiento deficiente, contactos desactualizados o falta de seguimiento centralizado.`,
+    `Revisar el proceso interno de escalamiento de incidentes. Validar que los contactos N1 de todos los proveedores estén vigentes y sean accesibles. Centralizar el seguimiento de SLA en un dashboard con alertas tempranas.`,
+    ['E', 'G'],
+    85, 'Global', 'global',
+    criticos.map(nombre => ({ entidad: nombre, metrica: 'SLA', valor: `${slaPct(provStats.get(nombre)!)}%` })),
+    { proveedoresCriticos: n },
+  )]
+}
+
 // ─── Main export ──────────────────────────────────────────────────────────────
 
 export function buildInsights(rows: RawInsightsRow[]): {
@@ -426,6 +447,7 @@ export function buildInsights(rows: RawInsightsRow[]): {
     ...regla5_zonaCritica(rows),
     ...regla6_otrosRepetido(rows),
     ...regla7_mejoraPositiva(rows, provStats),
+    ...regla8_fallasSistemicas(rows, provStats),
   ]
 
   const deduped  = deduplicar(raw)

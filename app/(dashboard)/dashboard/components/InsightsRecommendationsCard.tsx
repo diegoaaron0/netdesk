@@ -32,6 +32,21 @@ const PRIO_CONFIG = {
   baja:  { dot: '#6B7280' },
 }
 
+const TIPO_INCIDENTE_MAP: Record<string, string> = {
+  CAIDA_TOTAL:   'Caída total',
+  INTERMITENCIA: 'Intermitencia',
+  LENTITUD:      'Lentitud',
+  OTROS:         'Otros',
+}
+
+function fmtTipo(tipo: string): string {
+  return TIPO_INCIDENTE_MAP[tipo] ?? tipo
+}
+
+function fmtText(text: string): string {
+  return text.replace(/\b(CAIDA_TOTAL|INTERMITENCIA|LENTITUD|OTROS)\b/g, (m) => fmtTipo(m))
+}
+
 export default function InsightsRecommendationsCard({ desde, hasta, proveedorId, refreshKey }: Props) {
   const router = useRouter()
   const [data, setData] = useState<InsightsResponse | null>(null)
@@ -82,7 +97,9 @@ export default function InsightsRecommendationsCard({ desde, hasta, proveedorId,
             { label: 'Total insights', value: resumen.totalInsights, color: '#0f172a' },
             { label: 'Alertas altas', value: resumen.alertasAltas, color: '#B91C1C' },
             { label: 'Acciones pend.', value: resumen.accionesPendientes, color: '#B45309' },
-            { label: 'Logros', value: resumen.logros, color: '#15803D' },
+            resumen.logros === 0
+              ? { label: 'Áreas críticas', value: resumen.alertasAltas + resumen.accionesPendientes, color: '#B91C1C' }
+              : { label: 'Logros', value: resumen.logros, color: '#15803D' },
           ].map(({ label, value, color }) => (
             <div key={label} style={{ background: '#F8FAFC', border: '0.5px solid #e5e7eb', borderRadius: '8px', padding: '10px 12px', textAlign: 'center' }}>
               <div style={{ fontSize: '20px', fontWeight: 700, color }}>{value}</div>
@@ -120,7 +137,7 @@ function InsightRow({ insight }: { insight: Insight }) {
         <span style={{ fontSize: '10px', fontWeight: 600, padding: '1px 6px', borderRadius: '999px', background: 'white', color: tipo.color, border: `0.5px solid ${tipo.border}` }}>
           {tipo.label}
         </span>
-        <span style={{ fontSize: '11px', fontWeight: 600, color: '#0f172a', flex: 1, minWidth: 0 }}>{insight.titulo}</span>
+        <span style={{ fontSize: '11px', fontWeight: 600, color: '#0f172a', flex: 1, minWidth: 0 }}>{fmtText(insight.titulo)}</span>
         <div style={{ display: 'flex', gap: '3px', flexShrink: 0 }}>
           {insight.kpisOrigen.map(k => {
             const c = KPI_COLORS[k]
@@ -132,9 +149,9 @@ function InsightRow({ insight }: { insight: Insight }) {
           })}
         </div>
       </div>
-      <div style={{ fontSize: '11px', color: '#374151', lineHeight: 1.4 }}>{insight.descripcion}</div>
+      <div style={{ fontSize: '11px', color: '#374151', lineHeight: 1.4 }}>{fmtText(insight.descripcion)}</div>
       <div style={{ fontSize: '10px', color: tipo.color, fontWeight: 500 }}>
-        Acción: {insight.accionSugerida}
+        Acción: {fmtText(insight.accionSugerida)}
       </div>
     </div>
   )
