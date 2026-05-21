@@ -103,6 +103,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   // SLA
   let slaPromedio: number | null = null
+  let scoreEficiencia: number | null = null
   try {
     const { getSlaContrato } = await import('@/lib/sla-contrato')
     const slaContrato = await getSlaContrato(id)
@@ -124,10 +125,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       GROUP BY i.id
     `)
 
-    const { calcSLARow } = await import('@/lib/sla-core')
-    let ok = 0, total = 0
+    const { calcSLARow, calcEficienciaSLA } = await import('@/lib/sla-core')
+    let ok = 0, total = 0, scoreSum = 0, scoreCount = 0
     for (const row of slaRows as any[]) {
       if (!row.hora_correo_n1) continue
+      const slaResolucionMin = slaContrato.resolucionPorTipo[row.tipo] ?? slaContrato.respuestaMin
       total++
       const res = calcSLARow({
         tipo: row.tipo,
@@ -139,11 +141,19 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         max_nivel: 1,
         evaluable_proveedor: true,
         slaRespuestaOverride: slaContrato.respuestaMin,
-        slaResolucionOverride: slaContrato.resolucionPorTipo[row.tipo] ?? slaContrato.respuestaMin,
+        slaResolucionOverride: slaResolucionMin,
       })
       if (res.slaGeneral) ok++
+      const ef = calcEficienciaSLA({
+        tRespuestaMin: res.tPrimeraRespuestaMin,
+        tResolucionMin: res.tResolucionMin,
+        slaRespuestaMin: slaContrato.respuestaMin,
+        slaResolucionMin,
+      })
+      if (ef.scoreSLA != null) { scoreSum += ef.scoreSLA; scoreCount++ }
     }
     if (total > 0) slaPromedio = Math.round((ok / total) * 100)
+    scoreEficiencia = scoreCount > 0 ? Math.round(scoreSum / scoreCount) : null
   } catch { /* skip */ }
 
   const contratoVigente = contratos.find(c => c.estadoCalc === 'VIGENTE' && !c.tiendaId)
@@ -182,6 +192,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       totalTiendas:    tiendasData.count,
       costoTotal:      tiendasData.costoTotal,
       slaPromedio,
+      scoreEficiencia,
       mttrPromedio:    mttrData.avg,
       mttrTotal:       mttrData.total,
       incidentes30d:   totalInc30d,

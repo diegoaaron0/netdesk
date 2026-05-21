@@ -315,6 +315,8 @@ async function buildCards(
     excessRespSum: number; excessRespCount: number
     excessResolSum: number; excessResolCount: number
     scoreSum: number; scoreCount: number
+    tRespSum: number; tRespCount: number
+    tResolSum: number; tResolCount: number
   }
   const slaByProv = new Map<string, SlaProvAccum>()
   type SlaIncRow = { codigo: string; fecha: string; tipo: string; excRespMin: number | null; excResolMin: number | null; duracionMin: number | null; cumplido: boolean }
@@ -361,10 +363,12 @@ async function buildCards(
       tResolucionMin: slaRes.tResolucionMin ?? null,
     })
 
-    if (!slaByProv.has(prov)) slaByProv.set(prov, { ok: 0, total: 0, excessRespSum: 0, excessRespCount: 0, excessResolSum: 0, excessResolCount: 0, scoreSum: 0, scoreCount: 0 })
+    if (!slaByProv.has(prov)) slaByProv.set(prov, { ok: 0, total: 0, excessRespSum: 0, excessRespCount: 0, excessResolSum: 0, excessResolCount: 0, scoreSum: 0, scoreCount: 0, tRespSum: 0, tRespCount: 0, tResolSum: 0, tResolCount: 0 })
     const s = slaByProv.get(prov)!
     s.total++
     if (eficiencia.scoreSLA != null) { s.scoreSum += eficiencia.scoreSLA; s.scoreCount++ }
+    if (slaRes.tPrimeraRespuestaMin != null) { s.tRespSum += slaRes.tPrimeraRespuestaMin; s.tRespCount++ }
+    if (slaRes.tResolucionMin != null) { s.tResolSum += slaRes.tResolucionMin; s.tResolCount++ }
     if (cumplido) {
       s.ok++
     } else {
@@ -419,6 +423,8 @@ async function buildCards(
       nombre,
       slaPct: s.total > 0 ? Math.round(s.ok / s.total * 100) : 0,
       scoreEficiencia: s.scoreCount > 0 ? Math.round(s.scoreSum / s.scoreCount) : null,
+      tRespPromMin: s.tRespCount > 0 ? Math.round(s.tRespSum / s.tRespCount) : null,
+      tResolPromMin: s.tResolCount > 0 ? Math.round(s.tResolSum / s.tResolCount) : null,
       excessoRespuestaMin: s.excessRespCount > 0 ? Math.round(s.excessRespSum / s.excessRespCount) : 0,
       excessoResolucionMin: s.excessResolCount > 0 ? Math.round(s.excessResolSum / s.excessResolCount) : 0,
       tiendas: slaByProvIncidentes.get(nombre) ?? [],

@@ -51,6 +51,7 @@ export interface CasoFueraSLA {
   slaResolucion: boolean
   slaGeneral: boolean
   motivoIncumplimiento: string
+  scoreEficiencia: number | null
 }
 
 export interface SLAProveedorResumenGlobal {

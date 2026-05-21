@@ -2,7 +2,7 @@ import type {
   ProveedorSLAResumen, ProveedorSLATiempos, ProveedorSLANiveles,
   CasoFueraSLA, SLAEstado,
 } from '@/types/provider-sla-compliance'
-import { calcSLARow, SLA_RESPUESTA_MIN } from './sla-core'
+import { calcSLARow, calcEficienciaSLA, SLA_RESPUESTA_MIN, getSlaResolucionMin } from './sla-core'
 
 export interface RawSLAProvRow {
   id: string
@@ -186,6 +186,12 @@ export function buildCasosFueraSLA(rows: RawSLAProvRow[]): CasoFueraSLA[] {
     if (!row.proveedor_id) continue
     const c = calcRow(row)
     if (!c.evaluable || c.slaGeneral) continue
+    const eficiencia = calcEficienciaSLA({
+      tRespuestaMin: c.tPrimeraRespuestaMin,
+      tResolucionMin: c.tResolucionMin,
+      slaRespuestaMin: SLA_RESPUESTA_MIN,
+      slaResolucionMin: getSlaResolucionMin(row.tipo),
+    })
     result.push({
       id: row.id,
       codigo: row.codigo,
@@ -200,6 +206,7 @@ export function buildCasosFueraSLA(rows: RawSLAProvRow[]): CasoFueraSLA[] {
       slaResolucion: c.slaResolucion,
       slaGeneral: c.slaGeneral,
       motivoIncumplimiento: c.motivoIncumplimiento ?? '',
+      scoreEficiencia: eficiencia.scoreSLA,
     })
   }
   return result

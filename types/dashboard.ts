@@ -38,6 +38,8 @@ export interface SlaProveedor {
   nombre: string
   slaPct: number
   scoreEficiencia: number | null
+  tRespPromMin: number | null
+  tResolPromMin: number | null
   excessoRespuestaMin: number
   excessoResolucionMin: number
   tiendas: Array<{ codigo: string; fecha: string; tipo: string; excRespMin: number | null; excResolMin: number | null; duracionMin: number | null; cumplido: boolean }>

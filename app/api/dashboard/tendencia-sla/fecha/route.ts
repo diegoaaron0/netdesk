@@ -4,6 +4,7 @@ import { can } from '@/lib/permisos'
 import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { calcSLACaso, type RawSLARow } from '@/lib/dashboard-sla-calc'
+import { calcEficienciaSLA, SLA_RESPUESTA_MIN, getSlaResolucionMin } from '@/lib/sla-core'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -64,20 +65,33 @@ export async function GET(req: NextRequest) {
   const casos = rows.map(calcSLACaso)
 
   return NextResponse.json({
-    casos: casos.map((c) => ({
-      codigo: c.codigo,
-      tiendaCodigo: c.tiendaCodigo,
-      tiendaNombre: c.tiendaNombre,
-      provNombre: c.provNombre,
-      tipo: c.tipo,
-      evaluable: c.evaluable,
-      nivelQueRespondio: c.nivelQueRespondio,
-      tPrimeraRespuestaMin: c.tPrimeraRespuestaMin,
-      tResolucionMin: c.tResolucionMin,
-      slaRespuesta: c.slaRespuesta,
-      slaResolucion: c.slaResolucion,
-      slaGeneral: c.slaGeneral,
-      motivoIncumplimiento: c.motivoIncumplimiento,
-    })),
+    casos: casos.map((c) => {
+      const slaResolucionMin = getSlaResolucionMin(c.tipo)
+      const eficiencia = c.evaluable ? calcEficienciaSLA({
+        tRespuestaMin: c.tPrimeraRespuestaMin,
+        tResolucionMin: c.tResolucionMin,
+        slaRespuestaMin: SLA_RESPUESTA_MIN,
+        slaResolucionMin,
+      }) : null
+      return {
+        codigo: c.codigo,
+        tiendaCodigo: c.tiendaCodigo,
+        tiendaNombre: c.tiendaNombre,
+        provNombre: c.provNombre,
+        tipo: c.tipo,
+        evaluable: c.evaluable,
+        nivelQueRespondio: c.nivelQueRespondio,
+        tPrimeraRespuestaMin: c.tPrimeraRespuestaMin,
+        tResolucionMin: c.tResolucionMin,
+        slaRespuesta: c.slaRespuesta,
+        slaResolucion: c.slaResolucion,
+        slaGeneral: c.slaGeneral,
+        motivoIncumplimiento: c.motivoIncumplimiento,
+        scoreEficiencia: eficiencia?.scoreSLA ?? null,
+        scoreRespuesta: eficiencia?.scoreRespuesta ?? null,
+        scoreResolucion: eficiencia?.scoreResolucion ?? null,
+        slaResolucionMin,
+      }
+    }),
   })
 }
