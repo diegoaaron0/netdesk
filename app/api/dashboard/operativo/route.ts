@@ -5,7 +5,7 @@ import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 
 const SLA_MIN: Record<string, number> = {
-  CAIDA_TOTAL: 240, INTERMITENCIA: 480, LENTITUD: 720, POS: 240, OTROS: 240,
+  CAIDA_TOTAL: 60, INTERMITENCIA: 120, LENTITUD: 240, POS: 60, OTROS: 120,
 }
 
 function getEstadoOp(tipo: string, horaRegistro: Date | string, pendienteProveedor: boolean, estadoDB: string, nowMs: number) {
@@ -27,9 +27,9 @@ export async function GET() {
   if (!can(session, 'dashboard.ver')) return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
 
   const nowMs = Date.now()
-  const hoyInicio = new Date()
-  hoyInicio.setHours(0, 0, 0, 0)
-  const hoyIso = hoyInicio.toISOString()
+  const ahoraLima = new Date(Date.now() - 5 * 3600000)
+  const hoyLima = ahoraLima.toISOString().slice(0, 10)
+  const hoyIso = new Date(hoyLima + 'T05:00:00.000Z').toISOString()
 
   const [activosRows, resueltoRows, agentesRows, incCreadosRows, escRows, respRows, resolRows] = await Promise.all([
     db.execute(sql`
@@ -67,12 +67,7 @@ export async function GET() {
         i.registrado_por_id AS agente_id,
         i.mttr_minutos,
         i.resuelto_por,
-        EXISTS (
-          SELECT 1 FROM escalamientos e
-          WHERE e.incidente_id  = i.id
-            AND e.hora_respuesta IS NOT NULL
-            AND e.hora_respuesta <= i.hora_fin
-        ) AS por_proveedor
+        i.resuelto_por = 'PROVEEDOR' AS por_proveedor
       FROM incidentes i
       WHERE i.estado  = 'RESUELTO'
         AND i.hora_fin >= ${hoyIso}::timestamptz

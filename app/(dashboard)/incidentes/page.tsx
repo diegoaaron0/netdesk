@@ -134,8 +134,9 @@ export default function IncidentesPage() {
   const [filtroProveedor, setFiltroProveedor] = useState('')
   const [filtroTiendaId,    setFiltroTiendaId]    = useState('')
   const [filtroTiendaLabel, setFiltroTiendaLabel] = useState('')
-  const [misRegistros, setMisRegistros]       = useState(false)
-  const [q, setQ]                             = useState('')
+  const [filtroResolucion, setFiltroResolucion] = useState<'todos'|'agente'|'proveedor'>('todos')
+  const [misRegistros, setMisRegistros]         = useState(false)
+  const [q, setQ]                               = useState('')
   const [debouncedQ, setDebouncedQ]           = useState('')
   const [page, setPage]                       = useState(1)
   const [perPage]                             = useState(20)
@@ -207,6 +208,7 @@ export default function IncidentesPage() {
     setFechaDesde(t); setFechaHasta(t)
     setEstado(''); setAgente(''); setFiltroProveedor('')
     setFiltroTiendaId(''); setFiltroTiendaLabel('')
+    setFiltroResolucion('todos')
     setMisRegistros(false); setQ(''); setPage(1)
   }
 
@@ -222,6 +224,10 @@ export default function IncidentesPage() {
     if (misRegistros && myId && inc.agenteId !== myId) return false
     if (filtroProveedor && inc.proveedorNombre !== filtroProveedor) return false
     if (filtroTiendaId && inc.tiendaId !== filtroTiendaId) return false
+    if (filtroResolucion !== 'todos') {
+      const expected = filtroResolucion === 'agente' ? 'AGENTE' : 'PROVEEDOR'
+      if (inc.resueltoPor !== expected) return false
+    }
     if (debouncedQ) {
       const sq = debouncedQ.toLowerCase().replace('#', '')
       if (
@@ -340,6 +346,20 @@ export default function IncidentesPage() {
             {['ABIERTO','EN_SEGUIMIENTO','ESCALADO_N1','ESCALADO_N2','ESCALADO_N3','RESUELTO','CANCELADO','CERRADO'].map(e => (
               <option key={e} value={e}>{e.replace(/_/g,' ')}</option>
             ))}
+          </select>
+
+          <select
+            value={filtroResolucion}
+            onChange={e => {
+              const val = e.target.value as 'todos'|'agente'|'proveedor'
+              setFiltroResolucion(val)
+              if (val !== 'todos' && estado !== 'RESUELTO') setEstado('RESUELTO')
+              setPage(1)
+            }}
+            style={selStyle}>
+            <option value="todos">Resolución</option>
+            <option value="agente">Por agente</option>
+            <option value="proveedor">Por proveedor</option>
           </select>
 
           <select value={filtroProveedor} onChange={e => { setFiltroProveedor(e.target.value); setPage(1) }} style={selStyle}>
