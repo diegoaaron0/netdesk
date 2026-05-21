@@ -49,6 +49,8 @@ export interface SLAInputRow {
   hora_primera_resp: Date | string | null
   hora_fin: Date | string | null
   max_nivel: number | null
+  slaRespuestaOverride?: number
+  slaResolucionOverride?: number
 }
 
 // ─── Resultado SLA ────────────────────────────────────────────────────────────
@@ -77,7 +79,7 @@ export interface SLAResult {
  * SLA General: SLA Respuesta AND SLA Resolución
  */
 export function calcSLARow(row: SLAInputRow): SLAResult {
-  const slaResolucionObj = getSlaResolucionMin(row.tipo)
+  const slaResolucionObj = row.slaResolucionOverride ?? getSlaResolucionMin(row.tipo)
 
   if (!row.hora_correo_n1 || row.max_nivel == null || row.max_nivel < 1) {
     return {
@@ -95,7 +97,7 @@ export function calcSLARow(row: SLAInputRow): SLAResult {
   const slaRespuesta =
     !escaladoN2 &&
     tPrimeraRespuestaMin != null &&
-    tPrimeraRespuestaMin <= SLA_RESPUESTA_MIN
+    tPrimeraRespuestaMin <= (row.slaRespuestaOverride ?? SLA_RESPUESTA_MIN)
 
   const slaResolucion = tResolucionMin != null && tResolucionMin <= slaResolucionObj
   const slaGeneral    = slaRespuesta && slaResolucion

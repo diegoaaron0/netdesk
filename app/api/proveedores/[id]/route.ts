@@ -104,18 +104,46 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // SLA
   let slaPromedio: number | null = null
   try {
+    const { getSlaContrato } = await import('@/lib/sla-contrato')
+    const slaContrato = await getSlaContrato(id)
+
     const slaRows = await db.execute(sql`
       SELECT
-        count(*) filter (where e.estado_cronometro in ('RESPONDIDO','VENCIDO')) as total_closed,
-        count(*) filter (where e.estado_cronometro = 'RESPONDIDO')              as respondidos
-      FROM escalamientos e
-      JOIN incidentes i ON e.incidente_id = i.id
+        i.tipo,
+        i.mttr_minutos,
+        i.evaluable_proveedor,
+        i.resuelto_por,
+        MIN(e.hora_envio_correo) AS hora_correo_n1,
+        MIN(e.hora_respuesta)   AS hora_respuesta_n1
+      FROM incidentes i
+      LEFT JOIN escalamientos e ON e.incidente_id = i.id AND e.nivel = 1
       WHERE i.proveedor_id = ${id}
-        AND e.hora_envio_correo >= ${thirtyDaysAgoStr}::timestamptz
+        AND i.hora_registro >= ${thirtyDaysAgoStr}::timestamptz
+        AND i.estado = 'RESUELTO'
+        AND i.evaluable_proveedor IS NOT FALSE
+      GROUP BY i.id
     `)
-    const slaRow   = (slaRows as any[])[0]
-    const tc       = Number(slaRow?.total_closed ?? 0)
-    if (tc > 0) slaPromedio = Math.round((Number(slaRow.respondidos) / tc) * 100)
+
+    const { calcSLARow } = await import('@/lib/sla-core')
+    let ok = 0, total = 0
+    for (const row of slaRows as any[]) {
+      if (!row.hora_correo_n1) continue
+      total++
+      const res = calcSLARow({
+        tipo: row.tipo,
+        hora_registro: new Date(),
+        hora_fin: null,
+        mttr_minutos: row.mttr_minutos,
+        hora_correo_n1: row.hora_correo_n1,
+        hora_primera_resp: row.hora_respuesta_n1,
+        max_nivel: 1,
+        evaluable_proveedor: true,
+        slaRespuestaOverride: slaContrato.respuestaMin,
+        slaResolucionOverride: slaContrato.resolucionPorTipo[row.tipo] ?? slaContrato.respuestaMin,
+      })
+      if (res.slaGeneral) ok++
+    }
+    if (total > 0) slaPromedio = Math.round((ok / total) * 100)
   } catch { /* skip */ }
 
   const contratoVigente = contratos.find(c => c.estadoCalc === 'VIGENTE' && !c.tiendaId)

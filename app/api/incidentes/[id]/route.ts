@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { incidentes, tiendas, proveedores, usuarios, escalamientos, nivelesEscalamiento, adjuntos, atcLlamadas } from '@/drizzle/schema'
-import { eq, inArray } from 'drizzle-orm'
+import { eq, inArray, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 
@@ -155,6 +155,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     .set({ ...allowedFields, actualizadoEn: new Date() })
     .where(eq(incidentes.id, id))
     .returning()
+
+  if (body.estado === 'RESUELTO' || body.horaFin) {
+    await db.execute(sql`
+      UPDATE escalamientos
+      SET hora_respuesta = COALESCE(hora_respuesta, ${new Date().toISOString()}::timestamptz),
+          estado_cronometro = CASE
+            WHEN estado_cronometro = 'ESPERANDO' THEN 'RESUELTO_SIN_RESPUESTA'
+            ELSE estado_cronometro
+          END
+      WHERE incidente_id = ${id}
+        AND hora_respuesta IS NULL
+    `)
+  }
 
   return NextResponse.json(updated)
 }
