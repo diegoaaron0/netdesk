@@ -34,6 +34,10 @@ function estadoLabel(pct: number | null) {
   if (pct >= 70) return 'Revisar'
   return 'Crítico'
 }
+const SLA_RESOL_MIN: Record<string, number> = {
+  CAIDA_TOTAL: 60, INTERMITENCIA: 120, LENTITUD: 240, POS: 60, OTROS: 120,
+}
+
 function fmtTipo(t: string) {
   const map: Record<string, string> = {
     CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia', LENTITUD: 'Lentitud', POS: 'POS', OTROS: 'Otros',
@@ -371,11 +375,19 @@ function SLAProveedorPageInner() {
                     <span style={{ fontSize: '11px', fontFamily: 'monospace', color: !c.slaResolucion ? '#A32D2D' : '#3B6D11', fontWeight: !c.slaResolucion ? 600 : 400 }}>
                       {fmtMin(c.tResolucionMin)}
                     </span>
-                    <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 6px', borderRadius: '999px', background: c.slaRespuesta ? '#EAF3DE' : '#FCEBEB', color: c.slaRespuesta ? '#3B6D11' : '#A32D2D', textAlign: 'center' }}>
-                      {c.slaRespuesta ? 'OK' : 'FALLA'}
+                    <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 6px', borderRadius: '999px', background: c.slaRespuesta ? '#EAF3DE' : '#FCEBEB', color: c.slaRespuesta ? '#3B6D11' : '#A32D2D', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                      {c.slaRespuesta
+                        ? `✓ ${fmtMin(60 - (c.tPrimeraRespuestaMin ?? 0))}`
+                        : c.tPrimeraRespuestaMin != null
+                          ? `+${fmtMin(c.tPrimeraRespuestaMin - 60)} sobre límite`
+                          : 'Sin resp.'}
                     </span>
-                    <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 6px', borderRadius: '999px', background: c.slaResolucion ? '#EAF3DE' : '#FCEBEB', color: c.slaResolucion ? '#3B6D11' : '#A32D2D', textAlign: 'center' }}>
-                      {c.slaResolucion ? 'OK' : 'FALLA'}
+                    <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 6px', borderRadius: '999px', background: c.slaResolucion ? '#EAF3DE' : '#FCEBEB', color: c.slaResolucion ? '#3B6D11' : '#A32D2D', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                      {(() => { const lim = SLA_RESOL_MIN[c.tipo] ?? 120; return c.slaResolucion
+                        ? `✓ ${fmtMin(lim - (c.tResolucionMin ?? 0))}`
+                        : c.tResolucionMin != null
+                          ? `+${fmtMin(c.tResolucionMin - lim)} sobre límite`
+                          : 'Sin resol.' })()}
                     </span>
                     <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{c.motivoIncumplimiento}</span>
                   </div>
