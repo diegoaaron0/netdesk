@@ -148,6 +148,11 @@ export default function IncidentesPage() {
   useEffect(() => {
     const tiendaId    = searchParams.get('tiendaId')
     const proveedorId = searchParams.get('proveedorId')
+    const codigo      = searchParams.get('codigo')
+    if (codigo) {
+      setQ(codigo)
+      setFechaDesde('2024-01-01')
+    }
     if (!tiendaId && !proveedorId) return
     if (tiendaId) {
       fetch(`/api/tiendas?q=a`).then(r => r.json()).catch(() => [])
@@ -301,7 +306,7 @@ export default function IncidentesPage() {
         {/* Fila 1: búsqueda + tienda + mis registros */}
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <input
-            placeholder="Buscar por ID de InvGate o ID de incidente..."
+            placeholder="Buscar por código, ID InvGate, tienda..."
             value={q}
             onChange={e => { setQ(e.target.value); setPage(1) }}
             style={{ ...inputStyle }}
