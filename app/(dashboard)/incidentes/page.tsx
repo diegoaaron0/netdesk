@@ -485,11 +485,10 @@ export default function IncidentesPage() {
                   {/* Estado */}
                   <td style={{ padding: '9px 12px' }}>
                     <Badge variant={estadoToVariant(inc.estado)} />
-                    {inc.estado === 'RESUELTO' && inc.resueltoPor === 'AGENTE' && (
-                      <span style={{ display: 'inline-block', marginTop: '3px', fontSize: '10px', padding: '1px 6px', borderRadius: '999px', background: '#EFF6FF', color: '#1D4ED8' }}>↩ Agente</span>
-                    )}
-                    {inc.estado === 'RESUELTO' && inc.resueltoPor === 'PROVEEDOR' && (
-                      <span style={{ display: 'inline-block', marginTop: '3px', fontSize: '10px', padding: '1px 6px', borderRadius: '999px', background: '#F0FDF4', color: '#15803D' }}>↩ Proveedor</span>
+                    {inc.estado === 'RESUELTO' && inc.resueltoPor && (
+                      <span style={{ display: 'block', marginTop: '2px', fontSize: '10px', padding: '1px 6px', borderRadius: '999px', fontWeight: 600, background: inc.resueltoPor === 'AGENTE' ? '#EFF6FF' : '#F0FDF4', color: inc.resueltoPor === 'AGENTE' ? '#1D4ED8' : '#15803D' }}>
+                        {inc.resueltoPor === 'AGENTE' ? '↩ Agente' : '↩ Proveedor'}
+                      </span>
                     )}
                   </td>
 

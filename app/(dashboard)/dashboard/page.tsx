@@ -534,21 +534,9 @@ function OperativoView({ op, tick, router }: { op: any; tick: number; router: an
 
             {/* Banner heredados */}
             {incidentesHeredados.length > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', marginBottom: '10px', background: '#EFF6FF', border: '0.5px solid #BFDBFE', borderRadius: '8px' }}>
-                <span style={{ fontSize: '12px', flex: 1, color: '#1E40AF', fontWeight: 500 }}>
-                  📋 {incidentesHeredados.length} incidente{incidentesHeredados.length !== 1 ? 's' : ''} heredado{incidentesHeredados.length !== 1 ? 's' : ''} del turno anterior
-                </span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                  <label style={{ fontSize: '11px', color: '#1E40AF', whiteSpace: 'nowrap' }}>Inicio de turno:</label>
-                  <input type="time" value={turnoInicio}
-                    onChange={e => { setTurnoInicio(e.target.value); setFiltroHeredados(false) }}
-                    style={{ fontSize: '11px', padding: '2px 6px', border: '1px solid #BFDBFE', borderRadius: '5px', background: 'white', color: '#1E40AF', outline: 'none' }}
-                  />
-                  <button onClick={() => setFiltroHeredados(v => !v)}
-                    style={{ padding: '3px 10px', fontSize: '11px', fontWeight: 600, border: 'none', borderRadius: '5px', cursor: 'pointer', background: filtroHeredados ? '#1D4ED8' : '#DBEAFE', color: filtroHeredados ? 'white' : '#1E40AF' }}>
-                    {filtroHeredados ? 'Todos' : 'Ver'}
-                  </button>
-                </div>
+              <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '8px', padding: '8px 14px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px' }}>
+                <span>📋 <strong>{incidentesHeredados.length}</strong> incidente(s) heredado(s) del turno anterior</span>
+                <input type="time" value={turnoInicio} onChange={e => setTurnoInicio(e.target.value)} style={{ fontSize: '12px', border: '1px solid #BFDBFE', borderRadius: '4px', padding: '2px 6px' }} />
               </div>
             )}
 
@@ -611,11 +599,9 @@ function OperativoView({ op, tick, router }: { op: any; tick: number; router: an
                         <td style={{ padding: '8px' }}>
                           <SLABadge inc={inc} nowMs={nowM} />
                           {inc.sinMovimiento && (
-                            <div style={{ marginTop: '3px' }}>
-                              <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '999px', background: '#F1F5F9', color: '#475569' }}>
-                                ⏸ Sin movimiento {fmtMin(inc.sinMovimientoMin)}
-                              </span>
-                            </div>
+                            <span style={{ display: 'block', marginTop: '2px', fontSize: '10px', padding: '1px 5px', borderRadius: '999px', background: '#F1F5F9', color: '#475569' }}>
+                              ⏸ {fmtMin(inc.sinMovimientoMin)}
+                            </span>
                           )}
                         </td>
                         <td style={{ padding: '8px', whiteSpace: 'nowrap', fontSize: '11px' }}>{inc.agente_nombre ?? '—'}</td>

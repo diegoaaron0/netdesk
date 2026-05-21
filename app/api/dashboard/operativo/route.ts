@@ -28,8 +28,8 @@ export async function GET() {
 
   const nowMs = Date.now()
   const ahoraLima = new Date(Date.now() - 5 * 3600000)
-  const hoyLima = ahoraLima.toISOString().slice(0, 10)
-  const hoyIso = new Date(hoyLima + 'T05:00:00.000Z').toISOString()
+  const hoyLima   = ahoraLima.toISOString().slice(0, 10)
+  const hoyIso    = hoyLima + 'T05:00:00.000Z'
 
   const [activosRows, resueltoRows, agentesRows, incCreadosRows, escRows, respRows, resolRows] = await Promise.all([
     db.execute(sql`
