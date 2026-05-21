@@ -52,12 +52,22 @@ export async function GET() {
           WHERE e2.incidente_id = i.id
             AND e2.hora_envio_correo IS NOT NULL
             AND e2.hora_respuesta    IS NULL
-        ) AS pendiente_proveedor
+        ) AS pendiente_proveedor,
+        mov.ultimo_movimiento
       FROM incidentes i
       JOIN tiendas   t ON i.tienda_id           = t.id
       JOIN usuarios  u ON i.registrado_por_id   = u.id
       LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
       LEFT JOIN proveedores pt ON t.proveedor_id = pt.id
+      LEFT JOIN LATERAL (
+        SELECT GREATEST(
+          MAX(e.creado_en),
+          MAX(e.hora_envio_correo),
+          MAX(e.hora_respuesta)
+        ) AS ultimo_movimiento
+        FROM escalamientos e
+        WHERE e.incidente_id = i.id
+      ) mov ON true
       WHERE i.estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
       ORDER BY i.hora_registro ASC
     `),
@@ -134,7 +144,11 @@ export async function GET() {
 
   const activosConEstado = activos.map((inc: any) => {
     const d = getEstadoOp(inc.tipo, inc.hora_registro, inc.pendiente_proveedor, inc.estado, nowMs)
-    return { ...inc, ...d }
+    const refMs = inc.ultimo_movimiento
+      ? new Date(inc.ultimo_movimiento).getTime()
+      : new Date(inc.hora_registro).getTime()
+    const sinMovimientoMin = Math.round((nowMs - refMs) / 60000)
+    return { ...inc, ...d, sinMovimientoMin, sinMovimiento: sinMovimientoMin > 120 }
   })
 
   // KPIs

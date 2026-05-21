@@ -278,10 +278,12 @@ export default function DashboardPage() {
 
 function OperativoView({ op, tick, router }: { op: any; tick: number; router: any }) {
   const { activos, equipoStats, proveedoresPendientes, actividadReciente, kpis } = op
-  const [provFiltro,    setProvFiltro]    = useState('Todos')
-  const [cardFiltro,    setCardFiltro]    = useState<string | null>(null)
-  const [asignarOpen,   setAsignarOpen]   = useState(false)
-  const [tabActividad,  setTabActividad]  = useState<'todos'|'escalados'|'resueltos'|'respuestas'>('todos')
+  const [provFiltro,      setProvFiltro]      = useState('Todos')
+  const [cardFiltro,      setCardFiltro]      = useState<string | null>(null)
+  const [asignarOpen,     setAsignarOpen]     = useState(false)
+  const [tabActividad,    setTabActividad]    = useState<'todos'|'escalados'|'resueltos'|'respuestas'>('todos')
+  const [turnoInicio,     setTurnoInicio]     = useState('08:00')
+  const [filtroHeredados, setFiltroHeredados] = useState(false)
 
   const nowMs = Date.now()
 
@@ -315,12 +317,27 @@ function OperativoView({ op, tick, router }: { op: any; tick: number; router: an
     else if (cardFiltro === 'escalados')  lista = lista.filter((i: any) => i.estado.startsWith('ESCALADO'))
     else if (cardFiltro === 'pendientes') lista = lista.filter((i: any) => i.pendiente_proveedor)
 
+    if (filtroHeredados) {
+      const hoyLima = new Date(Date.now() - 5 * 3600000).toISOString().slice(0, 10)
+      const [hh, mm] = turnoInicio.split(':').map(Number)
+      const turnoMs = Date.UTC(parseInt(hoyLima.slice(0,4)), parseInt(hoyLima.slice(5,7))-1, parseInt(hoyLima.slice(8,10)), hh + 5, mm)
+      lista = lista.filter((i: any) => new Date(i.hora_registro).getTime() < turnoMs)
+    }
+
     lista.sort((a: any, b: any) => {
       const d = (ORDEN_OP[a.estadoOp] ?? 4) - (ORDEN_OP[b.estadoOp] ?? 4)
       return d !== 0 ? d : b.minutosTranscurridos - a.minutosTranscurridos
     })
     return lista
-  }, [activos, provFiltro, cardFiltro, tick])
+  }, [activos, provFiltro, cardFiltro, filtroHeredados, turnoInicio, tick])
+
+  // Inherited incidents from previous shift
+  const incidentesHeredados = useMemo(() => {
+    const hoyLima = new Date(Date.now() - 5 * 3600000).toISOString().slice(0, 10)
+    const [hh, mm] = turnoInicio.split(':').map(Number)
+    const turnoMs = Date.UTC(parseInt(hoyLima.slice(0,4)), parseInt(hoyLima.slice(5,7))-1, parseInt(hoyLima.slice(8,10)), hh + 5, mm)
+    return (activos ?? []).filter((inc: any) => new Date(inc.hora_registro).getTime() < turnoMs)
+  }, [activos, turnoInicio])
 
   // Agent bar chart data
   const agenteBar = useMemo(() => {
@@ -514,13 +531,34 @@ function OperativoView({ op, tick, router }: { op: any; tick: number; router: an
 
           {/* Cola operativa */}
           <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '14px' }}>
+
+            {/* Banner heredados */}
+            {incidentesHeredados.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', marginBottom: '10px', background: '#EFF6FF', border: '0.5px solid #BFDBFE', borderRadius: '8px' }}>
+                <span style={{ fontSize: '12px', flex: 1, color: '#1E40AF', fontWeight: 500 }}>
+                  📋 {incidentesHeredados.length} incidente{incidentesHeredados.length !== 1 ? 's' : ''} heredado{incidentesHeredados.length !== 1 ? 's' : ''} del turno anterior
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                  <label style={{ fontSize: '11px', color: '#1E40AF', whiteSpace: 'nowrap' }}>Inicio de turno:</label>
+                  <input type="time" value={turnoInicio}
+                    onChange={e => { setTurnoInicio(e.target.value); setFiltroHeredados(false) }}
+                    style={{ fontSize: '11px', padding: '2px 6px', border: '1px solid #BFDBFE', borderRadius: '5px', background: 'white', color: '#1E40AF', outline: 'none' }}
+                  />
+                  <button onClick={() => setFiltroHeredados(v => !v)}
+                    style={{ padding: '3px 10px', fontSize: '11px', fontWeight: 600, border: 'none', borderRadius: '5px', cursor: 'pointer', background: filtroHeredados ? '#1D4ED8' : '#DBEAFE', color: filtroHeredados ? 'white' : '#1E40AF' }}>
+                    {filtroHeredados ? 'Todos' : 'Ver'}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
               <div style={{ fontSize: '13px', fontWeight: 600 }}>
                 Cola operativa
-                {cardFiltro && <span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--muted-foreground)', marginLeft: '8px' }}>({colaFiltrada.length} mostrando)</span>}
+                {(cardFiltro || filtroHeredados) && <span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--muted-foreground)', marginLeft: '8px' }}>({colaFiltrada.length} mostrando)</span>}
               </div>
-              {cardFiltro && (
-                <button onClick={() => setCardFiltro(null)}
+              {(cardFiltro || filtroHeredados) && (
+                <button onClick={() => { setCardFiltro(null); setFiltroHeredados(false) }}
                   style={{ fontSize: '11px', background: 'none', border: 'none', color: '#185FA5', cursor: 'pointer', textDecoration: 'underline' }}>
                   Limpiar filtro
                 </button>
@@ -572,6 +610,13 @@ function OperativoView({ op, tick, router }: { op: any; tick: number; router: an
                         </td>
                         <td style={{ padding: '8px' }}>
                           <SLABadge inc={inc} nowMs={nowM} />
+                          {inc.sinMovimiento && (
+                            <div style={{ marginTop: '3px' }}>
+                              <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '999px', background: '#F1F5F9', color: '#475569' }}>
+                                ⏸ Sin movimiento {fmtMin(inc.sinMovimientoMin)}
+                              </span>
+                            </div>
+                          )}
                         </td>
                         <td style={{ padding: '8px', whiteSpace: 'nowrap', fontSize: '11px' }}>{inc.agente_nombre ?? '—'}</td>
                         <td style={{ padding: '8px', fontFamily: 'monospace', fontSize: '11px', fontWeight: 600, whiteSpace: 'nowrap', color: minutosTranscurridos >= 240 ? '#A32D2D' : minutosTranscurridos >= 120 ? '#C84B00' : 'var(--foreground)' }}>
