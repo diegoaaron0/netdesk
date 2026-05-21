@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { fmtSLA } from '@/lib/sla-display'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ReferenceLine, ResponsiveContainer,
@@ -231,9 +232,10 @@ export default function SlaTrendSixMonthsCard({ proveedorId, refreshKey }: Props
                     <span style={{ width: 7, height: 7, borderRadius: '50%', background: getProvColor(prov), flexShrink: 0 }} />
                     <span style={{ fontSize: '11px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prov}</span>
                   </div>
-                  <span style={{ fontSize: '12px', fontWeight: 700, color: estadoColor(estado) }}>
-                    {slaActual != null ? `${slaActual}%` : '—'}
-                  </span>
+                  {(() => {
+                    const ef = fmtSLA({ score: slaActual, tRealMin: null, tLimiteMin: null })
+                    return <span style={{ fontSize: '12px', fontWeight: 700, color: ef.color }}>{ef.texto}</span>
+                  })()}
                   <span style={{ fontSize: '11px', color: varPP == null ? '#94A3B8' : varPP >= 0 ? '#3B6D11' : '#A32D2D', fontWeight: 500 }}>
                     {varPP != null ? `${varPP >= 0 ? '+' : ''}${varPP} pp` : '—'}
                   </span>

@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import type { SLAProveedorResponse } from '@/types/provider-sla-compliance'
+import { fmtSLA } from '@/lib/sla-display'
 
 interface Props {
   desde: string
@@ -120,15 +121,21 @@ export default function ProviderSlaComplianceCard({ desde, hasta, proveedorId, r
               <div key={p.proveedorId} style={{ display: 'grid', gridTemplateColumns: '1fr 130px 90px 90px 90px', gap: '8px', padding: '10px 0', borderBottom: i < Math.min(proveedores.length, 5) - 1 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
                 <span style={{ fontSize: '12px', fontWeight: 500, color: '#0f172a' }}>{p.nombre}</span>
 
-                {/* SLA% — big colored number, no bar */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <span style={{ fontSize: '18px', fontWeight: 700, color: slaColor(p.slaPct), lineHeight: 1 }}>
-                    {p.slaPct != null ? `${p.slaPct}%` : '—'}
-                  </span>
-                  {p.evaluables > 0 && (
-                    <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>({p.evaluables})</span>
-                  )}
-                </div>
+                {/* SLA% — efficiency score */}
+                {(() => {
+                  const ef = fmtSLA({ score: p.scoreEficiencia ?? p.slaPct, tRealMin: p.tPromRespuestaMin ?? null, tLimiteMin: 60 })
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <span style={{ fontSize: '16px', fontWeight: 700, color: ef.color, lineHeight: 1 }}>{ef.texto}</span>
+                        {p.evaluables > 0 && (
+                          <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>({p.evaluables})</span>
+                        )}
+                      </div>
+                      {ef.subTexto && <div style={{ fontSize: '10px', color: '#6B7280' }}>{ef.subTexto}</div>}
+                    </div>
+                  )
+                })()}
 
                 <span style={{ fontSize: '12px', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{fmtMin(p.tPromRespuestaMin)}</span>
                 <span style={{ fontSize: '12px', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{fmtMin(p.tPromResolucionMin)}</span>

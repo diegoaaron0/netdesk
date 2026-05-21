@@ -7,6 +7,7 @@ export interface ProveedorSLAResumen {
   dentraSLA: number
   fueraSLA: number
   slaPct: number | null
+  scoreEficiencia: number | null
   tPromRespuestaMin: number | null
   tPromResolucionMin: number | null
   casosEscaladosN2: number

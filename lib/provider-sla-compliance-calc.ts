@@ -84,6 +84,19 @@ export function buildProveedorResumen(rows: RawSLAProvRow[]): ProveedorSLAResume
       if (c.nivelQueRespondio != null) nivelCounts[c.nivelQueRespondio] = (nivelCounts[c.nivelQueRespondio] ?? 0) + 1
     }
 
+    let scoreSum = 0, scoreCount = 0
+    for (let idx = 0; idx < pRows.length; idx++) {
+      const c = calcs[idx]
+      if (!c.evaluable) continue
+      const ef = calcEficienciaSLA({
+        tRespuestaMin: c.tPrimeraRespuestaMin,
+        tResolucionMin: c.tResolucionMin,
+        slaRespuestaMin: SLA_RESPUESTA_MIN,
+        slaResolucionMin: getSlaResolucionMin(pRows[idx].tipo),
+      })
+      if (ef.scoreSLA != null) { scoreSum += ef.scoreSLA; scoreCount++ }
+    }
+
     const fueraPorResp  = evaluables.filter((c) => !c.slaRespuesta).length
     const fueraPorResol = evaluables.filter((c) => !c.slaResolucion).length
     let motivoPrincipal: string | null = null
@@ -98,6 +111,7 @@ export function buildProveedorResumen(rows: RawSLAProvRow[]): ProveedorSLAResume
       dentraSLA,
       fueraSLA,
       slaPct,
+      scoreEficiencia: scoreCount > 0 ? Math.round(scoreSum / scoreCount) : null,
       tPromRespuestaMin: avg(respTimes),
       tPromResolucionMin: avg(resolTimes),
       casosEscaladosN2,

@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { fmtSLA } from '@/lib/sla-display'
 import {
   ComposedChart, Area, Line, XAxis, YAxis, Tooltip,
   ReferenceLine, ResponsiveContainer, CartesianGrid,
@@ -22,6 +23,7 @@ interface DayData {
   causaPrincipal: string | null
   estado: string
   esAlertaFuerte?: boolean
+  scoreEficiencia?: number | null
 }
 
 interface Props {
@@ -65,10 +67,6 @@ function CustomTooltip({ active, payload }: any) {
   const d: DayData = payload[0]?.payload
   if (!d) return null
   const shortDia = d.dia.slice(5).split('-').reverse().join('/')
-  const slaColor = d.slaPct == null ? '#64748b'
-    : d.slaPct < 70 ? '#A32D2D'
-    : d.slaPct < 90 ? '#BA7517'
-    : '#1D9E75'
   const tResolvColor = d.tPromResolucionMin == null ? '#64748b'
     : d.tPromResolucionMin > 240 ? '#A32D2D'
     : d.tPromResolucionMin > 60  ? '#BA7517'
@@ -79,9 +77,15 @@ function CustomTooltip({ active, payload }: any) {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', paddingBottom: '8px', borderBottom: '0.5px solid #e5e7eb' }}>
         <span style={{ fontWeight: 700, fontSize: '13px' }}>{shortDia}</span>
-        <span style={{ fontWeight: 700, fontSize: '15px', color: slaColor }}>
-          {d.slaPct != null ? `${d.slaPct}%` : '—'} SLA
-        </span>
+        {(() => {
+          const ef = fmtSLA({ score: d.scoreEficiencia ?? null, tRealMin: d.tPromRespuestaMin ?? null, tLimiteMin: 60 })
+          return (
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontWeight: 700, fontSize: '15px', color: ef.color }}>{ef.texto}</div>
+              {ef.subTexto && <div style={{ fontSize: '10px', color: '#6B7280' }}>{ef.subTexto}</div>}
+            </div>
+          )
+        })()}
       </div>
       {/* Two columns */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
