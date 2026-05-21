@@ -341,6 +341,14 @@ async function buildCards(
     const cumplido = slaRes.slaGeneral
     if (cumplido) slaCumplidos++
 
+    const prov = i.prov_nombre ?? '—'
+    const eficiencia = calcEficienciaSLA({
+      tRespuestaMin: slaRes.tPrimeraRespuestaMin ?? null,
+      tResolucionMin: slaRes.tResolucionMin ?? null,
+      slaRespuestaMin: sla.respuestaMin,
+      slaResolucionMin: sla.resolucionPorTipo[i.tipo] ?? sla.respuestaMin,
+    })
+
     evaluables.push({
       codigo: i.codigo,
       tiendaCodigo: i.tienda_codigo,
@@ -348,14 +356,9 @@ async function buildCards(
       tipo: i.tipo,
       fecha: fmtFechaInc(i.hora_registro),
       cumplido,
-    })
-
-    const prov = i.prov_nombre ?? '—'
-    const eficiencia = calcEficienciaSLA({
+      scoreEficiencia: eficiencia.scoreSLA,
       tRespuestaMin: slaRes.tPrimeraRespuestaMin ?? null,
       tResolucionMin: slaRes.tResolucionMin ?? null,
-      slaRespuestaMin: sla.respuestaMin,
-      slaResolucionMin: sla.resolucionPorTipo[i.tipo] ?? sla.respuestaMin,
     })
 
     if (!slaByProv.has(prov)) slaByProv.set(prov, { ok: 0, total: 0, excessRespSum: 0, excessRespCount: 0, excessResolSum: 0, excessResolCount: 0, scoreSum: 0, scoreCount: 0 })

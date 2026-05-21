@@ -614,9 +614,17 @@ export default function DashboardAnalitico() {
               <span style={{ fontSize: '11px', fontWeight: 500 }}>{e.tiendaCodigo}</span>
               <span style={{ fontSize: '11px' }}>{e.proveedor}</span>
               <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{fmtTipo(e.tipo)}</span>
-              <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: e.cumplido ? '#EAF3DE' : '#FCEBEB', color: e.cumplido ? '#3B6D11' : '#A32D2D', whiteSpace: 'nowrap' }}>
-                {e.cumplido ? '✓ OK' : '✗ Fuera'}
-              </span>
+              {e.scoreEficiencia != null ? (
+                <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', whiteSpace: 'nowrap',
+                  background: e.scoreEficiencia >= 70 ? '#EAF3DE' : e.scoreEficiencia >= 40 ? '#FEF3C7' : '#FCEBEB',
+                  color: e.scoreEficiencia >= 70 ? '#3B6D11' : e.scoreEficiencia >= 40 ? '#92400E' : '#A32D2D' }}>
+                  Efic. {e.scoreEficiencia}
+                </span>
+              ) : (
+                <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: e.cumplido ? '#EAF3DE' : '#FCEBEB', color: e.cumplido ? '#3B6D11' : '#A32D2D', whiteSpace: 'nowrap' }}>
+                  {e.cumplido ? '✓ OK' : '✗ Fuera'}
+                </span>
+              )}
             </div>
           ))}
         </Panel>

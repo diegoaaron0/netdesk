@@ -50,6 +50,9 @@ export interface SlaEvaluableItem {
   tipo: string
   fecha: string
   cumplido: boolean
+  scoreEficiencia: number | null
+  tRespuestaMin: number | null
+  tResolucionMin: number | null
 }
 
 export interface CostoTienda {

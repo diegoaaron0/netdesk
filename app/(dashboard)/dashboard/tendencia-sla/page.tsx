@@ -83,6 +83,8 @@ function slaStyle(v: boolean): { bg: string; color: string; label: string } {
     : { bg: '#FCEBEB', color: '#A32D2D', label: 'No cumplió' }
 }
 
+const SLA_RESOL_LIMITE: Record<string, number> = { CAIDA_TOTAL: 60, INTERMITENCIA: 120, LENTITUD: 240, POS: 60, OTROS: 120 }
+
 function slaPctColor(v: number | null): string {
   if (v == null) return '#888780'
   if (v < 70) return '#A32D2D'
@@ -317,8 +319,26 @@ function TendenciaSLAPageInner() {
                             <td style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'center' }}>{c.nivelQueRespondio != null ? `N${c.nivelQueRespondio}` : '—'}</td>
                             <td style={{ padding: '8px 10px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{fmtMin(c.tPrimeraRespuestaMin)}</td>
                             <td style={{ padding: '8px 10px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{fmtMin(c.tResolucionMin)}</td>
-                            <td style={{ padding: '8px 10px' }}>{c.evaluable ? <Badge bg={sR.bg} color={sR.color} label={sR.label} /> : <span style={{ fontSize: '10px', color: '#888' }}>N/A</span>}</td>
-                            <td style={{ padding: '8px 10px' }}>{c.evaluable ? <Badge bg={sResol.bg} color={sResol.color} label={sResol.label} /> : <span style={{ fontSize: '10px', color: '#888' }}>N/A</span>}</td>
+                            <td style={{ padding: '8px 10px' }}>
+                              {c.evaluable ? (
+                                <div>
+                                  <Badge bg={sR.bg} color={sR.color} label={sR.label} />
+                                  <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px', whiteSpace: 'nowrap' }}>
+                                    {fmtMin(c.tPrimeraRespuestaMin)} / límite {fmtMin(60)}
+                                  </div>
+                                </div>
+                              ) : <span style={{ fontSize: '10px', color: '#888' }}>N/A</span>}
+                            </td>
+                            <td style={{ padding: '8px 10px' }}>
+                              {c.evaluable ? (
+                                <div>
+                                  <Badge bg={sResol.bg} color={sResol.color} label={sResol.label} />
+                                  <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px', whiteSpace: 'nowrap' }}>
+                                    {fmtMin(c.tResolucionMin)} / límite {fmtMin(SLA_RESOL_LIMITE[c.tipo] ?? 120)}
+                                  </div>
+                                </div>
+                              ) : <span style={{ fontSize: '10px', color: '#888' }}>N/A</span>}
+                            </td>
                             <td style={{ padding: '8px 10px' }}>{c.evaluable ? <Badge bg={sG.bg} color={sG.color} label={sG.label} /> : <span style={{ fontSize: '10px', color: '#888' }}>N/A</span>}</td>
                             <td style={{ padding: '8px 10px', fontSize: '11px', color: c.motivoIncumplimiento ? '#854F0B' : 'var(--muted-foreground)' }}>
                               {c.motivoIncumplimiento ?? '—'}
