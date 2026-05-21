@@ -113,10 +113,12 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
   const [addNivel, setAddNivel]     = useState(false)
 
   // Edit contrato modal
-  const [editContrato, setEditContrato] = useState<any>(null)
-  const [contratoForm, setContratoForm] = useState<any>({})
-  const [savingC, setSavingC]           = useState(false)
-  const [addContrato, setAddContrato]   = useState(false)
+  const [editContrato, setEditContrato]           = useState<any>(null)
+  const [contratoForm, setContratoForm]           = useState<any>({})
+  const [savingC, setSavingC]                     = useState(false)
+  const [addContrato, setAddContrato]             = useState(false)
+  const [contratoAplicacion, setContratoAplicacion] = useState<'marco' | 'especifica'>('marco')
+  const [tiendaBusqModal, setTiendaBusqModal]     = useState('')
 
   // Tiendas
   const [tiendas, setTiendas]     = useState<any[]>([])
@@ -365,7 +367,13 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
         <div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
             {canEdit && (
-              <button onClick={() => { setContratoForm({}); setAddContrato(true) }}
+              <button onClick={() => {
+                setContratoForm({})
+                setAddContrato(true)
+                setContratoAplicacion('marco')
+                setTiendaBusqModal('')
+                if (tiendas.length === 0) loadTiendas()
+              }}
                 style={{ padding: '7px 14px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>
                 + Agregar contrato
               </button>
@@ -394,7 +402,14 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
                       </div>
                       {canEdit && (
                         <div style={{ display: 'flex', gap: '6px' }}>
-                          <button onClick={() => { setContratoForm({ ...c }); setEditContrato(c) }}
+                          <button onClick={() => {
+                            setContratoForm({ ...c })
+                            setEditContrato(c)
+                            setContratoAplicacion(c.tiendaId ? 'especifica' : 'marco')
+                            const td = tiendas.find((t: any) => t.id === c.tiendaId)
+                            setTiendaBusqModal(td ? `${td.codigo} — ${td.nombreCc}` : '')
+                            if (tiendas.length === 0) loadTiendas()
+                          }}
                             style={{ padding: '5px 10px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', cursor: 'pointer' }}>Editar</button>
                           <button onClick={() => deleteContrato(c.id)}
                             style={{ padding: '5px 10px', fontSize: '11px', border: '0.5px solid #fca5a5', borderRadius: '6px', background: 'var(--card)', color: '#dc2626', cursor: 'pointer' }}>Eliminar</button>
@@ -644,6 +659,11 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
       {/* ── Modal: Contrato (agregar / editar) ───────────────────────────────── */}
       {(editContrato || addContrato) && (
         <ModalWrap title={addContrato ? 'Agregar contrato' : 'Editar contrato'} onClose={() => { setEditContrato(null); setAddContrato(false) }}>
+
+          {/* Sección 1 — Datos comerciales */}
+          <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px', paddingBottom: '6px', borderBottom: '0.5px solid var(--border)' }}>
+            Datos comerciales
+          </div>
           <FormGrid>
             <FormField label="Código contrato">
               <input value={contratoForm.codigoContrato ?? ''} onChange={e => setContratoForm((f: any) => ({ ...f, codigoContrato: e.target.value }))} style={INP} />
@@ -666,24 +686,6 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
             <FormField label="Fecha fin">
               <input type="date" value={contratoForm.fechaFin ?? ''} onChange={e => setContratoForm((f: any) => ({ ...f, fechaFin: e.target.value || null }))} style={INP} />
             </FormField>
-            <FormField label="SLA comprometido">
-              <input value={contratoForm.slaComprometido ?? ''} onChange={e => setContratoForm((f: any) => ({ ...f, slaComprometido: e.target.value }))} style={INP} placeholder="ej: 99.5% disponibilidad" />
-            </FormField>
-            <FormField label="T. respuesta SLA (h)">
-              <input type="number" value={contratoForm.tiempoRespuestaSla ?? ''} onChange={e => setContratoForm((f: any) => ({ ...f, tiempoRespuestaSla: Number(e.target.value) || null }))} style={INP} />
-            </FormField>
-            <FormField label="T. resolución SLA (h)">
-              <input type="number" value={contratoForm.tiempoResolucionSla ?? ''} onChange={e => setContratoForm((f: any) => ({ ...f, tiempoResolucionSla: Number(e.target.value) || null }))} style={INP} />
-            </FormField>
-            <FormField label="URL documento">
-              <input value={contratoForm.documentoUrl ?? ''} onChange={e => setContratoForm((f: any) => ({ ...f, documentoUrl: e.target.value }))} style={INP} placeholder="https://..." />
-            </FormField>
-            <FormField label="Estado">
-              <select value={contratoForm.estado ?? 'VIGENTE'} onChange={e => setContratoForm((f: any) => ({ ...f, estado: e.target.value }))} style={INP}>
-                <option value="VIGENTE">VIGENTE</option>
-                <option value="VENCIDO">VENCIDO</option>
-              </select>
-            </FormField>
             <FormField label="Renovación automática">
               <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer', paddingTop: '4px' }}>
                 <input type="checkbox" checked={!!contratoForm.renovacionAutomatica} onChange={e => setContratoForm((f: any) => ({ ...f, renovacionAutomatica: e.target.checked }))} />
@@ -691,9 +693,94 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
               </label>
             </FormField>
             <FormField label="Penalidad" span>
-              <textarea value={contratoForm.penalidad ?? ''} onChange={e => setContratoForm((f: any) => ({ ...f, penalidad: e.target.value }))} style={{ ...INP, minHeight: '56px', resize: 'vertical' }} />
+              <textarea value={contratoForm.penalidad ?? ''} onChange={e => setContratoForm((f: any) => ({ ...f, penalidad: e.target.value }))} style={{ ...INP, minHeight: '52px', resize: 'vertical' }} />
+            </FormField>
+            <FormField label="URL documento" span>
+              <input value={contratoForm.documentoUrl ?? ''} onChange={e => setContratoForm((f: any) => ({ ...f, documentoUrl: e.target.value }))} style={INP} placeholder="https://..." />
             </FormField>
           </FormGrid>
+
+          {/* Sección 2 — Compromisos SLA */}
+          <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '10px', padding: '14px 16px', marginTop: '16px', marginBottom: '16px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: '#1E40AF', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px' }}>
+              Compromisos SLA del contrato
+            </div>
+            <FormGrid>
+              <FormField label="Tiempo máximo de respuesta N1 (minutos)">
+                <input type="number" min={1} value={contratoForm.tiempoRespuestaSla ?? ''} onChange={e => setContratoForm((f: any) => ({ ...f, tiempoRespuestaSla: Number(e.target.value) || null }))} style={{ ...INP, background: 'white' }} placeholder="60" />
+                <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '4px', lineHeight: 1.4 }}>El proveedor debe responder en este tiempo desde que se le escala</div>
+              </FormField>
+              <FormField label="Tiempo máximo de resolución (minutos)">
+                <input type="number" min={1} value={contratoForm.tiempoResolucionSla ?? ''} onChange={e => setContratoForm((f: any) => ({ ...f, tiempoResolucionSla: Number(e.target.value) || null }))} style={{ ...INP, background: 'white' }} placeholder="60" />
+                <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '4px', lineHeight: 1.4 }}>Tiempo base — se multiplica x2 para intermitencia y x4 para lentitud</div>
+              </FormField>
+            </FormGrid>
+          </div>
+
+          {/* Sección 3 — Aplicación */}
+          <div style={{ background: 'var(--muted)', borderRadius: '10px', padding: '14px 16px', marginBottom: '4px' }}>
+            <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+              Este contrato aplica a
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer' }}>
+                <input type="radio" name="aplicacion" checked={contratoAplicacion === 'marco'}
+                  onChange={() => { setContratoAplicacion('marco'); setContratoForm((f: any) => ({ ...f, tiendaId: null })) }} />
+                Todas las tiendas del proveedor (contrato marco)
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer' }}>
+                <input type="radio" name="aplicacion" checked={contratoAplicacion === 'especifica'}
+                  onChange={() => setContratoAplicacion('especifica')} />
+                Tienda específica:
+              </label>
+              {contratoAplicacion === 'especifica' && (
+                <div style={{ marginLeft: '24px', position: 'relative' }}>
+                  <input
+                    placeholder="Buscar por código o nombre..."
+                    value={tiendaBusqModal}
+                    onChange={e => { setTiendaBusqModal(e.target.value); setContratoForm((f: any) => ({ ...f, tiendaId: null })) }}
+                    style={{ ...INP, marginBottom: '4px', background: 'var(--card)' }}
+                  />
+                  {tiendaBusqModal.length >= 1 && !contratoForm.tiendaId && (
+                    <div style={{ border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', maxHeight: '150px', overflowY: 'auto' }}>
+                      {tiendas
+                        .filter(t => {
+                          const q = tiendaBusqModal.toLowerCase()
+                          return t.codigo?.toLowerCase().includes(q) || t.nombreCc?.toLowerCase().includes(q)
+                        })
+                        .slice(0, 8)
+                        .map(t => (
+                          <button key={t.id} type="button"
+                            onClick={() => {
+                              setContratoForm((f: any) => ({ ...f, tiendaId: t.id }))
+                              setTiendaBusqModal(`${t.codigo} — ${t.nombreCc}`)
+                            }}
+                            style={{ display: 'block', width: '100%', padding: '7px 10px', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '0.5px solid var(--border)', cursor: 'pointer', fontSize: '12px' }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                            <span style={{ fontFamily: 'monospace', fontSize: '10px', color: 'var(--muted-foreground)', marginRight: '8px' }}>{t.codigo}</span>
+                            <span>{t.nombreCc}</span>
+                          </button>
+                        ))}
+                      {tiendas.filter(t => { const q = tiendaBusqModal.toLowerCase(); return t.codigo?.toLowerCase().includes(q) || t.nombreCc?.toLowerCase().includes(q) }).length === 0 && (
+                        <div style={{ padding: '10px', fontSize: '12px', color: 'var(--muted-foreground)', textAlign: 'center' }}>Sin resultados</div>
+                      )}
+                    </div>
+                  )}
+                  {contratoForm.tiendaId && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                      <span style={{ fontSize: '11px', color: '#1E40AF', fontWeight: 500 }}>✓ Tienda seleccionada</span>
+                      <button type="button" onClick={() => { setContratoForm((f: any) => ({ ...f, tiendaId: null })); setTiendaBusqModal('') }}
+                        style={{ fontSize: '10px', color: 'var(--muted-foreground)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px' }}>
+                        Cambiar
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
           <ModalFooter onCancel={() => { setEditContrato(null); setAddContrato(false) }} onSave={() => saveContrato(addContrato)} saving={savingC} />
         </ModalWrap>
       )}
