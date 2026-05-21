@@ -51,7 +51,17 @@ export async function GET(req: NextRequest) {
 
   const prevEscalamientos = await fetchEscalamientosPeriodo(prevDesde, prevHasta, proveedorId)
 
-  const result = buildCards(incidentes, escalamientos, ventasDiarias, prevIncidentes, prevEscalamientos)
+  const { getSlaContrato } = await import('@/lib/sla-contrato')
+  const slaContratoCache = new Map<string, any>()
+  const getSlaParaIncidente = async (proveedorId: string, tiendaId: string) => {
+    const key = `${proveedorId}:${tiendaId}`
+    if (!slaContratoCache.has(key)) {
+      slaContratoCache.set(key, await getSlaContrato(proveedorId, tiendaId))
+    }
+    return slaContratoCache.get(key)!
+  }
+
+  const result = await buildCards(incidentes, escalamientos, ventasDiarias, prevIncidentes, prevEscalamientos, getSlaParaIncidente)
 
   return NextResponse.json({
     periodo: { desde, hasta },
@@ -159,12 +169,13 @@ function topKey(counts: Record<string, number>): string {
 
 // ─── Main builder ────────────────────────────────────────────────────────────
 
-function buildCards(
+async function buildCards(
   incs: RawIncidente[],
   escs: RawEscalamiento[],
   ventasDiarias: RawVentaDiaria[],
   prevIncs: RawIncidente[],
   prevEscs: RawEscalamiento[],
+  getSlaParaIncidente: (proveedorId: string, tiendaId: string) => Promise<any>,
 ) {
   const escMap     = escsByIncidente(escs)
   const prevEscMap = escsByIncidente(prevEscs)
@@ -313,12 +324,15 @@ function buildCards(
   const evaluables: { codigo: string; tiendaCodigo: string; proveedor: string; tipo: string; fecha: string; cumplido: boolean }[] = []
   for (const i of incs) {
     if (i.evaluable_proveedor === false) continue
+    const sla = await getSlaParaIncidente(i.proveedor_id ?? '', i.tienda_id ?? '')
     const slaRes = calcSLARow({
       tipo: i.tipo,
       hora_correo_n1: i.hora_correo_n1,
       hora_primera_resp: i.hora_primera_resp,
       hora_fin: i.hora_fin,
       max_nivel: i.max_nivel,
+      slaRespuestaOverride: sla.respuestaMin,
+      slaResolucionOverride: sla.resolucionPorTipo[i.tipo] ?? sla.respuestaMin,
     })
     if (!slaRes.evaluable) continue
 
@@ -343,7 +357,7 @@ function buildCards(
       s.ok++
     } else {
       if (slaRes.tPrimeraRespuestaMin != null) {
-        const exResp = slaRes.tPrimeraRespuestaMin - SLA_RESPUESTA_MIN
+        const exResp = slaRes.tPrimeraRespuestaMin - sla.respuestaMin
         if (exResp > 0) { s.excessRespSum += exResp; s.excessRespCount++ }
       }
       if (slaRes.tResolucionMin != null) {
@@ -353,7 +367,7 @@ function buildCards(
     }
 
     const excRespMin = slaRes.tPrimeraRespuestaMin != null
-      ? Math.max(0, slaRes.tPrimeraRespuestaMin - SLA_RESPUESTA_MIN)
+      ? Math.max(0, slaRes.tPrimeraRespuestaMin - sla.respuestaMin)
       : null
     const excResolMin = slaRes.tResolucionMin != null
       ? Math.max(0, slaRes.tResolucionMin - slaRes.slaResolucionObj)
