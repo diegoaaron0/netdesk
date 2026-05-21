@@ -8,6 +8,7 @@ export interface RawIncidente {
   estado: string
   mttr_minutos: number | null
   evaluable_proveedor: boolean | null
+  resuelto_por: string | null
   hora_registro: Date
   hora_fin: Date | null
   proveedor_id: string | null
@@ -57,6 +58,7 @@ export async function fetchIncidentesPeriodo(
       i.estado,
       i.mttr_minutos,
       i.evaluable_proveedor,
+      i.resuelto_por,
       i.hora_registro,
       i.hora_fin,
       i.proveedor_id,

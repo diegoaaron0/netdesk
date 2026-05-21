@@ -480,6 +480,18 @@ function OperativoView({ op, tick, router }: { op: any; tick: number; router: an
                         <span style={{ color: 'var(--muted-foreground)' }}>Sol. proveedor hoy</span>
                         <span style={{ fontWeight: 600, fontFamily: 'monospace' }}>{ag.resueltoHoyProveedor}</span>
                       </div>
+                      <div style={{ borderTop: '0.5px solid var(--border)', marginTop: '4px', paddingTop: '4px', display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--muted-foreground)' }}>MTTR propio</span>
+                        <span style={{ fontWeight: 600, fontFamily: 'monospace', color: ag.mttrPromedioAgente == null ? 'var(--muted-foreground)' : ag.mttrPromedioAgente > 240 ? '#A32D2D' : ag.mttrPromedioAgente > 120 ? '#854F0B' : '#3B6D11' }}>
+                          {ag.mttrPromedioAgente != null ? fmtMin(ag.mttrPromedioAgente) : '—'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--muted-foreground)' }}>MTTR prov.</span>
+                        <span style={{ fontWeight: 600, fontFamily: 'monospace', color: ag.mttrPromedioProveedor == null ? 'var(--muted-foreground)' : ag.mttrPromedioProveedor > 240 ? '#A32D2D' : ag.mttrPromedioProveedor > 120 ? '#854F0B' : '#3B6D11' }}>
+                          {ag.mttrPromedioProveedor != null ? fmtMin(ag.mttrPromedioProveedor) : '—'}
+                        </span>
+                      </div>
                     </div>
                     <button onClick={() => setAsignarOpen(true)}
                       style={{ marginTop: '8px', width: '100%', padding: '5px', fontSize: '11px', background: 'white', border: '0.5px solid var(--border)', borderRadius: '6px', cursor: 'pointer', color: '#185FA5', fontWeight: 500 }}>

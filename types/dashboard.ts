@@ -30,6 +30,7 @@ export interface MttrProveedor {
   mejorTiempo: number | null
   peorTiempo: number | null
   mttrPrevMinutos: number | null
+  mttrProveedorMin: number | null
   tiendas: Array<{ codigo: string; mttrMinutos: number; incidentes: number; mejorTiempo: number | null; peorTiempo: number | null }>
 }
 
@@ -120,6 +121,8 @@ export interface CumplimientoSLACard {
 
 export interface CostoEstimadoCard {
   total: number
+  totalAgente: number
+  totalProveedor: number
   ventaAfectadaTotal: number
   deltaVsAnterior: number | null
   proveedorMayorImpacto: { nombre: string; costo: number } | null

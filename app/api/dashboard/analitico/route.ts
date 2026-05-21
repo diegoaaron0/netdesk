@@ -238,6 +238,7 @@ function buildCards(
   type MttrTiendaAccum = { sum: number; count: number; min: number | null; max: number | null }
   const mttrByProv = new Map<string, MttrAccum>()
   const mttrByProvTienda = new Map<string, Map<string, MttrTiendaAccum>>()
+  const mttrByProvSoloProveedor = new Map<string, { sum: number; count: number }>()
   for (const i of incs) {
     if (!i.prov_nombre || !i.mttr_minutos) continue
     if (!mttrByProv.has(i.prov_nombre)) mttrByProv.set(i.prov_nombre, { sum: 0, count: 0, min: null, max: null, incidentesResueltos: 0 })
@@ -253,6 +254,11 @@ function buildCards(
     t.sum += i.mttr_minutos; t.count++
     t.min = t.min == null ? i.mttr_minutos : Math.min(t.min, i.mttr_minutos)
     t.max = t.max == null ? i.mttr_minutos : Math.max(t.max, i.mttr_minutos)
+    if (i.evaluable_proveedor !== false && (i.resuelto_por === 'PROVEEDOR' || i.resuelto_por == null)) {
+      if (!mttrByProvSoloProveedor.has(i.prov_nombre)) mttrByProvSoloProveedor.set(i.prov_nombre, { sum: 0, count: 0 })
+      const sp = mttrByProvSoloProveedor.get(i.prov_nombre)!
+      sp.sum += i.mttr_minutos; sp.count++
+    }
   }
 
   const prevMttrByProv = new Map<string, MttrAccum>()
@@ -270,6 +276,7 @@ function buildCards(
     .map(([nombre, { sum, count, min, max, incidentesResueltos }]) => {
       const prev = prevMttrByProv.get(nombre)
       const tiendaMap = mttrByProvTienda.get(nombre) ?? new Map()
+      const sp = mttrByProvSoloProveedor.get(nombre)
       return {
         nombre,
         mttrMinutos: Math.round(sum / count),
@@ -277,6 +284,7 @@ function buildCards(
         mejorTiempo: min,
         peorTiempo: max,
         mttrPrevMinutos: prev && prev.count > 0 ? Math.round(prev.sum / prev.count) : null,
+        mttrProveedorMin: sp && sp.count > 0 ? Math.round(sp.sum / sp.count) : null,
         tiendas: [...tiendaMap.entries()]
           .map(([codigo, t]) => ({
             codigo,
@@ -392,6 +400,8 @@ function buildCards(
 
   // ── CARD 5: Costo estimado ──────────────────────────────────────────────
   let costoTotal = 0
+  let costoAgente = 0
+  let costoProveedor = 0
   let ventaAfectadaTotal = 0
   const costoByProv   = new Map<string, number>()
   type CostoAccum = { codigo: string; proveedor: string; horas: number; costo: number; ventaAfectada: number; topCosto: number; topFactor: number; topMotivo: string; topVentaHora: number | null; topMargen: number; topContingencia: boolean }
@@ -401,6 +411,8 @@ function buildCards(
     const { costo, ventaAfectada, factor, motivo, ventaHora, margen } = calcCostoIncidente(i, ventasDiarias)
     costoTotal += costo
     ventaAfectadaTotal += ventaAfectada
+    if (i.evaluable_proveedor === false || i.resuelto_por === 'AGENTE') costoAgente += costo
+    else costoProveedor += costo
 
     const prov = i.prov_nombre ?? '—'
     costoByProv.set(prov, (costoByProv.get(prov) ?? 0) + costo)
@@ -629,6 +641,8 @@ function buildCards(
     },
     costoEstimado: {
       total: Math.round(costoTotal),
+      totalAgente: Math.round(costoAgente),
+      totalProveedor: Math.round(costoProveedor),
       ventaAfectadaTotal: Math.round(ventaAfectadaTotal),
       deltaVsAnterior: dCosto,
       proveedorMayorImpacto: provCostoSorted.length > 0

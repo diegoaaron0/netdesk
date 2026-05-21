@@ -65,6 +65,8 @@ export async function GET() {
     db.execute(sql`
       SELECT
         i.registrado_por_id AS agente_id,
+        i.mttr_minutos,
+        i.resuelto_por,
         EXISTS (
           SELECT 1 FROM escalamientos e
           WHERE e.incidente_id  = i.id
@@ -149,14 +151,19 @@ export async function GET() {
   const equipoStats = agentes.map((ag: any) => {
     const misIncs     = activosConEstado.filter((i: any) => i.agente_id === ag.id)
     const misRes      = resueltos.filter((r: any) => r.agente_id === ag.id)
+    const mttrAgenteArr   = misRes.filter((r: any) => r.resuelto_por === 'AGENTE'    && r.mttr_minutos != null).map((r: any) => r.mttr_minutos as number)
+    const mttrProvArr     = misRes.filter((r: any) => r.resuelto_por === 'PROVEEDOR' && r.mttr_minutos != null).map((r: any) => r.mttr_minutos as number)
+    const avg = (arr: number[]) => arr.length ? Math.round(arr.reduce((s, v) => s + v, 0) / arr.length) : null
     return {
       id: ag.id, nombre: ag.nombre, rol: ag.rol,
-      casosActivos:        misIncs.length,
-      enRiesgoSla:         misIncs.filter((i: any) => ['EN_RIESGO_SLA','SLA_VENCIDO'].includes(i.estadoOp)).length,
-      escalados:           misIncs.filter((i: any) => i.estado.startsWith('ESCALADO')).length,
-      pendientesProveedor: misIncs.filter((i: any) => i.pendiente_proveedor).length,
-      resueltoHoyAgente:   misRes.filter((r: any) => !r.por_proveedor).length,
+      casosActivos:         misIncs.length,
+      enRiesgoSla:          misIncs.filter((i: any) => ['EN_RIESGO_SLA','SLA_VENCIDO'].includes(i.estadoOp)).length,
+      escalados:            misIncs.filter((i: any) => i.estado.startsWith('ESCALADO')).length,
+      pendientesProveedor:  misIncs.filter((i: any) => i.pendiente_proveedor).length,
+      resueltoHoyAgente:    misRes.filter((r: any) => !r.por_proveedor).length,
       resueltoHoyProveedor: misRes.filter((r: any) =>  r.por_proveedor).length,
+      mttrPromedioAgente:   avg(mttrAgenteArr),
+      mttrPromedioProveedor: avg(mttrProvArr),
     }
   })
 

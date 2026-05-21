@@ -46,6 +46,7 @@ const COLS = {
   proveedorNombre: sql<string>`COALESCE(pi.nombre, pt.nombre)`,
   agenteName:     usuarios.nombre,
   agenteId:       usuarios.id,
+  resueltoPor:    incidentes.resueltoPor,
 }
 
 export async function GET(req: NextRequest) {

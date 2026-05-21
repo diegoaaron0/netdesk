@@ -362,6 +362,12 @@ export default function DashboardAnalitico() {
           {!loading && cards?.costoEstimado.deltaVsAnterior != null && (
             <DeltaBadge delta={cards.costoEstimado.deltaVsAnterior} />
           )}
+          {!loading && cards && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <span style={{ fontSize: '10px', color: '#1D4ED8' }}>↩ Agente: {fmtCosto(cards.costoEstimado.totalAgente)}</span>
+              <span style={{ fontSize: '10px', color: '#A32D2D' }}>↩ Proveedor: {fmtCosto(cards.costoEstimado.totalProveedor)}</span>
+            </div>
+          )}
           <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', lineHeight: 1.4 }}>
             Basado en horas de caída, venta promedio y margen
           </div>
@@ -470,9 +476,11 @@ export default function DashboardAnalitico() {
 
       {openCard === 'mttr' && cards && (
         <Panel title="MTTR por proveedor" onClose={() => setOpenCard(null)}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 55px 70px 60px 60px 70px auto', gap: '8px', padding: '0 0 8px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
-            {['Proveedor','Resueltos','MTTR prom','Mejor','Peor','Δ vs ant.','Estado'].map((h) => (
-              <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 55px 70px 65px 60px 60px 70px auto', gap: '8px', padding: '0 0 8px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
+            {['Proveedor','Resueltos','MTTR prom','MTTR Prov.','Mejor','Peor','Δ vs ant.','Estado'].map((h) => (
+              <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}
+                title={h === 'MTTR Prov.' ? 'MTTR solo de incidentes resueltos por el proveedor' : undefined}
+              >{h}</span>
             ))}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
@@ -480,14 +488,19 @@ export default function DashboardAnalitico() {
               const b = mttrBadge(p.mttrMinutos)
               const deltaMin = p.mttrPrevMinutos != null ? p.mttrMinutos - p.mttrPrevMinutos : null
               const isSelected = mttrProvSelected === p.nombre
+              const mttrProvColor = p.mttrProveedorMin == null ? 'var(--muted-foreground)' : p.mttrProveedorMin > 120 ? '#A32D2D' : p.mttrProveedorMin > 60 ? '#854F0B' : '#3B6D11'
               return (
                 <div key={i}>
                   <div
                     onClick={() => setMttrProvSelected(isSelected ? null : p.nombre)}
-                    style={{ display: 'grid', gridTemplateColumns: '1fr 55px 70px 60px 60px 70px auto', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center', cursor: 'pointer', background: isSelected ? 'var(--muted)' : 'transparent', borderRadius: isSelected ? '6px' : undefined }}>
+                    style={{ display: 'grid', gridTemplateColumns: '1fr 55px 70px 65px 60px 60px 70px auto', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center', cursor: 'pointer', background: isSelected ? 'var(--muted)' : 'transparent', borderRadius: isSelected ? '6px' : undefined }}>
                     <span style={{ fontSize: '12px' }}>{p.nombre}</span>
                     <span style={{ fontSize: '12px', textAlign: 'right' }}>{p.incidentesResueltos}</span>
                     <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'monospace', color: b.color }}>{fmtMttr(p.mttrMinutos)}</span>
+                    <span style={{ fontSize: '11px', fontFamily: 'monospace', color: mttrProvColor }}
+                      title="MTTR solo de incidentes resueltos por el proveedor">
+                      {fmtMttr(p.mttrProveedorMin)}
+                    </span>
                     <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#3B6D11' }}>{fmtMttr(p.mejorTiempo)}</span>
                     <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#A32D2D' }}>{fmtMttr(p.peorTiempo)}</span>
                     <span style={{ fontSize: '11px', color: deltaMin == null ? 'var(--muted-foreground)' : deltaMin > 0 ? '#A32D2D' : '#3B6D11' }}>
@@ -606,7 +619,7 @@ export default function DashboardAnalitico() {
       {openCard === 'costo' && cards && (
         <Panel title="Desglose de Impacto Económico de Indisponibilidad" onClose={() => setOpenCard(null)}>
           <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '10px', marginTop: '-4px' }}>Impacto Económico Estimado de Indisponibilidad</div>
-          <div style={{ background: 'var(--muted)', borderRadius: '8px', padding: '12px', marginBottom: '12px', display: 'grid', gridTemplateColumns: '1fr auto', rowGap: '4px', columnGap: '16px' }}>
+          <div style={{ background: 'var(--muted)', borderRadius: '8px', padding: '12px', marginBottom: '8px', display: 'grid', gridTemplateColumns: '1fr auto', rowGap: '4px', columnGap: '16px' }}>
             <span style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>Venta afectada estimada:</span>
             <span style={{ fontSize: '12px', fontWeight: 500, textAlign: 'right' }}>{fmtCosto(cards.costoEstimado.ventaAfectadaTotal)}</span>
             <span style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>Margen aplicado:</span>
@@ -614,6 +627,12 @@ export default function DashboardAnalitico() {
             <span style={{ fontSize: '12px', fontWeight: 600 }}>I.E.I total:</span>
             <span style={{ fontSize: '12px', fontWeight: 600, textAlign: 'right' }}>{fmtCosto(cards.costoEstimado.total)}</span>
           </div>
+          {cards.costoEstimado.totalAgente > 0 && (
+            <div style={{ background: '#EFF6FF', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px', display: 'grid', gridTemplateColumns: '1fr auto', columnGap: '16px' }}>
+              <span style={{ fontSize: '12px', color: '#1D4ED8' }}>Impacto evitado por resolución interna:</span>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: '#1D4ED8', textAlign: 'right' }}>{fmtCosto(cards.costoEstimado.totalAgente)}</span>
+            </div>
+          )}
           {cards.costoEstimado.proveedorMayorImpacto && (
             <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '4px' }}>
               Proveedor con mayor impacto: <strong>{cards.costoEstimado.proveedorMayorImpacto.nombre}</strong> → {fmtCosto(cards.costoEstimado.proveedorMayorImpacto.costo)}

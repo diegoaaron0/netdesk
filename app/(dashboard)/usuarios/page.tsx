@@ -87,6 +87,7 @@ export default function UsuariosPage() {
   const [saving, setSaving] = useState(false)
   const [showPass, setShowPass] = useState(false)
   const [historial, setHistorial] = useState<{ open: boolean; usuario: any; items: any[]; loading: boolean }>({ open: false, usuario: null, items: [], loading: false })
+  const [historialTab, setHistorialTab] = useState<'todos' | 'resueltos'>('todos')
 
   const fetchUsuarios = useCallback(async () => {
     const res = await fetch('/api/usuarios')
@@ -269,6 +270,20 @@ export default function UsuariosPage() {
               <button onClick={() => setHistorial(p => ({ ...p, open: false }))}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--muted-foreground)' }}>✕</button>
             </div>
+            {/* Tabs */}
+            <div style={{ display: 'flex', gap: '4px', padding: '10px 18px 0', flexShrink: 0, borderBottom: '0.5px solid var(--border)' }}>
+              {(['todos', 'resueltos'] as const).map(tab => (
+                <button key={tab} onClick={() => setHistorialTab(tab)} style={{
+                  padding: '5px 12px', fontSize: '11px', fontWeight: 500, border: 'none', cursor: 'pointer',
+                  borderRadius: '6px 6px 0 0', marginBottom: '-0.5px',
+                  background: historialTab === tab ? 'var(--card)' : 'transparent',
+                  color: historialTab === tab ? 'var(--foreground)' : 'var(--muted-foreground)',
+                  borderBottom: historialTab === tab ? '2px solid #185FA5' : '2px solid transparent',
+                }}>
+                  {tab === 'todos' ? 'Todos' : 'Resueltos por mí'}
+                </button>
+              ))}
+            </div>
             <div style={{ flex: 1, overflow: 'auto' }}>
               {historial.loading ? (
                 <div style={{ padding: '32px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Cargando...</div>
@@ -278,13 +293,16 @@ export default function UsuariosPage() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                   <thead>
                     <tr style={{ background: 'var(--muted)', position: 'sticky', top: 0 }}>
-                      {['Código', 'Tienda', 'Tipo', 'MTTR', 'Estado', 'Fecha'].map(h => (
+                      {['Código', 'Tienda', 'Tipo', 'MTTR', 'Estado', 'Fecha', 'Resolución'].map(h => (
                         <th key={h} style={{ padding: '7px 10px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {historial.items.map((inc: any) => (
+                    {(historialTab === 'resueltos'
+                      ? historial.items.filter((inc: any) => inc.resueltoPor === 'AGENTE')
+                      : historial.items
+                    ).map((inc: any) => (
                       <tr key={inc.id} style={{ borderTop: '0.5px solid var(--border)' }}>
                         <td style={{ padding: '7px 10px', fontFamily: 'monospace', fontWeight: 600, fontSize: '11px' }}>{inc.codigo}</td>
                         <td style={{ padding: '7px 10px', fontSize: '11px', color: 'var(--muted-foreground)' }}>{inc.tiendaCodigo ?? '—'}</td>
@@ -295,6 +313,15 @@ export default function UsuariosPage() {
                         </td>
                         <td style={{ padding: '7px 10px', fontSize: '10px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>
                           {inc.horaRegistro ? new Date(inc.horaRegistro).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                        </td>
+                        <td style={{ padding: '7px 10px' }}>
+                          {inc.resueltoPor === 'AGENTE' && (
+                            <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '999px', background: '#EFF6FF', color: '#1D4ED8' }}>↩ Agente</span>
+                          )}
+                          {inc.resueltoPor === 'PROVEEDOR' && (
+                            <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '999px', background: '#F0FDF4', color: '#15803D' }}>↩ Proveedor</span>
+                          )}
+                          {!inc.resueltoPor && <span style={{ color: 'var(--muted-foreground)', fontSize: '10px' }}>—</span>}
                         </td>
                       </tr>
                     ))}
