@@ -1,11 +1,14 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip as RechartTooltip,
   Cell, ResponsiveContainer,
 } from 'recharts'
 import type { GeographicImpactResponse, ZonaResumen } from '@/types/geographic-impact'
+
+const PeruLeafletMap = dynamic(() => import('./PeruLeafletMap'), { ssr: false })
 
 interface Props {
   desde: string
@@ -129,6 +132,9 @@ export default function GeographicImpactCard({ desde, hasta, proveedorId, refres
   const [data, setData] = useState<GeographicImpactResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
+  const [hasMounted, setHasMounted] = useState(false)
+
+  useEffect(() => { setHasMounted(true) }, [])
 
   const fetchData = useCallback(async () => {
     setLoading(true); setError(false)
@@ -177,18 +183,9 @@ export default function GeographicImpactCard({ desde, hasta, proveedorId, refres
       ) : zonas.length === 0 ? (
         <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', padding: '24px 0', textAlign: 'center' }}>Sin datos en el período</div>
       ) : (
-        <div style={{ position: 'relative' }}>
-          {/* "Mapa próximamente" badge */}
-          <div style={{
-            position: 'absolute', top: 0, right: 0, zIndex: 2,
-            fontSize: '9px', fontWeight: 500, color: '#64748B',
-            background: '#F1F5F9', border: '0.5px solid #CBD5E1',
-            borderRadius: '999px', padding: '2px 8px', pointerEvents: 'none',
-          }}>
-            Mapa próximamente
-          </div>
-
-          <ResponsiveContainer width="100%" height={chartHeight}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {/* BarChart zonas */}
+          <ResponsiveContainer width="100%" height={120}>
             <BarChart
               layout="vertical"
               data={chartData}
@@ -222,7 +219,7 @@ export default function GeographicImpactCard({ desde, hasta, proveedorId, refres
           </ResponsiveContainer>
 
           {/* Color legend */}
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '2px' }}>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
             {[['#1D9E75', 'SLA ≥ 90%'], ['#BA7517', 'SLA < 90%'], ['#A32D2D', 'SLA 0%']].map(([color, label]) => (
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <div style={{ width: 8, height: 8, borderRadius: 2, background: color, flexShrink: 0 }} />
@@ -230,6 +227,13 @@ export default function GeographicImpactCard({ desde, hasta, proveedorId, refres
               </div>
             ))}
           </div>
+
+          {/* Mapa Leaflet */}
+          {hasMounted && (
+            <div style={{ height: '180px', borderRadius: '8px', overflow: 'hidden' }}>
+              <PeruLeafletMap tiendas={data?.tiendas ?? []} />
+            </div>
+          )}
         </div>
       )}
 
