@@ -1,14 +1,11 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import dynamic from 'next/dynamic'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip as RechartTooltip,
   Cell, ResponsiveContainer,
 } from 'recharts'
 import type { GeographicImpactResponse, ZonaResumen } from '@/types/geographic-impact'
-
-const PeruLeafletMap = dynamic(() => import('./PeruLeafletMap'), { ssr: false })
 
 interface Props {
   desde: string
@@ -132,9 +129,6 @@ export default function GeographicImpactCard({ desde, hasta, proveedorId, refres
   const [data, setData] = useState<GeographicImpactResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
-  const [hasMounted, setHasMounted] = useState(false)
-
-  useEffect(() => { setHasMounted(true) }, [])
 
   const fetchData = useCallback(async () => {
     setLoading(true); setError(false)
@@ -228,12 +222,6 @@ export default function GeographicImpactCard({ desde, hasta, proveedorId, refres
             ))}
           </div>
 
-          {/* Mapa Leaflet */}
-          {hasMounted && (
-            <div style={{ height: '180px', borderRadius: '8px', overflow: 'hidden' }}>
-              <PeruLeafletMap tiendas={data?.tiendas ?? []} />
-            </div>
-          )}
         </div>
       )}
 
