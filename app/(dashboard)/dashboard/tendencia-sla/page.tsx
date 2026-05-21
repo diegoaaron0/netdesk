@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { fmtSLARespResol } from '@/lib/sla-display'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -52,6 +53,10 @@ interface Caso {
   slaResolucion: boolean
   slaGeneral: boolean
   motivoIncumplimiento: string | null
+  scoreEficiencia: number | null
+  scoreRespuesta: number | null
+  scoreResolucion: number | null
+  slaResolucionMin: number
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -307,9 +312,15 @@ function TendenciaSLAPageInner() {
                         <tr><td colSpan={11} style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>Sin casos en esta fecha</td></tr>
                       )}
                       {casos.map((c, i) => {
-                        const sR = slaStyle(c.slaRespuesta)
-                        const sResol = slaStyle(c.slaResolucion)
                         const sG = slaStyle(c.slaGeneral)
+                        const slaD = c.evaluable ? fmtSLARespResol({
+                          scoreResp: c.scoreRespuesta,
+                          scoreResol: c.scoreResolucion,
+                          tRespMin: c.tPrimeraRespuestaMin,
+                          tResolMin: c.tResolucionMin,
+                          limiteRespMin: 60,
+                          limiteResolMin: c.slaResolucionMin || SLA_RESOL_LIMITE[c.tipo] || 120,
+                        }) : null
                         return (
                           <tr key={c.codigo} style={{ borderTop: i > 0 ? '0.5px solid #e5e7eb' : 'none' }}>
                             <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: '11px', color: 'var(--muted-foreground)' }}>{c.codigo}</td>
@@ -320,22 +331,18 @@ function TendenciaSLAPageInner() {
                             <td style={{ padding: '8px 10px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{fmtMin(c.tPrimeraRespuestaMin)}</td>
                             <td style={{ padding: '8px 10px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{fmtMin(c.tResolucionMin)}</td>
                             <td style={{ padding: '8px 10px' }}>
-                              {c.evaluable ? (
+                              {slaD ? (
                                 <div>
-                                  <Badge bg={sR.bg} color={sR.color} label={sR.label} />
-                                  <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px', whiteSpace: 'nowrap' }}>
-                                    {fmtMin(c.tPrimeraRespuestaMin)} / límite {fmtMin(60)}
-                                  </div>
+                                  <Badge bg={slaD.respuesta.bg} color={slaD.respuesta.color} label={slaD.respuesta.texto} />
+                                  {slaD.respuesta.subTexto && <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '2px', whiteSpace: 'nowrap' }}>{slaD.respuesta.subTexto}</div>}
                                 </div>
                               ) : <span style={{ fontSize: '10px', color: '#888' }}>N/A</span>}
                             </td>
                             <td style={{ padding: '8px 10px' }}>
-                              {c.evaluable ? (
+                              {slaD ? (
                                 <div>
-                                  <Badge bg={sResol.bg} color={sResol.color} label={sResol.label} />
-                                  <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px', whiteSpace: 'nowrap' }}>
-                                    {fmtMin(c.tResolucionMin)} / límite {fmtMin(SLA_RESOL_LIMITE[c.tipo] ?? 120)}
-                                  </div>
+                                  <Badge bg={slaD.resolucion.bg} color={slaD.resolucion.color} label={slaD.resolucion.texto} />
+                                  {slaD.resolucion.subTexto && <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '2px', whiteSpace: 'nowrap' }}>{slaD.resolucion.subTexto}</div>}
                                 </div>
                               ) : <span style={{ fontSize: '10px', color: '#888' }}>N/A</span>}
                             </td>

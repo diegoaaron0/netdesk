@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import type { DashboardAnaliticoResponse } from '@/types/dashboard'
+import { fmtSLA } from '@/lib/sla-display'
 import TendenciaSLACard from './TendenciaSLACard'
 import ProviderImpactCard from './ProviderImpactCard'
 import CriticalStoresCard from './CriticalStoresCard'
@@ -554,8 +555,7 @@ export default function DashboardAnalitico() {
             ))}
           </div>
           {cards.cumplimientoSLA.porProveedor.map((p, i) => {
-            const effVal = p.scoreEficiencia ?? p.slaPct
-            const effColor = effVal >= 70 ? '#16a34a' : effVal >= 40 ? '#d97706' : '#dc2626'
+            const d = fmtSLA({ score: p.scoreEficiencia, tRealMin: p.tRespPromMin, tLimiteMin: 60 })
             const b = slaBadge(p.slaPct)
             const isSelected = slaProvSelected === p.nombre
             return (
@@ -564,11 +564,14 @@ export default function DashboardAnalitico() {
                   onClick={() => setSlaProvSelected(isSelected ? null : p.nombre)}
                   style={{ display: 'grid', gridTemplateColumns: '1fr 90px 80px 80px auto', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center', cursor: 'pointer', background: isSelected ? 'var(--muted)' : 'transparent' }}>
                   <span style={{ fontSize: '12px' }}>{p.nombre}</span>
-                  <span
-                    title="Eficiencia: 100 = respondió/resolvió instantáneo, 50 = usó el 100% del tiempo límite, 0 = tardó el doble o más"
-                    style={{ fontSize: '12px', fontWeight: 600, color: effColor, cursor: 'help' }}>
-                    {effVal}
-                  </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                    <span
+                      title="Eficiencia: 100 = respondió/resolvió instantáneo, 50 = usó el 100% del tiempo límite, 0 = tardó el doble o más"
+                      style={{ fontSize: '12px', fontWeight: 600, color: d.color, cursor: 'help' }}>
+                      {d.texto}
+                    </span>
+                    {d.subTexto && <span style={{ fontSize: '10px', color: '#6B7280' }}>{d.subTexto}</span>}
+                  </div>
                   <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
                     {p.excessoRespuestaMin > 0 ? `+${fmtMttr(p.excessoRespuestaMin)}` : '—'}
                   </span>

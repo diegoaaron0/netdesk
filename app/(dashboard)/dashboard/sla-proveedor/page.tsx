@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import type { SLAProveedorResponse, CasoFueraSLA } from '@/types/provider-sla-compliance'
+import { fmtSLA } from '@/lib/sla-display'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -375,20 +376,18 @@ function SLAProveedorPageInner() {
                     <span style={{ fontSize: '11px', fontFamily: 'monospace', color: !c.slaResolucion ? '#A32D2D' : '#3B6D11', fontWeight: !c.slaResolucion ? 600 : 400 }}>
                       {fmtMin(c.tResolucionMin)}
                     </span>
-                    <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 6px', borderRadius: '999px', background: c.slaRespuesta ? '#EAF3DE' : '#FCEBEB', color: c.slaRespuesta ? '#3B6D11' : '#A32D2D', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                      {c.slaRespuesta
-                        ? `✓ ${fmtMin(60 - (c.tPrimeraRespuestaMin ?? 0))}`
-                        : c.tPrimeraRespuestaMin != null
-                          ? `+${fmtMin(c.tPrimeraRespuestaMin - 60)} sobre límite`
-                          : 'Sin resp.'}
-                    </span>
-                    <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 6px', borderRadius: '999px', background: c.slaResolucion ? '#EAF3DE' : '#FCEBEB', color: c.slaResolucion ? '#3B6D11' : '#A32D2D', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                      {(() => { const lim = SLA_RESOL_MIN[c.tipo] ?? 120; return c.slaResolucion
-                        ? `✓ ${fmtMin(lim - (c.tResolucionMin ?? 0))}`
-                        : c.tResolucionMin != null
-                          ? `+${fmtMin(c.tResolucionMin - lim)} sobre límite`
-                          : 'Sin resol.' })()}
-                    </span>
+                    {(() => { const d = fmtSLA({ score: c.scoreEficiencia, tRealMin: c.tPrimeraRespuestaMin, tLimiteMin: 60 }); return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                        <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 6px', borderRadius: '999px', background: d.bg, color: d.color, textAlign: 'center', whiteSpace: 'nowrap' }}>{d.texto}</span>
+                        {d.subTexto && <span style={{ fontSize: '9px', color: '#6B7280', textAlign: 'center', whiteSpace: 'nowrap' }}>{d.subTexto}</span>}
+                      </div>
+                    )})()}
+                    {(() => { const lim = SLA_RESOL_MIN[c.tipo] ?? 120; const d = fmtSLA({ score: c.scoreEficiencia, tRealMin: c.tResolucionMin, tLimiteMin: lim }); return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                        <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 6px', borderRadius: '999px', background: d.bg, color: d.color, textAlign: 'center', whiteSpace: 'nowrap' }}>{d.texto}</span>
+                        {d.subTexto && <span style={{ fontSize: '9px', color: '#6B7280', textAlign: 'center', whiteSpace: 'nowrap' }}>{d.subTexto}</span>}
+                      </div>
+                    )})()}
                     <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{c.motivoIncumplimiento}</span>
                   </div>
                 ))
