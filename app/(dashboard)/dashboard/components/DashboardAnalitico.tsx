@@ -548,21 +548,29 @@ export default function DashboardAnalitico() {
       {openCard === 'sla' && cards && (
         <Panel title="Cumplimiento SLA" onClose={() => setOpenCard(null)}>
           <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Resumen por proveedor</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 80px 80px auto', gap: '8px', padding: '0 0 8px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
-            {['Proveedor', 'SLA%', 'Exceso resp.', 'Exceso resol.', 'Estado'].map((h) => (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 100px 80px 80px auto', gap: '8px', padding: '0 0 8px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
+            {['Proveedor', 'SLA binario', 'Eficiencia SLA', 'Exceso resp.', 'Exceso resol.', 'Estado'].map((h) => (
               <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
             ))}
           </div>
           {cards.cumplimientoSLA.porProveedor.map((p, i) => {
             const b = slaBadge(p.slaPct)
+            const eff = p.scoreEficiencia
+            const effColor = eff == null ? '#9ca3af' : eff >= 70 ? '#16a34a' : eff >= 40 ? '#d97706' : '#dc2626'
+            const effBg    = eff == null ? '#f3f4f6'  : eff >= 70 ? '#dcfce7'  : eff >= 40 ? '#fef3c7'  : '#fee2e2'
             const isSelected = slaProvSelected === p.nombre
             return (
               <div key={i}>
                 <div
                   onClick={() => setSlaProvSelected(isSelected ? null : p.nombre)}
-                  style={{ display: 'grid', gridTemplateColumns: '1fr 60px 80px 80px auto', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center', cursor: 'pointer', background: isSelected ? 'var(--muted)' : 'transparent' }}>
+                  style={{ display: 'grid', gridTemplateColumns: '1fr 70px 100px 80px 80px auto', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center', cursor: 'pointer', background: isSelected ? 'var(--muted)' : 'transparent' }}>
                   <span style={{ fontSize: '12px' }}>{p.nombre}</span>
                   <span style={{ fontSize: '12px', fontWeight: 500, color: b.color }}>{p.slaPct}%</span>
+                  <span
+                    title="Eficiencia: 100 = respondió/resolvió instantáneo, 50 = usó el 100% del tiempo límite, 0 = tardó el doble o más"
+                    style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: effBg, color: effColor, fontWeight: 600, whiteSpace: 'nowrap', cursor: 'help', width: 'fit-content' }}>
+                    {eff != null ? `${eff}` : '—'}
+                  </span>
                   <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
                     {p.excessoRespuestaMin > 0 ? `+${fmtMttr(p.excessoRespuestaMin)}` : '—'}
                   </span>

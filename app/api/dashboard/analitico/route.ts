@@ -10,7 +10,7 @@ import {
   getMTTRTexto,
 } from '@/lib/dashboard-calculations'
 import { calcImpactoRow } from '@/lib/impacto-calc'
-import { calcSLARow, SLA_RESPUESTA_MIN } from '@/lib/sla-core'
+import { calcSLARow, calcEficienciaSLA, SLA_RESPUESTA_MIN } from '@/lib/sla-core'
 import {
   fetchIncidentesPeriodo,
   fetchEscalamientosPeriodo,
@@ -314,6 +314,7 @@ async function buildCards(
     ok: number; total: number
     excessRespSum: number; excessRespCount: number
     excessResolSum: number; excessResolCount: number
+    scoreSum: number; scoreCount: number
   }
   const slaByProv = new Map<string, SlaProvAccum>()
   type SlaIncRow = { codigo: string; fecha: string; tipo: string; excRespMin: number | null; excResolMin: number | null; duracionMin: number | null; cumplido: boolean }
@@ -350,9 +351,17 @@ async function buildCards(
     })
 
     const prov = i.prov_nombre ?? '—'
-    if (!slaByProv.has(prov)) slaByProv.set(prov, { ok: 0, total: 0, excessRespSum: 0, excessRespCount: 0, excessResolSum: 0, excessResolCount: 0 })
+    const eficiencia = calcEficienciaSLA({
+      tRespuestaMin: slaRes.tPrimeraRespuestaMin ?? null,
+      tResolucionMin: slaRes.tResolucionMin ?? null,
+      slaRespuestaMin: sla.respuestaMin,
+      slaResolucionMin: sla.resolucionPorTipo[i.tipo] ?? sla.respuestaMin,
+    })
+
+    if (!slaByProv.has(prov)) slaByProv.set(prov, { ok: 0, total: 0, excessRespSum: 0, excessRespCount: 0, excessResolSum: 0, excessResolCount: 0, scoreSum: 0, scoreCount: 0 })
     const s = slaByProv.get(prov)!
     s.total++
+    if (eficiencia.scoreSLA != null) { s.scoreSum += eficiencia.scoreSLA; s.scoreCount++ }
     if (cumplido) {
       s.ok++
     } else {
@@ -406,6 +415,7 @@ async function buildCards(
     .map(([nombre, s]) => ({
       nombre,
       slaPct: s.total > 0 ? Math.round(s.ok / s.total * 100) : 0,
+      scoreEficiencia: s.scoreCount > 0 ? Math.round(s.scoreSum / s.scoreCount) : null,
       excessoRespuestaMin: s.excessRespCount > 0 ? Math.round(s.excessRespSum / s.excessRespCount) : 0,
       excessoResolucionMin: s.excessResolCount > 0 ? Math.round(s.excessResolSum / s.excessResolCount) : 0,
       tiendas: slaByProvIncidentes.get(nombre) ?? [],
