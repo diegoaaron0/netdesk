@@ -117,3 +117,39 @@ export function calcSLARow(row: SLAInputRow): SLAResult {
     slaResolucionObj, slaRespuesta, slaResolucion, slaGeneral, motivoIncumplimiento,
   }
 }
+
+// ─── Eficiencia SLA ───────────────────────────────────────────────────────────
+
+export function calcEficienciaSLA(params: {
+  tRespuestaMin: number | null
+  tResolucionMin: number | null
+  slaRespuestaMin: number
+  slaResolucionMin: number
+}): {
+  eficienciaRespuesta: number | null
+  eficienciaResolucion: number | null
+  scoreRespuesta: number | null
+  scoreResolucion: number | null
+  scoreSLA: number | null
+} {
+  const calcScore = (real: number | null, limite: number): number | null => {
+    if (real == null) return null
+    if (real <= 0) return 100
+    return Math.max(0, Math.round(100 * (1 - real / (limite * 2))))
+  }
+
+  const scoreResp  = calcScore(params.tRespuestaMin,  params.slaRespuestaMin)
+  const scoreResol = calcScore(params.tResolucionMin, params.slaResolucionMin)
+
+  const scoreSLA = scoreResp != null && scoreResol != null
+    ? Math.round((scoreResp * 0.4) + (scoreResol * 0.6))
+    : scoreResp ?? scoreResol ?? null
+
+  return {
+    eficienciaRespuesta:  params.tRespuestaMin  != null ? Math.round((params.tRespuestaMin  / params.slaRespuestaMin)  * 100) : null,
+    eficienciaResolucion: params.tResolucionMin != null ? Math.round((params.tResolucionMin / params.slaResolucionMin) * 100) : null,
+    scoreRespuesta:  scoreResp,
+    scoreResolucion: scoreResol,
+    scoreSLA,
+  }
+}
