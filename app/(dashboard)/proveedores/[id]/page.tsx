@@ -284,7 +284,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
               {[
                 { label: 'Costo mensual total',  value: fmtSoles(metricas?.costoTotal) },
                 { label: 'SLA comprometido',     value: metricas?.slaComprometido ?? '—' },
-                { label: 'SLA real',             value: fmtSLA({ score: metricas?.scoreEficiencia ?? null, tRealMin: null, tLimiteMin: null, label: 'SLA' }).texto, color: fmtSLA({ score: metricas?.scoreEficiencia ?? null, tRealMin: null, tLimiteMin: null, label: 'SLA' }).color },
+                { label: 'SLA real',             value: fmtSLA({ score: metricas?.scoreEficiencia ?? metricas?.slaPromedio ?? null, tRealMin: null, tLimiteMin: null, label: 'SLA' }).texto, color: fmtSLA({ score: metricas?.scoreEficiencia ?? metricas?.slaPromedio ?? null, tRealMin: null, tLimiteMin: null, label: 'SLA' }).color },
                 { label: 'MTTR promedio',        value: fmtMttr(metricas?.mttrPromedio) },
                 { label: 'Incidentes (30d)',     value: String(metricas?.incidentes30d ?? 0) },
                 { label: 'Tiendas críticas',     value: String(metricas?.tiendasCriticas ?? 0), color: metricas?.tiendasCriticas > 0 ? '#ef4444' : undefined },
