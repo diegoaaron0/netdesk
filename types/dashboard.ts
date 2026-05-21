@@ -115,6 +115,7 @@ export interface MttrPromedioCard {
 
 export interface CumplimientoSLACard {
   porcentaje: number
+  scoreEficiencia: number | null
   deltaVsAnterior: number | null
   porProveedor: SlaProveedor[]
   evaluables: SlaEvaluableItem[]

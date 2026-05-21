@@ -659,6 +659,10 @@ async function buildCards(
     },
     cumplimientoSLA: {
       porcentaje: slaPct,
+      scoreEficiencia: (() => {
+        const scores = slaPorProveedor.map(p => p.scoreEficiencia).filter((s): s is number => s != null)
+        return scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null
+      })(),
       deltaVsAnterior: dSla,
       porProveedor: slaPorProveedor,
       evaluables,
