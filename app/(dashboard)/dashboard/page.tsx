@@ -46,6 +46,12 @@ function fmtHora(d: string | Date | null): string {
   const raw = typeof d === 'string' && !d.includes('Z') && !d.includes('+') ? d + 'Z' : d
   return new Date(raw).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Lima' })
 }
+function fmtEspera(min: number): string {
+  if (min < 60) return `${min}m esperando`
+  const h = Math.floor(min / 60); const m = min % 60
+  if (min < 120) return `${h}h ${m}m esperando`
+  return `${h}h ${m}m ⚠`
+}
 function initials(nombre: string): string {
   return nombre.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
 }
@@ -272,9 +278,10 @@ export default function DashboardPage() {
 
 function OperativoView({ op, tick, router }: { op: any; tick: number; router: any }) {
   const { activos, equipoStats, proveedoresPendientes, actividadReciente, kpis } = op
-  const [provFiltro,  setProvFiltro]  = useState('Todos')
-  const [cardFiltro,  setCardFiltro]  = useState<string | null>(null)
-  const [asignarOpen, setAsignarOpen] = useState(false)
+  const [provFiltro,    setProvFiltro]    = useState('Todos')
+  const [cardFiltro,    setCardFiltro]    = useState<string | null>(null)
+  const [asignarOpen,   setAsignarOpen]   = useState(false)
+  const [tabActividad,  setTabActividad]  = useState<'todos'|'escalados'|'resueltos'|'respuestas'>('todos')
 
   const nowMs = Date.now()
 
@@ -434,66 +441,67 @@ function OperativoView({ op, tick, router }: { op: any; tick: number; router: an
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px' }}>
               {(equipoStats ?? []).map((ag: any, idx: number) => {
-                const libre = ag.casosActivos === 0
-                const sobrecarga = ag.casosActivos > 3
+                const carga = ag.casosActivos === 0 ? 'libre'
+                  : ag.casosActivos <= 2 ? 'normal'
+                  : ag.casosActivos <= 4 ? 'cargado'
+                  : 'saturado'
+                const cargaBadge = {
+                  libre:    { label: 'Libre',    bg: '#F3F4F6', color: '#6B7280' },
+                  normal:   { label: 'Normal',   bg: '#EAF3DE', color: '#27500A' },
+                  cargado:  { label: 'Cargado',  bg: '#FFF3E0', color: '#C84B00' },
+                  saturado: { label: 'Saturado', bg: '#FCEBEB', color: '#A32D2D' },
+                }[carga]
+                const borderColor = carga === 'saturado' ? '#FECACA' : carga === 'cargado' ? '#FED7AA' : '#E5E7EB'
                 return (
-                  <div key={ag.id} style={{ padding: '12px', background: 'var(--muted)', borderRadius: '10px', border: `0.5px solid ${sobrecarga ? '#FECACA' : libre ? '#E5E7EB' : '#185FA5'}` }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                  <div key={ag.id} style={{ padding: '12px', background: 'var(--muted)', borderRadius: '10px', border: `0.5px solid ${borderColor}` }}>
+                    {/* Header: avatar + nombre + badge carga */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
                       <AvatarCircle nombre={ag.nombre} color={AVATAR_COLORS[idx % AVATAR_COLORS.length]} />
-                      <div>
-                        <div style={{ fontSize: '12px', fontWeight: 600, lineHeight: 1.2 }}>{ag.nombre}</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '12px', fontWeight: 600, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ag.nombre}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '3px' }}>
                           <span style={{ fontSize: '9px', color: 'var(--muted-foreground)' }}>{ag.rol}</span>
-                          <span style={{ fontSize: '9px', fontWeight: 600, padding: '1px 6px', borderRadius: '999px', background: libre ? '#EAF3DE' : sobrecarga ? '#FCEBEB' : '#E6F1FB', color: libre ? '#27500A' : sobrecarga ? '#A32D2D' : '#185FA5' }}>
-                            {libre ? 'Libre' : 'En gestión'}
+                          <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 7px', borderRadius: '999px', background: cargaBadge.bg, color: cargaBadge.color }}>
+                            {cargaBadge.label}
                           </span>
                         </div>
                       </div>
                     </div>
-                    <div style={{ fontSize: '11px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                        <span style={{ color: 'var(--muted-foreground)' }}>Casos activos</span>
-                        <span style={{ fontWeight: 600, fontFamily: 'monospace', color: sobrecarga ? '#A32D2D' : 'var(--foreground)' }}>{ag.casosActivos}</span>
+
+                    {/* Métricas principales: número grande + dos columnas */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '8px' }}>
+                      <div style={{ textAlign: 'center', minWidth: '44px' }}>
+                        <div style={{ fontSize: '24px', fontWeight: 700, lineHeight: 1, color: carga === 'saturado' ? '#A32D2D' : carga === 'cargado' ? '#C84B00' : 'var(--foreground)' }}>{ag.casosActivos}</div>
+                        <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', marginTop: '2px' }}>activos</div>
                       </div>
-                      {ag.enRiesgoSla > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                          <span style={{ color: 'var(--muted-foreground)' }}>En riesgo SLA</span>
-                          <span style={{ fontWeight: 600, fontFamily: 'monospace', color: '#C84B00' }}>{ag.enRiesgoSla}</span>
+                      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
+                        <div style={{ background: ag.enRiesgoSla > 0 ? '#FEF2F2' : 'transparent', borderRadius: '6px', padding: '4px 6px', border: ag.enRiesgoSla > 0 ? '0.5px solid #FECACA' : '0.5px solid transparent' }}>
+                          <div style={{ fontSize: '16px', fontWeight: 700, lineHeight: 1, color: ag.enRiesgoSla > 0 ? '#A32D2D' : 'var(--muted-foreground)' }}>{ag.enRiesgoSla}</div>
+                          <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', marginTop: '1px' }}>En riesgo</div>
                         </div>
-                      )}
-                      {ag.escalados > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                          <span style={{ color: 'var(--muted-foreground)' }}>Escalados</span>
-                          <span style={{ fontWeight: 600, fontFamily: 'monospace', color: '#854F0B' }}>{ag.escalados}</span>
+                        <div style={{ background: '#F0FDF4', borderRadius: '6px', padding: '4px 6px', border: '0.5px solid #BBF7D0' }}>
+                          <div style={{ fontSize: '16px', fontWeight: 700, lineHeight: 1, color: '#27500A' }}>{ag.resueltoHoyAgente + ag.resueltoHoyProveedor}</div>
+                          <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', marginTop: '1px' }}>Resueltos hoy</div>
                         </div>
-                      )}
-                      {ag.pendientesProveedor > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                          <span style={{ color: 'var(--muted-foreground)' }}>Pend. proveedor</span>
-                          <span style={{ fontWeight: 600, fontFamily: 'monospace', color: '#5B21B6' }}>{ag.pendientesProveedor}</span>
-                        </div>
-                      )}
-                      <div style={{ borderTop: '0.5px solid var(--border)', marginTop: '4px', paddingTop: '4px', display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: 'var(--muted-foreground)' }}>Sol. agente hoy</span>
-                        <span style={{ fontWeight: 600, fontFamily: 'monospace' }}>{ag.resueltoHoyAgente}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: 'var(--muted-foreground)' }}>Sol. proveedor hoy</span>
-                        <span style={{ fontWeight: 600, fontFamily: 'monospace' }}>{ag.resueltoHoyProveedor}</span>
-                      </div>
-                      <div style={{ borderTop: '0.5px solid var(--border)', marginTop: '4px', paddingTop: '4px', display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: 'var(--muted-foreground)' }}>MTTR propio</span>
-                        <span style={{ fontWeight: 600, fontFamily: 'monospace', color: ag.mttrPromedioAgente == null ? 'var(--muted-foreground)' : ag.mttrPromedioAgente > 240 ? '#A32D2D' : ag.mttrPromedioAgente > 120 ? '#854F0B' : '#3B6D11' }}>
-                          {ag.mttrPromedioAgente != null ? fmtMin(ag.mttrPromedioAgente) : '—'}
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: 'var(--muted-foreground)' }}>MTTR prov.</span>
-                        <span style={{ fontWeight: 600, fontFamily: 'monospace', color: ag.mttrPromedioProveedor == null ? 'var(--muted-foreground)' : ag.mttrPromedioProveedor > 240 ? '#A32D2D' : ag.mttrPromedioProveedor > 120 ? '#854F0B' : '#3B6D11' }}>
-                          {ag.mttrPromedioProveedor != null ? fmtMin(ag.mttrPromedioProveedor) : '—'}
-                        </span>
                       </div>
                     </div>
+
+                    {/* Métricas secundarias */}
+                    <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '6px', fontSize: '11px', display: 'flex', flexWrap: 'wrap', gap: '4px 12px' }}>
+                      {ag.escalados > 0 && (
+                        <span style={{ color: '#854F0B' }}>↑ {ag.escalados} escal.</span>
+                      )}
+                      {ag.pendientesProveedor > 0 && (
+                        <span style={{ color: '#5B21B6' }}>⏳ {ag.pendientesProveedor} pend.</span>
+                      )}
+                      <span style={{ color: 'var(--muted-foreground)' }}>Sol. ag. {ag.resueltoHoyAgente} · prov. {ag.resueltoHoyProveedor}</span>
+                      {ag.mttrPromedioAgente != null && (
+                        <span style={{ color: ag.mttrPromedioAgente > 240 ? '#A32D2D' : ag.mttrPromedioAgente > 120 ? '#854F0B' : '#3B6D11' }}>
+                          MTTR {fmtMin(ag.mttrPromedioAgente)}
+                        </span>
+                      )}
+                    </div>
+
                     <button onClick={() => setAsignarOpen(true)}
                       style={{ marginTop: '8px', width: '100%', padding: '5px', fontSize: '11px', background: 'white', border: '0.5px solid var(--border)', borderRadius: '6px', cursor: 'pointer', color: '#185FA5', fontWeight: 500 }}>
                       Asignar
@@ -547,7 +555,7 @@ function OperativoView({ op, tick, router }: { op: any; tick: number; router: an
                     const nowM = Date.now()
                     const { minutosTranscurridos } = getEstadoOpClient(inc, nowM)
                     return (
-                      <tr key={inc.id} style={{ borderTop: idx > 0 ? '0.5px solid #f3f4f6' : 'none' }}>
+                      <tr key={inc.id} style={{ borderTop: idx > 0 ? '0.5px solid #f3f4f6' : 'none', backgroundColor: inc.estadoOp === 'SLA_VENCIDO' ? '#FEF2F2' : inc.estadoOp === 'EN_RIESGO_SLA' ? '#FFFBEB' : 'transparent', transition: 'background-color 0.2s' }}>
                         <td style={{ padding: '8px', fontFamily: 'monospace', fontSize: '10px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>{inc.codigo}</td>
                         <td style={{ padding: '8px', whiteSpace: 'nowrap' }}>
                           <div style={{ fontWeight: 500 }}>{inc.tienda_codigo}</div>
@@ -611,8 +619,8 @@ function OperativoView({ op, tick, router }: { op: any; tick: number; router: an
                         <span style={{ padding: '2px 8px', borderRadius: '999px', background: '#E6F1FB', color: '#185FA5', fontSize: '10px', fontWeight: 600 }}>{p.nombre}</span>
                       </td>
                       <td style={{ padding: '7px 6px', fontWeight: 700, fontFamily: 'monospace' }}>{p.count}</td>
-                      <td style={{ padding: '7px 6px', fontFamily: 'monospace', color: p.masAntiguoMin >= 240 ? '#A32D2D' : p.masAntiguoMin >= 120 ? '#C84B00' : 'var(--foreground)', fontWeight: 500 }}>
-                        {fmtMin(p.masAntiguoMin)}
+                      <td style={{ padding: '7px 6px', fontFamily: 'monospace', color: p.masAntiguoMin > 60 ? '#A32D2D' : p.masAntiguoMin > 30 ? '#C84B00' : 'var(--foreground)', fontWeight: 500 }}>
+                        {fmtEspera(p.masAntiguoMin)}
                       </td>
                       <td style={{ padding: '7px 6px' }}>
                         <button onClick={() => { setProvFiltro(p.nombre); setCardFiltro('pendientes') }}
@@ -670,11 +678,33 @@ function OperativoView({ op, tick, router }: { op: any; tick: number; router: an
                 Ver toda →
               </button>
             </div>
+            {/* Tabs */}
+            <div style={{ display: 'flex', gap: '4px', marginBottom: '10px' }}>
+              {([
+                { key: 'todos',      label: 'Todos' },
+                { key: 'escalados',  label: 'Escalados' },
+                { key: 'resueltos',  label: 'Resueltos' },
+                { key: 'respuestas', label: 'Respuestas prov.' },
+              ] as const).map(tab => (
+                <button key={tab.key} onClick={() => setTabActividad(tab.key)}
+                  style={{ padding: '4px 12px', fontSize: '11px', fontWeight: tabActividad === tab.key ? 600 : 400, background: tabActividad === tab.key ? 'hsl(221,83%,23%)' : 'var(--muted)', color: tabActividad === tab.key ? 'white' : 'var(--foreground)', border: 'none', borderRadius: '999px', cursor: 'pointer' }}>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            {(() => {
+              const actFiltrada = (actividadReciente ?? []).filter((ev: any) => {
+                if (tabActividad === 'escalados')  return ev.tipo_evento === 'ESCALADO'
+                if (tabActividad === 'resueltos')  return ev.tipo_evento === 'RESUELTO'
+                if (tabActividad === 'respuestas') return ev.tipo_evento === 'RESPUESTA_PROVEEDOR'
+                return true
+              })
+              return (
             <div style={{ maxHeight: '320px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-              {(actividadReciente ?? []).length === 0 ? (
+              {actFiltrada.length === 0 ? (
                 <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', padding: '8px 0' }}>Sin actividad reciente</div>
               ) : (
-                (actividadReciente ?? []).map((ev: any, i: number) => {
+                actFiltrada.map((ev: any, i: number) => {
                   const conf: Record<string, { icon: string; color: string }> = {
                     CREADO:               { icon: '●', color: '#185FA5' },
                     ESCALADO:             { icon: '↑', color: '#C84B00' },
@@ -698,6 +728,8 @@ function OperativoView({ op, tick, router }: { op: any; tick: number; router: an
                 })
               )}
             </div>
+              )
+            })()}
           </div>
         </div>
       </div>
