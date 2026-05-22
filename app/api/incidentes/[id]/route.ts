@@ -70,6 +70,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     resueltoPor:         incidentes.resueltoPor,
     atribucionFinal:     incidentes.atribucionFinal,
     evaluableProveedor:  incidentes.evaluableProveedor,
+    boletaManual:        incidentes.boletaManual,
+    ventaParcial:        incidentes.ventaParcial,
+    cajasAfectadas:      incidentes.cajasAfectadas,
+    cajasTotales:        incidentes.cajasTotales,
     // Proveedor → via incidentes.proveedorId (registro histórico del momento del incidente)
     // Esto garantiza que si la tienda cambia de proveedor en el futuro, el incidente
     // sigue mostrando quién era el proveedor responsable cuando ocurrió.
@@ -141,6 +145,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     'descEnergia','descRouter','descDns',
     'checkIpconfig','checkPingGw','checkPingInternet','checkTracert','checkDns','checkRenovarIp',
     'descartesDetallado','resueltoPor','atribucionFinal','evaluableProveedor',
+    'boletaManual','ventaParcial','cajasAfectadas','cajasTotales',
   ]
   const dateFields = new Set(['horaRegistro','horaFin','horaInicioSeguimiento','contHoraActivacion','movHoraActivacion'])
   for (const k of editable) {

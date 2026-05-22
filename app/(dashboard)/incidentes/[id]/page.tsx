@@ -206,6 +206,10 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
       checkDns:            data.checkDns            ?? false,
       checkRenovarIp:      data.checkRenovarIp      ?? false,
       descartesDetallado:  data.descartesDetallado  ?? '',
+      boletaManual:        data.boletaManual        ?? null,
+      ventaParcial:        data.ventaParcial        ?? null,
+      cajasAfectadas:      data.cajasAfectadas      ?? '',
+      cajasTotales:        data.cajasTotales        ?? '',
     })
   }, [id])
 
@@ -632,7 +636,39 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   </div>
                 </div>
               </div>
-              {/* Comentarios */}
+              {/* Condiciones de venta (IEI) */}
+              <div style={{ marginTop:'12px', background:'var(--muted)', border:'1px solid var(--border)', borderRadius:'10px', padding:'12px' }}>
+                <div style={{ fontSize:'11px', fontWeight:600, color:'var(--foreground)', marginBottom:'10px' }}>Condiciones de venta</div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:'8px 24px', marginBottom:'10px' }}>
+                  {([{ key:'boletaManual', label:'¿Se usó boleta manual?' }, { key:'ventaParcial', label:'¿Hubo venta parcial?' }] as const).map(({ key, label }) => (
+                    <label key={key} style={{ display:'flex', alignItems:'center', gap:'7px', fontSize:'11px', cursor:!canEditB?'default':'pointer', color:'var(--foreground)' }}>
+                      <input type="checkbox" disabled={!canEditB}
+                        checked={!!editForm[key]}
+                        onChange={e => setEdit(key, e.target.checked ? true : null)}
+                        style={{ cursor:!canEditB?'default':'pointer', accentColor:'hsl(221,83%,45%)', width:'13px', height:'13px' }} />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px' }}>
+                  <div>
+                    <label style={{ display:'block', fontSize:'10px', fontWeight:600, color:'var(--muted-foreground)', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:'4px' }}>Cajas afectadas</label>
+                    <input type="number" min="0" disabled={!canEditB} style={iStyle(!canEditB)}
+                      value={editForm.cajasAfectadas ?? ''}
+                      onChange={e => setEdit('cajasAfectadas', e.target.value === '' ? null : Number(e.target.value))}
+                      placeholder="Ej: 2" />
+                  </div>
+                  <div>
+                    <label style={{ display:'block', fontSize:'10px', fontWeight:600, color:'var(--muted-foreground)', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:'4px' }}>Cajas totales</label>
+                    <input type="number" min="1" disabled={!canEditB} style={iStyle(!canEditB)}
+                      value={editForm.cajasTotales ?? ''}
+                      onChange={e => setEdit('cajasTotales', e.target.value === '' ? null : Number(e.target.value))}
+                      placeholder="Ej: 4" />
+                  </div>
+                </div>
+              </div>
+
+            {/* Comentarios */}
               <div
                 style={{ marginTop:'12px', background:'var(--card)', border:'1px solid var(--border)', borderRadius:'10px', padding:'12px' }}
                 onPaste={canEditB ? async (e) => {

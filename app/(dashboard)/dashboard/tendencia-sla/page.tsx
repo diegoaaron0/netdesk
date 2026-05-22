@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { fmtSLARespResol } from '@/lib/sla-display'
+import { SLA_RESOLUCION_POR_TIPO } from '@/lib/sla-core'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -88,7 +89,6 @@ function slaStyle(v: boolean): { bg: string; color: string; label: string } {
     : { bg: '#FCEBEB', color: '#A32D2D', label: 'No cumplió' }
 }
 
-const SLA_RESOL_LIMITE: Record<string, number> = { CAIDA_TOTAL: 60, INTERMITENCIA: 120, LENTITUD: 240, POS: 60, OTROS: 120 }
 
 function slaPctColor(v: number | null): string {
   if (v == null) return '#888780'
@@ -319,7 +319,7 @@ function TendenciaSLAPageInner() {
                           tRespMin: c.tPrimeraRespuestaMin,
                           tResolMin: c.tResolucionMin,
                           limiteRespMin: 60,
-                          limiteResolMin: c.slaResolucionMin || SLA_RESOL_LIMITE[c.tipo] || 120,
+                          limiteResolMin: c.slaResolucionMin || SLA_RESOLUCION_POR_TIPO[c.tipo] || 120,
                         }) : null
                         return (
                           <tr key={c.codigo} style={{ borderTop: i > 0 ? '0.5px solid #e5e7eb' : 'none' }}>

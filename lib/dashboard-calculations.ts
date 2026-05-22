@@ -20,45 +20,6 @@ export function getVentaHoraEstimadaOrNull(
   return null
 }
 
-export function getVentaHoraEsperada(
-  tiendaCodigo: string,
-  diaSemana: number,
-  ventaHoraSoles: number | null,
-  cluster: string | null,
-  ventasDiarias: Array<{ tienda_codigo: string; dia_semana: number; venta_hora_promedio: number }>,
-): number {
-  const match = ventasDiarias.find(
-    (v) => v.tienda_codigo === tiendaCodigo && Number(v.dia_semana) === diaSemana,
-  )
-  if (match) return Number(match.venta_hora_promedio)
-  if (ventaHoraSoles != null) return Number(ventaHoraSoles)
-  const fallback = DASHBOARD_CONFIG.CLUSTER_FALLBACK_HORA[cluster ?? '']
-  return fallback ?? DASHBOARD_CONFIG.CLUSTER_FALLBACK_HORA['D']
-}
-
-export function getCostoEstimado(
-  ventaHora: number,
-  mttrMin: number,
-  tipo: string,
-  tieneContingencia: boolean,
-  contingenciaActiva: boolean,
-): { costo: number; ventaAfectada: number } {
-  const horas = mttrMin / 60
-  const factorImp = DASHBOARD_CONFIG.FACTOR_IMPACTO[tipo] ?? 0.60
-  const factorCont =
-    tieneContingencia && contingenciaActiva
-      ? DASHBOARD_CONFIG.FACTOR_CONTINGENCIA.CON_CONTINGENCIA
-      : DASHBOARD_CONFIG.FACTOR_CONTINGENCIA.SIN_CONTINGENCIA
-  const ventaAfectada = ventaHora * horas * factorImp * factorCont
-  const costo = ventaAfectada * DASHBOARD_CONFIG.MARGEN_BRUTO
-  return { costo, ventaAfectada }
-}
-
-export function getMTTRTexto(minutos: number): string {
-  const h = Math.floor(minutos / 60)
-  const m = minutos % 60
-  return h > 0 ? `${h}h ${m}m` : `${m}m`
-}
 
 export function parseSlaMinutos(tiempoRespSev1: string | null | undefined): number | null {
   if (!tiempoRespSev1) return null

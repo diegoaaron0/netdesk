@@ -26,5 +26,4 @@ export const DASHBOARD_CONFIG = {
     reincidencia: 0.10, incidentes: 0.10,
   },
 
-  SLA_RESPUESTA_MIN: 60,   // 1 hora por nivel antes de escalar
 }

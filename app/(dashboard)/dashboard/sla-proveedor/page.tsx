@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import type { SLAProveedorResponse, CasoFueraSLA } from '@/types/provider-sla-compliance'
 import { fmtSLA } from '@/lib/sla-display'
+import { SLA_RESOLUCION_POR_TIPO } from '@/lib/sla-core'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -34,9 +35,6 @@ function estadoLabel(pct: number | null) {
   if (pct >= 90) return 'Óptimo'
   if (pct >= 70) return 'Revisar'
   return 'Crítico'
-}
-const SLA_RESOL_MIN: Record<string, number> = {
-  CAIDA_TOTAL: 60, INTERMITENCIA: 120, LENTITUD: 240, POS: 60, OTROS: 120,
 }
 
 function fmtTipo(t: string) {
@@ -382,7 +380,7 @@ function SLAProveedorPageInner() {
                         {d.subTexto && <span style={{ fontSize: '9px', color: '#6B7280', textAlign: 'center', whiteSpace: 'nowrap' }}>{d.subTexto}</span>}
                       </div>
                     )})()}
-                    {(() => { const lim = SLA_RESOL_MIN[c.tipo] ?? 120; const d = fmtSLA({ score: c.scoreEficiencia, tRealMin: c.tResolucionMin, tLimiteMin: lim }); return (
+                    {(() => { const lim = SLA_RESOLUCION_POR_TIPO[c.tipo] ?? 120; const d = fmtSLA({ score: c.scoreEficiencia, tRealMin: c.tResolucionMin, tLimiteMin: lim }); return (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
                         <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 6px', borderRadius: '999px', background: d.bg, color: d.color, textAlign: 'center', whiteSpace: 'nowrap' }}>{d.texto}</span>
                         {d.subTexto && <span style={{ fontSize: '9px', color: '#6B7280', textAlign: 'center', whiteSpace: 'nowrap' }}>{d.subTexto}</span>}

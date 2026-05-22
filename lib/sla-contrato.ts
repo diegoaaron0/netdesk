@@ -30,7 +30,7 @@ export async function getSlaContrato(
     // 1. Buscar contrato específico por tienda
     if (tiendaId) {
       const [especifico] = await db.select().from(contratosProveedor).where(
-        and(eq(contratosProveedor.proveedorId, proveedorId), eq(contratosProveedor.tiendaId, tiendaId))
+        and(eq(contratosProveedor.proveedorId, proveedorId), eq(contratosProveedor.tiendaId, tiendaId), eq(contratosProveedor.estado, 'VIGENTE'))
       ).limit(1)
       if (especifico?.tiempoRespuestaSla || especifico?.tiempoResolucionSla) {
         const data: SlaContrato = {
@@ -47,7 +47,7 @@ export async function getSlaContrato(
 
     // 2. Buscar contrato marco del proveedor
     const [marco] = await db.select().from(contratosProveedor).where(
-      and(eq(contratosProveedor.proveedorId, proveedorId), isNull(contratosProveedor.tiendaId))
+      and(eq(contratosProveedor.proveedorId, proveedorId), isNull(contratosProveedor.tiendaId), eq(contratosProveedor.estado, 'VIGENTE'))
     ).limit(1)
     if (marco?.tiempoRespuestaSla || marco?.tiempoResolucionSla) {
       const data: SlaContrato = {

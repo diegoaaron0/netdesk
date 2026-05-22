@@ -202,6 +202,11 @@ export const incidentes = pgTable('incidentes', {
   resueltoPor:           text('resuelto_por'),
   atribucionFinal:       text('atribucion_final'),
   evaluableProveedor:    boolean('evaluable_proveedor').default(true),
+  // IEI — condiciones de venta durante el incidente
+  boletaManual:          boolean('boleta_manual'),
+  ventaParcial:          boolean('venta_parcial'),
+  cajasAfectadas:        integer('cajas_afectadas'),
+  cajasTotales:          integer('cajas_totales'),
 })
 
 export const escalamientos = pgTable('escalamientos', {
