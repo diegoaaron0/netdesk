@@ -759,8 +759,8 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
                             style={{ display: 'block', width: '100%', padding: '7px 10px', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '0.5px solid var(--border)', cursor: 'pointer', fontSize: '12px' }}
                             onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
                             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                            <span style={{ fontFamily: 'monospace', fontSize: '10px', color: 'var(--muted-foreground)', marginRight: '8px' }}>{t.codigo}</span>
-                            <span>{t.nombreCc}</span>
+                            <span style={{ fontWeight: 600 }}>{t.codigo}</span>
+                            {t.nombreCc && <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginLeft: '6px' }}>{t.nombreCc}</span>}
                           </button>
                         ))}
                       {tiendas.filter(t => { const q = tiendaBusqModal.toLowerCase(); return t.codigo?.toLowerCase().includes(q) || t.nombreCc?.toLowerCase().includes(q) }).length === 0 && (

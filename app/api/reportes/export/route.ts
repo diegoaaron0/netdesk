@@ -20,7 +20,8 @@ export async function GET(req: Request) {
         i.codigo,
         i.ticket_invgate,
         i.ticket_proveedor,
-        COALESCE(t.nombre_cc, t.codigo)                                               AS tienda,
+        t.codigo                                                                       AS tienda_codigo,
+        t.nombre_cc                                                                    AS tienda_nombre_cc,
         COALESCE(t.distrito, '')                                                       AS ubicacion,
         COALESCE(pi.nombre, pt.nombre)                                                 AS proveedor,
         t.cid_servicio,
@@ -32,7 +33,8 @@ export async function GET(req: Request) {
         esc_max.nivel_max                                                              AS nivel_escalado,
         i.tipo_operacion_manual                                                        AS factor_operativo,
         CASE WHEN COALESCE(t.tiene_contingencia, false) THEN 'Sí' ELSE 'No' END      AS tiene_contingencia,
-        TO_CHAR(i.hora_registro AT TIME ZONE 'America/Lima', 'HH24:MI DD/MM/YYYY')    AS hora_inicio,
+        TO_CHAR(i.hora_registro AT TIME ZONE 'America/Lima', 'DD/MM/YYYY')             AS fecha,
+        TO_CHAR(i.hora_registro AT TIME ZONE 'America/Lima', 'HH24:MI')               AS hora_inicio,
         CASE
           WHEN i.mttr_minutos IS NULL THEN ''
           WHEN i.mttr_minutos < 60    THEN i.mttr_minutos::text || 'm'
@@ -175,10 +177,10 @@ export async function GET(req: Request) {
     `)
 
     const headers = [
-      'Código', 'Ticket InvGate', 'Ticket Proveedor', 'Tienda', 'Ubicación',
+      'Código', 'Ticket InvGate', 'Ticket Proveedor', 'Código Tienda', 'Nombre CC', 'Ubicación',
       'Proveedor', 'CID', 'Tipo Conexión', 'Cluster', 'Nivel Impacto',
       'Tipo Incidente', 'Usuarios Afectados', 'Nivel Escalado', 'Factor Operativo',
-      'Tiene Contingencia', 'Hora Inicio', 'Tiempo Total (MTTR)',
+      'Tiene Contingencia', 'Fecha', 'Hora Inicio', 'Tiempo Total (MTTR)',
       'Enviado N1', 'Respuesta N1', 'Enviado N2', 'Respuesta N2',
       'Enviado N3', 'Respuesta N3', 'Hora Solución', 'Comentarios',
       'Efectividad Contingencia', 'MTTR (min)', 'SLA Respuesta',
@@ -195,10 +197,10 @@ export async function GET(req: Request) {
     const lines = [
       headers.join(','),
       ...(rows as any[]).map(r => [
-        r.codigo, r.ticket_invgate, r.ticket_proveedor, r.tienda, r.ubicacion,
+        r.codigo, r.ticket_invgate, r.ticket_proveedor, r.tienda_codigo, r.tienda_nombre_cc, r.ubicacion,
         r.proveedor, r.cid_servicio, r.tipo_conexion, r.cluster, r.nivel_impacto,
         r.tipo_incidente, r.usuarios_afectados, r.nivel_escalado, r.factor_operativo,
-        r.tiene_contingencia, r.hora_inicio, r.tiempo_total_mttr,
+        r.tiene_contingencia, r.fecha, r.hora_inicio, r.tiempo_total_mttr,
         r.enviado_n1, r.respuesta_n1, r.enviado_n2, r.respuesta_n2,
         r.enviado_n3, r.respuesta_n3, r.hora_solucion, r.comentarios,
         r.efectividad_contingencia, r.mttr_min, r.sla_respuesta,

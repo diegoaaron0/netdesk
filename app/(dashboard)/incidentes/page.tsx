@@ -56,8 +56,8 @@ function TiendaFiltroInput({ value, label, onSelect, onClear }: {
               onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
-              <span style={{ fontFamily: 'monospace', fontSize: '10px', color: 'var(--muted-foreground)', marginRight: '8px' }}>{t.codigo}</span>
-              <span style={{ fontWeight: 500 }}>{t.nombreCc}</span>
+              <span style={{ fontWeight: 600 }}>{t.codigo}</span>
+              {t.nombreCc && <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginLeft: '6px' }}>{t.nombreCc}</span>}
               {t.proveedor && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginLeft: '6px' }}>· {t.proveedor.nombre} · {t.distrito}</span>}
             </button>
           ))}

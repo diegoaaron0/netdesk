@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
       i.estado,
       i.otros_clasificacion,
       p.nombre        AS prov_nombre,
+      t.codigo        AS tienda_codigo,
       t.nombre_cc     AS tienda_nombre,
       t.distrito      AS tienda_distrito,
       t.cluster,
@@ -73,7 +74,7 @@ export async function GET(req: NextRequest) {
   `) as unknown as Array<{
     id: string; codigo: string; tipo: string; hora_registro: string; hora_fin: string | null
     estado: string; otros_clasificacion: string | null; prov_nombre: string | null
-    tienda_nombre: string | null; tienda_distrito: string | null; cluster: string | null
+    tienda_codigo: string | null; tienda_nombre: string | null; tienda_distrito: string | null; cluster: string | null
     venta_hora_soles: number | null; contingencia_activa: boolean
     hora_correo_n1: string | null; hora_primera_resp: string | null; max_nivel: number
   }>
@@ -109,7 +110,7 @@ export async function GET(req: NextRequest) {
     return {
       id: r.id, codigo: r.codigo, tipo: r.tipo,
       proveedor: r.prov_nombre ?? '—',
-      tienda: r.tienda_nombre ?? '—',
+      tienda: r.tienda_codigo ?? r.tienda_nombre ?? '—',
       distrito: r.tienda_distrito ?? '—',
       horaRegistro: r.hora_registro, horaFin: r.hora_fin,
       estado: r.estado, slaCumplido, mttrMin, impactoEstimado,

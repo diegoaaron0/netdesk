@@ -204,7 +204,7 @@ function regla3_tiendaSinContingencia(rows: RawInsightsRow[]): Insight[] {
   for (const r of rows) {
     if (!r.tienda_id) continue
     const k = r.tienda_id
-    if (!countMap.has(k)) countMap.set(k, { nombre: r.tienda_nombre ?? r.tienda_codigo ?? k, total: 0, sinCont: !r.tiene_contingencia })
+    if (!countMap.has(k)) countMap.set(k, { nombre: r.tienda_codigo ?? r.tienda_nombre ?? k, total: 0, sinCont: !r.tiene_contingencia })
     countMap.get(k)!.total++
   }
   const insights: Insight[] = []
