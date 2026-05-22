@@ -158,12 +158,32 @@ async function main() {
   `
   console.log('[startup] ✓ Enums tipo_decision/estado_decision + tabla decisiones (0005_decisiones)')
 
+  // 0009 — tabla sla_alertas para deduplicación de alertas de cron
+  await sql`
+    CREATE TABLE IF NOT EXISTS "sla_alertas" (
+      "id"           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+      "incidente_id" UUID        NOT NULL REFERENCES "incidentes"("id") ON DELETE CASCADE,
+      "tipo"         TEXT        NOT NULL,
+      "enviado_en"   TIMESTAMP   NOT NULL DEFAULT now()
+    )
+  `
+  await sql`CREATE INDEX IF NOT EXISTS idx_sla_alertas_lookup ON sla_alertas(incidente_id, tipo, enviado_en DESC)`
+  console.log('[startup] ✓ Tabla sla_alertas + índice (0009)')
+
   // 0008 — campos IEI en incidentes (condiciones de venta durante el incidente)
   await sql`ALTER TABLE "incidentes" ADD COLUMN IF NOT EXISTS "boleta_manual" boolean`
   await sql`ALTER TABLE "incidentes" ADD COLUMN IF NOT EXISTS "venta_parcial" boolean`
   await sql`ALTER TABLE "incidentes" ADD COLUMN IF NOT EXISTS "cajas_afectadas" integer`
   await sql`ALTER TABLE "incidentes" ADD COLUMN IF NOT EXISTS "cajas_totales" integer`
   console.log('[startup] ✓ Campos IEI en incidentes (0008)')
+
+  // 0010 — flujo de aprobación de decisiones
+  await sql`ALTER TYPE "estado_decision" ADD VALUE IF NOT EXISTS 'PROPUESTO'`
+  await sql`ALTER TYPE "estado_decision" ADD VALUE IF NOT EXISTS 'RECHAZADO'`
+  await sql`ALTER TABLE "decisiones" ADD COLUMN IF NOT EXISTS "aprobado_por_id" UUID REFERENCES "usuarios"("id")`
+  await sql`ALTER TABLE "decisiones" ADD COLUMN IF NOT EXISTS "aprobado_en" TIMESTAMP`
+  await sql`ALTER TABLE "decisiones" ADD COLUMN IF NOT EXISTS "rechazado_motivo" TEXT`
+  console.log('[startup] ✓ Flujo aprobación decisiones (0010)')
 
   // 0006 — índices de performance para dashboard y queries frecuentes
   await sql`CREATE INDEX IF NOT EXISTS idx_incidentes_hora_registro ON incidentes(hora_registro DESC)`

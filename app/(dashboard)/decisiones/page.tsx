@@ -19,10 +19,12 @@ const TIPO_LABELS: Record<string, string> = {
 const TIPOS = Object.entries(TIPO_LABELS)
 
 const ESTADO_STYLE: Record<string, { bg: string; color: string; label: string }> = {
+  PROPUESTO:    { bg: '#fef9c3', color: '#854d0e', label: 'Propuesto' },
   PENDIENTE:    { bg: '#f3f4f6', color: '#6b7280', label: 'Pendiente' },
   EN_EJECUCION: { bg: '#dbeafe', color: '#1e40af', label: 'En ejecución' },
   EJECUTADA:    { bg: '#dcfce7', color: '#15803d', label: 'Ejecutada' },
   CANCELADA:    { bg: '#fee2e2', color: '#b91c1c', label: 'Cancelada' },
+  RECHAZADO:    { bg: '#fce7f3', color: '#9d174d', label: 'Rechazado' },
 }
 
 const ROL_LABELS: Record<string, string> = {
@@ -85,9 +87,10 @@ const BLANK_EJECUTAR = {
 
 export default function DecisionesPage() {
   const { data: session } = useSession()
-  const userRol = (session?.user as any)?.rol ?? ''
-  const canCrear = can(session, 'decisiones.crear')
-  const canVer   = can(session, 'decisiones.ver')
+  const userRol    = (session?.user as any)?.rol ?? ''
+  const canCrear   = can(session, 'decisiones.crear')
+  const canVer     = can(session, 'decisiones.ver')
+  const canGerencia = userRol === 'GERENCIA'
 
   const [lista, setLista]         = useState<any[]>([])
   const [loading, setLoading]     = useState(true)
@@ -113,6 +116,10 @@ export default function DecisionesPage() {
   const [ejecutarMode, setEjecutarMode] = useState(false)
   const [ejecutarForm, setEjecutarForm] = useState<any>(BLANK_EJECUTAR)
   const [savingAction, setSavingAction] = useState(false)
+
+  // Modal rechazo
+  const [rechazarModal, setRechazarModal]   = useState(false)
+  const [rechazarMotivo, setRechazarMotivo] = useState('')
 
   // ── Fetch ────────────────────────────────────────────────────────────────────
 
@@ -152,6 +159,8 @@ export default function DecisionesPage() {
     setPanelOpen(true)
     setEjecutarMode(false)
     setEjecutarForm(BLANK_EJECUTAR)
+    setRechazarModal(false)
+    setRechazarMotivo('')
     fetchDetalle(dec.id)
   }
 
@@ -193,6 +202,34 @@ export default function DecisionesPage() {
     })
     setSavingAction(false)
     setEjecutarMode(false)
+    fetchLista()
+    fetchDetalle(detalle.id)
+  }
+
+  async function handleAprobar() {
+    if (!detalle) return
+    setSavingAction(true)
+    await fetch(`/api/decisiones/${detalle.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _action: 'aprobar' }),
+    })
+    setSavingAction(false)
+    fetchLista()
+    fetchDetalle(detalle.id)
+  }
+
+  async function handleRechazar() {
+    if (!detalle || !rechazarMotivo.trim()) return
+    setSavingAction(true)
+    await fetch(`/api/decisiones/${detalle.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _action: 'rechazar', rechazadoMotivo: rechazarMotivo }),
+    })
+    setSavingAction(false)
+    setRechazarModal(false)
+    setRechazarMotivo('')
     fetchLista()
     fetchDetalle(detalle.id)
   }
@@ -345,15 +382,23 @@ export default function DecisionesPage() {
                 <DetailPanel
                   detalle={detalle}
                   canCrear={canCrear}
+                  canGerencia={canGerencia}
                   ejecutarMode={ejecutarMode}
                   ejecutarForm={ejecutarForm}
                   savingAction={savingAction}
+                  rechazarModal={rechazarModal}
+                  rechazarMotivo={rechazarMotivo}
                   onEjecutarForm={(k, v) => setEjecutarForm((f: any) => ({ ...f, [k]: v }))}
                   onEnEjecucion={() => patchEstado(detalle.id, 'EN_EJECUCION')}
                   onEjecutar={() => setEjecutarMode(true)}
                   onCancelEjecutar={() => setEjecutarMode(false)}
                   onConfirmEjecutar={handleEjecutar}
                   onCancelar={() => patchEstado(detalle.id, 'CANCELADA')}
+                  onAprobar={handleAprobar}
+                  onRechazarOpen={() => setRechazarModal(true)}
+                  onRechazarClose={() => { setRechazarModal(false); setRechazarMotivo('') }}
+                  onRechazarMotivoChange={setRechazarMotivo}
+                  onConfirmRechazar={handleRechazar}
                   onEditar={() => {/* future */ }}
                 />
               </div>
@@ -583,17 +628,24 @@ function DecisionCard({ dec, onClick }: { dec: any; onClick: () => void }) {
 // ── DetailPanel ────────────────────────────────────────────────────────────────
 
 function DetailPanel({
-  detalle, canCrear, ejecutarMode, ejecutarForm, savingAction,
-  onEjecutarForm, onEnEjecucion, onEjecutar, onCancelEjecutar, onConfirmEjecutar, onCancelar, onEditar,
+  detalle, canCrear, canGerencia, ejecutarMode, ejecutarForm, savingAction,
+  rechazarModal, rechazarMotivo,
+  onEjecutarForm, onEnEjecucion, onEjecutar, onCancelEjecutar, onConfirmEjecutar, onCancelar,
+  onAprobar, onRechazarOpen, onRechazarClose, onRechazarMotivoChange, onConfirmRechazar,
+  onEditar,
 }: {
-  detalle: any; canCrear: boolean; ejecutarMode: boolean; ejecutarForm: any; savingAction: boolean
+  detalle: any; canCrear: boolean; canGerencia: boolean; ejecutarMode: boolean; ejecutarForm: any; savingAction: boolean
+  rechazarModal: boolean; rechazarMotivo: string
   onEjecutarForm: (k: string, v: any) => void
   onEnEjecucion: () => void; onEjecutar: () => void; onCancelEjecutar: () => void; onConfirmEjecutar: () => void
-  onCancelar: () => void; onEditar: () => void
+  onCancelar: () => void
+  onAprobar: () => void; onRechazarOpen: () => void; onRechazarClose: () => void
+  onRechazarMotivoChange: (v: string) => void; onConfirmRechazar: () => void
+  onEditar: () => void
 }) {
   const est  = ESTADO_STYLE[detalle.estado] ?? ESTADO_STYLE.PENDIENTE
   const tipo = TIPO_LABELS[detalle.tipo] ?? detalle.tipo
-  const canAct = canCrear && detalle.estado !== 'CANCELADA' && detalle.estado !== 'EJECUTADA'
+  const canAct = canCrear && detalle.estado !== 'CANCELADA' && detalle.estado !== 'EJECUTADA' && detalle.estado !== 'RECHAZADO'
 
   function Row({ label, value }: { label: string; value?: string | null }) {
     if (!value) return null
@@ -646,6 +698,18 @@ function DetailPanel({
         {detalle.ejecutadaEn && <Row label="Ejecutada el" value={fmtDate(detalle.ejecutadaEn) ?? undefined} />}
       </div>
 
+      {/* Info aprobación / rechazo */}
+      {detalle.aprobadoEn && detalle.aprobadoPorNombre && (
+        <div style={{ background: '#f0fdf4', border: '0.5px solid #bbf7d0', borderRadius: '8px', padding: '8px 12px', fontSize: '12px', color: '#15803d' }}>
+          Aprobado por <strong>{detalle.aprobadoPorNombre}</strong> el {fmtDate(detalle.aprobadoEn)}
+        </div>
+      )}
+      {detalle.estado === 'RECHAZADO' && detalle.rechazadoMotivo && (
+        <div style={{ background: '#fff1f2', border: '0.5px solid #fecdd3', borderRadius: '8px', padding: '8px 12px', fontSize: '12px', color: '#9d174d' }}>
+          <strong>Motivo de rechazo:</strong> {detalle.rechazadoMotivo}
+        </div>
+      )}
+
       {/* Snapshot */}
       {(detalle.snapSlaPct != null || detalle.snapMttrMinutos != null) && (
         <div style={{ background: '#f9fafb', borderRadius: '8px', padding: '10px 12px' }}>
@@ -664,8 +728,45 @@ function DetailPanel({
       {/* Resultado nota */}
       {detalle.resultadoNota && <Row label="Nota de resultado" value={detalle.resultadoNota} />}
 
+      {/* ── Acciones aprobación (GERENCIA, solo PROPUESTO) ────────────────── */}
+      {canGerencia && detalle.estado === 'PROPUESTO' && !rechazarModal && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+          <div style={{ fontSize: '10px', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Aprobación</div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <ActionBtn onClick={onAprobar} loading={savingAction} color="#15803d" label="Aprobar" />
+            <ActionBtn onClick={onRechazarOpen} loading={false} color="#9d174d" label="Rechazar" outline />
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal rechazo inline ───────────────────────────────────────────── */}
+      {rechazarModal && (
+        <div style={{ background: '#fff1f2', border: '0.5px solid #fecdd3', borderRadius: '10px', padding: '14px' }}>
+          <div style={{ fontSize: '12px', fontWeight: 600, color: '#9d174d', marginBottom: '10px' }}>Motivo del rechazo</div>
+          <textarea
+            value={rechazarMotivo}
+            onChange={e => onRechazarMotivoChange(e.target.value)}
+            placeholder="Explica por qué se rechaza esta decisión…"
+            rows={3}
+            style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid #fecdd3', borderRadius: '8px', background: 'white', outline: 'none', boxSizing: 'border-box', resize: 'vertical' }}
+          />
+          <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+            <button onClick={onRechazarClose} style={{ flex: 1, padding: '8px', fontSize: '12px', background: 'transparent', border: '0.5px solid #fecdd3', borderRadius: '8px', cursor: 'pointer', color: '#9d174d' }}>
+              Atrás
+            </button>
+            <button
+              onClick={onConfirmRechazar}
+              disabled={savingAction || !rechazarMotivo.trim()}
+              style={{ flex: 2, padding: '8px', fontSize: '12px', fontWeight: 600, background: savingAction || !rechazarMotivo.trim() ? '#fbcfe8' : '#9d174d', color: 'white', border: 'none', borderRadius: '8px', cursor: savingAction || !rechazarMotivo.trim() ? 'default' : 'pointer' }}
+            >
+              {savingAction ? 'Guardando…' : 'Confirmar rechazo'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Acciones ──────────────────────────────────────────────────────── */}
-      {canAct && !ejecutarMode && (
+      {canAct && !ejecutarMode && !rechazarModal && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
           <div style={{ fontSize: '10px', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Acciones</div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>

@@ -22,7 +22,7 @@ export const tipoDecisionEnum = pgEnum('tipo_decision', [
   'REVISION_SLA', 'BAJA_TIENDA', 'CAMBIO_PLAN', 'AUDITORIA_PROVEEDOR', 'OTRO',
 ])
 export const estadoDecisionEnum = pgEnum('estado_decision', [
-  'PENDIENTE', 'EN_EJECUCION', 'EJECUTADA', 'CANCELADA',
+  'PROPUESTO', 'PENDIENTE', 'EN_EJECUCION', 'EJECUTADA', 'CANCELADA', 'RECHAZADO',
 ])
 
 export const usuarios = pgTable('usuarios', {
@@ -228,6 +228,13 @@ export const escalamientos = pgTable('escalamientos', {
   creadoEn:                timestamp('creado_en').defaultNow(),
 })
 
+export const slaAlertas = pgTable('sla_alertas', {
+  id:          uuid('id').primaryKey().defaultRandom(),
+  incidenteId: uuid('incidente_id').references(() => incidentes.id, { onDelete: 'cascade' }).notNull(),
+  tipo:        text('tipo').notNull(), // 'EN_RIESGO' | 'VENCIDO'
+  enviadoEn:   timestamp('enviado_en').defaultNow().notNull(),
+})
+
 export const atcLlamadas = pgTable('atc_llamadas', {
   id:             uuid('id').primaryKey().defaultRandom(),
   escalamientoId: uuid('escalamiento_id').references(() => escalamientos.id).notNull(),
@@ -271,6 +278,9 @@ export const decisiones = pgTable('decisiones', {
   postMttrMinutos:  integer('post_mttr_minutos'),
   postIei:          numeric('post_iei'),
   postIncidentes:   integer('post_incidentes'),
+  aprobadoPorId:    uuid('aprobado_por_id').references(() => usuarios.id),
+  aprobadoEn:       timestamp('aprobado_en'),
+  rechazadoMotivo:  text('rechazado_motivo'),
   creadoEn:         timestamp('creado_en').defaultNow(),
   actualizadoEn:    timestamp('actualizado_en').defaultNow(),
 })

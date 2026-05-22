@@ -76,12 +76,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'tipo, titulo y motivo son requeridos' }, { status: 400 })
 
   const responsableId = (session.user as any).id
+  const userRol       = (session.user as any).rol
+  const estadoInicial = userRol === 'GERENCIA' ? 'PENDIENTE' : 'PROPUESTO'
 
   const [dec] = await db.insert(decisiones).values({
     tipo,
     titulo,
     descripcion:      descripcion      ?? null,
     motivo,
+    estado:           estadoInicial    as any,
     tiendaId:         tiendaId         ?? null,
     proveedorId:      proveedorId      ?? null,
     responsableId,
