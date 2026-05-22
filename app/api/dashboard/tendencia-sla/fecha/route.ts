@@ -17,8 +17,8 @@ export async function GET(req: NextRequest) {
 
   if (!dia) return NextResponse.json({ error: 'Falta parámetro dia' }, { status: 400 })
 
-  const desde = new Date(dia + 'T00:00:00').toISOString()
-  const hasta  = new Date(dia + 'T23:59:59').toISOString()
+  const desde = new Date(dia + 'T00:00:00-05:00').toISOString()
+  const hasta  = new Date(dia + 'T23:59:59-05:00').toISOString()
 
   const rows = await db.execute(sql`
     SELECT

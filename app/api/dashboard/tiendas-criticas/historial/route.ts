@@ -22,10 +22,10 @@ export async function GET(req: NextRequest) {
   if (!tiendaCodigo) return NextResponse.json({ error: 'Falta tiendaCodigo' }, { status: 400 })
 
   const hasta = hastaParam
-    ? new Date(hastaParam + 'T23:59:59').toISOString()
+    ? new Date(hastaParam + 'T23:59:59-05:00').toISOString()
     : new Date().toISOString()
   const desde = desdeParam
-    ? new Date(desdeParam + 'T00:00:00').toISOString()
+    ? new Date(desdeParam + 'T00:00:00-05:00').toISOString()
     : (() => { const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0); return d.toISOString() })()
 
   const [rows, ventasDiarias] = await Promise.all([

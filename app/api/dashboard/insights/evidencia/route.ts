@@ -19,8 +19,8 @@ export async function GET(req: NextRequest) {
   const desdeP   = searchParams.get('desde')
   const hastaP   = searchParams.get('hasta')
 
-  const hasta = hastaP ? new Date(hastaP + 'T23:59:59').toISOString() : new Date().toISOString()
-  const desde = desdeP ? new Date(desdeP + 'T00:00:00').toISOString() : (() => {
+  const hasta = hastaP ? new Date(hastaP + 'T23:59:59-05:00').toISOString() : new Date().toISOString()
+  const desde = desdeP ? new Date(desdeP + 'T00:00:00-05:00').toISOString() : (() => {
     const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0); return d.toISOString()
   })()
 
