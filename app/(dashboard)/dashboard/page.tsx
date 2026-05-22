@@ -3,12 +3,9 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { PieChart, Pie, Cell, Tooltip as ReTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, LabelList } from 'recharts'
 import DashboardAnalitico from './components/DashboardAnalitico'
+import { SLA_RESOLUCION_POR_TIPO } from '@/lib/sla-core'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const SLA_MIN: Record<string, number> = {
-  CAIDA_TOTAL: 240, INTERMITENCIA: 480, LENTITUD: 720, POS: 240, OTROS: 240,
-}
 const TIPO_LABELS: Record<string, string> = {
   CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia',
   LENTITUD: 'Lentitud', POS: 'POS', OTROS: 'Otros',
@@ -57,7 +54,7 @@ function initials(nombre: string): string {
 }
 function getEstadoOpClient(inc: any, nowMs: number) {
   const minutos  = (nowMs - new Date(inc.hora_registro).getTime()) / 60000
-  const slaLimite = SLA_MIN[inc.tipo] ?? 240
+  const slaLimite = SLA_RESOLUCION_POR_TIPO[inc.tipo] ?? 120
   const pct = minutos / slaLimite
   let estadoOp: string
   if (pct >= 1.0) estadoOp = 'SLA_VENCIDO'
@@ -256,7 +253,7 @@ export default function DashboardPage() {
         </div>
         <div style={{ display: 'flex', gap: '4px', background: 'var(--muted)', borderRadius: '10px', padding: '4px' }}>
           {(['operativo', 'analitico'] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)}
+            <button key={t} onClick={() => { setTab(t); router.replace(`?tab=${t}`, { scroll: false }) }}
               style={{ padding: '7px 18px', fontSize: '13px', border: 'none', borderRadius: '7px', cursor: 'pointer', background: tab === t ? 'hsl(221,83%,23%)' : 'transparent', color: tab === t ? 'white' : 'var(--foreground)', fontWeight: tab === t ? 600 : 400 }}>
               {t === 'operativo' ? 'Operativo' : 'Analítico'}
             </button>

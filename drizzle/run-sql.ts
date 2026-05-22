@@ -158,6 +158,19 @@ async function main() {
   `
   console.log('[startup] ✓ Enums tipo_decision/estado_decision + tabla decisiones (0005_decisiones)')
 
+  // 0006 — índices de performance para dashboard y queries frecuentes
+  await sql`CREATE INDEX IF NOT EXISTS idx_incidentes_hora_registro ON incidentes(hora_registro DESC)`
+  await sql`CREATE INDEX IF NOT EXISTS idx_incidentes_tienda_hora ON incidentes(tienda_id, hora_registro DESC)`
+  await sql`CREATE INDEX IF NOT EXISTS idx_incidentes_proveedor_hora ON incidentes(proveedor_id, hora_registro DESC)`
+  await sql`CREATE INDEX IF NOT EXISTS idx_incidentes_estado ON incidentes(estado) WHERE estado NOT IN ('RESUELTO','CANCELADO','CERRADO')`
+  await sql`CREATE INDEX IF NOT EXISTS idx_escalamientos_incidente_nivel ON escalamientos(incidente_id, nivel)`
+  await sql`CREATE INDEX IF NOT EXISTS idx_contratos_proveedor_tienda ON contratos_proveedor(proveedor_id, tienda_id, estado)`
+  console.log('[startup] ✓ Índices de performance (0006)')
+
+  // 0007 — secuencia para códigos de incidente (evita race condition)
+  await sql`CREATE SEQUENCE IF NOT EXISTS netdesk_inc_seq START 1`
+  console.log('[startup] ✓ Secuencia netdesk_inc_seq (0007)')
+
   console.log('[startup] Migraciones completadas.')
   await sql.end()
 }

@@ -27,6 +27,7 @@ export default auth((req) => {
     { path: '/usuarios',      permiso: 'usuarios.ver' },
     { path: '/proveedores',   permiso: 'proveedores.ver' },
     { path: '/mantenimiento', permiso: 'mantenimiento.ver' },
+    { path: '/tiendas',       permiso: 'mantenimiento.ver' },
   ]
 
   for (const ruta of rutas) {

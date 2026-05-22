@@ -107,17 +107,10 @@ export async function POST(req: NextRequest) {
   const [tiendaRow] = await db.select({ proveedorId: tiendas.proveedorId })
     .from(tiendas).where(eq(tiendas.id, body.tiendaId))
 
-  const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(incidentes)
-  const seq = String(Number(count) + 1).padStart(5, '0')
-  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-  let codigo = ''
-  for (let i = 0; i < 10; i++) {
-    const letter = letters[Math.floor(Math.random() * 26)]
-    const candidate = `${seq}${letter}`
-    const [existing] = await db.select({ id: incidentes.id }).from(incidentes).where(eq(incidentes.codigo, candidate))
-    if (!existing) { codigo = candidate; break }
-  }
-  if (!codigo) return NextResponse.json({ error: 'No se pudo generar código único' }, { status: 500 })
+  const [{ codigo }] = await db.execute<{ codigo: string }>(sql`
+    SELECT lpad(nextval('netdesk_inc_seq')::text, 5, '0')
+        || chr(65 + floor(random()*26)::int) AS codigo
+  `)
 
   const [inc] = await db.insert(incidentes).values({
     codigo,

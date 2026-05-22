@@ -60,7 +60,7 @@ export default function ProviderSlaComplianceCard({ desde, hasta, proveedorId, r
     finally { setLoading(false) }
   }, [desde, hasta, proveedorId])
 
-  useEffect(() => { fetchData() }, [refreshKey, proveedorId])
+  useEffect(() => { fetchData() }, [refreshKey, proveedorId, desde, hasta])
 
   const g = data?.resumenGlobal
   const proveedores = data?.proveedores ?? []
