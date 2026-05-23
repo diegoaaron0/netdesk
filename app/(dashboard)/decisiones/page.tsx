@@ -76,6 +76,7 @@ function DeltaBadge({ before, after, lowerBetter = false }: { before: string | n
 const BLANK_FORM = {
   tipo: '', titulo: '', motivo: '', descripcion: '',
   tiendaId: '', proveedorId: '', fechaSeguimiento: '',
+  snapSlaPct: '', snapMttrMinutos: '', snapIei: '', snapIncidentes: '', snapPeriodo: '',
 }
 
 const BLANK_EJECUTAR = {
@@ -100,10 +101,12 @@ export default function DecisionesPage() {
   const [loadingDet, setLoadingDet] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
 
-  // Modal nueva decisión
-  const [modal, setModal]     = useState(false)
-  const [form, setForm]       = useState<any>(BLANK_FORM)
-  const [saving, setSaving]   = useState(false)
+  // Modal nueva / editar decisión
+  const [modal, setModal]         = useState(false)
+  const [editMode, setEditMode]   = useState(false)
+  const [editId, setEditId]       = useState('')
+  const [form, setForm]           = useState<any>(BLANK_FORM)
+  const [saving, setSaving]       = useState(false)
   const [saveError, setSaveError] = useState('')
 
   // Tiendas y proveedores para selects
@@ -235,6 +238,16 @@ export default function DecisionesPage() {
     fetchDetalle(detalle.id)
   }
 
+  function snapPayload(f: any) {
+    return {
+      snapSlaPct:      f.snapSlaPct      ? Number(f.snapSlaPct)      : null,
+      snapMttrMinutos: f.snapMttrMinutos ? Number(f.snapMttrMinutos) : null,
+      snapIei:         f.snapIei         ? Number(f.snapIei)         : null,
+      snapIncidentes:  f.snapIncidentes  ? Number(f.snapIncidentes)  : null,
+      snapPeriodo:     f.snapPeriodo     || null,
+    }
+  }
+
   async function handleCreate() {
     if (!form.tipo || !form.titulo || !form.motivo) return
     setSaving(true)
@@ -245,9 +258,10 @@ export default function DecisionesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
-          tiendaId:         form.tiendaId         || null,
-          proveedorId:      form.proveedorId       || null,
-          fechaSeguimiento: form.fechaSeguimiento  || null,
+          tiendaId:         form.tiendaId        || null,
+          proveedorId:      form.proveedorId      || null,
+          fechaSeguimiento: form.fechaSeguimiento || null,
+          ...snapPayload(form),
         }),
       })
       if (!res.ok) {
@@ -255,13 +269,73 @@ export default function DecisionesPage() {
         setSaveError(data.error ?? `Error ${res.status}`)
         return
       }
-      setModal(false)
-      setForm(BLANK_FORM)
-      setTiendaQuery('')
+      closeModal()
       fetchLista()
     } finally {
       setSaving(false)
     }
+  }
+
+  async function handleUpdate() {
+    if (!form.tipo || !form.titulo || !form.motivo) return
+    setSaving(true)
+    setSaveError('')
+    try {
+      const res = await fetch(`/api/decisiones/${editId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tipo:             form.tipo,
+          titulo:           form.titulo,
+          motivo:           form.motivo,
+          descripcion:      form.descripcion      || null,
+          tiendaId:         form.tiendaId         || null,
+          proveedorId:      form.proveedorId       || null,
+          fechaSeguimiento: form.fechaSeguimiento  || null,
+          ...snapPayload(form),
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setSaveError(data.error ?? `Error ${res.status}`)
+        return
+      }
+      closeModal()
+      fetchLista()
+      fetchDetalle(editId)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function closeModal() {
+    setModal(false)
+    setEditMode(false)
+    setEditId('')
+    setForm(BLANK_FORM)
+    setTiendaQuery('')
+    setSaveError('')
+  }
+
+  function openEdit(dec: any) {
+    setForm({
+      tipo:             dec.tipo             ?? '',
+      titulo:           dec.titulo           ?? '',
+      motivo:           dec.motivo           ?? '',
+      descripcion:      dec.descripcion      ?? '',
+      tiendaId:         dec.tiendaId         ?? '',
+      proveedorId:      dec.proveedorId      ?? '',
+      fechaSeguimiento: dec.fechaSeguimiento ?? '',
+      snapSlaPct:       dec.snapSlaPct       ?? '',
+      snapMttrMinutos:  dec.snapMttrMinutos  ?? '',
+      snapIei:          dec.snapIei          ?? '',
+      snapIncidentes:   dec.snapIncidentes   ?? '',
+      snapPeriodo:      dec.snapPeriodo      ?? '',
+    })
+    setEditMode(true)
+    setEditId(dec.id)
+    setSaveError('')
+    setModal(true)
   }
 
   // ── Filter ───────────────────────────────────────────────────────────────────
@@ -320,13 +394,28 @@ export default function DecisionesPage() {
         </div>
         {canCrear && (
           <button
-            onClick={() => { setForm(BLANK_FORM); setTiendaQuery(''); setSaveError(''); setModal(true) }}
+            onClick={() => { setEditMode(false); setEditId(''); setForm(BLANK_FORM); setTiendaQuery(''); setSaveError(''); setModal(true) }}
             style={{ padding: '8px 16px', fontSize: '12px', fontWeight: 600, background: '#185FA5', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
             + Nueva decisión
           </button>
         )}
       </div>
+
+      {/* ── Estado badges ──────────────────────────────────────────────────── */}
+      {!loading && lista.length > 0 && (() => {
+        const cnt: Record<string, number> = {}
+        lista.forEach(d => { cnt[d.estado] = (cnt[d.estado] || 0) + 1 })
+        return (
+          <div style={{ padding: '12px 28px 0', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {Object.entries(ESTADO_STYLE).map(([k, v]) => cnt[k] ? (
+              <span key={k} style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: v.bg, color: v.color }}>
+                {cnt[k]} {v.label}{cnt[k] !== 1 ? 's' : ''}
+              </span>
+            ) : null)}
+          </div>
+        )
+      })()}
 
       {/* ── Filters ────────────────────────────────────────────────────────── */}
       <div style={{ padding: '16px 28px', display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -416,7 +505,7 @@ export default function DecisionesPage() {
                   onRechazarClose={() => { setRechazarModal(false); setRechazarMotivo('') }}
                   onRechazarMotivoChange={setRechazarMotivo}
                   onConfirmRechazar={handleRechazar}
-                  onEditar={() => {/* future */ }}
+                  onEditar={() => detalle && openEdit(detalle)}
                 />
               </div>
             ) : null}
@@ -427,16 +516,18 @@ export default function DecisionesPage() {
       {/* ── Modal nueva decisión ────────────────────────────────────────────── */}
       {modal && (
         <>
-          <div onClick={() => setModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 90 }} />
+          <div onClick={closeModal} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 90 }} />
           <div style={{
             position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
-            width: '480px', maxWidth: '95vw', maxHeight: '92vh', overflowY: 'auto',
+            width: '500px', maxWidth: '95vw', maxHeight: '92vh', overflowY: 'auto',
             background: 'var(--card)', borderRadius: '14px', border: '0.5px solid var(--border)',
             zIndex: 91, padding: '24px',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--foreground)' }}>Nueva decisión</span>
-              <button onClick={() => setModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: '#9ca3af', lineHeight: 1 }}>×</button>
+              <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--foreground)' }}>
+                {editMode ? 'Editar decisión' : 'Nueva decisión'}
+              </span>
+              <button onClick={closeModal} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: '#9ca3af', lineHeight: 1 }}>×</button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -530,21 +621,48 @@ export default function DecisionesPage() {
                 <input type="date" value={form.fechaSeguimiento} onChange={e => setForm((f: any) => ({ ...f, fechaSeguimiento: e.target.value }))} style={inp()} />
               </div>
 
+              {/* Indicadores actuales (snap) */}
+              <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '12px' }}>
+                <label style={{ ...labelSt, marginBottom: '10px' }}>Indicadores actuales <span style={{ fontWeight: 400, textTransform: 'none', color: '#9ca3af' }}>(opcional — para comparar post-ejecución)</span></label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label style={labelSt}>SLA actual (%)</label>
+                    <input type="number" step="0.1" min="0" max="100" value={form.snapSlaPct} onChange={e => setForm((f: any) => ({ ...f, snapSlaPct: e.target.value }))} placeholder="ej. 72.5" style={inp()} />
+                  </div>
+                  <div>
+                    <label style={labelSt}>MTTR actual (min)</label>
+                    <input type="number" min="0" value={form.snapMttrMinutos} onChange={e => setForm((f: any) => ({ ...f, snapMttrMinutos: e.target.value }))} placeholder="ej. 95" style={inp()} />
+                  </div>
+                  <div>
+                    <label style={labelSt}>IEI actual (S/)</label>
+                    <input type="number" step="0.01" min="0" value={form.snapIei} onChange={e => setForm((f: any) => ({ ...f, snapIei: e.target.value }))} placeholder="ej. 1240" style={inp()} />
+                  </div>
+                  <div>
+                    <label style={labelSt}>Nº incidentes</label>
+                    <input type="number" min="0" value={form.snapIncidentes} onChange={e => setForm((f: any) => ({ ...f, snapIncidentes: e.target.value }))} placeholder="ej. 18" style={inp()} />
+                  </div>
+                </div>
+                <div style={{ marginTop: '10px' }}>
+                  <label style={labelSt}>Período de referencia</label>
+                  <input value={form.snapPeriodo} onChange={e => setForm((f: any) => ({ ...f, snapPeriodo: e.target.value }))} placeholder="ej. Mayo 2026" style={inp()} />
+                </div>
+              </div>
+
               {saveError && (
                 <div style={{ fontSize: '12px', color: '#b91c1c', background: '#fee2e2', borderRadius: '6px', padding: '8px 10px' }}>
                   {saveError}
                 </div>
               )}
               <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
-                <button onClick={() => { setModal(false); setSaveError('') }} style={{ flex: 1, padding: '9px', fontSize: '12px', background: 'transparent', border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'pointer', color: 'var(--foreground)' }}>
+                <button onClick={closeModal} style={{ flex: 1, padding: '9px', fontSize: '12px', background: 'transparent', border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'pointer', color: 'var(--foreground)' }}>
                   Cancelar
                 </button>
                 <button
-                  onClick={handleCreate}
+                  onClick={editMode ? handleUpdate : handleCreate}
                   disabled={saving || !form.tipo || !form.titulo || !form.motivo}
                   style={{ flex: 2, padding: '9px', fontSize: '12px', fontWeight: 600, background: saving ? '#93c5fd' : '#185FA5', color: 'white', border: 'none', borderRadius: '8px', cursor: saving ? 'default' : 'pointer' }}
                 >
-                  {saving ? 'Guardando…' : 'Guardar decisión'}
+                  {saving ? 'Guardando…' : editMode ? 'Guardar cambios' : 'Guardar decisión'}
                 </button>
               </div>
             </div>
@@ -681,11 +799,24 @@ function DetailPanel({
 
   return (
     <>
-      {/* Estado + tipo */}
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+      {/* Estado + tipo + editar */}
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
         <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: est.bg, color: est.color }}>{est.label}</span>
         <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: '#f3f4f6', color: '#374151' }}>{tipo}</span>
+        {canCrear && detalle.estado === 'PROPUESTO' && (
+          <button onClick={onEditar} style={{ marginLeft: 'auto', fontSize: '11px', padding: '3px 10px', borderRadius: '6px', border: '0.5px solid var(--border)', background: 'transparent', color: 'var(--foreground)', cursor: 'pointer' }}>
+            Editar
+          </button>
+        )}
       </div>
+
+      {/* Banner PROPUESTO */}
+      {detalle.estado === 'PROPUESTO' && (
+        <div style={{ background: '#fefce8', border: '0.5px solid #fde047', borderRadius: '8px', padding: '10px 12px', fontSize: '12px', color: '#854d0e', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span>⏳</span>
+          <span>Pendiente de aprobación por Gerencia. Una vez aprobada pasará a ejecución.</span>
+        </div>
+      )}
 
       {/* Título */}
       <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--foreground)', lineHeight: 1.3 }}>{detalle.titulo}</div>

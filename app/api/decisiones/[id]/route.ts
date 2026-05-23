@@ -65,9 +65,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 const EDITABLE = new Set([
-  'estado', 'titulo', 'descripcion', 'motivo', 'fechaSeguimiento',
-  'resultadoNota', 'ejecutadaEn', 'postSlaPct', 'postMttrMinutos',
-  'postIei', 'postIncidentes',
+  'estado', 'titulo', 'descripcion', 'motivo', 'tipo', 'fechaSeguimiento',
+  'tiendaId', 'proveedorId',
+  'resultadoNota', 'ejecutadaEn',
+  'postSlaPct', 'postMttrMinutos', 'postIei', 'postIncidentes',
+  'snapSlaPct', 'snapMttrMinutos', 'snapIei', 'snapIncidentes', 'snapPeriodo',
 ])
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
