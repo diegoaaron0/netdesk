@@ -152,6 +152,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   const [historial, setHistorial]   = useState<any[]>([])
   const [editForm, setEditForm]     = useState<any>({})
   const [saving, setSaving]         = useState(false)
+  const [saveError, setSaveError]   = useState('')
   const [supervisorEdit, setSupervisorEdit] = useState(false)
   const [showReopenModal, setShowReopenModal] = useState(false)
   const [reopenMotivo, setReopenMotivo] = useState('')
@@ -273,7 +274,14 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
     } else {
       body.factorOperativo = null; body.operacionManual = false; body.tipoOperacionManual = null
     }
-    await fetch(`/api/incidentes/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    setSaveError('')
+    const res = await fetch(`/api/incidentes/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setSaveError(data?.error ?? `Error ${res.status} al guardar`)
+      setSaving(false)
+      return
+    }
     setSaving(false)
     fetchInc()
   }
@@ -989,6 +997,11 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               style={{ ...btn, background: 'rgba(133,79,11,0.15)', color: '#d97706', border: '1px solid rgba(133,79,11,0.3)' }}>
               Reabrir incidente
             </button>
+          )}
+          {saveError && (
+            <span style={{ fontSize: '12px', color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', padding: '4px 10px', maxWidth: '320px' }}>
+              {saveError}
+            </span>
           )}
           {(canEditB || canEditA) && (
             <button onClick={handleSave} disabled={saving}
