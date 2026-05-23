@@ -14,9 +14,11 @@ function prevMonth() {
 
 const PROVEEDORES = ['Todos', 'BITEL', 'CLARO', 'ENTEL', 'CONVERGIA', 'MOVISTAR']
 
-function triggerDownload(url: string) {
-  const a = Object.assign(document.createElement('a'), { href: url })
+function triggerBlobDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const a = Object.assign(document.createElement('a'), { href: url, download: filename })
   document.body.appendChild(a); a.click(); document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────────
@@ -37,8 +39,13 @@ export default function ReportesPage() {
     try {
       const params = new URLSearchParams({ desde, hasta })
       if (proveedor !== 'Todos') params.set('proveedor', proveedor)
-      triggerDownload(`${path}?${params}`)
-      await new Promise(r => setTimeout(r, 1500))
+      const res = await fetch(`${path}?${params}`)
+      if (!res.ok) throw new Error(`Error ${res.status}`)
+      const blob = await res.blob()
+      const cd = res.headers.get('Content-Disposition') ?? ''
+      const match = cd.match(/filename="([^"]+)"/)
+      const filename = match ? match[1] : `reporte_${id}.csv`
+      triggerBlobDownload(blob, filename)
     } catch {
       setErrors(e => ({ ...e, [id]: 'Error al generar el reporte' }))
     } finally {

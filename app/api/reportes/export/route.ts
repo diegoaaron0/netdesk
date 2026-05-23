@@ -97,7 +97,7 @@ export async function GET(req: Request) {
           ELSE 'No'
         END                                                                            AS sla_cumplido,
 
-        -- IEI: venta/hora × horas afectadas × margen 38% × factor por tipo y contingencia
+        -- IEI: venta/hora × horas afectadas × margen 35% × factor por tipo y contingencia
         CASE
           WHEN i.mttr_minutos IS NULL THEN NULL
           ELSE ROUND(
@@ -112,7 +112,7 @@ export async function GET(req: Request) {
               END::numeric
             )
             * (i.mttr_minutos::numeric / 60)
-            * 0.38
+            * 0.35
             * CASE i.tipo
                 WHEN 'CAIDA_TOTAL'
                   THEN CASE WHEN COALESCE(t.contingencia_activa, false) THEN 0.25 ELSE 1.00 END
