@@ -34,7 +34,13 @@ const IMP_BADGE: Record<string, { label: string; bg: string; color: string }> = 
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+function tsMs(d: string | Date | null): number {
+  if (!d) return 0
+  const raw = typeof d === 'string' && !d.includes('Z') && !d.includes('+') ? d + 'Z' : d
+  return new Date(raw).getTime()
+}
 function fmtMin(min: number): string {
+  if (min < 0) return '0m'
   const h = Math.floor(min / 60); const m = Math.round(min % 60)
   return h > 0 ? `${h}h ${m}m` : `${m}m`
 }
@@ -53,7 +59,7 @@ function initials(nombre: string): string {
   return nombre.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
 }
 function getEstadoOpClient(inc: any, nowMs: number) {
-  const minutos  = (nowMs - new Date(inc.hora_registro).getTime()) / 60000
+  const minutos  = (nowMs - tsMs(inc.hora_registro)) / 60000
   const slaLimite = SLA_RESOLUCION_POR_TIPO[inc.tipo] ?? 120
   const pct = minutos / slaLimite
   let estadoOp: string
@@ -327,7 +333,7 @@ function OperativoView({ op, tick, router, decPendientes }: { op: any; tick: num
       const hoyLima = new Date(Date.now() - 5 * 3600000).toISOString().slice(0, 10)
       const [hh, mm] = turnoInicio.split(':').map(Number)
       const turnoMs = Date.UTC(parseInt(hoyLima.slice(0,4)), parseInt(hoyLima.slice(5,7))-1, parseInt(hoyLima.slice(8,10)), hh + 5, mm)
-      lista = lista.filter((i: any) => new Date(i.hora_registro).getTime() < turnoMs)
+      lista = lista.filter((i: any) => tsMs(i.hora_registro) < turnoMs)
     }
 
     lista.sort((a: any, b: any) => {
@@ -342,7 +348,7 @@ function OperativoView({ op, tick, router, decPendientes }: { op: any; tick: num
     const hoyLima = new Date(Date.now() - 5 * 3600000).toISOString().slice(0, 10)
     const [hh, mm] = turnoInicio.split(':').map(Number)
     const turnoMs = Date.UTC(parseInt(hoyLima.slice(0,4)), parseInt(hoyLima.slice(5,7))-1, parseInt(hoyLima.slice(8,10)), hh + 5, mm)
-    return (activos ?? []).filter((inc: any) => new Date(inc.hora_registro).getTime() < turnoMs)
+    return (activos ?? []).filter((inc: any) => tsMs(inc.hora_registro) < turnoMs)
   }, [activos, turnoInicio])
 
   // Agent bar chart data
