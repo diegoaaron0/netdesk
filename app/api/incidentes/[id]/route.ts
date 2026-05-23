@@ -180,7 +180,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       UPDATE escalamientos
       SET hora_respuesta = COALESCE(hora_respuesta, ${new Date().toISOString()}::timestamptz),
           estado_cronometro = CASE
-            WHEN estado_cronometro = 'ESPERANDO' THEN 'RESUELTO_SIN_RESPUESTA'
+            WHEN estado_cronometro = 'CORRIENDO' THEN 'VENCIDO'
             ELSE estado_cronometro
           END
       WHERE incidente_id = ${id}
