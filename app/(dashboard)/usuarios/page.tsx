@@ -85,6 +85,7 @@ export default function UsuariosPage() {
   const [usuarios, setUsuarios] = useState<any[]>([])
   const [modal, setModal] = useState<{ open: boolean; data: any; isNew: boolean }>({ open: false, data: BLANK, isNew: false })
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [historial, setHistorial] = useState<{ open: boolean; usuario: any; items: any[]; loading: boolean }>({ open: false, usuario: null, items: [], loading: false })
   const [historialTab, setHistorialTab] = useState<'todos' | 'resueltos'>('todos')
@@ -98,6 +99,7 @@ export default function UsuariosPage() {
 
   function openEdit(u: any) {
     setShowPass(false)
+    setSaveError('')
     setModal({
       open: true, isNew: false,
       data: {
@@ -110,11 +112,13 @@ export default function UsuariosPage() {
   }
   function openNew() {
     setShowPass(false)
+    setSaveError('')
     setModal({ open: true, isNew: true, data: { ...BLANK, permisos: [...PERMISOS_POR_ROL['AGENTE']] } })
   }
 
   async function handleSave() {
     setSaving(true)
+    setSaveError('')
     const defaultPerms = PERMISOS_POR_ROL[modal.data.rol] ?? []
     const currentPerms: string[] = modal.data.permisos ?? []
     const esDefault =
@@ -126,13 +130,24 @@ export default function UsuariosPage() {
       cluster: modal.data.cluster || null,
       permisos: esDefault ? null : currentPerms,
     }
-    if (modal.isNew) {
-      await fetch('/api/usuarios', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-    } else {
-      await fetch(`/api/usuarios/${modal.data.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    try {
+      const res = modal.isNew
+        ? await fetch('/api/usuarios', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        : await fetch(`/api/usuarios/${modal.data.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setSaveError(data?.error ?? `Error ${res.status} al guardar`)
+        setSaving(false)
+        return
+      }
+    } catch {
+      setSaveError('Error de red. Verifica tu conexión.')
+      setSaving(false)
+      return
     }
     setSaving(false)
     setModal(m => ({ ...m, open: false }))
+    setSaveError('')
     fetchUsuarios()
     if (!esDefault && !modal.isNew) {
       alert('Permisos personalizados guardados. El usuario debe cerrar sesión y volver a entrar para que los cambios tomen efecto.')
@@ -418,8 +433,13 @@ export default function UsuariosPage() {
                 <span style={{ fontSize: '12px', color: 'var(--foreground)' }}>{modal.data.activo ? 'Activo' : 'Inactivo'}</span>
               </div>
 
+              {saveError && (
+                <div style={{ marginBottom: '10px', padding: '8px 12px', background: '#fee2e2', border: '0.5px solid #fca5a5', borderRadius: '7px', fontSize: '11px', color: '#b91c1c' }}>
+                  {saveError}
+                </div>
+              )}
               <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                <button onClick={() => setModal(m => ({ ...m, open: false }))}
+                <button onClick={() => { setModal(m => ({ ...m, open: false })); setSaveError('') }}
                   style={{ padding: '8px 16px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>
                   Cancelar
                 </button>
