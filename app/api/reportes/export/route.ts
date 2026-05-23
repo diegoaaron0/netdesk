@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
+import { calcImpactoRow } from '@/lib/impacto-calc'
 
 export async function GET(req: Request) {
   const session = await auth()
@@ -48,7 +49,12 @@ export async function GET(req: Request) {
         n3.respuesta                                                                   AS respuesta_n3,
         TO_CHAR(i.hora_fin AT TIME ZONE 'America/Lima', 'HH24:MI DD/MM/YYYY')         AS hora_solucion,
         i.observaciones                                                                AS comentarios,
-        COALESCE(i.cont_rendimiento, i.mov_rendimiento)                               AS efectividad_contingencia,
+        CASE
+          WHEN COALESCE(i.cont_rendimiento, i.mov_rendimiento) IN ('TOTAL','EFECTIVA')              THEN 'Total'
+          WHEN COALESCE(i.cont_rendimiento, i.mov_rendimiento) IN ('PARCIAL','LIMITADA')            THEN 'Parcial'
+          WHEN COALESCE(i.cont_rendimiento, i.mov_rendimiento) IN ('FALLIDA','NO_FUNCIONO','INOPERATIVA') THEN 'Fallida'
+          ELSE COALESCE(i.cont_rendimiento, i.mov_rendimiento)
+        END                                                                            AS efectividad_contingencia,
         i.mttr_minutos                                                                 AS mttr_min,
 
         -- SLA Respuesta: tiempo desde envío N1 hasta respuesta del proveedor (≤ 60 min)
@@ -97,38 +103,19 @@ export async function GET(req: Request) {
           ELSE 'No'
         END                                                                            AS sla_cumplido,
 
-        -- IEI: venta/hora × horas afectadas × margen 35% × factor por tipo y contingencia
-        CASE
-          WHEN i.mttr_minutos IS NULL THEN NULL
-          ELSE ROUND(
-            COALESCE(
-              t.venta_hora_soles::numeric,
-              CASE t.cluster
-                WHEN 'A' THEN 931
-                WHEN 'B' THEN 521
-                WHEN 'C' THEN 348
-                WHEN 'D' THEN 197
-                ELSE NULL
-              END::numeric
-            )
-            * (i.mttr_minutos::numeric / 60)
-            * 0.35
-            * CASE i.tipo
-                WHEN 'CAIDA_TOTAL'
-                  THEN CASE WHEN COALESCE(t.contingencia_activa, false) THEN 0.25 ELSE 1.00 END
-                WHEN 'INTERMITENCIA'
-                  THEN CASE WHEN COALESCE(t.contingencia_activa, false) THEN 0.25 ELSE 0.75 END
-                WHEN 'LENTITUD'      THEN 0.30
-                WHEN 'POS'
-                  THEN CASE WHEN COALESCE(t.contingencia_activa, false) THEN 0.20 ELSE 0.40 END
-                ELSE 0.30
-              END::numeric
-          )
-        END                                                                            AS iei,
-
         t.venta_hora_soles                                                             AS venta_hora_tienda,
         i.resuelto_por,
-        i.atribucion_final
+        i.atribucion_final,
+        -- Raw fields for IEI calculation in application code (calcImpactoRow)
+        i.hora_registro                                                                AS hora_reg_raw,
+        i.hora_fin                                                                     AS hora_fin_raw,
+        i.estado                                                                       AS estado_raw,
+        (i.cont_activado_por IS NOT NULL)                                              AS contingencia_activa_inc,
+        i.cont_rendimiento                                                             AS cont_rendimiento_raw,
+        i.boleta_manual,
+        i.venta_parcial,
+        i.cajas_afectadas,
+        i.cajas_totales
 
       FROM incidentes i
       JOIN    tiendas      t   ON i.tienda_id         = t.id
@@ -200,17 +187,33 @@ export async function GET(req: Request) {
 
     const lines = [
       headers.join(','),
-      ...(rows as any[]).map(r => [
-        r.codigo, r.ticket_invgate, r.ticket_proveedor, r.tienda_codigo, r.tienda_nombre_cc, r.ubicacion,
-        r.proveedor, r.cid_servicio, r.tipo_conexion, r.cluster, r.nivel_impacto,
-        r.tipo_incidente, r.usuarios_afectados, r.nivel_escalado, r.factor_operativo,
-        r.tiene_contingencia, r.fecha, r.hora_inicio, r.tiempo_total_mttr,
-        r.enviado_n1, r.respuesta_n1, r.enviado_n2, r.respuesta_n2,
-        r.enviado_n3, r.respuesta_n3, r.hora_solucion, r.comentarios,
-        r.efectividad_contingencia, r.mttr_min, r.sla_respuesta,
-        r.sla_resolucion, r.sla_cumplido, r.iei, r.venta_hora_tienda,
-        r.resuelto_por ?? '', r.atribucion_final ?? '',
-      ].map(escape).join(',')),
+      ...(rows as any[]).map(r => {
+        const iei = calcImpactoRow({
+          hora_registro:    r.hora_reg_raw,
+          hora_fin:         r.hora_fin_raw,
+          estado:           r.estado_raw,
+          tipo:             r.tipo_incidente,
+          venta_hora_soles: r.venta_hora_tienda != null ? Number(r.venta_hora_tienda) : null,
+          cluster:          r.cluster,
+          contingencia_activa: Boolean(r.contingencia_activa_inc),
+          cont_rendimiento: r.cont_rendimiento_raw,
+          boleta_manual:    r.boleta_manual,
+          venta_parcial:    r.venta_parcial,
+          cajas_afectadas:  r.cajas_afectadas != null ? Number(r.cajas_afectadas) : null,
+          cajas_totales:    r.cajas_totales   != null ? Number(r.cajas_totales)   : null,
+        }).impactoEstimado || null
+        return [
+          r.codigo, r.ticket_invgate, r.ticket_proveedor, r.tienda_codigo, r.tienda_nombre_cc, r.ubicacion,
+          r.proveedor, r.cid_servicio, r.tipo_conexion, r.cluster, r.nivel_impacto,
+          r.tipo_incidente, r.usuarios_afectados, r.nivel_escalado, r.factor_operativo,
+          r.tiene_contingencia, r.fecha, r.hora_inicio, r.tiempo_total_mttr,
+          r.enviado_n1, r.respuesta_n1, r.enviado_n2, r.respuesta_n2,
+          r.enviado_n3, r.respuesta_n3, r.hora_solucion, r.comentarios,
+          r.efectividad_contingencia, r.mttr_min, r.sla_respuesta,
+          r.sla_resolucion, r.sla_cumplido, iei, r.venta_hora_tienda,
+          r.resuelto_por ?? '', r.atribucion_final ?? '',
+        ].map(escape).join(',')
+      }),
     ]
 
     const csv = '﻿' + lines.join('\r\n') // BOM UTF-8 para Excel
