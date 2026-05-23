@@ -179,6 +179,29 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     `)
   }
 
+  // Auto-sync tiendas.contingencia_activa desde el estado de contingencia del incidente.
+  // Cuando contActivadoPor se establece → la tienda pasa a contingencia activa.
+  // Cuando se limpia → solo se desactiva si ningún otro incidente abierto de esa tienda tiene contingencia.
+  if ('contActivadoPor' in allowedFields && updated.tiendaId) {
+    if (updated.contActivadoPor) {
+      await db.update(tiendas)
+        .set({ contingenciaActiva: true, contingenciaActivadaPor: String(updated.contActivadoPor) })
+        .where(eq(tiendas.id, updated.tiendaId))
+    } else {
+      const rows = await db.execute(sql`
+        SELECT COUNT(*)::int AS cnt FROM incidentes
+        WHERE tienda_id = ${updated.tiendaId}
+          AND cont_activado_por IS NOT NULL
+          AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
+      `)
+      if (Number((rows[0] as any)?.cnt ?? 0) === 0) {
+        await db.update(tiendas)
+          .set({ contingenciaActiva: false, contingenciaActivadaPor: null })
+          .where(eq(tiendas.id, updated.tiendaId))
+      }
+    }
+  }
+
   return NextResponse.json(updated)
 }
 
