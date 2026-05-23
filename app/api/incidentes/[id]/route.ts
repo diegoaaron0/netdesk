@@ -185,7 +185,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if ('contActivadoPor' in allowedFields && updated.tiendaId) {
     if (updated.contActivadoPor) {
       await db.update(tiendas)
-        .set({ contingenciaActiva: true, contingenciaActivadaPor: String(updated.contActivadoPor) })
+        .set({
+          contingenciaActiva: true,
+          contingenciaActivadaPor: String(updated.contActivadoPor),
+          contingenciaDescripcion: (updated.contObservacion as string | null) ?? null,
+        })
         .where(eq(tiendas.id, updated.tiendaId))
     } else {
       const rows = await db.execute(sql`

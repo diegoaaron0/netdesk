@@ -309,6 +309,19 @@ export default function TiendasPage() {
                   <div><span style={{ fontWeight: 500 }}>Supervisor:</span> {t.supervisorNombre}</div>
                 )}
               </div>
+
+              {t.contingenciaActiva && (
+                <div style={{ marginTop: '8px', background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: '6px', padding: '6px 10px' }}>
+                  <div style={{ fontSize: '9px', fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+                    Contingencia activa
+                  </div>
+                  {t.contingenciaDescripcion ? (
+                    <div style={{ fontSize: '10px', color: '#78350f', lineHeight: 1.4 }}>{t.contingenciaDescripcion}</div>
+                  ) : (
+                    <div style={{ fontSize: '10px', color: '#b45309', fontStyle: 'italic' }}>Sin descripción registrada</div>
+                  )}
+                </div>
+              )}
             </div>
           )
         })}

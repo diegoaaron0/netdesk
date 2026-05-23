@@ -492,6 +492,17 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   </button>
                   {showContBlock && (
                     <div style={{ padding:'14px', background:'var(--muted)' }}>
+                      {!inc?.tiendaTieneContingencia && editForm.contActivadoPor && (
+                        <div style={{ background: '#fffbeb', border: '1.5px solid #f59e0b', borderRadius: '8px', padding: '10px 12px', marginBottom: '14px' }}>
+                          <div style={{ fontSize: '12px', fontWeight: 700, color: '#92400e', marginBottom: '3px' }}>
+                            ⚠ Esta tienda no tiene enlace de contingencia permanente registrado
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#78350f', lineHeight: 1.5 }}>
+                            Describe en <strong>Observación</strong> qué se instaló (router portátil, chip, equipo prestado, etc.)
+                            para que quede registrado en la ficha de la tienda y sea visible al equipo.
+                          </div>
+                        </div>
+                      )}
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '10px' }}>
                         <div>
                           <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Activado por</label>
@@ -519,8 +530,14 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                         </div>
                       </div>
                       <div>
-                        <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Observación</label>
-                        <textarea disabled={!canEditB} style={taStyle(!canEditB)} value={editForm.contObservacion ?? ''} onChange={e => setEdit('contObservacion', e.target.value)} placeholder="Describe el comportamiento de la contingencia..." />
+                        <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px', color: (!inc?.tiendaTieneContingencia && editForm.contActivadoPor) ? '#92400e' : 'var(--muted-foreground)' }}>
+                          {(!inc?.tiendaTieneContingencia && editForm.contActivadoPor) ? 'Descripción de contingencia temporal *' : 'Observación'}
+                        </label>
+                        <textarea disabled={!canEditB}
+                          style={{ ...taStyle(!canEditB), border: (!inc?.tiendaTieneContingencia && editForm.contActivadoPor && !editForm.contObservacion) ? '1.5px solid #f59e0b' : undefined }}
+                          value={editForm.contObservacion ?? ''}
+                          onChange={e => setEdit('contObservacion', e.target.value)}
+                          placeholder={(!inc?.tiendaTieneContingencia && editForm.contActivadoPor) ? 'Ej: Router TP-Link portátil con chip Entel, instalado por técnico el 23/05...' : 'Describe el comportamiento de la contingencia...'} />
                       </div>
                     </div>
                   )}
