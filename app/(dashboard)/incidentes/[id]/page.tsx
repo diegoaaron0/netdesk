@@ -209,8 +209,8 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
       descartesDetallado:  data.descartesDetallado  ?? '',
       boletaManual:        data.boletaManual        ?? null,
       ventaParcial:        data.ventaParcial        ?? null,
-      cajasAfectadas:      data.cajasAfectadas      ?? '',
-      cajasTotales:        data.cajasTotales        ?? '',
+      cajasAfectadas:      data.cajasAfectadas      ?? null,
+      cajasTotales:        data.cajasTotales        ?? null,
     })
   }, [id])
 

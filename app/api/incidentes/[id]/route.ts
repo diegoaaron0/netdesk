@@ -148,11 +148,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     'boletaManual','ventaParcial','cajasAfectadas','cajasTotales',
   ]
   const dateFields = new Set(['horaRegistro','horaFin','horaInicioSeguimiento','contHoraActivacion','movHoraActivacion'])
+  const intFields  = new Set(['cajasAfectadas','cajasTotales','mttrMinutos'])
   for (const k of editable) {
     if (k in body) {
-      allowedFields[k] = dateFields.has(k)
-        ? (body[k] ? new Date(body[k]) : null)
-        : body[k]
+      if (dateFields.has(k)) {
+        allowedFields[k] = body[k] ? new Date(body[k]) : null
+      } else if (intFields.has(k)) {
+        allowedFields[k] = body[k] === '' || body[k] === undefined ? null : Number(body[k])
+      } else {
+        allowedFields[k] = body[k]
+      }
     }
   }
 
