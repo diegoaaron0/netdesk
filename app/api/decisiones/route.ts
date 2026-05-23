@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { decisiones, tiendas, proveedores, usuarios } from '@/drizzle/schema'
+import { decisiones, tiendas, proveedores, usuarios, tiendasHistorial } from '@/drizzle/schema'
 import { eq, desc, and } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
@@ -95,6 +95,16 @@ export async function POST(req: NextRequest) {
     snapIncidentes:   snapIncidentes   ?? null,
     snapPeriodo:      snapPeriodo      ?? null,
   }).returning()
+
+  if (tiendaId) {
+    await db.insert(tiendasHistorial).values({
+      tiendaId,
+      usuarioId:     responsableId,
+      campoEditado:  'Decisión estratégica',
+      valorAnterior: null,
+      valorNuevo:    `[${estadoInicial}] ${tipo}: ${titulo}`,
+    })
+  }
 
   return NextResponse.json(dec, { status: 201 })
 }

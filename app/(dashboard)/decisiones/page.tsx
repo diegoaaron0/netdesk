@@ -101,12 +101,13 @@ export default function DecisionesPage() {
   const [panelOpen, setPanelOpen] = useState(false)
 
   // Modal nueva decisión
-  const [modal, setModal]   = useState(false)
-  const [form, setForm]     = useState<any>(BLANK_FORM)
-  const [saving, setSaving] = useState(false)
+  const [modal, setModal]     = useState(false)
+  const [form, setForm]       = useState<any>(BLANK_FORM)
+  const [saving, setSaving]   = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   // Tiendas y proveedores para selects
-  const [tiendas, setTiendas]       = useState<{ id: string; codigo: string; nombreCc: string | null }[]>([])
+  const [tiendas, setTiendas]       = useState<{ id: string; codigo: string; provincia: string | null; distrito: string | null }[]>([])
   const [proveedores, setProveedores] = useState<{ id: string; nombre: string }[]>([])
   const [tiendaQuery, setTiendaQuery] = useState('')
   const [showTiendaDrop, setShowTiendaDrop] = useState(false)
@@ -140,7 +141,7 @@ export default function DecisionesPage() {
 
   useEffect(() => {
     fetch('/api/tiendas').then(r => r.json()).then(d => {
-      if (Array.isArray(d)) setTiendas(d.map((t: any) => ({ id: t.id, codigo: t.codigo, nombreCc: t.nombreCc })))
+      if (Array.isArray(d)) setTiendas(d.map((t: any) => ({ id: t.id, codigo: t.codigo, provincia: t.provincia ?? null, distrito: t.distrito ?? null })))
     })
     fetch('/api/proveedores').then(r => r.json()).then(d => {
       if (Array.isArray(d)) setProveedores(d.map((p: any) => ({ id: p.id, nombre: p.nombre })))
@@ -237,21 +238,30 @@ export default function DecisionesPage() {
   async function handleCreate() {
     if (!form.tipo || !form.titulo || !form.motivo) return
     setSaving(true)
-    await fetch('/api/decisiones', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...form,
-        tiendaId:    form.tiendaId    || null,
-        proveedorId: form.proveedorId || null,
-        fechaSeguimiento: form.fechaSeguimiento || null,
-      }),
-    })
-    setSaving(false)
-    setModal(false)
-    setForm(BLANK_FORM)
-    setTiendaQuery('')
-    fetchLista()
+    setSaveError('')
+    try {
+      const res = await fetch('/api/decisiones', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...form,
+          tiendaId:         form.tiendaId         || null,
+          proveedorId:      form.proveedorId       || null,
+          fechaSeguimiento: form.fechaSeguimiento  || null,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setSaveError(data.error ?? `Error ${res.status}`)
+        return
+      }
+      setModal(false)
+      setForm(BLANK_FORM)
+      setTiendaQuery('')
+      fetchLista()
+    } finally {
+      setSaving(false)
+    }
   }
 
   // ── Filter ───────────────────────────────────────────────────────────────────
@@ -264,12 +274,19 @@ export default function DecisionesPage() {
 
   // ── Tienda autocomplete helpers ───────────────────────────────────────────────
 
-  const tiendaOptions = tiendas.filter(t =>
-    !tiendaQuery || t.codigo.toLowerCase().includes(tiendaQuery.toLowerCase()) ||
-    (t.nombreCc ?? '').toLowerCase().includes(tiendaQuery.toLowerCase())
-  ).slice(0, 10)
+  const tiendaOptions = tiendas.filter(t => {
+    if (!tiendaQuery) return true
+    const q = tiendaQuery.toLowerCase()
+    return t.codigo.toLowerCase().includes(q) ||
+      (t.provincia ?? '').toLowerCase().includes(q) ||
+      (t.distrito ?? '').toLowerCase().includes(q)
+  }).slice(0, 10)
 
   const selectedTienda = tiendas.find(t => t.id === form.tiendaId)
+  function tiendaLabel(t: typeof tiendas[0]) {
+    const loc = t.provincia || t.distrito || ''
+    return loc ? `${t.codigo}-${loc.toUpperCase()}` : t.codigo
+  }
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -303,7 +320,7 @@ export default function DecisionesPage() {
         </div>
         {canCrear && (
           <button
-            onClick={() => { setForm(BLANK_FORM); setTiendaQuery(''); setModal(true) }}
+            onClick={() => { setForm(BLANK_FORM); setTiendaQuery(''); setSaveError(''); setModal(true) }}
             style={{ padding: '8px 16px', fontSize: '12px', fontWeight: 600, background: '#185FA5', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
             + Nueva decisión
@@ -468,7 +485,7 @@ export default function DecisionesPage() {
                 {selectedTienda ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ fontSize: '12px', background: '#dbeafe', color: '#1e40af', borderRadius: '5px', padding: '3px 8px' }}>
-                      {selectedTienda.codigo} — {selectedTienda.nombreCc}
+                      {tiendaLabel(selectedTienda)}
                     </span>
                     <button onClick={() => { setForm((f: any) => ({ ...f, tiendaId: '' })); setTiendaQuery('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: '14px' }}>×</button>
                   </div>
@@ -491,7 +508,7 @@ export default function DecisionesPage() {
                         onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'var(--background)'}
                         onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
                       >
-                        <strong>{t.codigo}</strong> {t.nombreCc ? `— ${t.nombreCc}` : ''}
+                        <strong>{tiendaLabel(t)}</strong>
                       </div>
                     ))}
                   </div>
@@ -513,8 +530,13 @@ export default function DecisionesPage() {
                 <input type="date" value={form.fechaSeguimiento} onChange={e => setForm((f: any) => ({ ...f, fechaSeguimiento: e.target.value }))} style={inp()} />
               </div>
 
+              {saveError && (
+                <div style={{ fontSize: '12px', color: '#b91c1c', background: '#fee2e2', borderRadius: '6px', padding: '8px 10px' }}>
+                  {saveError}
+                </div>
+              )}
               <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
-                <button onClick={() => setModal(false)} style={{ flex: 1, padding: '9px', fontSize: '12px', background: 'transparent', border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'pointer', color: 'var(--foreground)' }}>
+                <button onClick={() => { setModal(false); setSaveError('') }} style={{ flex: 1, padding: '9px', fontSize: '12px', background: 'transparent', border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'pointer', color: 'var(--foreground)' }}>
                   Cancelar
                 </button>
                 <button
