@@ -50,13 +50,19 @@ export async function GET(req: Request) {
         LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
         LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
         WHERE i.hora_registro >= ${desde}::timestamptz AND i.hora_registro < ${hasta}::timestamptz
+          AND i.estado != 'CANCELADO'
+      ),
+      lagged AS (
+        SELECT tienda_id,
+          EXTRACT(EPOCH FROM (hora_registro -
+            LAG(hora_registro) OVER (PARTITION BY tienda_id ORDER BY hora_registro)
+          )) / 86400.0 AS dias_diff
+        FROM base
       ),
       gaps AS (
-        SELECT tienda_id,
-          AVG(EXTRACT(EPOCH FROM (hora_registro -
-            LAG(hora_registro) OVER (PARTITION BY tienda_id ORDER BY hora_registro)
-          )) / 86400.0) AS avg_dias
-        FROM base
+        SELECT tienda_id, AVG(dias_diff) AS avg_dias
+        FROM lagged
+        WHERE dias_diff IS NOT NULL
         GROUP BY tienda_id
       ),
       agg AS (
@@ -69,12 +75,12 @@ export async function GET(req: Request) {
           COUNT(*)::int                                    AS incidentes,
           MODE() WITHIN GROUP (ORDER BY b.tipo)            AS tipo_frecuente,
           ROUND(AVG(b.mttr_minutos))::int                  AS mttr_avg,
-          ROUND(g.avg_dias, 1)                             AS dias_entre_caidas,
+          ROUND(MAX(g.avg_dias), 1)                        AS dias_entre_caidas,
           ROUND(SUM(b.iei_row))::int                       AS iei_acumulado,
           BOOL_OR(b.tiene_contingencia)                    AS contingencia
         FROM base b
         LEFT JOIN gaps g ON g.tienda_id = b.tienda_id
-        GROUP BY b.tienda_id, g.avg_dias
+        GROUP BY b.tienda_id
         HAVING COUNT(*) >= 2
       )
       SELECT * FROM agg ORDER BY incidentes DESC

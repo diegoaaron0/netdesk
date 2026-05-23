@@ -67,6 +67,7 @@ export async function GET(req: Request) {
         LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
         LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
         WHERE i.hora_registro >= ${desde}::timestamptz AND i.hora_registro < ${hasta}::timestamptz
+          AND i.estado != 'CANCELADO'
         ${provFilter}
       `),
       // Totales período anterior
@@ -91,6 +92,7 @@ export async function GET(req: Request) {
         LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
         LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
         WHERE i.hora_registro >= ${desdeAnt}::timestamptz AND i.hora_registro < ${desde}::timestamptz
+          AND i.estado != 'CANCELADO'
         ${provFilter}
       `),
       // Por proveedor
@@ -116,6 +118,7 @@ export async function GET(req: Request) {
         LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
         LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
         WHERE i.hora_registro >= ${desde}::timestamptz AND i.hora_registro < ${hasta}::timestamptz
+          AND i.estado != 'CANCELADO'
         ${provFilter}
         GROUP BY COALESCE(pi.nombre, pt.nombre)
         ORDER BY iei DESC NULLS LAST
@@ -138,6 +141,7 @@ export async function GET(req: Request) {
         LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
         LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
         WHERE i.hora_registro >= ${desde}::timestamptz AND i.hora_registro < ${hasta}::timestamptz
+          AND i.estado != 'CANCELADO'
         ${provFilter}
         GROUP BY t.id, t.codigo, t.nombre_cc, t.distrito, COALESCE(pi.nombre, pt.nombre)
         ORDER BY incidentes DESC LIMIT 15
@@ -151,6 +155,7 @@ export async function GET(req: Request) {
         LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
         LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
         WHERE i.hora_registro >= ${desde}::timestamptz AND i.hora_registro < ${hasta}::timestamptz
+          AND i.estado != 'CANCELADO'
         ${provFilter}
         GROUP BY i.tipo ORDER BY total DESC
       `),

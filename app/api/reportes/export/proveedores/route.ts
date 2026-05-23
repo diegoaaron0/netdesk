@@ -34,7 +34,7 @@ export async function GET(req: Request) {
           COALESCE(pi.nombre, pt.nombre)                                         AS proveedor,
           COUNT(i.id)::int                                                        AS total,
           COUNT(i.id) FILTER (WHERE i.estado = 'RESUELTO' AND i.mttr_minutos IS NOT NULL
-            AND i.hora_correo_n1_ts IS NOT NULL)::int                            AS evaluables_sla,
+            AND n1h.hora_correo_n1_val IS NOT NULL)::int                         AS evaluables_sla,
           ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= CASE i.tipo
               WHEN 'CAIDA_TOTAL' THEN 60 WHEN 'INTERMITENCIA' THEN 120
               WHEN 'LENTITUD'    THEN 240 WHEN 'POS' THEN 60 ELSE 120 END
@@ -78,6 +78,7 @@ export async function GET(req: Request) {
           LIMIT 1
         ) e2 ON true
         WHERE i.hora_registro >= ${desde}::timestamptz AND i.hora_registro < ${hasta}::timestamptz
+          AND i.estado != 'CANCELADO'
         GROUP BY COALESCE(pi.nombre, pt.nombre)
         ORDER BY iei DESC NULLS LAST
       `),
@@ -108,6 +109,7 @@ export async function GET(req: Request) {
         LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
         LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
         WHERE i.hora_registro >= ${desde}::timestamptz AND i.hora_registro < ${hasta}::timestamptz
+          AND i.estado != 'CANCELADO'
         GROUP BY COALESCE(pi.nombre, pt.nombre), t.id, t.codigo, t.nombre_cc, t.distrito
         ORDER BY COALESCE(pi.nombre, pt.nombre), incidentes DESC
       `),

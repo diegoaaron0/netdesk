@@ -126,7 +126,9 @@ export async function GET(req: Request) {
           )
         END                                                                            AS iei,
 
-        t.venta_hora_soles                                                             AS venta_hora_tienda
+        t.venta_hora_soles                                                             AS venta_hora_tienda,
+        i.resuelto_por,
+        i.atribucion_final
 
       FROM incidentes i
       JOIN    tiendas      t   ON i.tienda_id         = t.id
@@ -172,6 +174,7 @@ export async function GET(req: Request) {
 
       WHERE i.hora_registro >= ${desde}::timestamptz
         AND i.hora_registro <  ${hasta}::timestamptz
+        AND i.estado != 'CANCELADO'
         ${estado ? sql`AND i.estado = ${estado}` : sql``}
       ORDER BY i.hora_registro DESC
     `)
@@ -185,6 +188,7 @@ export async function GET(req: Request) {
       'Enviado N3', 'Respuesta N3', 'Hora Solución', 'Comentarios',
       'Efectividad Contingencia', 'MTTR (min)', 'SLA Respuesta',
       'SLA Resolución', 'SLA Cumplido', 'IEI (S/)', 'Venta/Hora Tienda',
+      'Resuelto por', 'Atribución',
     ]
 
     const escape = (v: unknown) => {
@@ -205,6 +209,7 @@ export async function GET(req: Request) {
         r.enviado_n3, r.respuesta_n3, r.hora_solucion, r.comentarios,
         r.efectividad_contingencia, r.mttr_min, r.sla_respuesta,
         r.sla_resolucion, r.sla_cumplido, r.iei, r.venta_hora_tienda,
+        r.resuelto_por ?? '', r.atribucion_final ?? '',
       ].map(escape).join(',')),
     ]
 
