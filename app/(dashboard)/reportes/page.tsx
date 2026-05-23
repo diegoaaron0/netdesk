@@ -29,7 +29,6 @@ export default function ReportesPage() {
   const [proveedor, setProveedor] = useState('Todos')
   const [loading,   setLoading]   = useState<Record<string, boolean>>({})
   const [errors,    setErrors]    = useState<Record<string, string>>({})
-  const [open,      setOpen]      = useState(false)
 
   function setQuick(d: string, h: string) { setDesde(d); setHasta(h) }
 
@@ -64,7 +63,7 @@ export default function ReportesPage() {
     fontSize: '12px', cursor: 'pointer', background: 'white', color: '#374151',
   }
 
-  // ── Cards de las 4 plantillas principales ────────────────────────────────────
+  // ── Cards de las 3 plantillas principales ────────────────────────────────────
 
   const CARDS = [
     {
@@ -90,41 +89,10 @@ export default function ReportesPage() {
       titulo: 'Incidentes Operativos',
       icono: '📁',
       color: '#854F0B', bg: '#FAEEDA',
-      desc: 'Historial completo de incidentes con SLA y escalamientos',
-      incluye: 'Fecha · Código tienda · Proveedor · Tipo · MTTR · SLA · IEI · N1/N2/N3',
+      desc: 'Historial completo de incidentes con todos los campos',
+      incluye: 'Fecha · Tienda · Proveedor · Tipo · MTTR · SLA · IEI · N1/N2/N3 · Resuelto por',
       path: '/api/reportes/export',
     },
-    {
-      id: 'tiendas-criticas',
-      titulo: 'Tiendas Críticas',
-      icono: '🚨',
-      color: '#A32D2D', bg: '#FCEBEB',
-      desc: 'Ranking de tiendas con reincidencia e impacto acumulado',
-      incluye: 'Código · Tipo frecuente · Días entre caídas · IEI acumulado · Contingencia',
-      path: '/api/reportes/export/tiendas-criticas',
-    },
-  ]
-
-  // ── Reportes adicionales ─────────────────────────────────────────────────────
-
-  const ADICIONALES = [
-    {
-      id: 'fuera-sla',
-      label: 'Fuera de SLA',
-      desc: 'Fecha · Código tienda · Proveedor · Tipo · MTTR · Límite · Exceso · Motivo',
-      disponible: true,
-      path: '/api/reportes/export/fuera-sla',
-    },
-    {
-      id: 'maestro',
-      label: 'Maestro de tiendas',
-      desc: 'Código · Nombre CC · Distrito · Proveedor · CID · Tipo conexión · Contingencia',
-      disponible: true,
-      path: '/api/tiendas/export',
-    },
-    { id: 'escalamientos', label: 'Escalamientos',      desc: 'Próximamente', disponible: false, path: '' },
-    { id: 'invgate',       label: 'Tickets InvGate',    desc: 'Próximamente', disponible: false, path: '' },
-    { id: 'historial',     label: 'Historial de cambios', desc: 'Próximamente', disponible: false, path: '' },
   ]
 
   return (
@@ -164,8 +132,8 @@ export default function ReportesPage() {
         </div>
       </div>
 
-      {/* 3. Cards principales 2×2 */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+      {/* 3. Cards principales */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
         {CARDS.map(card => (
           <div key={card.id} style={{ background: 'white', border: `1px solid ${card.color}22`, borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -200,47 +168,6 @@ export default function ReportesPage() {
             </button>
           </div>
         ))}
-      </div>
-
-      {/* 4. Reportes adicionales (colapsable) */}
-      <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden' }}>
-        <button
-          onClick={() => setOpen(o => !o)}
-          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#374151' }}
-        >
-          Reportes adicionales
-          <span style={{ fontSize: '11px', color: '#9ca3af', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
-        </button>
-        {open && (
-          <div style={{ borderTop: '0.5px solid #e5e7eb' }}>
-            {ADICIONALES.map((r, idx) => (
-              <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: idx < ADICIONALES.length - 1 ? '0.5px solid #f3f4f6' : 'none' }}>
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: 500, color: '#0f172a' }}>{r.label}</div>
-                  <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '2px' }}>{r.desc}</div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0, marginLeft: '12px' }}>
-                  <span style={{
-                    fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '999px',
-                    background: r.disponible ? '#EAF3DE' : '#f3f4f6',
-                    color: r.disponible ? '#1D9E75' : '#9ca3af',
-                  }}>
-                    {r.disponible ? 'Disponible' : 'Próximamente'}
-                  </span>
-                  {r.disponible && (
-                    <button
-                      disabled={loading[r.id]}
-                      onClick={() => download(r.id, r.path)}
-                      style={{ padding: '5px 12px', borderRadius: '6px', border: '0.5px solid #d1d5db', background: 'white', fontSize: '12px', cursor: loading[r.id] ? 'not-allowed' : 'pointer', color: '#374151' }}
-                    >
-                      {loading[r.id] ? 'Generando...' : '↓ CSV'}
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>

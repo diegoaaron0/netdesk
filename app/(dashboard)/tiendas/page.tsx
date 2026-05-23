@@ -77,6 +77,25 @@ export default function TiendasPage() {
   const [showHistorial, setShowHistorial] = useState(false)
   const [loadingHist, setLoadingHist] = useState(false)
   const [sinProveedorPanel, setSinProveedorPanel] = useState(false)
+  const [exportingMaestro, setExportingMaestro] = useState(false)
+
+  async function downloadMaestro() {
+    setExportingMaestro(true)
+    try {
+      const res = await fetch('/api/tiendas/export')
+      if (!res.ok) throw new Error()
+      const blob = await res.blob()
+      const cd = res.headers.get('Content-Disposition') ?? ''
+      const match = cd.match(/filename="([^"]+)"/)
+      const filename = match ? match[1] : 'netdesk_maestro_tiendas.csv'
+      const url = URL.createObjectURL(blob)
+      const a = Object.assign(document.createElement('a'), { href: url, download: filename })
+      document.body.appendChild(a); a.click(); document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } finally {
+      setExportingMaestro(false)
+    }
+  }
 
   const fetchTiendas = useCallback(async () => {
     const params = new URLSearchParams()
@@ -142,6 +161,10 @@ export default function TiendasPage() {
           <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{filtered.length} tiendas</div>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={downloadMaestro} disabled={exportingMaestro}
+            style={{ padding: '7px 12px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: exportingMaestro ? 'not-allowed' : 'pointer', color: exportingMaestro ? 'var(--muted-foreground)' : 'var(--foreground)' }}>
+            {exportingMaestro ? 'Generando...' : '⬇ Maestro CSV'}
+          </button>
           <button onClick={openHistorial}
             style={{ padding: '7px 12px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: 'var(--foreground)' }}>
             Historial de cambios
