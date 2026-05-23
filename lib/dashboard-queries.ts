@@ -22,6 +22,12 @@ export interface RawIncidente {
   contingencia_activa: boolean
   prov_nombre: string | null
   dia_semana: number
+  // Condiciones operacionales del incidente (para IEI)
+  boleta_manual: boolean | null
+  venta_parcial: boolean | null
+  cajas_afectadas: number | null
+  cajas_totales: number | null
+  hubo_movil: boolean
   // Campos SLA (de LATERAL joins)
   hora_correo_n1: Date | null
   hora_primera_resp: Date | null
@@ -72,6 +78,11 @@ export async function fetchIncidentesPeriodo(
       COALESCE(t.contingencia_activa, false)       AS contingencia_activa,
       COALESCE(p.nombre, pt.nombre)               AS prov_nombre,
       EXTRACT(DOW FROM i.hora_registro AT TIME ZONE 'America/Lima')::int AS dia_semana,
+      i.boleta_manual,
+      i.venta_parcial,
+      i.cajas_afectadas,
+      i.cajas_totales,
+      (i.mov_activado_por IS NOT NULL)             AS hubo_movil,
       n1.hora_correo_n1,
       resp.hora_primera_resp,
       resp.nivel_respuesta,

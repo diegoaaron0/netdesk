@@ -32,10 +32,10 @@ export interface ImpactoInputRow {
   ventaHoraResolvida?: number | null
   // Condiciones del incidente — opcionales; no rompen si están ausentes
   contingencia_activa?: boolean | null
-  boleta_manual?: boolean | null        // TODO: campo pendiente en schema
-  venta_parcial?: boolean | null        // TODO: campo pendiente en schema
-  cajas_afectadas?: number | null       // TODO: campo pendiente en schema
-  cajas_totales?: number | null         // TODO: campo pendiente en schema
+  boleta_manual?: boolean | null
+  venta_parcial?: boolean | null
+  cajas_afectadas?: number | null
+  cajas_totales?: number | null
   otros_clasificacion?: string | null
 }
 

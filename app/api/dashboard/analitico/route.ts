@@ -126,6 +126,10 @@ function calcCostoIncidente(
     tipo: inc.tipo,
     ventaHoraResolvida: ventaHora,
     contingencia_activa: inc.contingencia_activa,
+    boleta_manual: inc.boleta_manual,
+    venta_parcial: inc.venta_parcial,
+    cajas_afectadas: inc.cajas_afectadas,
+    cajas_totales: inc.cajas_totales,
   })
   return {
     costo: res.impactoEstimado,
@@ -181,7 +185,7 @@ function getRazon(
     return r.evaluable && !r.slaGeneral
   })
   if (slaFail) return 'SLA incumplido'
-  return 'Costo estimado alto'
+  return 'Sin patrón definido'
 }
 
 function topKey(counts: Record<string, number>): string {
@@ -461,7 +465,7 @@ async function buildCards(
   let costoProveedor = 0
   let ventaAfectadaTotal = 0
   const costoByProv   = new Map<string, number>()
-  type CostoAccum = { codigo: string; proveedor: string; horas: number; costo: number; ventaAfectada: number; topCosto: number; topFactor: number; topMotivo: string; topVentaHora: number | null; topMargen: number; topContingencia: boolean }
+  type CostoAccum = { codigo: string; proveedor: string; horas: number; costo: number; ventaAfectada: number; topCosto: number; topFactor: number; topMotivo: string; topVentaHora: number | null; topMargen: number; topContingencia: boolean; topMovil: boolean; topBoleta: boolean }
   const costoByTienda = new Map<string, CostoAccum>()
 
   for (const i of incs) {
@@ -481,14 +485,20 @@ async function buildCards(
       existing.horas += (i.mttr_minutos ?? 0) / 60
       if (costo > existing.topCosto) {
         existing.topCosto = costo; existing.topFactor = factor; existing.topMotivo = motivo
-        existing.topVentaHora = ventaHora; existing.topMargen = margen; existing.topContingencia = i.contingencia_activa
+        existing.topVentaHora = ventaHora; existing.topMargen = margen
+        existing.topContingencia = i.contingencia_activa
+        existing.topMovil = i.hubo_movil
+        existing.topBoleta = i.boleta_manual ?? false
       }
     } else {
       costoByTienda.set(i.tienda_id, {
         codigo: i.tienda_codigo, proveedor: prov,
         horas: (i.mttr_minutos ?? 0) / 60,
         costo, ventaAfectada, topCosto: costo, topFactor: factor, topMotivo: motivo,
-        topVentaHora: ventaHora, topMargen: margen, topContingencia: i.contingencia_activa,
+        topVentaHora: ventaHora, topMargen: margen,
+        topContingencia: i.contingencia_activa,
+        topMovil: i.hubo_movil,
+        topBoleta: i.boleta_manual ?? false,
       })
     }
   }
@@ -513,8 +523,8 @@ async function buildCards(
     margen: t.topMargen,
     horasAfectadas: Math.round(t.horas * 10) / 10,
     huboContingencia: t.topContingencia,
-    huboMovil: false,
-    huboBoleta: false,
+    huboMovil: t.topMovil,
+    huboBoleta: t.topBoleta,
   }))
 
   // ── CARD 6: Reincidencia ────────────────────────────────────────────────
