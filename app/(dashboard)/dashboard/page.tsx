@@ -212,8 +212,9 @@ function AsignarModal({ activos, equipo, onClose, onRefresh }: { activos: any[];
 
 export default function DashboardPage() {
   const router = useRouter()
-  const [op, setOp]     = useState<any>(null)
-  const [tick, setTick] = useState(0)
+  const [op, setOp]                       = useState<any>(null)
+  const [tick, setTick]                   = useState(0)
+  const [decPendientes, setDecPendientes] = useState<number | null>(null)
   const [tab, setTab]   = useState<'operativo' | 'analitico'>(() => {
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search)
@@ -227,7 +228,15 @@ export default function DashboardPage() {
     if (res.ok) setOp(await res.json())
   }, [])
 
-  useEffect(() => { fetchOp() }, [fetchOp])
+  const fetchDecPendientes = useCallback(async () => {
+    const res = await fetch('/api/decisiones?estado=PROPUESTO')
+    if (res.ok) {
+      const data = await res.json()
+      setDecPendientes(Array.isArray(data) ? data.length : null)
+    }
+  }, [])
+
+  useEffect(() => { fetchOp(); fetchDecPendientes() }, [fetchOp, fetchDecPendientes])
   useEffect(() => {
     const id = setInterval(() => { setTick(t => t + 1); fetchOp() }, 30000)
     return () => clearInterval(id)
@@ -263,7 +272,7 @@ export default function DashboardPage() {
 
       {tab === 'operativo' && (
         op
-          ? <OperativoView op={op} tick={tick} router={router} />
+          ? <OperativoView op={op} tick={tick} router={router} decPendientes={decPendientes} />
           : <div style={{ padding: '60px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>Cargando...</div>
       )}
       {tab === 'analitico' && <DashboardAnalitico />}
@@ -273,7 +282,7 @@ export default function DashboardPage() {
 
 // ─── OperativoView ────────────────────────────────────────────────────────────
 
-function OperativoView({ op, tick, router }: { op: any; tick: number; router: any }) {
+function OperativoView({ op, tick, router, decPendientes }: { op: any; tick: number; router: any; decPendientes: number | null }) {
   const { activos, equipoStats, proveedoresPendientes, actividadReciente, kpis } = op
   const [provFiltro,      setProvFiltro]      = useState('Todos')
   const [cardFiltro,      setCardFiltro]      = useState<string | null>(null)
@@ -352,23 +361,24 @@ function OperativoView({ op, tick, router }: { op: any; tick: number; router: an
   }
 
   // KPI card definitions
-  const kpiCards = [
+  const kpiCards: Array<{ icon: string; label: string; value: any; sub?: string; filterKey: string | null; colorIcon: string; bg: string; link?: string }> = [
     { icon: '📋', label: 'Incidentes abiertos',  value: kpis.abiertos,            sub: undefined,                                filterKey: 'abiertos',  colorIcon: '#185FA5', bg: '#E6F1FB' },
     { icon: '⚠',  label: 'En riesgo SLA',         value: kpis.enRiesgoSla,          sub: kpis.vencidoSla > 0 ? `${kpis.vencidoSla} vencidos` : undefined, filterKey: 'enRiesgo',  colorIcon: '#C84B00', bg: '#FFF3E0' },
     { icon: '↑',  label: 'Escalados',              value: kpis.escalados,            sub: undefined,                                filterKey: 'escalados', colorIcon: '#A32D2D', bg: '#FCEBEB' },
     { icon: '🏢', label: 'Pendientes proveedor',   value: kpis.pendientesProveedor,  sub: undefined,                                filterKey: 'pendientes', colorIcon: '#5B21B6', bg: '#EEE8FF' },
     { icon: '✓',  label: 'Resueltos hoy',          value: kpis.resueltoHoy,          sub: `Agente ${kpis.resueltoHoyAgente} · Proveedor ${kpis.resueltoHoyProveedor}`, filterKey: null, colorIcon: '#27500A', bg: '#EAF3DE' },
     { icon: '👤', label: 'Agentes en gestión',     value: `${kpis.agentesEnGestion}/${kpis.totalAgentes}`, sub: undefined, filterKey: null, colorIcon: '#185FA5', bg: '#E6F1FB' },
+    ...(decPendientes != null ? [{ icon: '📊', label: 'Decisiones propuestas', value: decPendientes, sub: 'Esperan aprobación', filterKey: null, colorIcon: '#7C3AED', bg: '#EDE9FE', link: '/decisiones' }] : []),
   ]
 
   return (
     <>
       {/* KPI Cards row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '10px', marginBottom: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '10px', marginBottom: '16px' }}>
         {kpiCards.map((card) => (
           <div key={card.label}
-            onClick={() => card.filterKey && handleCardClick(card.filterKey)}
-            style={{ background: 'white', border: `0.5px solid ${cardFiltro === card.filterKey && card.filterKey ? '#185FA5' : '#e5e7eb'}`, borderRadius: '12px', padding: '14px 16px', cursor: card.filterKey ? 'pointer' : 'default', boxShadow: cardFiltro === card.filterKey && card.filterKey ? '0 0 0 2px rgba(24,95,165,0.15)' : 'none' }}>
+            onClick={() => { if (card.link) router.push(card.link); else if (card.filterKey) handleCardClick(card.filterKey) }}
+            style={{ background: 'white', border: `0.5px solid ${cardFiltro === card.filterKey && card.filterKey ? '#185FA5' : '#e5e7eb'}`, borderRadius: '12px', padding: '14px 16px', cursor: card.filterKey || card.link ? 'pointer' : 'default', boxShadow: cardFiltro === card.filterKey && card.filterKey ? '0 0 0 2px rgba(24,95,165,0.15)' : 'none' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
               <div style={{ width: 36, height: 36, borderRadius: '8px', background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>
                 {card.icon}

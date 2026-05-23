@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
+import { sendMail } from '@/lib/mailer'
 
 const aprobador = alias(usuarios, 'aprobador')
 
@@ -87,6 +88,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (userRol !== 'GERENCIA')
       return NextResponse.json({ error: 'Solo GERENCIA puede aprobar o rechazar' }, { status: 403 })
 
+    const aprobadorNombre = (session.user as any).nombre ?? (session.user as any).name ?? 'Gerencia'
+
     if (body._action === 'aprobar') {
       const [updated] = await db.update(decisiones)
         .set({
@@ -98,6 +101,21 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         .where(eq(decisiones.id, id))
         .returning()
       if (!updated) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+
+      const [decInfo] = await db.select({ titulo: decisiones.titulo, email: usuarios.email })
+        .from(decisiones).leftJoin(usuarios, eq(decisiones.responsableId, usuarios.id))
+        .where(eq(decisiones.id, id))
+      if (decInfo?.email) {
+        sendMail({
+          to: decInfo.email,
+          subject: `✅ Decisión aprobada: ${decInfo.titulo} — NetDesk`,
+          text: [
+            `Tu decisión "${decInfo.titulo}" fue aprobada por ${aprobadorNombre}.`,
+            `Está lista para ejecución. Ingresa a NetDesk > Decisiones para continuar.`,
+          ].join('\n'),
+        }).catch(e => console.error('[decisiones/aprobar] mail:', e))
+      }
+
       return NextResponse.json(updated)
     }
 
@@ -114,6 +132,22 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       .where(eq(decisiones.id, id))
       .returning()
     if (!updated) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+
+    const [decInfo] = await db.select({ titulo: decisiones.titulo, email: usuarios.email })
+      .from(decisiones).leftJoin(usuarios, eq(decisiones.responsableId, usuarios.id))
+      .where(eq(decisiones.id, id))
+    if (decInfo?.email) {
+      sendMail({
+        to: decInfo.email,
+        subject: `❌ Decisión rechazada: ${decInfo.titulo} — NetDesk`,
+        text: [
+          `Tu decisión "${decInfo.titulo}" fue rechazada por ${aprobadorNombre}.`,
+          `Motivo: ${motivo}`,
+          `Ingresa a NetDesk > Decisiones para ver los detalles.`,
+        ].join('\n'),
+      }).catch(e => console.error('[decisiones/rechazar] mail:', e))
+    }
+
     return NextResponse.json(updated)
   }
 

@@ -24,6 +24,7 @@ export const PERMISOS_POR_ROL: Record<string, string[]> = {
     'decisiones.ver', 'decisiones.crear',
   ],
   GERENCIA: [
+    'incidentes.ver',
     'dashboard.ver', 'reportes.ver', 'reportes.exportar',
     'mantenimiento.ver',
     'proveedores.ver',
