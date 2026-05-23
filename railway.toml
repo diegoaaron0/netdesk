@@ -7,4 +7,4 @@ startCommand = "npx tsx drizzle/run-sql.ts && npm start"
 
 [cron."sla-alert"]
 schedule = "*/5 * * * *"
-command = "curl -s -o /dev/null -H 'Authorization: Bearer $CRON_SECRET' $APP_URL/api/cron/sla-alert"
+command = "curl -s -w '\n[HTTP %{http_code}]\n' -H 'Authorization: Bearer $CRON_SECRET' $APP_URL/api/cron/sla-alert"
