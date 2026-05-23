@@ -64,6 +64,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   // Columnas nuevas (pueden no existir en producción hasta aplicar migración)
   let extended: Record<string, string | null> = {
+    celularTienda: null,
     supervisorCelular: null,
     contingenciaChip: null,
     contingenciaPaquete: null,
@@ -71,6 +72,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   }
   try {
     const [ext] = await db.select({
+      celularTienda: tiendas.celularTienda,
       supervisorCelular: tiendas.supervisorCelular,
       contingenciaChip: tiendas.contingenciaChip,
       contingenciaPaquete: tiendas.contingenciaPaquete,
@@ -85,6 +87,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 const TRACKED_FIELDS = [
+  'celularTienda',
   'nombreCc', 'formato', 'direccion', 'referencia', 'distrito', 'provincia',
   'ubicacion', 'cluster', 'supervisorNombre', 'supervisorCelular', 'perfilSupervisor',
   'tipoConexion', 'tipoServicio', 'cidServicio', 'tieneContingencia',
@@ -156,6 +159,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     const fullValues = {
       ...baseValues,
+      celularTienda:       'celularTienda'       in body ? (body.celularTienda       ?? null) : null,
       supervisorCelular:   'supervisorCelular'   in body ? (body.supervisorCelular   ?? null) : null,
       contingenciaChip:    'contingenciaChip'    in body ? (body.contingenciaChip    ?? null) : null,
       contingenciaPaquete: 'contingenciaPaquete' in body ? (body.contingenciaPaquete ?? null) : null,

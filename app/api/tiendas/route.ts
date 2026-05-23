@@ -76,6 +76,7 @@ export async function GET(req: NextRequest) {
       administradorNombre: tiendas.administradorNombre,
       administradorEmail: tiendas.administradorEmail,
       administradorCelular: tiendas.administradorCelular,
+      celularTienda: tiendas.celularTienda,
       perfilSupervisor: tiendas.perfilSupervisor,
       contingenciaActiva: tiendas.contingenciaActiva,
       contingenciaDescripcion: tiendas.contingenciaDescripcion,
@@ -133,6 +134,7 @@ export async function POST(req: NextRequest) {
     administradorNombre: body.administradorNombre ?? null,
     administradorEmail:  body.administradorEmail ?? null,
     administradorCelular:body.administradorCelular ?? null,
+    celularTienda:       body.celularTienda ?? null,
     perfilSupervisor:    body.perfilSupervisor ?? null,
   }).returning()
   return NextResponse.json(t, { status: 201 })

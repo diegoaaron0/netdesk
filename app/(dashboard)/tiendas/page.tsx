@@ -295,6 +295,12 @@ export default function TiendasPage() {
                 )}
               </div>
 
+              {t.celularTienda && (
+                <div style={{ marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ fontSize: '12px' }}>📱</span>
+                  <span style={{ fontSize: '12px', fontWeight: 700, fontFamily: 'monospace', color: '#1D4ED8', letterSpacing: '0.04em' }}>{t.celularTienda}</span>
+                </div>
+              )}
               <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: 1.7 }}>
                 {t.tipoConexion && <div><span style={{ fontWeight: 500 }}>Conexión:</span> {t.tipoConexion}</div>}
                 {t.cidServicio  && <div><span style={{ fontWeight: 500 }}>CID:</span> <span style={{ fontFamily: 'monospace' }}>{t.cidServicio}</span></div>}

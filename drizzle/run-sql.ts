@@ -177,6 +177,10 @@ async function main() {
   await sql`ALTER TABLE "incidentes" ADD COLUMN IF NOT EXISTS "cajas_totales" integer`
   console.log('[startup] ✓ Campos IEI en incidentes (0008)')
 
+  // 0011 — celular de tienda
+  await sql`ALTER TABLE "tiendas" ADD COLUMN IF NOT EXISTS "celular_tienda" text`
+  console.log('[startup] ✓ Columna tiendas.celular_tienda (0011)')
+
   // 0010 — flujo de aprobación de decisiones
   await sql`ALTER TYPE "estado_decision" ADD VALUE IF NOT EXISTS 'PROPUESTO'`
   await sql`ALTER TYPE "estado_decision" ADD VALUE IF NOT EXISTS 'RECHAZADO'`

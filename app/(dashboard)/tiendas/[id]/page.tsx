@@ -22,6 +22,7 @@ function provColor(n: string | null) {
 }
 
 const CAMPO_LABELS: Record<string, string> = {
+  celularTienda: 'Celular tienda',
   nombreCc: 'Nombre CC', direccion: 'Dirección', distrito: 'Distrito',
   provincia: 'Provincia', cluster: 'Cluster', supervisorNombre: 'Supervisor',
   supervisorCelular: 'Celular supervisor', perfilSupervisor: 'Clasificación',
@@ -262,6 +263,33 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
           {/* Información general */}
           <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
             <SectionTitle>Información general</SectionTitle>
+
+            {/* Celular tienda — campo prioritario */}
+            <div style={{ marginBottom: '14px', padding: '10px 14px', background: form.celularTienda ? '#EFF6FF' : 'var(--muted)', border: `1px solid ${form.celularTienda ? '#BFDBFE' : 'var(--border)'}`, borderRadius: '9px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '18px', flexShrink: 0 }}>📱</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '10px', fontWeight: 700, color: '#1D4ED8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Celular de tienda</div>
+                {editing ? (
+                  <input
+                    value={form.celularTienda ?? ''}
+                    onChange={e => setF('celularTienda', e.target.value)}
+                    placeholder="Ej: 987 654 321"
+                    style={{ width: '100%', padding: '5px 8px', fontSize: '14px', fontWeight: 600, border: '0.5px solid #93C5FD', borderRadius: '6px', background: 'white', color: 'var(--foreground)', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                ) : (
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: form.celularTienda ? '#1D4ED8' : 'var(--muted-foreground)', fontFamily: form.celularTienda ? 'monospace' : 'inherit', letterSpacing: form.celularTienda ? '0.05em' : 0 }}>
+                    {form.celularTienda || 'Sin registrar'}
+                  </div>
+                )}
+              </div>
+              {!editing && form.celularTienda && (
+                <a href={`tel:${form.celularTienda.replace(/\s/g, '')}`}
+                  style={{ padding: '5px 10px', background: '#1D4ED8', color: 'white', borderRadius: '6px', fontSize: '11px', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                  Llamar
+                </a>
+              )}
+            </div>
+
             <Field label="Dirección" value={form.direccion ?? ''} editing={editing} onChange={v => setF('direccion', v)} />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
               <Field label="Provincia" value={form.provincia ?? ''} editing={editing} onChange={v => setF('provincia', v)} />

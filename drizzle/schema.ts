@@ -105,6 +105,7 @@ export const tiendas = pgTable('tiendas', {
   contingenciaDescripcion:       text('contingencia_descripcion'),
   contingenciaFecha:             timestamp('contingencia_fecha'),
   tipoPersonalizadoHabilitado:   boolean('tipo_personalizado_habilitado').default(false),
+  celularTienda:                 text('celular_tienda'),
   supervisorCelular:             text('supervisor_celular'),
   contingenciaChip:              text('contingencia_chip'),
   contingenciaPaquete:           text('contingencia_paquete'),
