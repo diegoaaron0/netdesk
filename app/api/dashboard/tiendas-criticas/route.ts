@@ -46,6 +46,7 @@ export async function GET(req: NextRequest) {
         t.venta_hora_soles::float                  AS venta_hora_soles,
         COALESCE(t.tiene_contingencia, false)       AS tiene_contingencia,
         COALESCE(t.contingencia_activa, false)      AS contingencia_activa,
+        i.cont_rendimiento,
         EXTRACT(DOW FROM i.hora_registro AT TIME ZONE 'America/Lima')::int AS dia_semana,
         n1.hora_correo_n1,
         resp.hora_primera_resp,

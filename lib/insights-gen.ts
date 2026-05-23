@@ -27,6 +27,7 @@ export interface RawInsightsRow {
   venta_hora_soles: number | null
   tiene_contingencia: boolean | null
   contingencia_activa: boolean | null
+  cont_rendimiento: string | null
   hora_correo_n1: string | null
   hora_primera_resp: string | null
   max_nivel: number
@@ -67,6 +68,7 @@ function calcImpacto(row: RawInsightsRow): number {
     tipo: row.tipo,
     cluster: row.cluster,
     contingencia_activa: row.contingencia_activa,
+    cont_rendimiento: row.cont_rendimiento,
     otros_clasificacion: row.otros_clasificacion,
   }).impactoEstimado
 }

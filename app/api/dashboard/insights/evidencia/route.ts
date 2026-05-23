@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
       t.cluster,
       t.venta_hora_soles::float AS venta_hora_soles,
       COALESCE(t.contingencia_activa, false) AS contingencia_activa,
+      i.cont_rendimiento,
       n1.hora_correo_n1,
       resp.hora_primera_resp,
       max_n.max_nivel
@@ -75,7 +76,7 @@ export async function GET(req: NextRequest) {
     id: string; codigo: string; tipo: string; hora_registro: string; hora_fin: string | null
     estado: string; otros_clasificacion: string | null; prov_nombre: string | null
     tienda_codigo: string | null; tienda_nombre: string | null; tienda_distrito: string | null; cluster: string | null
-    venta_hora_soles: number | null; contingencia_activa: boolean
+    venta_hora_soles: number | null; contingencia_activa: boolean; cont_rendimiento: string | null
     hora_correo_n1: string | null; hora_primera_resp: string | null; max_nivel: number
   }>
 
@@ -92,6 +93,7 @@ export async function GET(req: NextRequest) {
       tipo: r.tipo,
       cluster: r.cluster,
       contingencia_activa: r.contingencia_activa,
+      cont_rendimiento: r.cont_rendimiento,
     })
     const mttrMin = impacto.mttrMin
     const impactoEstimado = impacto.impactoEstimado > 0 ? impacto.impactoEstimado : null

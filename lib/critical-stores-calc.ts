@@ -25,6 +25,7 @@ export interface RawTiendaRow {
   venta_hora_soles: number | null
   tiene_contingencia: boolean
   contingencia_activa: boolean
+  cont_rendimiento: string | null
   dia_semana: number
   hora_correo_n1: Date | string | null
   hora_primera_resp: Date | string | null
@@ -44,6 +45,7 @@ function rowCosto(row: RawTiendaRow, ventasDiarias: RawVentaDiaria[]): number {
     tipo: row.tipo,
     ventaHoraResolvida: ventaHora,
     contingencia_activa: row.contingencia_activa,
+    cont_rendimiento: row.cont_rendimiento,
   }).impactoEstimado
 }
 
@@ -181,6 +183,7 @@ export function buildTiendasCriticas(
           tipo: row.tipo,
           ventaHoraResolvida: vh,
           contingencia_activa: row.contingencia_activa,
+    cont_rendimiento: row.cont_rendimiento,
         })
         costoEstimado += imp.impactoEstimado
         if (imp.mttrMin != null) totalHorasAfectadas += imp.mttrMin / 60

@@ -25,6 +25,7 @@ export interface RawDistribucionRow {
   venta_hora_soles: number | null
   tiene_contingencia: boolean
   contingencia_activa: boolean
+  cont_rendimiento: string | null
   dia_semana: number
   otros_clasificacion: string | null
   tipo_personalizado: string | null
@@ -51,6 +52,7 @@ function rowImpacto(row: RawDistribucionRow, ventasDiarias: RawVentaDiaria[]): n
     tipo: row.tipo,
     ventaHoraResolvida: vh,
     contingencia_activa: row.contingencia_activa,
+    cont_rendimiento: row.cont_rendimiento,
     otros_clasificacion: row.otros_clasificacion,
   }).impactoEstimado
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { incidentes, tiendas, proveedores, usuarios, escalamientos, nivelesEscalamiento, adjuntos, atcLlamadas } from '@/drizzle/schema'
+import { incidentes, tiendas, proveedores, usuarios, escalamientos, nivelesEscalamiento, adjuntos, atcLlamadas, tiendasHistorial } from '@/drizzle/schema'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
@@ -161,6 +161,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
   }
 
+  // Auto-set contHoraActivacion cuando contActivadoPor se escribe y no se proporcionó hora
+  if (allowedFields.contActivadoPor && !allowedFields.contHoraActivacion) {
+    const [prev] = await db.select({ contHoraActivacion: incidentes.contHoraActivacion })
+      .from(incidentes).where(eq(incidentes.id, id))
+    if (!prev?.contHoraActivacion) {
+      allowedFields.contHoraActivacion = new Date()
+    }
+  }
+
   const [updated] = await db.update(incidentes)
     .set({ ...allowedFields, actualizadoEn: new Date() })
     .where(eq(incidentes.id, id))
@@ -183,6 +192,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   // Cuando contActivadoPor se establece → la tienda pasa a contingencia activa.
   // Cuando se limpia → solo se desactiva si ningún otro incidente abierto de esa tienda tiene contingencia.
   if ('contActivadoPor' in allowedFields && updated.tiendaId) {
+    const userId = (session.user as any)?.id ?? null
     if (updated.contActivadoPor) {
       await db.update(tiendas)
         .set({
@@ -191,6 +201,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           contingenciaDescripcion: (updated.contObservacion as string | null) ?? null,
         })
         .where(eq(tiendas.id, updated.tiendaId))
+      await db.insert(tiendasHistorial).values({
+        tiendaId:      updated.tiendaId,
+        usuarioId:     userId,
+        campoEditado:  'contingenciaActiva',
+        valorAnterior: 'false',
+        valorNuevo:    `true — vía incidente ${updated.codigo ?? id}`,
+      })
     } else {
       const rows = await db.execute(sql`
         SELECT COUNT(*)::int AS cnt FROM incidentes
@@ -202,6 +219,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         await db.update(tiendas)
           .set({ contingenciaActiva: false, contingenciaActivadaPor: null })
           .where(eq(tiendas.id, updated.tiendaId))
+        await db.insert(tiendasHistorial).values({
+          tiendaId:      updated.tiendaId,
+          usuarioId:     userId,
+          campoEditado:  'contingenciaActiva',
+          valorAnterior: 'true',
+          valorNuevo:    `false — vía incidente ${updated.codigo ?? id}`,
+        })
       }
     }
   }

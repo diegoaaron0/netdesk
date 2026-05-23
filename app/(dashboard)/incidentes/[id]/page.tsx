@@ -153,6 +153,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   const [editForm, setEditForm]     = useState<any>({})
   const [saving, setSaving]         = useState(false)
   const [saveError, setSaveError]   = useState('')
+  const [contNotice, setContNotice] = useState(false)
   const [supervisorEdit, setSupervisorEdit] = useState(false)
   const [showReopenModal, setShowReopenModal] = useState(false)
   const [reopenMotivo, setReopenMotivo] = useState('')
@@ -263,14 +264,15 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
     }
     if ('contHoraActivacion' in body) body.contHoraActivacion = body.contHoraActivacion ? fromDatetimeLocal(body.contHoraActivacion) : null
     if ('movHoraActivacion'  in body) body.movHoraActivacion  = body.movHoraActivacion  ? fromDatetimeLocal(body.movHoraActivacion)  : null
-    // Factor operativo automático: EFECTIVA=75%, PARCIAL=50%, LIMITADA=25%, NO_FUNCIONO/INOPERATIVA=0%
-    const rf: Record<string, string> = { EFECTIVA: '0.75', PARCIAL: '0.50', LIMITADA: '0.25', NO_FUNCIONO: '0.00', INOPERATIVA: '0.00' }
+    // Factor operativo automático por tier de rendimiento
+    const rfCont: Record<string, string> = { TOTAL: '0.90', PARCIAL: '0.50', FALLIDA: '0.00' }
+    const rfMov:  Record<string, string> = { EFECTIVA: '0.75', PARCIAL: '0.50', LIMITADA: '0.25', NO_FUNCIONO: '0.00' }
     if (body.estadoOperacion === 'BOLETA_MANUAL') {
       body.factorOperativo = '0.40'; body.operacionManual = true; body.tipoOperacionManual = 'BOLETA_MANUAL'
     } else if (body.estadoOperacion === 'CONTINGENCIA') {
-      body.factorOperativo = rf[body.contRendimiento] ?? null; body.operacionManual = false; body.tipoOperacionManual = null
+      body.factorOperativo = rfCont[body.contRendimiento] ?? null; body.operacionManual = false; body.tipoOperacionManual = null
     } else if (body.estadoOperacion === 'DATOS_MOVILES') {
-      body.factorOperativo = rf[body.movRendimiento] ?? null; body.operacionManual = false; body.tipoOperacionManual = null
+      body.factorOperativo = rfMov[body.movRendimiento] ?? null; body.operacionManual = false; body.tipoOperacionManual = null
     } else {
       body.factorOperativo = null; body.operacionManual = false; body.tipoOperacionManual = null
     }
@@ -298,11 +300,13 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
 
   async function handleResolver() {
     if (!confirm('¿Marcar como resuelto? Se registrará la hora actual como fin del incidente.')) return
-    await fetch(`/api/incidentes/${id}/resolver`, {
+    const res = await fetch(`/api/incidentes/${id}/resolver`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ resueltoPor: 'PROVEEDOR' }),
     })
+    const data = await res.json().catch(() => ({}))
+    if (data.contingenciaMantieneActiva) setContNotice(true)
     fetchInc()
   }
 
@@ -478,7 +482,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
             {/* Bloque Contingencia — colapsable */}
             {editForm.estadoOperacion === 'CONTINGENCIA' && (() => {
               const rend = editForm.contRendimiento
-              const rendLabel: Record<string,string> = { EFECTIVA:'Efectiva 75%', PARCIAL:'Parcial 50%', LIMITADA:'Limitada 25%', NO_FUNCIONO:'No funcionó', INOPERATIVA:'Inoperativa 0%' }
+              const rendLabel: Record<string,string> = { TOTAL:'Cubrió total', PARCIAL:'Con limitaciones', FALLIDA:'No funcionó' }
               const summary = [editForm.contActivadoPor && `Por: ${editForm.contActivadoPor}`, rend && rendLabel[rend]].filter(Boolean).join(' · ')
               return (
                 <div style={{ border: '1px solid var(--border)', borderRadius: '10px', marginBottom: '14px', overflow: 'hidden' }}>
@@ -523,7 +527,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                       <div style={{ marginBottom: '10px' }}>
                         <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Rendimiento</label>
                         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                          {[{v:'EFECTIVA',l:'Efectiva 75%',bg:'#dcfce7',c:'#15803d'},{v:'PARCIAL',l:'Parcial 50%',bg:'#fef9c3',c:'#a16207'},{v:'LIMITADA',l:'Limitada 25%',bg:'#fed7aa',c:'#c2410c'},{v:'NO_FUNCIONO',l:'No funcionó',bg:'#fee2e2',c:'#b91c1c'},{v:'INOPERATIVA',l:'Inoperativa 0%',bg:'#fce7f3',c:'#9d174d'}].map(({v,l,bg,c}) => {
+                          {[{v:'TOTAL',l:'Cubrió completamente',bg:'#dcfce7',c:'#15803d'},{v:'PARCIAL',l:'Con limitaciones',bg:'#fef9c3',c:'#a16207'},{v:'FALLIDA',l:'No funcionó',bg:'#fee2e2',c:'#b91c1c'}].map(({v,l,bg,c}) => {
                             const sel = editForm.contRendimiento === v
                             return <button key={v} type="button" disabled={!canEditB} onClick={() => setEdit('contRendimiento', v)} style={{ padding:'4px 10px',fontSize:'11px',borderRadius:'6px',border:`1px solid ${sel?c:'var(--border)'}`,cursor:!canEditB?'default':'pointer',background:sel?bg:'var(--card)',color:sel?c:'var(--muted-foreground)',fontWeight:sel?600:400 }}>{l}</button>
                           })}
@@ -847,10 +851,20 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   if (!tiene) return <span style={{ color: 'var(--muted-foreground)' }}>No</span>
                   if (inc.estadoOperacion !== 'CONTINGENCIA') return <span style={{ color: '#15803d', fontWeight: 500 }}>Sí</span>
                   const rend = inc.contRendimiento
-                  if (rend === 'INOPERATIVA' || rend === 'NO_FUNCIONO') {
-                    return <span style={{ color: '#b91c1c', fontWeight: 500 }}>Inoperativa</span>
+                  const rendLabelMap: Record<string,{l:string;c:string}> = {
+                    TOTAL:      { l: 'Cubrió completamente', c: '#15803d' },
+                    EFECTIVA:   { l: 'Cubrió completamente', c: '#15803d' },
+                    PARCIAL:    { l: 'Con limitaciones',     c: '#a16207' },
+                    LIMITADA:   { l: 'Con limitaciones',     c: '#a16207' },
+                    FALLIDA:    { l: 'No funcionó',          c: '#b91c1c' },
+                    NO_FUNCIONO:{ l: 'No funcionó',          c: '#b91c1c' },
+                    INOPERATIVA:{ l: 'No funcionó',          c: '#b91c1c' },
                   }
-                  return <span style={{ color: '#15803d', fontWeight: 600 }}>Sí — Activa{rend ? ` (${rend.charAt(0) + rend.slice(1).toLowerCase()})` : ''}</span>
+                  const rendInfo = rend ? rendLabelMap[rend] : null
+                  if (rendInfo?.c === '#b91c1c') {
+                    return <span style={{ color: '#b91c1c', fontWeight: 500 }}>Activa — {rendInfo.l}</span>
+                  }
+                  return <span style={{ color: '#15803d', fontWeight: 600 }}>Activa{rendInfo ? ` — ${rendInfo.l}` : ''}</span>
                 })()}
               </ResumenRow>
 
@@ -1019,6 +1033,16 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
             <span style={{ fontSize: '12px', color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', padding: '4px 10px', maxWidth: '320px' }}>
               {saveError}
             </span>
+          )}
+          {contNotice && (
+            <div style={{ fontSize: '12px', color: '#92400e', background: '#fffbeb', border: '1.5px solid #f59e0b', borderRadius: '8px', padding: '8px 12px', maxWidth: '380px', lineHeight: 1.5, display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '16px', flexShrink: 0 }}>⚠</span>
+              <span>
+                <strong>Incidente cerrado.</strong> La tienda permanece en <strong>contingencia activa</strong> porque el router temporal sigue instalado.
+                Desactívala desde la ficha de la tienda cuando el proveedor restituya el servicio definitivo.
+              </span>
+              <button onClick={() => setContNotice(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#92400e', fontSize: '16px', flexShrink: 0, padding: 0, lineHeight: 1 }}>×</button>
+            </div>
           )}
           {(canEditB || canEditA) && (
             <button onClick={handleSave} disabled={saving}

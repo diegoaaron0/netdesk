@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { tiendas, proveedores, incidentes, tiendasHistorial } from '@/drizzle/schema'
-import { eq, count, and, isNotNull } from 'drizzle-orm'
+import { eq, count, and, isNotNull, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -188,6 +188,22 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
   }
   if (histRows.length > 0) await db.insert(tiendasHistorial).values(histRows)
+
+  // Si contingenciaActiva cambió a false → limpiar campos de contingencia en incidentes abiertos
+  const contCambio = histRows.find((h: any) => h.campoEditado === 'contingenciaActiva')
+  if (contCambio && updated.contingenciaActiva === false) {
+    await db.execute(sql`
+      UPDATE incidentes
+      SET cont_activado_por    = NULL,
+          cont_hora_activacion = NULL,
+          cont_rendimiento     = NULL,
+          cont_observacion     = NULL,
+          actualizado_en       = NOW()
+      WHERE tienda_id = ${id}
+        AND cont_activado_por IS NOT NULL
+        AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
+    `)
+  }
 
   return NextResponse.json(updated)
 }

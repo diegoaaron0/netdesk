@@ -289,7 +289,7 @@ export default function DashboardPage() {
 // ─── OperativoView ────────────────────────────────────────────────────────────
 
 function OperativoView({ op, tick, router, decPendientes }: { op: any; tick: number; router: any; decPendientes: number | null }) {
-  const { activos, equipoStats, proveedoresPendientes, actividadReciente, kpis } = op
+  const { activos, contingenciasActivas, equipoStats, proveedoresPendientes, actividadReciente, kpis } = op
   const [provFiltro,      setProvFiltro]      = useState('Todos')
   const [cardFiltro,      setCardFiltro]      = useState<string | null>(null)
   const [asignarOpen,     setAsignarOpen]     = useState(false)
@@ -396,6 +396,62 @@ function OperativoView({ op, tick, router, decPendientes }: { op: any; tick: num
           </div>
         ))}
       </div>
+
+      {/* Panel contingencias activas — persistente, span completo */}
+      {(contingenciasActivas ?? []).length > 0 && (
+        <div style={{ background: '#fffbeb', border: '1.5px solid #f59e0b', borderRadius: '12px', padding: '12px 16px', marginBottom: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+            <span style={{ fontSize: '15px' }}>⚠</span>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              {(contingenciasActivas ?? []).length} tienda{(contingenciasActivas ?? []).length > 1 ? 's' : ''} en contingencia activa
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {(contingenciasActivas ?? []).map((c: any) => {
+              const rendLabel: Record<string,{l:string;bg:string;c:string}> = {
+                TOTAL:   { l: 'Cubrió total',       bg: '#dcfce7', c: '#15803d' },
+                PARCIAL: { l: 'Con limitaciones',    bg: '#fef9c3', c: '#a16207' },
+                FALLIDA: { l: 'No funcionó',         bg: '#fee2e2', c: '#b91c1c' },
+              }
+              const rend = c.cont_rendimiento ? rendLabel[c.cont_rendimiento] : null
+              const horaActivacion = c.cont_hora_activacion
+                ? new Date(c.cont_hora_activacion).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Lima' })
+                : null
+              return (
+                <div key={c.tienda_id} style={{ background: 'white', border: '1px solid #f59e0b', borderRadius: '8px', padding: '8px 12px', minWidth: '220px', flex: '1 1 220px', maxWidth: '320px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#78350f' }}>{c.tienda_codigo} — {c.tienda_nombre}</span>
+                    {rend && (
+                      <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 6px', borderRadius: '4px', background: rend.bg, color: rend.c, whiteSpace: 'nowrap', marginLeft: '6px' }}>
+                        {rend.l}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '10px', color: '#92400e', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    {c.tienda_distrito && <span>{c.tienda_distrito}</span>}
+                    {c.proveedor_nombre && <span>· {c.proveedor_nombre}</span>}
+                    {horaActivacion && <span>· Activada {horaActivacion}</span>}
+                  </div>
+                  {c.contingencia_descripcion && (
+                    <div style={{ fontSize: '10px', color: '#78350f', marginTop: '4px', fontStyle: 'italic', lineHeight: 1.4 }}>
+                      {c.contingencia_descripcion}
+                    </div>
+                  )}
+                  {c.incidente_codigo && (
+                    <div style={{ marginTop: '4px' }}>
+                      <span
+                        onClick={() => router.push(`/incidentes/${c.incidente_id}`)}
+                        style={{ fontSize: '10px', color: '#92400e', textDecoration: 'underline', cursor: 'pointer' }}>
+                        {c.incidente_codigo}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Body grid: main + sidebar */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '14px', alignItems: 'start' }}>

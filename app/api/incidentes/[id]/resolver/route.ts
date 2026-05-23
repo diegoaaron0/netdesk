@@ -15,8 +15,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const evaluableProveedor = body.evaluableProveedor ?? true
 
   const [inc] = await db.select({
-    horaRegistro: incidentes.horaRegistro,
-    tiendaId:     incidentes.tiendaId,
+    horaRegistro:    incidentes.horaRegistro,
+    tiendaId:        incidentes.tiendaId,
+    contActivadoPor: incidentes.contActivadoPor,
   }).from(incidentes).where(eq(incidentes.id, id))
   if (!inc) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
@@ -28,9 +29,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .where(eq(incidentes.id, id))
     .returning()
 
-  // Al resolver, limpiar contingenciaActiva de la tienda si no quedan otros
-  // incidentes abiertos con contingencia activa para esa misma tienda.
-  if (inc.tiendaId) {
+  // Si el incidente NO usó contingencia: auto-limpiar el flag de la tienda
+  // si no hay otros incidentes abiertos con contingencia.
+  // Si el incidente SÍ usó contingencia (router físico sigue instalado):
+  // NO limpiar — el supervisor lo desactivará manualmente desde la ficha de la
+  // tienda cuando el proveedor restituya el servicio permanente.
+  if (inc.tiendaId && !inc.contActivadoPor) {
     const rows = await db.execute(sql`
       SELECT COUNT(*)::int AS cnt FROM incidentes
       WHERE tienda_id = ${inc.tiendaId}
@@ -44,5 +48,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
-  return NextResponse.json(updated)
+  return NextResponse.json({ ...updated, contingenciaMantieneActiva: !!inc.contActivadoPor })
 }

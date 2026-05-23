@@ -28,7 +28,7 @@ export async function GET() {
   const hoyLima   = ahoraLima.toISOString().slice(0, 10)
   const hoyIso    = hoyLima + 'T05:00:00.000Z'
 
-  const [activosRows, resueltoRows, agentesRows, incCreadosRows, escRows, respRows, resolRows] = await Promise.all([
+  const [activosRows, resueltoRows, agentesRows, incCreadosRows, escRows, respRows, resolRows, contRows] = await Promise.all([
     db.execute(sql`
       SELECT
         i.id,
@@ -50,6 +50,9 @@ export async function GET() {
             AND e2.hora_envio_correo IS NOT NULL
             AND e2.hora_respuesta    IS NULL
         ) AS pendiente_proveedor,
+        i.cont_activado_por,
+        i.cont_hora_activacion,
+        i.cont_rendimiento,
         mov.ultimo_movimiento
       FROM incidentes i
       JOIN tiendas   t ON i.tienda_id           = t.id
@@ -133,11 +136,36 @@ export async function GET() {
         AND i.hora_fin >= NOW() - INTERVAL '24 hours'
       ORDER BY i.hora_fin DESC LIMIT 15
     `),
+
+    db.execute(sql`
+      SELECT DISTINCT ON (t.id)
+        t.id             AS tienda_id,
+        t.codigo         AS tienda_codigo,
+        t.nombre_cc      AS tienda_nombre,
+        t.distrito       AS tienda_distrito,
+        t.contingencia_descripcion,
+        t.contingencia_activada_por,
+        COALESCE(pi.nombre, pt.nombre) AS proveedor_nombre,
+        i.id             AS incidente_id,
+        i.codigo         AS incidente_codigo,
+        i.cont_hora_activacion,
+        i.cont_rendimiento,
+        i.cont_observacion
+      FROM tiendas t
+      LEFT JOIN incidentes i ON i.tienda_id = t.id
+        AND i.cont_activado_por IS NOT NULL
+        AND i.estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
+      LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
+      LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
+      WHERE t.contingencia_activa = true
+      ORDER BY t.id, i.cont_hora_activacion ASC NULLS LAST
+    `),
   ])
 
-  const activos   = activosRows  as any[]
-  const resueltos = resueltoRows as any[]
-  const agentes   = agentesRows  as any[]
+  const activos               = activosRows as any[]
+  const resueltos             = resueltoRows as any[]
+  const agentes               = agentesRows as any[]
+  const contingenciasActivas  = contRows as any[]
 
   const activosConEstado = activos.map((inc: any) => {
     const d = getEstadoOp(inc.tipo, inc.hora_registro, inc.pendiente_proveedor, inc.estado, nowMs)
@@ -204,6 +232,7 @@ export async function GET() {
 
   return NextResponse.json({
     activos: activosConEstado,
+    contingenciasActivas,
     equipoStats,
     proveedoresPendientes,
     actividadReciente,

@@ -24,6 +24,7 @@ export interface RawGeoRow {
   venta_hora_soles: number | null
   tiene_contingencia: boolean
   contingencia_activa: boolean
+  cont_rendimiento: string | null
   hora_correo_n1: Date | string | null
   hora_primera_resp: Date | string | null
   max_nivel: number | null

@@ -126,6 +126,7 @@ function calcCostoIncidente(
     tipo: inc.tipo,
     ventaHoraResolvida: ventaHora,
     contingencia_activa: inc.contingencia_activa,
+    cont_rendimiento: inc.cont_rendimiento,
     boleta_manual: inc.boleta_manual,
     venta_parcial: inc.venta_parcial,
     cajas_afectadas: inc.cajas_afectadas,
