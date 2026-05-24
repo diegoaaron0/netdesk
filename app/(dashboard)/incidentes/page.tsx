@@ -195,29 +195,33 @@ export default function IncidentesPage() {
         <button
           onClick={() => router.push('/incidentes/nuevo')}
           style={{
-            padding: '9px 20px', background: 'hsl(221,83%,45%)', color: 'white',
+            padding: '10px 22px', background: 'hsl(221,83%,42%)', color: 'white',
             border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
-            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
-            boxShadow: '0 1px 3px rgba(59,130,246,0.3)',
-          }}>
-          + Nuevo incidente
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '7px',
+            boxShadow: '0 2px 8px rgba(37,99,235,0.35), 0 1px 2px rgba(0,0,0,0.12)',
+            letterSpacing: '0.01em',
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'hsl(221,83%,38%)' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'hsl(221,83%,42%)' }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          Nuevo incidente
         </button>
       </div>
 
-      {/* Métricas */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+      {/* Métricas inline */}
+      <div style={{ background: 'var(--card)', borderRadius: '10px', border: '1px solid var(--border)', display: 'flex', overflow: 'hidden' }}>
         {[
-          { label: 'Abiertos', value: abiertos, color: '#185FA5', sub: 'incidentes', icon: <IconAbiertos /> },
-          { label: 'Escalados', value: escalados, color: '#854F0B', sub: 'incidentes', icon: <IconEscalados /> },
-          { label: 'Resueltos', value: resueltos, color: '#27500A', sub: 'incidentes', icon: <IconResueltos /> },
-        ].map(m => (
-          <div key={m.label} style={{ background: 'var(--card)', borderRadius: '10px', padding: '14px 16px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          { label: 'Abiertos',  value: abiertos,  color: '#185FA5', icon: <IconAbiertos /> },
+          { label: 'Escalados', value: escalados, color: '#854F0B', icon: <IconEscalados /> },
+          { label: 'Resueltos', value: resueltos, color: '#27500A', icon: <IconResueltos /> },
+        ].map((m, i) => (
+          <div key={m.label} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 20px', borderLeft: i > 0 ? '1px solid var(--border)' : 'none' }}>
+            <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               {m.icon}
             </div>
             <div>
-              <div style={{ fontSize: '22px', fontWeight: 600, color: m.value > 0 ? m.color : 'var(--foreground)', lineHeight: 1.1 }}>{m.value}</div>
-              <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '1px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{m.label}</div>
+              <div style={{ fontSize: '26px', fontWeight: 700, color: m.value > 0 ? m.color : 'var(--muted-foreground)', lineHeight: 1 }}>{m.value}</div>
+              <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '3px', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>{m.label}</div>
             </div>
           </div>
         ))}
@@ -333,9 +337,9 @@ export default function IncidentesPage() {
       <div style={{ background: 'var(--card)', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ background: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
+            <tr style={{ background: 'var(--muted)', borderBottom: '2px solid hsl(221,83%,45%)' }}>
               {['ID / Hora', 'Tienda', 'Proveedor', 'Usuario', 'Tipo', 'Impacto', 'Estado', 'Cluster', 'Duración', ''].map(h => (
-                <th key={h} style={{ padding: '9px 12px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
+                <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: '10px', fontWeight: 700, color: 'var(--foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
           </thead>
