@@ -316,7 +316,7 @@ export default function DashboardPage() {
 
       {tab === 'operativo' && (
         op
-          ? <OperativoView op={op} tick={tick} router={router} decPendientes={decPendientes} />
+          ? <OperativoView op={op} tick={tick} router={router} decPendientes={decPendientes} onRefresh={fetchOp} />
           : <div style={{ padding: '60px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>Cargando...</div>
       )}
       {tab === 'analitico' && <DashboardAnalitico />}
@@ -326,7 +326,7 @@ export default function DashboardPage() {
 
 // ─── OperativoView ────────────────────────────────────────────────────────────
 
-function OperativoView({ op, tick, router, decPendientes }: { op: any; tick: number; router: any; decPendientes: number | null }) {
+function OperativoView({ op, tick, router, decPendientes, onRefresh }: { op: any; tick: number; router: any; decPendientes: number | null; onRefresh: () => void }) {
   const { activos, resoluciones, contingenciasActivas, equipoStats, proveedoresPendientes, actividadReciente, kpis } = op
   const [provFiltro,      setProvFiltro]      = useState('Todos')
   const [cardFiltro,      setCardFiltro]      = useState<string | null>(null)
@@ -334,6 +334,22 @@ function OperativoView({ op, tick, router, decPendientes }: { op: any; tick: num
   const [tabActividad,    setTabActividad]    = useState<'todos'|'escalados'|'resueltos'|'respuestas'>('todos')
   const [turnoInicio,     setTurnoInicio]     = useState('08:00')
   const [filtroHeredados, setFiltroHeredados] = useState(false)
+  const [confirmarCont,   setConfirmarCont]   = useState<string | null>(null)
+  const [desactivandoCont, setDesactivandoCont] = useState<string | null>(null)
+
+  async function desactivarContingencia(incidenteId: string, tiendaId: string) {
+    setDesactivandoCont(tiendaId)
+    try {
+      const res = await fetch(`/api/incidentes/${incidenteId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contActivadoPor: null }),
+      })
+      if (res.ok) { setConfirmarCont(null); onRefresh() }
+    } finally {
+      setDesactivandoCont(null)
+    }
+  }
 
   const nowMs = Date.now()
 
@@ -451,16 +467,18 @@ function OperativoView({ op, tick, router, decPendientes }: { op: any; tick: num
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             {(contingenciasActivas ?? []).map((c: any) => {
               const rendLabel: Record<string,{l:string;bg:string;c:string}> = {
-                TOTAL:   { l: 'Cubrió total',       bg: '#dcfce7', c: '#15803d' },
-                PARCIAL: { l: 'Con limitaciones',    bg: '#fef9c3', c: '#a16207' },
-                FALLIDA: { l: 'No funcionó',         bg: '#fee2e2', c: '#b91c1c' },
+                TOTAL:   { l: 'Cubrió total',    bg: '#dcfce7', c: '#15803d' },
+                PARCIAL: { l: 'Con limitaciones', bg: '#fef9c3', c: '#a16207' },
+                FALLIDA: { l: 'No funcionó',      bg: '#fee2e2', c: '#b91c1c' },
               }
               const rend = c.cont_rendimiento ? rendLabel[c.cont_rendimiento] : null
               const horaActivacion = c.cont_hora_activacion
                 ? new Date(c.cont_hora_activacion).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Lima' })
                 : null
+              const confirmando  = confirmarCont === c.tienda_id
+              const desactivando = desactivandoCont === c.tienda_id
               return (
-                <div key={c.tienda_id} style={{ background: 'white', border: '1px solid #f59e0b', borderRadius: '8px', padding: '8px 12px', minWidth: '220px', flex: '1 1 220px', maxWidth: '320px' }}>
+                <div key={c.tienda_id} style={{ background: 'white', border: '1px solid #f59e0b', borderRadius: '8px', padding: '8px 12px', minWidth: '220px', flex: '1 1 220px', maxWidth: '340px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
                     <span style={{ fontSize: '12px', fontWeight: 700, color: '#78350f' }}>{c.tienda_codigo} — {c.tienda_nombre}</span>
                     {rend && (
@@ -479,15 +497,38 @@ function OperativoView({ op, tick, router, decPendientes }: { op: any; tick: num
                       {c.contingencia_descripcion}
                     </div>
                   )}
-                  {c.incidente_codigo && (
-                    <div style={{ marginTop: '4px' }}>
-                      <span
-                        onClick={() => router.push(`/incidentes/${c.incidente_id}`)}
-                        style={{ fontSize: '10px', color: '#92400e', textDecoration: 'underline', cursor: 'pointer' }}>
-                        {c.incidente_codigo}
-                      </span>
-                    </div>
-                  )}
+                  {/* Footer: incidente link + acción desactivar */}
+                  <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px solid #fde68a', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                    {c.incidente_codigo
+                      ? <span onClick={() => router.push(`/incidentes/${c.incidente_id}`)} style={{ fontSize: '10px', color: '#92400e', textDecoration: 'underline', cursor: 'pointer', fontFamily: 'monospace' }}>
+                          {c.incidente_codigo}
+                        </span>
+                      : <span />
+                    }
+                    {confirmando ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px' }}>
+                        <span style={{ color: '#78350f', fontWeight: 500 }}>¿Confirmar?</span>
+                        <button
+                          disabled={desactivando}
+                          onClick={() => c.incidente_id ? desactivarContingencia(c.incidente_id, c.tienda_id) : undefined}
+                          style={{ padding: '2px 8px', fontSize: '10px', fontWeight: 700, background: '#b45309', color: 'white', border: 'none', borderRadius: '4px', cursor: desactivando ? 'default' : 'pointer', opacity: desactivando ? 0.6 : 1 }}>
+                          {desactivando ? '…' : 'Sí'}
+                        </button>
+                        <button
+                          disabled={desactivando}
+                          onClick={() => setConfirmarCont(null)}
+                          style={{ padding: '2px 8px', fontSize: '10px', background: '#fef3c7', color: '#78350f', border: '1px solid #fcd34d', borderRadius: '4px', cursor: 'pointer' }}>
+                          No
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmarCont(c.tienda_id)}
+                        style={{ padding: '2px 10px', fontSize: '10px', fontWeight: 600, background: '#fef3c7', color: '#78350f', border: '1px solid #f59e0b', borderRadius: '4px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        Desactivar
+                      </button>
+                    )}
+                  </div>
                 </div>
               )
             })}
@@ -885,7 +926,7 @@ function OperativoView({ op, tick, router, decPendientes }: { op: any; tick: num
       </div>
 
       {asignarOpen && (
-        <AsignarModal activos={activos ?? []} equipo={equipoStats ?? []} onClose={() => setAsignarOpen(false)} onRefresh={fetchOp} />
+        <AsignarModal activos={activos ?? []} equipo={equipoStats ?? []} onClose={() => setAsignarOpen(false)} onRefresh={onRefresh} />
       )}
     </>
   )
