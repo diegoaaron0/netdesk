@@ -216,11 +216,16 @@ function AsignarModal({ activos, equipo, onClose, onRefresh }: { activos: any[];
 
 // ─── DashboardPage ────────────────────────────────────────────────────────────
 
+const ALCANCE_SHORT: Record<string, string> = {
+  SOLO_TIENDA: 'Solo tienda', MALL: 'Mall', CUADRA_CALLE: 'Cuadra', ZONA_AMPLIA: 'Zona amplia',
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const [op, setOp]                       = useState<any>(null)
   const [tick, setTick]                   = useState(0)
   const [decPendientes, setDecPendientes] = useState<number | null>(null)
+  const [cortesHoy, setCortesHoy]         = useState<any[]>([])
   const [tab, setTab]   = useState<'operativo' | 'analitico'>(() => {
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search)
@@ -240,6 +245,12 @@ export default function DashboardPage() {
       const data = await res.json()
       setDecPendientes(Array.isArray(data) ? data.length : null)
     }
+  }, [])
+
+  useEffect(() => {
+    const today = new Date(Date.now() - 5 * 3600000).toISOString().slice(0, 10)
+    fetch(`/api/cortes-electricos?fechaDesde=${today}&fechaHasta=${today}`)
+      .then(r => r.json()).then(d => { if (Array.isArray(d)) setCortesHoy(d) }).catch(() => {})
   }, [])
 
   useEffect(() => { fetchOp(); fetchDecPendientes() }, [fetchOp, fetchDecPendientes])
@@ -282,6 +293,53 @@ export default function DashboardPage() {
           : <div style={{ padding: '60px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>Cargando...</div>
       )}
       {tab === 'analitico' && <DashboardAnalitico />}
+
+      {/* Widget cortes eléctricos */}
+      <div style={{ marginTop: '20px', background: 'var(--card)', borderRadius: '10px', border: '1px solid var(--border)', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: cortesHoy.length > 0 ? '1px solid var(--border)' : 'none' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--foreground)' }}>Cortes eléctricos hoy</span>
+            <span style={{ fontSize: '11px', padding: '1px 8px', borderRadius: '999px', fontWeight: 700, background: cortesHoy.length > 0 ? '#FEF9C3' : 'var(--muted)', color: cortesHoy.length > 0 ? '#92400E' : 'var(--muted-foreground)' }}>
+              {cortesHoy.length}
+            </span>
+            {cortesHoy.filter(r => !r.horaFin).length > 0 && (
+              <span style={{ fontSize: '10px', padding: '1px 7px', borderRadius: '999px', background: '#FEE2E2', color: '#B91C1C', fontWeight: 600 }}>
+                {cortesHoy.filter(r => !r.horaFin).length} en curso
+              </span>
+            )}
+          </div>
+          <a href="/cortes-electricos" style={{ fontSize: '11px', color: 'hsl(221,83%,45%)', textDecoration: 'none', fontWeight: 500 }}>Ver todos →</a>
+        </div>
+        {cortesHoy.length === 0
+          ? <div style={{ padding: '16px 20px', fontSize: '12px', color: 'var(--muted-foreground)' }}>Sin cortes registrados hoy</div>
+          : <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <tbody>
+                {cortesHoy.slice(0, 5).map((r, i) => (
+                  <tr key={r.id} style={{ borderTop: i > 0 ? '1px solid var(--border)' : 'none' }}>
+                    <td style={{ padding: '8px 16px', fontSize: '11px', fontFamily: 'monospace', fontWeight: 700, color: 'var(--foreground)', whiteSpace: 'nowrap' }}>{r.tiendaCodigo}</td>
+                    <td style={{ padding: '8px 8px', fontSize: '11px', color: 'var(--muted-foreground)' }}>{r.tiendaNombre}</td>
+                    <td style={{ padding: '8px 8px', fontSize: '11px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>
+                      {new Date(r.horaInicio).toLocaleTimeString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit' })}
+                    </td>
+                    <td style={{ padding: '8px 8px' }}>
+                      <span style={{ fontSize: '10px', padding: '1px 7px', borderRadius: '999px', fontWeight: 600, background: '#FFF7ED', color: '#C2410C' }}>{ALCANCE_SHORT[r.alcance] ?? r.alcance}</span>
+                    </td>
+                    <td style={{ padding: '8px 8px' }}>
+                      {r.horaFin
+                        ? <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{r.duracionMinutos != null ? (r.duracionMinutos >= 60 ? `${Math.floor(r.duracionMinutos/60)}h ${r.duracionMinutos%60}m` : `${r.duracionMinutos}m`) : '—'}</span>
+                        : <span style={{ fontSize: '10px', padding: '1px 7px', borderRadius: '999px', background: '#FEF9C3', color: '#92400E', fontWeight: 600 }}>En curso</span>
+                      }
+                    </td>
+                    <td style={{ padding: '8px 16px', fontSize: '10px', color: r.afectoRed ? '#B91C1C' : 'var(--muted-foreground)' }}>
+                      {r.afectoRed ? '⚠ Red afectada' : ''}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+        }
+      </div>
     </div>
   )
 }

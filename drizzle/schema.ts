@@ -17,6 +17,10 @@ export const clusterEnum = pgEnum('cluster_tienda', ['A', 'B', 'C', 'D'])
 export const estadoCronometroEnum = pgEnum('estado_cronometro', [
   'CORRIENDO', 'RESPONDIDO', 'VENCIDO',
 ])
+export const alcanceCorteEnum = pgEnum('alcance_corte', [
+  'SOLO_TIENDA', 'MALL', 'CUADRA_CALLE', 'ZONA_AMPLIA',
+])
+
 export const tipoDecisionEnum = pgEnum('tipo_decision', [
   'CAMBIO_PROVEEDOR', 'RENEGOCIACION_CONTRATO', 'ACTIVACION_CONTINGENCIA',
   'REVISION_SLA', 'BAJA_TIENDA', 'CAMBIO_PLAN', 'AUDITORIA_PROVEEDOR', 'OTRO',
@@ -286,6 +290,19 @@ export const decisiones = pgTable('decisiones', {
   actualizadoEn:    timestamp('actualizado_en').defaultNow(),
 })
 
+export const cortesElectricos = pgTable('cortes_electricos', {
+  id:               uuid('id').primaryKey().defaultRandom(),
+  tiendaId:         uuid('tienda_id').references(() => tiendas.id).notNull(),
+  registradoPorId:  uuid('registrado_por_id').references(() => usuarios.id).notNull(),
+  horaInicio:       timestamp('hora_inicio').notNull(),
+  horaFin:          timestamp('hora_fin'),
+  alcance:          alcanceCorteEnum('alcance').default('SOLO_TIENDA').notNull(),
+  tuvoUps:          boolean('tuvo_ups').default(false).notNull(),
+  afectoRed:        boolean('afecto_red').default(false).notNull(),
+  observaciones:    text('observaciones'),
+  creadoEn:         timestamp('creado_en').defaultNow().notNull(),
+})
+
 // ── Relations ─────────────────────────────────────────────────────────────────
 
 export const usuariosRelations = relations(usuarios, ({ many }) => ({
@@ -306,11 +323,17 @@ export const nivelesRelations = relations(nivelesEscalamiento, ({ one }) => ({
 }))
 
 export const tiendasRelations = relations(tiendas, ({ one, many }) => ({
-  proveedor:  one(proveedores, { fields: [tiendas.proveedorId], references: [proveedores.id] }),
-  incidentes: many(incidentes),
-  historial:  many(tiendasHistorial),
-  contratos:  many(contratosProveedor),
-  decisiones: many(decisiones),
+  proveedor:        one(proveedores, { fields: [tiendas.proveedorId], references: [proveedores.id] }),
+  incidentes:       many(incidentes),
+  historial:        many(tiendasHistorial),
+  contratos:        many(contratosProveedor),
+  decisiones:       many(decisiones),
+  cortesElectricos: many(cortesElectricos),
+}))
+
+export const cortesElectricosRelations = relations(cortesElectricos, ({ one }) => ({
+  tienda:        one(tiendas,   { fields: [cortesElectricos.tiendaId],        references: [tiendas.id] }),
+  registradoPor: one(usuarios,  { fields: [cortesElectricos.registradoPorId], references: [usuarios.id] }),
 }))
 
 export const contratosProveedorRelations = relations(contratosProveedor, ({ one }) => ({
