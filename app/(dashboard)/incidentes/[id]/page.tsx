@@ -234,6 +234,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   const isMyInc    = userEmail === inc.agenteEmail
   const canEditB   = canManage || (isMyInc && !isClosed)
   const canEditA   = canManage && supervisorEdit
+  const isSupervisor = (session?.user as any)?.rol === 'SUPERVISOR'
 
   function setEdit(k: string, v: any) { setEditForm((f: any) => ({ ...f, [k]: v })) }
 
@@ -537,8 +538,8 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                         <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px', color: (!inc?.tiendaTieneContingencia && editForm.contActivadoPor) ? '#92400e' : 'var(--muted-foreground)' }}>
                           {(!inc?.tiendaTieneContingencia && editForm.contActivadoPor) ? 'Descripción de contingencia temporal *' : 'Observación'}
                         </label>
-                        <textarea disabled={!canEditB}
-                          style={{ ...taStyle(!canEditB), border: (!inc?.tiendaTieneContingencia && editForm.contActivadoPor && !editForm.contObservacion) ? '1.5px solid #f59e0b' : undefined }}
+                        <textarea disabled={!isSupervisor}
+                          style={{ ...taStyle(!isSupervisor), border: (!inc?.tiendaTieneContingencia && editForm.contActivadoPor && !editForm.contObservacion) ? '1.5px solid #f59e0b' : undefined }}
                           value={editForm.contObservacion ?? ''}
                           onChange={e => setEdit('contObservacion', e.target.value)}
                           placeholder={(!inc?.tiendaTieneContingencia && editForm.contActivadoPor) ? 'Ej: Router TP-Link portátil con chip Entel, instalado por técnico el 23/05...' : 'Describe el comportamiento de la contingencia...'} />
