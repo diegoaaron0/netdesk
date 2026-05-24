@@ -2,6 +2,7 @@ export const PERMISOS_POR_ROL: Record<string, string[]> = {
   AGENTE: [
     'incidentes.ver', 'incidentes.crear', 'incidentes.reabrir',
     'escalamientos.crear', 'escalamientos.envio', 'escalamientos.respuesta',
+    'dashboard.ver',
     'mantenimiento.ver',
     'proveedores.ver',
   ],
@@ -9,7 +10,7 @@ export const PERMISOS_POR_ROL: Record<string, string[]> = {
     'incidentes.ver', 'incidentes.crear', 'incidentes.reabrir',
     'escalamientos.crear', 'escalamientos.envio', 'escalamientos.respuesta',
     'mantenimiento.ver', 'mantenimiento.editar', 'mantenimiento.agregar',
-    'dashboard.ver',
+    'dashboard.ver', 'reportes.ver', 'reportes.exportar',
     'proveedores.ver', 'proveedores.editar',
     'decisiones.ver', 'decisiones.crear',
   ],
@@ -28,6 +29,7 @@ export const PERMISOS_POR_ROL: Record<string, string[]> = {
     'dashboard.ver', 'reportes.ver', 'reportes.exportar',
     'mantenimiento.ver',
     'proveedores.ver',
+    'usuarios.ver',
     'decisiones.ver', 'decisiones.crear',
   ],
 }

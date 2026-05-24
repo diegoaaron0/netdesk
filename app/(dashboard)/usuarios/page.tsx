@@ -3,11 +3,11 @@ import { useEffect, useState, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { PERMISOS_POR_ROL, can } from '@/lib/permisos'
 
-const ROL_COLORS: Record<string, { bg: string; color: string }> = {
-  AGENTE:          { bg: '#f3f4f6', color: '#374151' },
-  SUPERVISOR:      { bg: '#dbeafe', color: '#1e40af' },
-  GERENCIA:        { bg: '#dcfce7', color: '#15803d' },
-  INFRAESTRUCTURA: { bg: '#ede9fe', color: '#7c3aed' },
+const ROL_META: Record<string, { label: string; bg: string; color: string; desc: string }> = {
+  AGENTE:          { label: 'Agente TTI',      bg: '#f3f4f6', color: '#374151', desc: 'Operación diaria de incidentes' },
+  SUPERVISOR:      { label: 'Supervisor',      bg: '#dbeafe', color: '#1e40af', desc: 'Gestión completa del sistema' },
+  GERENCIA:        { label: 'Gerencia',         bg: '#dcfce7', color: '#15803d', desc: 'Visibilidad total, solo lectura' },
+  INFRAESTRUCTURA: { label: 'Infraestructura', bg: '#ede9fe', color: '#7c3aed', desc: 'Operación + configuración + reportes' },
 }
 
 const PERMISOS_GRUPOS = [
@@ -24,17 +24,39 @@ const PERMISOS_GRUPOS = [
   {
     key: 'ESCALAMIENTOS',
     items: [
-      { key: 'escalamientos.crear',    label: 'Escalar incidente' },
-      { key: 'escalamientos.envio',    label: 'Registrar envío de correo' },
+      { key: 'escalamientos.crear',     label: 'Escalar incidente' },
+      { key: 'escalamientos.envio',     label: 'Registrar envío de correo' },
       { key: 'escalamientos.respuesta', label: 'Registrar respuesta proveedor' },
     ],
   },
   {
-    key: 'MANTENIMIENTO',
+    key: 'TIENDAS',
     items: [
-      { key: 'mantenimiento.ver',     label: 'Ver módulo mantenimiento' },
+      { key: 'mantenimiento.ver',     label: 'Ver módulo tiendas' },
       { key: 'mantenimiento.editar',  label: 'Editar datos de tiendas' },
       { key: 'mantenimiento.agregar', label: 'Agregar nueva tienda' },
+    ],
+  },
+  {
+    key: 'PROVEEDORES',
+    items: [
+      { key: 'proveedores.ver',    label: 'Ver proveedores' },
+      { key: 'proveedores.editar', label: 'Editar proveedores' },
+    ],
+  },
+  {
+    key: 'ANÁLISIS',
+    items: [
+      { key: 'dashboard.ver',     label: 'Ver dashboard operativo' },
+      { key: 'reportes.ver',      label: 'Ver reportes' },
+      { key: 'reportes.exportar', label: 'Exportar CSV de reportes' },
+    ],
+  },
+  {
+    key: 'DECISIONES',
+    items: [
+      { key: 'decisiones.ver',   label: 'Ver decisiones' },
+      { key: 'decisiones.crear', label: 'Proponer decisiones' },
     ],
   },
   {
@@ -43,14 +65,6 @@ const PERMISOS_GRUPOS = [
       { key: 'usuarios.ver',    label: 'Ver módulo usuarios' },
       { key: 'usuarios.editar', label: 'Editar datos de usuarios' },
       { key: 'usuarios.crear',  label: 'Crear nuevos usuarios' },
-    ],
-  },
-  {
-    key: 'ANÁLISIS',
-    items: [
-      { key: 'dashboard.ver',     label: 'Ver dashboard operativo' },
-      { key: 'reportes.ver',      label: 'Ver reportes' },
-      { key: 'reportes.exportar', label: 'Exportar CSV' },
     ],
   },
 ]
@@ -83,6 +97,7 @@ export default function UsuariosPage() {
   const canCreate = can(session, 'usuarios.crear')
 
   const [usuarios, setUsuarios] = useState<any[]>([])
+  const [filtroRol, setFiltroRol] = useState<string>('TODOS')
   const [modal, setModal] = useState<{ open: boolean; data: any; isNew: boolean }>({ open: false, data: BLANK, isNew: false })
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
@@ -194,13 +209,15 @@ export default function UsuariosPage() {
 
   const inp = inputStyle()
 
+  const usuariosFiltrados = filtroRol === 'TODOS' ? usuarios : usuarios.filter(u => u.rol === filtroRol)
+
   return (
     <div>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
         <div>
           <h1 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Gestión de usuarios</h1>
-          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{usuarios.length} usuarios</div>
+          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{usuarios.length} usuarios registrados</div>
         </div>
         {canCreate && (
           <button onClick={openNew}
@@ -210,53 +227,92 @@ export default function UsuariosPage() {
         )}
       </div>
 
+      {/* Stats por rol */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '8px', marginBottom: '14px' }}>
+        {(['TODOS', ...Object.keys(ROL_META)] as const).map(rol => {
+          const count = rol === 'TODOS' ? usuarios.filter(u => u.activo).length : usuarios.filter(u => u.rol === rol && u.activo).length
+          const meta = rol !== 'TODOS' ? ROL_META[rol] : null
+          const isActive = filtroRol === rol
+          return (
+            <div key={rol} onClick={() => setFiltroRol(rol)}
+              style={{ background: 'var(--card)', border: `1px solid ${isActive ? '#185FA5' : 'var(--border)'}`, borderRadius: '10px', padding: '10px 14px', cursor: 'pointer', boxShadow: isActive ? '0 0 0 2px rgba(24,95,165,0.12)' : 'none' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--foreground)' }}>{meta?.label ?? 'Todos los roles'}</div>
+                  {meta && <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px', lineHeight: 1.3 }}>{meta.desc}</div>}
+                </div>
+                <div style={{ fontSize: '20px', fontWeight: 700, color: meta?.color ?? '#185FA5', lineHeight: 1, marginLeft: '8px' }}>{count}</div>
+              </div>
+              {meta && (
+                <div style={{ marginTop: '6px' }}>
+                  <span style={{ fontSize: '9px', fontWeight: 600, padding: '1px 6px', borderRadius: '3px', background: meta.bg, color: meta.color }}>{meta.label}</span>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
       {/* Tabla */}
       <div style={{ background: 'var(--card)', borderRadius: '10px', border: '0.5px solid var(--border)', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: 'var(--muted)' }}>
-              {['Usuario', 'Correo', 'Celular', 'Rol', 'Estado', ''].map(h => (
+              {['Usuario', 'Correo', 'Celular', 'Cluster', 'Rol', 'Estado', ''].map(h => (
                 <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {usuarios.map((u, idx) => {
-              const rc = ROL_COLORS[u.rol] ?? ROL_COLORS.AGENTE
+            {usuariosFiltrados.map((u, idx) => {
+              const rc = ROL_META[u.rol] ?? ROL_META.AGENTE
               const nombreCompleto = [u.nombre, u.apellido].filter(Boolean).join(' ')
               return (
                 <tr key={u.id}
-                  style={{ borderTop: idx > 0 ? '0.5px solid var(--border)' : 'none', opacity: u.activo ? 1 : 0.5, cursor: 'pointer' }}
+                  style={{ borderTop: idx > 0 ? '0.5px solid var(--border)' : 'none', opacity: u.activo ? 1 : 0.45, cursor: 'pointer' }}
                   onClick={() => openHistorial(u)}
                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                   <td style={{ padding: '10px 14px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'rgba(59,130,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: '#3b82f6', flexShrink: 0 }}>
+                      <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: rc.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: rc.color, flexShrink: 0 }}>
                         {initials(u.nombre, u.apellido)}
                       </div>
-                      <div style={{ fontSize: '12px', fontWeight: 500 }}>{nombreCompleto}</div>
+                      <div>
+                        <div style={{ fontSize: '12px', fontWeight: 500 }}>{nombreCompleto}</div>
+                        {!u.activo && <div style={{ fontSize: '9px', color: '#dc2626', fontWeight: 600 }}>INACTIVO</div>}
+                      </div>
                     </div>
                   </td>
                   <td style={{ padding: '10px 14px', fontSize: '11px', color: 'var(--muted-foreground)' }}>{u.email}</td>
-                  <td style={{ padding: '10px 14px', fontSize: '11px', color: 'var(--muted-foreground)' }}>{u.celular || '—'}</td>
+                  <td style={{ padding: '10px 14px', fontSize: '11px', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{u.celular || '—'}</td>
+                  <td style={{ padding: '10px 14px', fontSize: '11px', color: 'var(--muted-foreground)' }}>{u.cluster || <span style={{ color: 'var(--border)' }}>—</span>}</td>
                   <td style={{ padding: '10px 14px' }}>
-                    <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: rc.bg, color: rc.color }}>{u.rol}</span>
+                    <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: rc.bg, color: rc.color }}>{rc.label}</span>
+                    {u.permisos && Array.isArray(u.permisos) && u.permisos.length > 0 && (
+                      <div style={{ fontSize: '9px', color: '#854F0B', marginTop: '2px' }}>Permisos personalizados</div>
+                    )}
                   </td>
                   <td style={{ padding: '10px 14px' }} onClick={e => e.stopPropagation()}>
-                    <button onClick={() => toggleActivo(u)}
-                      style={{ position: 'relative', width: '36px', height: '20px', borderRadius: '10px', border: 'none', cursor: 'pointer', background: u.activo ? '#22c55e' : '#d1d5db', transition: 'background 0.2s' }}>
-                      <span style={{ position: 'absolute', top: '2px', left: u.activo ? '18px' : '2px', width: '16px', height: '16px', borderRadius: '50%', background: 'white', transition: 'left 0.2s' }} />
-                    </button>
+                    {canEdit ? (
+                      <button onClick={() => toggleActivo(u)}
+                        style={{ position: 'relative', width: '36px', height: '20px', borderRadius: '10px', border: 'none', cursor: 'pointer', background: u.activo ? '#22c55e' : '#d1d5db', transition: 'background 0.2s' }}>
+                        <span style={{ position: 'absolute', top: '2px', left: u.activo ? '18px' : '2px', width: '16px', height: '16px', borderRadius: '50%', background: 'white', transition: 'left 0.2s' }} />
+                      </button>
+                    ) : (
+                      <span style={{ fontSize: '10px', fontWeight: 600, color: u.activo ? '#15803d' : '#dc2626' }}>{u.activo ? 'Activo' : 'Inactivo'}</span>
+                    )}
                   </td>
                   <td style={{ padding: '10px 14px' }} onClick={e => e.stopPropagation()}>
                     <div style={{ display: 'flex', gap: '4px' }}>
-                      <button onClick={() => openEdit(u)}
-                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted-foreground)', fontSize: '13px', padding: '3px 7px', borderRadius: '5px' }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--muted)' }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}>
-                        ✏
-                      </button>
+                      {canEdit && (
+                        <button onClick={() => openEdit(u)}
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted-foreground)', fontSize: '13px', padding: '3px 7px', borderRadius: '5px' }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--muted)' }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}>
+                          ✏
+                        </button>
+                      )}
                       {canEdit && (
                         <button onClick={() => handleDelete(u)}
                           title="Eliminar usuario"
@@ -273,6 +329,11 @@ export default function UsuariosPage() {
             })}
           </tbody>
         </table>
+        {usuariosFiltrados.length === 0 && (
+          <div style={{ padding: '32px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
+            Sin usuarios para este rol
+          </div>
+        )}
       </div>
 
       {/* Panel historial */}
@@ -389,8 +450,11 @@ export default function UsuariosPage() {
               <div style={{ marginBottom: '10px' }}>
                 <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '3px' }}>Rol</label>
                 <select value={modal.data.rol} onChange={e => setField('rol', e.target.value)} style={inp}>
-                  {['AGENTE','SUPERVISOR','GERENCIA','INFRAESTRUCTURA'].map(r => <option key={r} value={r}>{r}</option>)}
+                  {Object.entries(ROL_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                 </select>
+                {modal.data.rol && ROL_META[modal.data.rol] && (
+                  <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '4px' }}>{ROL_META[modal.data.rol].desc}</div>
+                )}
               </div>
 
               {/* Permisos — solo quien puede editar usuarios */}
