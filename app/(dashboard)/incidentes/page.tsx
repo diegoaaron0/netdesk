@@ -19,6 +19,7 @@ function limaToday(): string {
 const TIPO_LABELS: Record<string, string> = {
   CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia',
   LENTITUD: 'Lentitud', POS: 'POS', OTROS: 'Otros',
+  CORTE_ELECTRICO: 'Corte eléctrico',
 }
 
 const OPEN_ESTADOS = ['ABIERTO', 'EN_SEGUIMIENTO', 'ESCALADO_N1', 'ESCALADO_N2', 'ESCALADO_N3']
@@ -261,6 +262,7 @@ export default function IncidentesPage() {
             { v: 'LENTITUD', l: 'Lentitud' },
             { v: 'POS', l: 'POS' },
             { v: 'OTROS', l: 'Otros' },
+            { v: 'CORTE_ELECTRICO', l: '⚡ Corte eléctrico' },
           ].map(({ v, l }) => {
             const sel = filtroTipo === v
             return (
@@ -352,9 +354,10 @@ export default function IncidentesPage() {
               </tr>
             )}
             {paginated.map((inc, idx) => {
-              const isOpen    = OPEN_ESTADOS.includes(inc.estado) && !inc.isOverdue
-              const isOverdue = !!inc.isOverdue
-              const isClosed  = CLOSED_ESTADOS.includes(inc.estado) && !inc.isOverdue
+              const isOpen     = OPEN_ESTADOS.includes(inc.estado) && !inc.isOverdue
+              const isOverdue  = !!inc.isOverdue
+              const isClosed   = CLOSED_ESTADOS.includes(inc.estado) && !inc.isOverdue
+              const isElectric = inc.tipo === 'CORTE_ELECTRICO'
 
               let rowBg       = 'transparent'
               let rowBgHover  = 'var(--muted)'
@@ -366,6 +369,9 @@ export default function IncidentesPage() {
                 rowBgHover = 'rgba(239,68,68,0.12)'
                 textColor  = '#dc2626'
                 mutedColor = '#f87171'
+              } else if (isOpen && isElectric) {
+                rowBg      = 'rgba(245,158,11,0.07)'
+                rowBgHover = 'rgba(245,158,11,0.13)'
               } else if (isOpen) {
                 rowBg      = '#0d1117'
                 rowBgHover = '#111827'
@@ -376,12 +382,20 @@ export default function IncidentesPage() {
                 rowBgHover = 'rgba(0,0,0,0.05)'
               }
 
+              const leftBorder = isOverdue
+                ? '3px solid #ef4444'
+                : (isOpen && isElectric)
+                  ? '3px solid #f59e0b'
+                  : isOpen
+                    ? '3px solid #1d4ed8'
+                    : '3px solid transparent'
+
               return (
                 <tr key={inc.id}
                   onClick={() => router.push(`/incidentes/${inc.id}`)}
                   style={{
                     borderTop:  idx > 0 ? '1px solid var(--border)' : 'none',
-                    borderLeft: isOverdue ? '3px solid #ef4444' : (isOpen ? '3px solid #1d4ed8' : '3px solid transparent'),
+                    borderLeft: leftBorder,
                     background: rowBg,
                     cursor:     'pointer',
                   }}
@@ -418,8 +432,11 @@ export default function IncidentesPage() {
                   </td>
 
                   {/* Proveedor */}
-                  <td style={{ padding: '9px 12px', fontSize: '11px', color: textColor, whiteSpace: 'nowrap' }}>
-                    {inc.proveedorNombre ?? <span style={{ color: mutedColor }}>—</span>}
+                  <td style={{ padding: '9px 12px', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                    {isElectric
+                      ? <span style={{ color: '#B45309', fontWeight: 600 }}>⚡ Energía Eléctrica</span>
+                      : <span style={{ color: textColor }}>{inc.proveedorNombre ?? <span style={{ color: mutedColor }}>—</span>}</span>
+                    }
                   </td>
 
                   {/* Usuario */}

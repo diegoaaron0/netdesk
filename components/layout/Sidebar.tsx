@@ -58,11 +58,6 @@ const IcoDecisiones = () => (
     <polyline points="9 15 11 17 15 13"/>
   </svg>
 )
-const IcoCortes = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-  </svg>
-)
 const IcoSalir = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -75,8 +70,7 @@ const NAV = [
   {
     section: 'Operación',
     items: [
-      { href: '/incidentes',       label: 'Incidentes',       icon: <IcoIncidentes />, color: '#378ADD', permiso: 'incidentes.ver' },
-      { href: '/cortes-electricos', label: 'Cortes eléctricos', icon: <IcoCortes />,     color: '#F59E0B', permiso: 'incidentes.ver' },
+      { href: '/incidentes', label: 'Incidentes', icon: <IcoIncidentes />, color: '#378ADD', permiso: 'incidentes.ver' },
     ],
   },
   {

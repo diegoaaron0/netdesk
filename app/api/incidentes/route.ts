@@ -46,9 +46,11 @@ const COLS = {
   proveedorNombre: sql<string>`COALESCE(pi.nombre, pt.nombre)`,
   agenteName:     usuarios.nombre,
   agenteId:       usuarios.id,
-  resueltoPor:      incidentes.resueltoPor,
-  contActivadoPor:  incidentes.contActivadoPor,
+  resueltoPor:       incidentes.resueltoPor,
+  contActivadoPor:   incidentes.contActivadoPor,
   tipoPersonalizado: incidentes.tipoPersonalizado,
+  alcanceCorte:      incidentes.alcanceCorte,
+  tuvoUps:           incidentes.tuvoUps,
 }
 
 export async function GET(req: NextRequest) {
@@ -140,7 +142,10 @@ export async function POST(req: NextRequest) {
     tipo:                  body.tipo,
     tipoPersonalizado:     body.tipoPersonalizado  ?? null,
     otrosClasificacion:    body.tipo === 'OTROS' ? (body.otrosClasificacion ?? null) : null,
-    proveedorId:           tiendaRow?.proveedorId ?? null,
+    proveedorId:           body.tipo === 'CORTE_ELECTRICO' ? null : (tiendaRow?.proveedorId ?? null),
+    evaluableProveedor:    body.tipo === 'CORTE_ELECTRICO' ? false : true,
+    alcanceCorte:          body.tipo === 'CORTE_ELECTRICO' ? (body.alcanceCorte ?? 'SOLO_TIENDA') : null,
+    tuvoUps:               body.tipo === 'CORTE_ELECTRICO' ? (body.tuvoUps ?? false) : null,
     estado:                body.estado ?? 'ABIERTO',
     ticketProveedor:       body.ticketProveedor ?? null,
     descartesRealizados:   body.descartesRealizados ?? null,

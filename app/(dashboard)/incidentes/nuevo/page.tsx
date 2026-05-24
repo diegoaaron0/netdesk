@@ -9,6 +9,14 @@ import { Badge, estadoToVariant, impactoToVariant } from '@/components/ui/Badge'
 const TIPO_LABELS: Record<string, string> = {
   CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia',
   LENTITUD: 'Lentitud', POS: 'POS', OTROS: 'Otros',
+  CORTE_ELECTRICO: 'Corte eléctrico',
+}
+
+const ALCANCE_LABELS: Record<string, string> = {
+  SOLO_TIENDA:  'Solo la tienda',
+  MALL:         'El mall',
+  CUADRA_CALLE: 'Cuadra / calle',
+  ZONA_AMPLIA:  'Zona amplia',
 }
 
 function mttrDisplay(minutos: number | null): string {
@@ -85,9 +93,11 @@ export default function NuevoIncidentePage() {
     usuariosAfectados:   '',
     descripcionInicial:  '',
     estado:              'ABIERTO',
+    alcanceCorte:        'SOLO_TIENDA',
+    tuvoUps:             false,
   })
 
-  function set(k: string, v: string) { setForm(f => ({ ...f, [k]: v })) }
+  function set(k: string, v: any) { setForm(f => ({ ...f, [k]: v })) }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -99,8 +109,11 @@ export default function NuevoIncidentePage() {
       body: JSON.stringify({
         ...form,
         tiendaId: tienda.id,
-        tipoPersonalizado:  form.tipo === 'OTROS' ? form.tipoPersonalizado  : null,
-        otrosClasificacion: form.tipo === 'OTROS' ? form.otrosClasificacion : null,
+        tipoPersonalizado:   form.tipo === 'OTROS' ? form.tipoPersonalizado  : null,
+        otrosClasificacion:  form.tipo === 'OTROS' ? form.otrosClasificacion : null,
+        alcanceCorte:        form.tipo === 'CORTE_ELECTRICO' ? form.alcanceCorte : null,
+        tuvoUps:             form.tipo === 'CORTE_ELECTRICO' ? form.tuvoUps      : null,
+        evaluableProveedor:  form.tipo === 'CORTE_ELECTRICO' ? false             : undefined,
       }),
     })
     if (res.ok) {
@@ -212,8 +225,34 @@ export default function NuevoIncidentePage() {
                     <option value="INTERMITENCIA">Intermitencia</option>
                     <option value="LENTITUD">Lentitud</option>
                     <option value="POS">POS</option>
+                    <option value="CORTE_ELECTRICO">⚡ Corte eléctrico</option>
                     <option value="OTROS">Otro...</option>
                   </select>
+                  {form.tipo === 'CORTE_ELECTRICO' && (
+                    <div style={{ marginTop: '10px', padding: '12px', background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div>
+                        <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#92400E', marginBottom: '6px' }}>Alcance del corte</div>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          {(['SOLO_TIENDA', 'MALL', 'CUADRA_CALLE', 'ZONA_AMPLIA'] as const).map(v => {
+                            const sel = form.alcanceCorte === v
+                            return (
+                              <button key={v} type="button" onClick={() => set('alcanceCorte', v)}
+                                style={{ padding: '4px 12px', fontSize: '11px', borderRadius: '999px', cursor: 'pointer', border: `1px solid ${sel ? '#B45309' : 'var(--border)'}`, background: sel ? '#FEF3C7' : 'var(--card)', color: sel ? '#92400E' : 'var(--foreground)', fontWeight: sel ? 700 : 400, outline: 'none' }}>
+                                {ALCANCE_LABELS[v]}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer', color: 'var(--foreground)' }}>
+                        <input type="checkbox" checked={form.tuvoUps} onChange={e => set('tuvoUps', e.target.checked)} style={{ width: '14px', height: '14px' }} />
+                        La tienda tenía UPS activo
+                      </label>
+                      <div style={{ fontSize: '10px', color: '#92400E' }}>
+                        Este incidente se marcará automáticamente como no evaluable para el proveedor de internet.
+                      </div>
+                    </div>
+                  )}
                   {form.tipo === 'OTROS' && (
                     <>
                       <input

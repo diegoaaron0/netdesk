@@ -1,27 +1,14 @@
--- Tabla: cortes_electricos
--- Registra cortes de energía eléctrica por tienda sin afectar métricas de SLA de proveedores de red
+-- Migración 0007: soporte para cortes eléctricos dentro del módulo de incidentes
+-- Los cortes eléctricos se registran como incidentes de tipo CORTE_ELECTRICO,
+-- con borde naranja en la lista y "Energía Eléctrica" como proveedor.
 
+-- 1. Nuevo enum para el alcance del corte (reutilizable si se necesita filtrar)
 CREATE TYPE alcance_corte AS ENUM ('SOLO_TIENDA', 'MALL', 'CUADRA_CALLE', 'ZONA_AMPLIA');
 
-CREATE TABLE cortes_electricos (
-  id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tienda_id         uuid NOT NULL REFERENCES tiendas(id),
-  registrado_por_id uuid NOT NULL REFERENCES usuarios(id),
-  hora_inicio       timestamp NOT NULL,
-  hora_fin          timestamp,
-  duracion_minutos  integer GENERATED ALWAYS AS (
-    CASE WHEN hora_fin IS NOT NULL
-      THEN EXTRACT(EPOCH FROM (hora_fin - hora_inicio))::integer / 60
-      ELSE NULL
-    END
-  ) STORED,
-  alcance           alcance_corte NOT NULL DEFAULT 'SOLO_TIENDA',
-  tuvo_ups          boolean NOT NULL DEFAULT false,
-  afecto_red        boolean NOT NULL DEFAULT false,
-  observaciones     text,
-  creado_en         timestamp NOT NULL DEFAULT now()
-);
+-- 2. Agregar CORTE_ELECTRICO al enum de tipo de incidente
+ALTER TYPE tipo_incidente ADD VALUE 'CORTE_ELECTRICO';
 
-CREATE INDEX idx_cortes_tienda    ON cortes_electricos(tienda_id);
-CREATE INDEX idx_cortes_inicio    ON cortes_electricos(hora_inicio DESC);
-CREATE INDEX idx_cortes_creado_en ON cortes_electricos(creado_en DESC);
+-- 3. Nuevas columnas en incidentes (solo relevantes para CORTE_ELECTRICO)
+ALTER TABLE incidentes
+  ADD COLUMN alcance_corte alcance_corte,
+  ADD COLUMN tuvo_ups      boolean;

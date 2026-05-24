@@ -7,7 +7,7 @@ import { relations } from 'drizzle-orm'
 export const rolEnum = pgEnum('rol', ['AGENTE', 'SUPERVISOR', 'GERENCIA', 'INFRAESTRUCTURA'])
 export const nivelImpactoEnum = pgEnum('nivel_impacto', ['ALTO', 'MEDIO', 'BAJO'])
 export const tipoIncidenteEnum = pgEnum('tipo_incidente', [
-  'CAIDA_TOTAL', 'INTERMITENCIA', 'LENTITUD', 'POS', 'OTROS',
+  'CAIDA_TOTAL', 'INTERMITENCIA', 'LENTITUD', 'POS', 'OTROS', 'CORTE_ELECTRICO',
 ])
 export const estadoIncidenteEnum = pgEnum('estado_incidente', [
   'ABIERTO', 'EN_SEGUIMIENTO', 'ESCALADO_N1', 'ESCALADO_N2',
@@ -212,6 +212,9 @@ export const incidentes = pgTable('incidentes', {
   ventaParcial:          boolean('venta_parcial'),
   cajasAfectadas:        integer('cajas_afectadas'),
   cajasTotales:          integer('cajas_totales'),
+  // Corte eléctrico
+  alcanceCorte:          alcanceCorteEnum('alcance_corte'),
+  tuvoUps:               boolean('tuvo_ups'),
 })
 
 export const escalamientos = pgTable('escalamientos', {
@@ -290,19 +293,6 @@ export const decisiones = pgTable('decisiones', {
   actualizadoEn:    timestamp('actualizado_en').defaultNow(),
 })
 
-export const cortesElectricos = pgTable('cortes_electricos', {
-  id:               uuid('id').primaryKey().defaultRandom(),
-  tiendaId:         uuid('tienda_id').references(() => tiendas.id).notNull(),
-  registradoPorId:  uuid('registrado_por_id').references(() => usuarios.id).notNull(),
-  horaInicio:       timestamp('hora_inicio').notNull(),
-  horaFin:          timestamp('hora_fin'),
-  alcance:          alcanceCorteEnum('alcance').default('SOLO_TIENDA').notNull(),
-  tuvoUps:          boolean('tuvo_ups').default(false).notNull(),
-  afectoRed:        boolean('afecto_red').default(false).notNull(),
-  observaciones:    text('observaciones'),
-  creadoEn:         timestamp('creado_en').defaultNow().notNull(),
-})
-
 // ── Relations ─────────────────────────────────────────────────────────────────
 
 export const usuariosRelations = relations(usuarios, ({ many }) => ({
@@ -323,17 +313,11 @@ export const nivelesRelations = relations(nivelesEscalamiento, ({ one }) => ({
 }))
 
 export const tiendasRelations = relations(tiendas, ({ one, many }) => ({
-  proveedor:        one(proveedores, { fields: [tiendas.proveedorId], references: [proveedores.id] }),
-  incidentes:       many(incidentes),
-  historial:        many(tiendasHistorial),
-  contratos:        many(contratosProveedor),
-  decisiones:       many(decisiones),
-  cortesElectricos: many(cortesElectricos),
-}))
-
-export const cortesElectricosRelations = relations(cortesElectricos, ({ one }) => ({
-  tienda:        one(tiendas,   { fields: [cortesElectricos.tiendaId],        references: [tiendas.id] }),
-  registradoPor: one(usuarios,  { fields: [cortesElectricos.registradoPorId], references: [usuarios.id] }),
+  proveedor:  one(proveedores, { fields: [tiendas.proveedorId], references: [proveedores.id] }),
+  incidentes: many(incidentes),
+  historial:  many(tiendasHistorial),
+  contratos:  many(contratosProveedor),
+  decisiones: many(decisiones),
 }))
 
 export const contratosProveedorRelations = relations(contratosProveedor, ({ one }) => ({
