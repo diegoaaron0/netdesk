@@ -28,7 +28,7 @@ export async function GET() {
   const hoyLima   = ahoraLima.toISOString().slice(0, 10)
   const hoyIso    = hoyLima + 'T05:00:00.000Z'
 
-  const [activosRows, resueltoRows, agentesRows, incCreadosRows, escRows, respRows, resolRows, contRows] = await Promise.all([
+  const [activosRows, resueltoRows, agentesRows, incCreadosRows, escRows, respRows, resolRows, contRows, creadosHoyRows] = await Promise.all([
     db.execute(sql`
       SELECT
         i.id,
@@ -74,13 +74,27 @@ export async function GET() {
 
     db.execute(sql`
       SELECT
-        i.registrado_por_id AS agente_id,
+        i.codigo,
+        i.tipo,
+        i.nivel_impacto,
+        i.hora_registro,
+        i.hora_fin,
         i.mttr_minutos,
         i.resuelto_por,
-        i.resuelto_por = 'PROVEEDOR' AS por_proveedor
+        i.resuelto_por = 'PROVEEDOR' AS por_proveedor,
+        i.registrado_por_id AS agente_id,
+        u.nombre AS agente_nombre,
+        t.codigo AS tienda_codigo,
+        t.nombre_cc AS tienda_nombre,
+        COALESCE(pi.nombre, pt.nombre) AS proveedor_nombre
       FROM incidentes i
+      JOIN usuarios u ON i.registrado_por_id = u.id
+      JOIN tiendas  t ON i.tienda_id         = t.id
+      LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
+      LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
       WHERE i.estado  = 'RESUELTO'
         AND i.hora_fin >= ${hoyIso}::timestamptz
+      ORDER BY i.hora_fin DESC
     `),
 
     db.execute(sql`
@@ -160,6 +174,12 @@ export async function GET() {
       WHERE t.contingencia_activa = true
       ORDER BY t.id, i.cont_hora_activacion ASC NULLS LAST
     `),
+
+    db.execute(sql`
+      SELECT COUNT(*)::int AS total
+      FROM incidentes
+      WHERE hora_registro >= ${hoyIso}::timestamptz
+    `),
   ])
 
   const activos               = activosRows as any[]
@@ -230,8 +250,11 @@ export async function GET() {
     .sort((a, b) => new Date(b.hora).getTime() - new Date(a.hora).getTime())
     .slice(0, 25)
 
+  const creadosHoy = Number((creadosHoyRows as any[])[0]?.total ?? 0)
+
   return NextResponse.json({
     activos: activosConEstado,
+    resoluciones: resueltos,
     contingenciasActivas,
     equipoStats,
     proveedoresPendientes,
@@ -243,6 +266,7 @@ export async function GET() {
       escalados:            activosConEstado.filter((i: any) => i.estado.startsWith('ESCALADO')).length,
       pendientesProveedor:  activosConEstado.filter((i: any) => i.pendiente_proveedor).length,
       resueltoHoy, resueltoHoyAgente, resueltoHoyProveedor,
+      creadosHoy,
       agentesEnGestion: equipoStats.filter((a: any) => a.casosActivos > 0).length,
       totalAgentes:     agentes.length,
     },

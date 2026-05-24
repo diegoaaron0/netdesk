@@ -1,14 +1,14 @@
 'use client'
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { PieChart, Pie, Cell, Tooltip as ReTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, LabelList } from 'recharts'
+import { PieChart, Pie, Cell, Tooltip as ReTooltip } from 'recharts'
 import DashboardAnalitico from './components/DashboardAnalitico'
 import { SLA_RESOLUCION_POR_TIPO } from '@/lib/sla-core'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const TIPO_LABELS: Record<string, string> = {
   CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia',
-  LENTITUD: 'Lentitud', POS: 'POS', OTROS: 'Otros',
+  LENTITUD: 'Lentitud', POS: 'POS', OTROS: 'Otros', CORTE_ELECTRICO: '⚡ Corte eléctrico',
 }
 const PROVS = ['Todos', 'BITEL', 'CLARO', 'ENTEL', 'CONVERGIA', 'MOVISTAR', 'WIN', 'OTROS']
 
@@ -48,6 +48,44 @@ function fmtHora(d: string | Date | null): string {
   if (!d) return '—'
   const raw = typeof d === 'string' && !d.includes('Z') && !d.includes('+') ? d + 'Z' : d
   return new Date(raw).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Lima' })
+}
+function fmtHoraEvento(d: string | Date | null): { text: string; isOld: boolean } {
+  if (!d) return { text: '—', isOld: false }
+  const raw = typeof d === 'string' && !d.includes('Z') && !d.includes('+') ? d + 'Z' : d
+  const date = new Date(raw)
+  const hoyLima    = new Date(Date.now() - 5 * 3600000).toISOString().slice(0, 10)
+  const eventoLima = new Date(date.getTime() - 5 * 3600000).toISOString().slice(0, 10)
+  const isOld = eventoLima !== hoyLima
+  const tStr = date.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Lima' })
+  if (isOld) {
+    const dStr = date.toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', timeZone: 'America/Lima' })
+    return { text: `${dStr} ${tStr}`, isOld: true }
+  }
+  return { text: tStr, isOld: false }
+}
+function downloadCSV(activos: any[], resoluciones: any[]) {
+  const BOM = '﻿'
+  const headers = ['Código','Tienda','Distrito','Proveedor','Tipo','Impacto','Estado','Agente','Hora Registro','Hora Fin','MTTR (min)','Resuelto Por']
+  const toRow = (r: any, estado: string) => [
+    r.codigo ?? '', r.tienda_nombre ?? r.tienda_codigo ?? '', r.tienda_distrito ?? '',
+    r.proveedor_nombre ?? '', TIPO_LABELS[r.tipo] ?? r.tipo ?? '', r.nivel_impacto ?? '',
+    estado, r.agente_nombre ?? '', fmtHora(r.hora_registro), fmtHora(r.hora_fin ?? null),
+    r.mttr_minutos ?? '', r.resuelto_por ?? '',
+  ]
+  const rows = [
+    ...resoluciones.map((r: any) => toRow(r, 'RESUELTO')),
+    ...activos.map((i: any) => toRow(i, i.estado)),
+  ]
+  const csv = BOM + [headers, ...rows]
+    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href     = url
+  a.download = `incidentes_${new Date(Date.now() - 5 * 3600000).toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 function fmtEspera(min: number): string {
   if (min < 60) return `${min}m esperando`
@@ -117,7 +155,7 @@ function DonutTooltip({ active, payload, total }: any) {
   const badge = BADGE_OP[entry.name] ?? { label: entry.name, bg: 'white', color: '#333' }
   const pct = total > 0 ? Math.round(entry.value / total * 100) : 0
   return (
-    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '8px', padding: '8px 12px', fontSize: '11px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+    <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '8px 12px', fontSize: '11px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
       <div style={{ fontWeight: 600 }}>Estado: {badge.label}</div>
       <div>Cantidad: <strong>{entry.value}</strong></div>
       <div>Porcentaje: <strong>{pct}%</strong></div>
@@ -170,7 +208,7 @@ function AsignarModal({ activos, equipo, onClose, onRefresh }: { activos: any[];
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)' }} onClick={onClose}>
-      <div style={{ background: 'white', borderRadius: '14px', padding: '24px', width: '380px', boxShadow: '0 8px 40px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
+      <div style={{ background: 'var(--card)', borderRadius: '14px', padding: '24px', width: '380px', boxShadow: '0 8px 40px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
         <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '16px' }}>Asignar / Reasignar incidente</div>
         {ok ? (
           <div style={{ textAlign: 'center', padding: '16px 0', color: '#27500A', fontWeight: 600 }}>✓ Reasignación confirmada</div>
@@ -179,7 +217,7 @@ function AsignarModal({ activos, equipo, onClose, onRefresh }: { activos: any[];
             <div style={{ marginBottom: '12px' }}>
               <label style={{ fontSize: '11px', color: 'var(--muted-foreground)', display: 'block', marginBottom: '4px' }}>Incidente</label>
               <select value={incId} onChange={e => setIncId(e.target.value)}
-                style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'white' }}>
+                style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--background)' }}>
                 <option value=''>— Seleccionar —</option>
                 {activos.map((i: any) => (
                   <option key={i.id} value={i.id}>{i.codigo} — {i.tienda_nombre ?? i.tienda_codigo}</option>
@@ -189,7 +227,7 @@ function AsignarModal({ activos, equipo, onClose, onRefresh }: { activos: any[];
             <div style={{ marginBottom: '16px' }}>
               <label style={{ fontSize: '11px', color: 'var(--muted-foreground)', display: 'block', marginBottom: '4px' }}>Agente destino</label>
               <select value={agenteId} onChange={e => setAgenteId(e.target.value)}
-                style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'white' }}>
+                style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--background)' }}>
                 <option value=''>— Seleccionar —</option>
                 {equipo.map((ag: any) => (
                   <option key={ag.id} value={ag.id}>{ag.nombre} ({ag.casosActivos} activos)</option>
@@ -289,7 +327,7 @@ export default function DashboardPage() {
 // ─── OperativoView ────────────────────────────────────────────────────────────
 
 function OperativoView({ op, tick, router, decPendientes }: { op: any; tick: number; router: any; decPendientes: number | null }) {
-  const { activos, contingenciasActivas, equipoStats, proveedoresPendientes, actividadReciente, kpis } = op
+  const { activos, resoluciones, contingenciasActivas, equipoStats, proveedoresPendientes, actividadReciente, kpis } = op
   const [provFiltro,      setProvFiltro]      = useState('Todos')
   const [cardFiltro,      setCardFiltro]      = useState<string | null>(null)
   const [asignarOpen,     setAsignarOpen]     = useState(false)
@@ -298,6 +336,12 @@ function OperativoView({ op, tick, router, decPendientes }: { op: any; tick: num
   const [filtroHeredados, setFiltroHeredados] = useState(false)
 
   const nowMs = Date.now()
+
+  // MTTR promedio hoy (de resoluciones)
+  const mttrProm = useMemo(() => {
+    const vals = (resoluciones ?? []).filter((r: any) => r.mttr_minutos != null).map((r: any) => r.mttr_minutos as number)
+    return vals.length ? Math.round(vals.reduce((s: number, v: number) => s + v, 0) / vals.length) : null
+  }, [resoluciones])
 
   // Computed donut data
   const donutData = useMemo(() => {
@@ -351,17 +395,6 @@ function OperativoView({ op, tick, router, decPendientes }: { op: any; tick: num
     return (activos ?? []).filter((inc: any) => tsMs(inc.hora_registro) < turnoMs)
   }, [activos, turnoInicio])
 
-  // Agent bar chart data
-  const agenteBar = useMemo(() => {
-    const m: Record<string, { nombre: string; total: number }> = {}
-    for (const inc of (activos ?? [])) {
-      if (!inc.agente_id) continue
-      if (!m[inc.agente_id]) m[inc.agente_id] = { nombre: inc.agente_nombre ?? '—', total: 0 }
-      m[inc.agente_id].total++
-    }
-    return Object.values(m).sort((a, b) => b.total - a.total)
-  }, [activos, tick])
-
   function handleCardClick(key: string) {
     setCardFiltro(prev => prev === key ? null : key)
   }
@@ -379,12 +412,21 @@ function OperativoView({ op, tick, router, decPendientes }: { op: any; tick: num
 
   return (
     <>
+      {/* Toolbar: CSV download */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
+        <button
+          onClick={() => downloadCSV(activos ?? [], resoluciones ?? [])}
+          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', fontSize: '11px', fontWeight: 600, background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer', color: 'var(--foreground)' }}>
+          ⬇ Descargar CSV del día
+        </button>
+      </div>
+
       {/* KPI Cards row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '10px', marginBottom: '16px' }}>
         {kpiCards.map((card) => (
           <div key={card.label}
             onClick={() => { if (card.link) router.push(card.link); else if (card.filterKey) handleCardClick(card.filterKey) }}
-            style={{ background: 'white', border: `0.5px solid ${cardFiltro === card.filterKey && card.filterKey ? '#185FA5' : '#e5e7eb'}`, borderRadius: '12px', padding: '14px 16px', cursor: card.filterKey || card.link ? 'pointer' : 'default', boxShadow: cardFiltro === card.filterKey && card.filterKey ? '0 0 0 2px rgba(24,95,165,0.15)' : 'none' }}>
+            style={{ background: 'var(--card)', border: `0.5px solid ${cardFiltro === card.filterKey && card.filterKey ? '#185FA5' : 'var(--border)'}`, borderRadius: '12px', padding: '14px 16px', cursor: card.filterKey || card.link ? 'pointer' : 'default', boxShadow: cardFiltro === card.filterKey && card.filterKey ? '0 0 0 2px rgba(24,95,165,0.15)' : 'none' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
               <div style={{ width: 36, height: 36, borderRadius: '8px', background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>
                 {card.icon}
@@ -463,7 +505,7 @@ function OperativoView({ op, tick, router, decPendientes }: { op: any; tick: num
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
 
             {/* Donut */}
-            <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '14px' }}>
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
               <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '10px' }}>Distribución por estado</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <div style={{ position: 'relative', width: 120, height: 120, flexShrink: 0 }}>
@@ -495,29 +537,31 @@ function OperativoView({ op, tick, router, decPendientes }: { op: any; tick: num
               </div>
             </div>
 
-            {/* Bar chart: incidentes por agente */}
-            <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '14px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '10px' }}>Incidentes abiertos por agente</div>
-              {agenteBar.length > 0 ? (
-                <ResponsiveContainer width="100%" height={Math.max(80, agenteBar.length * 28)}>
-                  <BarChart data={agenteBar} layout="vertical" margin={{ top: 0, right: 30, left: 0, bottom: 0 }}>
-                    <XAxis type="number" tick={{ fontSize: 9 }} allowDecimals={false} />
-                    <YAxis type="category" dataKey="nombre" tick={{ fontSize: 10 }} width={90} />
-                    <ReTooltip contentStyle={{ fontSize: 10, borderRadius: 6 }} formatter={(v: any) => [v, 'Incidentes']} />
-                    <Bar dataKey="total" radius={[0, 4, 4, 0]}>
-                      {agenteBar.map((_, i) => <Cell key={i} fill={AVATAR_COLORS[i % AVATAR_COLORS.length]} />)}
-                      <LabelList dataKey="total" position="right" style={{ fontSize: 10, fontWeight: 600 }} />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', paddingTop: '8px' }}>Sin incidentes activos</div>
-              )}
+            {/* Resumen del turno */}
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>Resumen del turno</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                {([
+                  { label: 'Creados hoy',   value: kpis.creadosHoy ?? 0,  color: '#185FA5', bg: '#E6F1FB' },
+                  { label: 'Activos ahora', value: kpis.abiertos,          color: '#C84B00', bg: '#FFF3E0' },
+                  { label: 'Resueltos hoy', value: kpis.resueltoHoy,       color: '#27500A', bg: '#EAF3DE' },
+                  { label: 'MTTR promedio', value: mttrProm != null ? fmtMin(mttrProm) : '—', color: '#5B21B6', bg: '#EEE8FF' },
+                ] as const).map(({ label, value, color, bg }) => (
+                  <div key={label} style={{ background: bg, borderRadius: '8px', padding: '10px 12px' }}>
+                    <div style={{ fontSize: '22px', fontWeight: 700, color, lineHeight: 1 }}>{value}</div>
+                    <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '4px' }}>{label}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '0.5px solid var(--border)', display: 'flex', gap: '12px', fontSize: '11px', color: 'var(--muted-foreground)' }}>
+                <span>Agente: <strong style={{ color: 'var(--foreground)' }}>{kpis.resueltoHoyAgente}</strong></span>
+                <span>Proveedor: <strong style={{ color: 'var(--foreground)' }}>{kpis.resueltoHoyProveedor}</strong></span>
+              </div>
             </div>
           </div>
 
           {/* Estado del equipo */}
-          <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '14px' }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
               <div style={{ fontSize: '13px', fontWeight: 600 }}>Estado del equipo</div>
               <button onClick={() => setAsignarOpen(true)}
@@ -589,7 +633,7 @@ function OperativoView({ op, tick, router, decPendientes }: { op: any; tick: num
                     </div>
 
                     <button onClick={() => setAsignarOpen(true)}
-                      style={{ marginTop: '8px', width: '100%', padding: '5px', fontSize: '11px', background: 'white', border: '0.5px solid var(--border)', borderRadius: '6px', cursor: 'pointer', color: '#185FA5', fontWeight: 500 }}>
+                      style={{ marginTop: '8px', width: '100%', padding: '5px', fontSize: '11px', background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '6px', cursor: 'pointer', color: '#185FA5', fontWeight: 500 }}>
                       Asignar
                     </button>
                   </div>
@@ -599,7 +643,7 @@ function OperativoView({ op, tick, router, decPendientes }: { op: any; tick: num
           </div>
 
           {/* Cola operativa */}
-          <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '14px' }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
 
             {/* Banner heredados */}
             {incidentesHeredados.length > 0 && (
@@ -634,8 +678,8 @@ function OperativoView({ op, tick, router, decPendientes }: { op: any; tick: num
 
             <div style={{ overflowX: 'auto', maxHeight: '420px', overflowY: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
-                <thead style={{ position: 'sticky', top: 0, background: 'white', zIndex: 1 }}>
-                  <tr style={{ borderBottom: '0.5px solid #e5e7eb' }}>
+                <thead style={{ position: 'sticky', top: 0, background: 'var(--card)', zIndex: 1 }}>
+                  <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
                     {['ID', 'Tienda', 'Proveedor', 'Tipo', 'Impacto', 'Estado operativo', 'Asignado a', 'Tiempo abierto', 'Acción'].map(h => (
                       <th key={h} style={{ padding: '7px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
@@ -650,7 +694,12 @@ function OperativoView({ op, tick, router, decPendientes }: { op: any; tick: num
                     const nowM = Date.now()
                     const { minutosTranscurridos } = getEstadoOpClient(inc, nowM)
                     return (
-                      <tr key={inc.id} style={{ borderTop: idx > 0 ? '0.5px solid #f3f4f6' : 'none', backgroundColor: inc.estadoOp === 'SLA_VENCIDO' ? '#FEF2F2' : inc.estadoOp === 'EN_RIESGO_SLA' ? '#FFFBEB' : 'transparent', transition: 'background-color 0.2s' }}>
+                      <tr key={inc.id} style={{
+                        borderTop: idx > 0 ? '0.5px solid var(--border)' : 'none',
+                        borderLeft: inc.estadoOp === 'SLA_VENCIDO' ? '3px solid #DC2626' : inc.estadoOp === 'EN_RIESGO_SLA' ? '3px solid #F59E0B' : inc.estadoOp === 'ESCALADO' ? '3px solid #B45309' : '3px solid transparent',
+                        backgroundColor: inc.estadoOp === 'SLA_VENCIDO' ? '#FEF2F2' : inc.estadoOp === 'EN_RIESGO_SLA' ? '#FFFBEB' : 'transparent',
+                        transition: 'background-color 0.2s',
+                      }}>
                         <td style={{ padding: '8px', fontFamily: 'monospace', fontSize: '10px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>{inc.codigo}</td>
                         <td style={{ padding: '8px', whiteSpace: 'nowrap' }}>
                           <div style={{ fontWeight: 500 }}>{inc.tienda_codigo}</div>
@@ -699,14 +748,14 @@ function OperativoView({ op, tick, router, decPendientes }: { op: any; tick: num
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
           {/* Pendientes proveedor */}
-          <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '14px' }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
             <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '10px' }}>Pendientes proveedor</div>
             {(proveedoresPendientes ?? []).length === 0 ? (
               <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', padding: '8px 0' }}>Sin pendientes de proveedor</div>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
                 <thead>
-                  <tr style={{ borderBottom: '0.5px solid #e5e7eb' }}>
+                  <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
                     {['Proveedor', 'Pend.', 'Más antiguo', 'Acción'].map(h => (
                       <th key={h} style={{ padding: '5px 6px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
                     ))}
@@ -714,7 +763,7 @@ function OperativoView({ op, tick, router, decPendientes }: { op: any; tick: num
                 </thead>
                 <tbody>
                   {(proveedoresPendientes ?? []).map((p: any, i: number) => (
-                    <tr key={p.nombre} style={{ borderTop: i > 0 ? '0.5px solid #f3f4f6' : 'none' }}>
+                    <tr key={p.nombre} style={{ borderTop: i > 0 ? '0.5px solid var(--border)' : 'none' }}>
                       <td style={{ padding: '7px 6px' }}>
                         <span style={{ padding: '2px 8px', borderRadius: '999px', background: '#E6F1FB', color: '#185FA5', fontSize: '10px', fontWeight: 600 }}>{p.nombre}</span>
                       </td>
@@ -736,7 +785,7 @@ function OperativoView({ op, tick, router, decPendientes }: { op: any; tick: num
           </div>
 
           {/* Alertas rápidas */}
-          <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '14px' }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
             <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '10px' }}>Alertas rápidas</div>
             {alertas.length === 0 ? (
               <div style={{ fontSize: '11px', color: '#27500A', padding: '8px 0' }}>✓ Sin alertas activas</div>
@@ -770,7 +819,7 @@ function OperativoView({ op, tick, router, decPendientes }: { op: any; tick: num
           </div>
 
           {/* Actividad reciente */}
-          <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '14px' }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
               <div style={{ fontSize: '13px', fontWeight: 600 }}>Actividad reciente</div>
               <button onClick={() => router.push('/incidentes')}
@@ -818,11 +867,12 @@ function OperativoView({ op, tick, router, decPendientes }: { op: any; tick: num
                   else if (ev.tipo_evento === 'RESPUESTA_PROVEEDOR') texto = `Respuesta de ${ev.proveedor_nombre ?? 'proveedor'} en incidente ${ev.codigo}`
                   else if (ev.tipo_evento === 'RESUELTO')       texto = `Incidente ${ev.codigo} resuelto por ${ev.actor}`
                   else texto = ev.codigo ?? ''
+                  const { text: horaText, isOld } = fmtHoraEvento(ev.hora)
                   return (
-                    <div key={i} style={{ display: 'flex', gap: '8px', padding: '6px 0', borderTop: i > 0 ? '0.5px solid #f3f4f6' : 'none' }}>
-                      <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap', minWidth: '38px', paddingTop: '1px' }}>{fmtHora(ev.hora)}</div>
+                    <div key={i} style={{ display: 'flex', gap: '8px', padding: '6px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none' }}>
+                      <div style={{ fontSize: '10px', color: isOld ? '#B45309' : 'var(--muted-foreground)', whiteSpace: 'nowrap', minWidth: isOld ? '68px' : '38px', paddingTop: '1px', fontWeight: isOld ? 600 : 400 }}>{horaText}</div>
                       <span style={{ color: c.color, fontSize: '12px', paddingTop: '1px', flexShrink: 0 }}>{c.icon}</span>
-                      <div style={{ fontSize: '11px', flex: 1, lineHeight: 1.4 }}>{texto}</div>
+                      <div style={{ fontSize: '11px', flex: 1, lineHeight: 1.4, color: isOld ? 'var(--muted-foreground)' : 'var(--foreground)' }}>{texto}</div>
                     </div>
                   )
                 })
