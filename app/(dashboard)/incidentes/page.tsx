@@ -71,6 +71,7 @@ export default function IncidentesPage() {
   const [agente, setAgente]                   = useState('')
   const [filtroProveedor, setFiltroProveedor] = useState('')
   const [filtroResolucion, setFiltroResolucion] = useState<'todos'|'agente'|'proveedor'>('todos')
+  const [filtroTipo, setFiltroTipo]             = useState('')
   const [misRegistros, setMisRegistros]         = useState(false)
   const [q, setQ]                               = useState('')
   const [debouncedQ, setDebouncedQ]           = useState('')
@@ -143,7 +144,7 @@ export default function IncidentesPage() {
     const t = limaToday()
     setFechaDesde(t); setFechaHasta(t)
     setEstado(''); setAgente(''); setFiltroProveedor('')
-    setFiltroResolucion('todos')
+    setFiltroResolucion('todos'); setFiltroTipo('')
     setMisRegistros(false); setQ(''); setPage(1)
   }
 
@@ -158,6 +159,7 @@ export default function IncidentesPage() {
   const filtered = sortIncidentes(data).filter(inc => {
     if (misRegistros && myId && inc.agenteId !== myId) return false
     if (filtroProveedor && inc.proveedorNombre !== filtroProveedor) return false
+    if (filtroTipo && inc.tipo !== filtroTipo) return false
     if (filtroResolucion !== 'todos') {
       const expected = filtroResolucion === 'agente' ? 'AGENTE' : 'PROVEEDOR'
       if (inc.resueltoPor !== expected) return false
@@ -245,6 +247,32 @@ export default function IncidentesPage() {
           </button>
         </div>
 
+        {/* Fila tipo: pills de tipo de incidente */}
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginRight: '2px' }}>Tipo:</span>
+          {[
+            { v: '', l: 'Todos' },
+            { v: 'CAIDA_TOTAL', l: 'Caída total' },
+            { v: 'INTERMITENCIA', l: 'Intermitencia' },
+            { v: 'LENTITUD', l: 'Lentitud' },
+            { v: 'POS', l: 'POS' },
+            { v: 'OTROS', l: 'Otros' },
+          ].map(({ v, l }) => {
+            const sel = filtroTipo === v
+            return (
+              <button key={v} type="button"
+                onClick={() => { setFiltroTipo(v); setPage(1) }}
+                style={{
+                  padding: '3px 10px', fontSize: '11px', borderRadius: '999px', cursor: 'pointer',
+                  border: sel ? '1px solid hsl(221,83%,45%)' : '1px solid var(--border)',
+                  background: sel ? 'hsl(221,83%,45%)' : 'var(--card)',
+                  color: sel ? 'white' : 'var(--foreground)',
+                  fontWeight: sel ? 600 : 400, outline: 'none',
+                }}>{l}</button>
+            )
+          })}
+        </div>
+
         {/* Fila 2: fechas + selects + limpiar */}
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -306,7 +334,7 @@ export default function IncidentesPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
-              {['ID / Hora', 'Tienda', 'Usuario', 'Tipo', 'Impacto', 'Estado', 'Cluster', 'Tiempo', ''].map(h => (
+              {['ID / Hora', 'Tienda', 'Proveedor', 'Usuario', 'Tipo', 'Impacto', 'Estado', 'Cluster', 'Duración', ''].map(h => (
                 <th key={h} style={{ padding: '9px 12px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
@@ -314,8 +342,8 @@ export default function IncidentesPage() {
           <tbody>
             {paginated.length === 0 && (
               <tr>
-                <td colSpan={9} style={{ padding: '32px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
-                  No hay incidentes para mostrar
+                <td colSpan={10} style={{ padding: '32px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
+                  {debouncedQ ? `Sin resultados para "${debouncedQ}"` : 'No hay incidentes para mostrar'}
                 </td>
               </tr>
             )}
@@ -381,8 +409,13 @@ export default function IncidentesPage() {
                       {inc.tiendaNombre}
                     </div>
                     <div style={{ fontSize: '10px', marginTop: '1px', color: mutedColor }}>
-                      {inc.proveedorNombre} · {inc.tiendaDistrito}
+                      {inc.tiendaDistrito}
                     </div>
+                  </td>
+
+                  {/* Proveedor */}
+                  <td style={{ padding: '9px 12px', fontSize: '11px', color: textColor, whiteSpace: 'nowrap' }}>
+                    {inc.proveedorNombre ?? <span style={{ color: mutedColor }}>—</span>}
                   </td>
 
                   {/* Usuario */}
@@ -409,6 +442,11 @@ export default function IncidentesPage() {
                         {inc.resueltoPor === 'AGENTE' ? '↩ Agente' : '↩ Proveedor'}
                       </span>
                     )}
+                    {inc.contActivadoPor && (
+                      <span style={{ display: 'inline-block', marginTop: '3px', fontSize: '10px', padding: '1px 6px', borderRadius: '999px', fontWeight: 600, background: isOpen ? 'rgba(251,191,36,0.15)' : '#FEF9C3', color: '#92400E', border: '1px solid #FDE68A' }}>
+                        ⚡ Cont.
+                      </span>
+                    )}
                   </td>
 
                   {/* Cluster */}
@@ -419,9 +457,18 @@ export default function IncidentesPage() {
                     }
                   </td>
 
-                  {/* Tiempo */}
-                  <td style={{ padding: '9px 12px', fontFamily: 'monospace', fontSize: '11px', fontWeight: isOverdue ? 700 : 400, color: isOverdue ? '#dc2626' : mutedColor, whiteSpace: 'nowrap' }}>
-                    {tiempoTranscurrido(inc.horaRegistro, inc.horaFin)}
+                  {/* Duración */}
+                  <td style={{ padding: '9px 12px', fontFamily: 'monospace', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                    {CLOSED_ESTADOS.includes(inc.estado) && inc.mttrMinutos != null
+                      ? <span style={{ color: inc.mttrMinutos > 120 ? '#dc2626' : mutedColor, fontWeight: 500 }}>
+                          {inc.mttrMinutos >= 60
+                            ? `${Math.floor(inc.mttrMinutos / 60)}h ${inc.mttrMinutos % 60}m`
+                            : `${inc.mttrMinutos}m`}
+                        </span>
+                      : <span style={{ color: isOverdue ? '#dc2626' : mutedColor, fontWeight: isOverdue ? 700 : 400 }}>
+                          {tiempoTranscurrido(inc.horaRegistro, inc.horaFin)}
+                        </span>
+                    }
                   </td>
 
                   {/* Acciones */}
