@@ -12,6 +12,12 @@ import { can } from '@/lib/permisos'
 const TIPO_LABELS: Record<string, string> = {
   CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia',
   LENTITUD: 'Lentitud', POS: 'POS', OTROS: 'Otros',
+  CORTE_ELECTRICO: '⚡ Corte eléctrico',
+}
+
+const ALCANCE_LABELS: Record<string, string> = {
+  SOLO_TIENDA: 'Solo la tienda', MALL: 'El mall',
+  CUADRA_CALLE: 'Cuadra / calle', ZONA_AMPLIA: 'Zona amplia',
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -212,6 +218,8 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
       ventaParcial:        data.ventaParcial        ?? null,
       cajasAfectadas:      data.cajasAfectadas      ?? null,
       cajasTotales:        data.cajasTotales        ?? null,
+      alcanceCorte:        data.alcanceCorte        ?? null,
+      tuvoUps:             data.tuvoUps             ?? null,
     })
   }, [id])
 
@@ -372,7 +380,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               {inc.tiendaCodigo} — {inc.tiendaNombre}
             </div>
             <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.38)' }}>
-              {inc.proveedorNombre} · {inc.tiendaDistrito} · Agente: {inc.agenteNombre}
+              {inc.tipo === 'CORTE_ELECTRICO' ? '⚡ Energía Eléctrica' : (inc.proveedorNombre ?? '—')} · {inc.tiendaDistrito} · Agente: {inc.agenteNombre}
             </div>
             {inc.actualizadoEn && (
               <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.18)', marginTop: '5px' }}>
@@ -605,67 +613,101 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
 
             {/* Descartes */}
             <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px', marginBottom: '14px' }}>
-              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--foreground)', marginBottom: '12px' }}>Descartes realizados</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
-                  {/* Sí/No */}
-                  <div style={{ marginBottom: '12px' }}>
-                    {[{key:'descEnergia',label:'Energía eléctrica'},{key:'descRouter',label:'Router / ONT encendido'},{key:'descDns',label:'Se cambió DNS'}].map(({key,label}) => (
-                      <div key={key} style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'7px' }}>
-                        <span style={{ fontSize:'11px',color:'var(--foreground)' }}>{label}</span>
-                        <div style={{ display:'flex',gap:'4px' }}>
-                          {([true,false] as const).map(val => (
-                            <button key={String(val)} type="button" disabled={!canEditB}
-                              onClick={() => setEdit(key, editForm[key] === val ? null : val)}
-                              style={{ padding:'2px 10px',fontSize:'11px',borderRadius:'5px',border:'1px solid var(--border)',cursor:!canEditB?'default':'pointer',background:editForm[key]===val?(val?'#dcfce7':'#fee2e2'):'var(--muted)',color:editForm[key]===val?(val?'#15803d':'#b91c1c'):'var(--muted-foreground)',fontWeight:editForm[key]===val?600:400 }}>
-                              {val?'Sí':'No'}
+              {inc.tipo === 'CORTE_ELECTRICO' ? (
+                <>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--foreground)', marginBottom: '12px' }}>Datos del corte eléctrico</div>
+                  <div style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: '10px', padding: '14px' }}>
+                    <div style={{ marginBottom: '12px' }}>
+                      <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: '#B45309', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '8px' }}>Alcance del corte</label>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        {(['SOLO_TIENDA', 'MALL', 'CUADRA_CALLE', 'ZONA_AMPLIA'] as const).map(v => {
+                          const sel = editForm.alcanceCorte === v
+                          return (
+                            <button key={v} type="button" disabled={!canEditB}
+                              onClick={() => setEdit('alcanceCorte', v)}
+                              style={{ padding: '5px 14px', fontSize: '12px', borderRadius: '20px', border: `1px solid ${sel ? '#B45309' : 'var(--border)'}`, cursor: !canEditB ? 'default' : 'pointer', fontWeight: sel ? 600 : 400, background: sel ? 'rgba(245,158,11,0.15)' : 'var(--card)', color: sel ? '#B45309' : 'var(--muted-foreground)' }}>
+                              {ALCANCE_LABELS[v]}
                             </button>
-                          ))}
-                        </div>
+                          )
+                        })}
                       </div>
-                    ))}
-                  </div>
-                  {/* Checklist */}
-                  <div style={{ display:'flex',flexDirection:'column',gap:'7px' }}>
-                    {[{key:'checkIpconfig',label:'Se ejecutó ipconfig'},{key:'checkPingGw',label:'Se realizó ping a gateway'},{key:'checkPingInternet',label:'Se realizó ping a internet'},{key:'checkTracert',label:'Se realizó tracert'},{key:'checkDns',label:'Se validó DNS'},{key:'checkRenovarIp',label:'Se renovó IP'}].map(({key,label}) => (
-                      <label key={key} style={{ display:'flex',alignItems:'center',gap:'7px',fontSize:'11px',cursor:!canEditB?'default':'pointer',color:editForm[key]?'var(--foreground)':'var(--muted-foreground)' }}>
-                        <input type="checkbox" disabled={!canEditB} checked={!!editForm[key]} onChange={e => setEdit(key, e.target.checked)}
-                          style={{ cursor:!canEditB?'default':'pointer',accentColor:'hsl(221,83%,45%)',width:'13px',height:'13px' }} />
-                        {label}
+                    </div>
+                    <div>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: !canEditB ? 'default' : 'pointer', color: 'var(--foreground)' }}>
+                        <input type="checkbox" disabled={!canEditB}
+                          checked={!!editForm.tuvoUps}
+                          onChange={e => setEdit('tuvoUps', e.target.checked)}
+                          style={{ cursor: !canEditB ? 'default' : 'pointer', accentColor: '#B45309', width: '14px', height: '14px' }} />
+                        La tienda tenía UPS activo
                       </label>
-                    ))}
+                    </div>
                   </div>
-                </div>
-                {/* Acciones registradas */}
-                <div>
-                  <div style={{ fontSize:'10px',fontWeight:600,color:'var(--muted-foreground)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:'8px' }}>Acciones registradas</div>
-                  <div style={{ background:'var(--muted)',borderRadius:'8px',padding:'10px 12px',minHeight:'120px' }}>
-                    {(() => {
-                      const acc = [
-                        editForm.checkPingGw       && 'Ping a gateway',
-                        editForm.checkPingInternet && 'Ping a internet',
-                        editForm.checkIpconfig     && 'Ejecutó ipconfig',
-                        editForm.checkTracert      && 'Tracert ejecutado',
-                        editForm.checkDns          && 'Validó DNS',
-                        editForm.checkRenovarIp    && 'Renovó IP',
-                        editForm.descEnergia === true && 'Energía verificada',
-                        editForm.descRouter  === true && 'Router/ONT verificado',
-                        editForm.descDns     === true && 'Cambio DNS aplicado',
-                      ].filter(Boolean) as string[]
-                      return acc.length > 0
-                        ? <div style={{ display:'flex',flexDirection:'column',gap:'5px' }}>
-                            {acc.map(a => (
-                              <div key={a} style={{ display:'flex',alignItems:'center',gap:'6px',fontSize:'11px',color:'var(--foreground)' }}>
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                                {a}
-                              </div>
-                            ))}
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--foreground)', marginBottom: '12px' }}>Descartes realizados</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div>
+                      {/* Sí/No */}
+                      <div style={{ marginBottom: '12px' }}>
+                        {[{key:'descEnergia',label:'Energía eléctrica'},{key:'descRouter',label:'Router / ONT encendido'},{key:'descDns',label:'Se cambió DNS'}].map(({key,label}) => (
+                          <div key={key} style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'7px' }}>
+                            <span style={{ fontSize:'11px',color:'var(--foreground)' }}>{label}</span>
+                            <div style={{ display:'flex',gap:'4px' }}>
+                              {([true,false] as const).map(val => (
+                                <button key={String(val)} type="button" disabled={!canEditB}
+                                  onClick={() => setEdit(key, editForm[key] === val ? null : val)}
+                                  style={{ padding:'2px 10px',fontSize:'11px',borderRadius:'5px',border:'1px solid var(--border)',cursor:!canEditB?'default':'pointer',background:editForm[key]===val?(val?'#dcfce7':'#fee2e2'):'var(--muted)',color:editForm[key]===val?(val?'#15803d':'#b91c1c'):'var(--muted-foreground)',fontWeight:editForm[key]===val?600:400 }}>
+                                  {val?'Sí':'No'}
+                                </button>
+                              ))}
+                            </div>
                           </div>
-                        : <div style={{ fontSize:'11px',color:'var(--muted-foreground)',fontStyle:'italic' }}>Sin acciones registradas aún</div>
-                    })()}
+                        ))}
+                      </div>
+                      {/* Checklist */}
+                      <div style={{ display:'flex',flexDirection:'column',gap:'7px' }}>
+                        {[{key:'checkIpconfig',label:'Se ejecutó ipconfig'},{key:'checkPingGw',label:'Se realizó ping a gateway'},{key:'checkPingInternet',label:'Se realizó ping a internet'},{key:'checkTracert',label:'Se realizó tracert'},{key:'checkDns',label:'Se validó DNS'},{key:'checkRenovarIp',label:'Se renovó IP'}].map(({key,label}) => (
+                          <label key={key} style={{ display:'flex',alignItems:'center',gap:'7px',fontSize:'11px',cursor:!canEditB?'default':'pointer',color:editForm[key]?'var(--foreground)':'var(--muted-foreground)' }}>
+                            <input type="checkbox" disabled={!canEditB} checked={!!editForm[key]} onChange={e => setEdit(key, e.target.checked)}
+                              style={{ cursor:!canEditB?'default':'pointer',accentColor:'hsl(221,83%,45%)',width:'13px',height:'13px' }} />
+                            {label}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Acciones registradas */}
+                    <div>
+                      <div style={{ fontSize:'10px',fontWeight:600,color:'var(--muted-foreground)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:'8px' }}>Acciones registradas</div>
+                      <div style={{ background:'var(--muted)',borderRadius:'8px',padding:'10px 12px',minHeight:'120px' }}>
+                        {(() => {
+                          const acc = [
+                            editForm.checkPingGw       && 'Ping a gateway',
+                            editForm.checkPingInternet && 'Ping a internet',
+                            editForm.checkIpconfig     && 'Ejecutó ipconfig',
+                            editForm.checkTracert      && 'Tracert ejecutado',
+                            editForm.checkDns          && 'Validó DNS',
+                            editForm.checkRenovarIp    && 'Renovó IP',
+                            editForm.descEnergia === true && 'Energía verificada',
+                            editForm.descRouter  === true && 'Router/ONT verificado',
+                            editForm.descDns     === true && 'Cambio DNS aplicado',
+                          ].filter(Boolean) as string[]
+                          return acc.length > 0
+                            ? <div style={{ display:'flex',flexDirection:'column',gap:'5px' }}>
+                                {acc.map(a => (
+                                  <div key={a} style={{ display:'flex',alignItems:'center',gap:'6px',fontSize:'11px',color:'var(--foreground)' }}>
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                    {a}
+                                  </div>
+                                ))}
+                              </div>
+                            : <div style={{ fontSize:'11px',color:'var(--muted-foreground)',fontStyle:'italic' }}>Sin acciones registradas aún</div>
+                        })()}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                </>
+              )}
               {/* Condiciones de venta (IEI) */}
               <div style={{ marginTop:'12px', background:'var(--muted)', border:'1px solid var(--border)', borderRadius:'10px', padding:'12px' }}>
                 <div style={{ fontSize:'11px', fontWeight:600, color:'var(--foreground)', marginBottom:'10px' }}>Condiciones de venta</div>
@@ -768,7 +810,21 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
             </div>
             <div style={{ padding: '12px 16px' }}>
               <ResumenRow icon={<IcoStore />} label="Tienda">{inc.tiendaCodigo} — {inc.tiendaNombre}</ResumenRow>
-              <ResumenRow icon={<IcoWifi />} label="Proveedor">{inc.proveedorNombre ?? '—'}</ResumenRow>
+              <ResumenRow icon={<IcoWifi />} label="Proveedor">
+                {inc.tipo === 'CORTE_ELECTRICO'
+                  ? <span style={{ color: '#B45309', fontWeight: 600 }}>⚡ Energía Eléctrica</span>
+                  : (inc.proveedorNombre ?? '—')}
+              </ResumenRow>
+              {inc.tipo === 'CORTE_ELECTRICO' && (
+                <ResumenRow icon={<IcoConn />} label="Alcance del corte">
+                  <span style={{ fontWeight: 500 }}>{ALCANCE_LABELS[inc.alcanceCorte] ?? inc.alcanceCorte ?? '—'}</span>
+                  {inc.tuvoUps != null && (
+                    <span style={{ marginLeft: '8px', fontSize: '10px', color: inc.tuvoUps ? '#15803d' : 'var(--muted-foreground)' }}>
+                      {inc.tuvoUps ? '· UPS activo' : '· Sin UPS'}
+                    </span>
+                  )}
+                </ResumenRow>
+              )}
               <ResumenRow icon={<IcoCid />} label="CID / Servicio"><span style={{ fontFamily: 'monospace' }}>{inc.tiendaCid ?? '—'}</span></ResumenRow>
               <ResumenRow icon={<IcoConn />} label="Tipo de conexión">{inc.tiendaTipoConexion ?? '—'}</ResumenRow>
               <ResumenRow icon={<IcoClust />} label="Cluster">{inc.tiendaCluster ?? '—'}</ResumenRow>
