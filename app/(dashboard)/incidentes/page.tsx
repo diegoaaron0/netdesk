@@ -1,71 +1,9 @@
 'use client'
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Badge, estadoToVariant, impactoToVariant } from '@/components/ui/Badge'
 
-function TiendaFiltroInput({ value, label, onSelect, onClear }: {
-  value: string; label: string
-  onSelect: (id: string, label: string) => void
-  onClear: () => void
-}) {
-  const [query, setQuery]     = useState(label)
-  const [results, setResults] = useState<any[]>([])
-  const [open, setOpen]       = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => { if (!value) setQuery('') }, [value])
-  useEffect(() => { if (value && label) setQuery(label) }, [value, label])
-
-  useEffect(() => {
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
-    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h)
-  }, [])
-
-  useEffect(() => {
-    if (value || query.length < 2) { setResults([]); setOpen(false); return }
-    const t = setTimeout(async () => {
-      const res = await fetch(`/api/tiendas?q=${encodeURIComponent(query)}`)
-      const data = await res.json()
-      setResults(Array.isArray(data) ? data : []); setOpen(true)
-    }, 250)
-    return () => clearTimeout(t)
-  }, [query, value])
-
-  return (
-    <div ref={ref} style={{ position: 'relative', minWidth: '220px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', overflow: 'hidden' }}>
-        <input value={query}
-          onChange={e => { setQuery(e.target.value); if (value) onClear() }}
-          placeholder="Filtrar por tienda..."
-          style={{ flex: 1, padding: '5px 10px', fontSize: '12px', border: 'none', background: 'transparent', color: 'var(--foreground)', outline: 'none', minWidth: 0 }}
-        />
-        {value && (
-          <button onClick={() => { onClear(); setQuery('') }}
-            style={{ padding: '0 8px', background: 'transparent', border: 'none', color: 'var(--muted-foreground)', cursor: 'pointer', fontSize: '16px', lineHeight: 1, flexShrink: 0 }}>
-            ×
-          </button>
-        )}
-      </div>
-      {open && results.length > 0 && (
-        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', marginTop: '3px', overflow: 'hidden', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', maxHeight: '220px', overflowY: 'auto' }}>
-          {results.map((t: any) => (
-            <button key={t.id} type="button"
-              onClick={() => { onSelect(t.id, `${t.codigo} — ${t.nombreCc}`); setOpen(false) }}
-              style={{ display: 'block', width: '100%', padding: '8px 12px', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer', fontSize: '12px' }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-            >
-              <span style={{ fontWeight: 600 }}>{t.codigo}</span>
-              {t.nombreCc && <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginLeft: '6px' }}>{t.nombreCc}</span>}
-              {t.proveedor && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginLeft: '6px' }}>· {t.proveedor.nombre} · {t.distrito}</span>}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
 
 function tiempoTranscurrido(desde: string | Date, hasta?: string | Date | null) {
   const ms = (hasta ? new Date(hasta).getTime() : Date.now()) - new Date(desde).getTime()
@@ -132,8 +70,6 @@ export default function IncidentesPage() {
   const [estado, setEstado]                   = useState('')
   const [agente, setAgente]                   = useState('')
   const [filtroProveedor, setFiltroProveedor] = useState('')
-  const [filtroTiendaId,    setFiltroTiendaId]    = useState('')
-  const [filtroTiendaLabel, setFiltroTiendaLabel] = useState('')
   const [filtroResolucion, setFiltroResolucion] = useState<'todos'|'agente'|'proveedor'>('todos')
   const [misRegistros, setMisRegistros]         = useState(false)
   const [q, setQ]                               = useState('')
@@ -149,21 +85,12 @@ export default function IncidentesPage() {
     const tiendaId    = searchParams.get('tiendaId')
     const proveedorId = searchParams.get('proveedorId')
     const codigo      = searchParams.get('codigo')
-    if (codigo) {
-      setQ(codigo)
-      setFechaDesde('2024-01-01')
-    }
-    if (!tiendaId && !proveedorId) return
+    if (codigo) setQ(codigo)
     if (tiendaId) {
-      fetch(`/api/tiendas?q=a`).then(r => r.json()).catch(() => [])
       fetch('/api/tiendas').then(r => r.json()).then((list: any[]) => {
         if (!Array.isArray(list)) return
         const t = list.find((x: any) => x.id === tiendaId)
-        if (t) {
-          setFiltroTiendaId(t.id)
-          setFiltroTiendaLabel(`${t.codigo} — ${t.nombreCc}`)
-          setFechaDesde('2024-01-01')
-        }
+        if (t) setQ(t.codigo)
       }).catch(() => {})
     }
     if (proveedorId) {
@@ -180,13 +107,17 @@ export default function IncidentesPage() {
     const params = new URLSearchParams()
     if (estado) params.set('estado', estado)
     if (agente) params.set('agente', agente)
-    params.set('fechaDesde', fechaDesde)
-    params.set('fechaHasta', fechaHasta)
+    if (debouncedQ) {
+      params.set('q', debouncedQ)
+    } else {
+      params.set('fechaDesde', fechaDesde)
+      params.set('fechaHasta', fechaHasta)
+    }
     const res  = await fetch(`/api/incidentes?${params}`)
     const rows = await res.json()
     setData(Array.isArray(rows) ? rows : [])
     setPage(1)
-  }, [estado, agente, fechaDesde, fechaHasta])
+  }, [estado, agente, fechaDesde, fechaHasta, debouncedQ])
 
   useEffect(() => { fetchData() }, [fetchData])
 
@@ -212,7 +143,6 @@ export default function IncidentesPage() {
     const t = limaToday()
     setFechaDesde(t); setFechaHasta(t)
     setEstado(''); setAgente(''); setFiltroProveedor('')
-    setFiltroTiendaId(''); setFiltroTiendaLabel('')
     setFiltroResolucion('todos')
     setMisRegistros(false); setQ(''); setPage(1)
   }
@@ -224,23 +154,13 @@ export default function IncidentesPage() {
     fetchData()
   }
 
-  // Filter + sort
+  // Filter + sort (text search is handled server-side when q is set)
   const filtered = sortIncidentes(data).filter(inc => {
     if (misRegistros && myId && inc.agenteId !== myId) return false
     if (filtroProveedor && inc.proveedorNombre !== filtroProveedor) return false
-    if (filtroTiendaId && inc.tiendaId !== filtroTiendaId) return false
     if (filtroResolucion !== 'todos') {
       const expected = filtroResolucion === 'agente' ? 'AGENTE' : 'PROVEEDOR'
       if (inc.resueltoPor !== expected) return false
-    }
-    if (debouncedQ) {
-      const sq = debouncedQ.toLowerCase().replace('#', '')
-      if (
-        !inc.codigo?.toLowerCase().includes(sq) &&
-        !inc.tiendaCodigo?.toLowerCase().includes(sq) &&
-        !inc.tiendaNombre?.toLowerCase().includes(sq) &&
-        !inc.ticketInvgate?.toLowerCase().includes(sq)
-      ) return false
     }
     return true
   })
@@ -303,19 +223,13 @@ export default function IncidentesPage() {
 
       {/* Filtros */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {/* Fila 1: búsqueda + tienda + mis registros */}
+        {/* Fila 1: búsqueda global + mis registros */}
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <input
-            placeholder="Buscar por código, ID InvGate, tienda..."
+            placeholder="Buscar por código, ID InvGate o tienda... (busca en todo el historial)"
             value={q}
             onChange={e => { setQ(e.target.value); setPage(1) }}
             style={{ ...inputStyle }}
-          />
-          <TiendaFiltroInput
-            value={filtroTiendaId}
-            label={filtroTiendaLabel}
-            onSelect={(id, label) => { setFiltroTiendaId(id); setFiltroTiendaLabel(label); setPage(1) }}
-            onClear={() => { setFiltroTiendaId(''); setFiltroTiendaLabel(''); setPage(1) }}
           />
           <button
             onClick={() => { setMisRegistros(v => !v); setPage(1) }}

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { incidentes, tiendas, usuarios, proveedores } from '@/drizzle/schema'
-import { eq, desc, and, gte, lt, sql, inArray } from 'drizzle-orm'
+import { eq, desc, and, gte, lt, sql, inArray, ilike, or } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
@@ -56,9 +56,25 @@ export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
   const estado    = searchParams.get('estado')
   const agenteId  = searchParams.get('agente')
-  const tiendaId  = searchParams.get('tiendaId')   // → NUEVO: filtro por tienda
+  const tiendaId  = searchParams.get('tiendaId')
+  const q         = searchParams.get('q')
   const fechaDesde = searchParams.get('fechaDesde') ?? todayLima()
   const fechaHasta = searchParams.get('fechaHasta') ?? fechaDesde
+
+  // Búsqueda por texto: ignora fechas, busca en toda la BD
+  if (q) {
+    const sq = `%${q.replace(/#/g, '').trim()}%`
+    const results = await joins(db.select(COLS).from(incidentes))
+      .where(or(
+        ilike(incidentes.codigo, sq),
+        ilike(incidentes.ticketInvgate, sq),
+        ilike(tiendas.codigo, sq),
+        ilike(tiendas.nombreCc, sq),
+      ))
+      .orderBy(desc(incidentes.horaRegistro))
+      .limit(300)
+    return NextResponse.json(results.map((i: any) => ({ ...i, isOverdue: false })))
+  }
 
   const { start } = limaDateRange(fechaDesde)
   const { end }   = limaDateRange(fechaHasta)
