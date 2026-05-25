@@ -397,7 +397,7 @@ function SLAProveedorPageInner() {
 
       {/* Methodology footer */}
       <div style={{ marginTop: '20px', padding: '14px 16px', background: 'var(--muted)', borderRadius: '10px', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: 1.7 }}>
-        <strong>Metodología:</strong> Solo se evalúan incidentes en estado RESUELTO con hora_fin registrada, asignados a un proveedor, con al menos un correo de escalamiento N1 enviado (hora_correo_n1). Un caso cumple SLA si: (a) respondió en N1 en ≤60 min sin escalar a N2, y (b) se resolvió dentro del objetivo por tipo. Los escalamientos a N2+ implican incumplimiento automático de SLA de respuesta.
+        <strong>Metodología:</strong> Se evalúan incidentes en estado RESUELTO con hora_fin registrada y proveedor asignado. Cuando existe tracking N1 (correo_n1 + escalamiento): el SLA requiere respuesta en ≤60 min sin escalar a N2, y resolución dentro del objetivo por tipo medida desde el correo N1. Sin tracking N1: se evalúa solo tiempo de resolución (MTTR) desde hora_registro vs objetivo por tipo.
       </div>
     </div>
   )

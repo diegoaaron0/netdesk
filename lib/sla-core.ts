@@ -48,6 +48,8 @@ export interface SLAInputRow {
   hora_correo_n1: Date | string | null
   hora_primera_resp: Date | string | null
   hora_fin: Date | string | null
+  /** Fallback: si hora_correo_n1 es null, se evalúa SLA por MTTR desde hora_registro */
+  hora_registro?: Date | string | null
   max_nivel: number | null
   slaRespuestaOverride?: number
   slaResolucionOverride?: number
@@ -81,40 +83,57 @@ export interface SLAResult {
 export function calcSLARow(row: SLAInputRow): SLAResult {
   const slaResolucionObj = row.slaResolucionOverride ?? getSlaResolucionMin(row.tipo)
 
-  if (!row.hora_correo_n1 || row.max_nivel == null || row.max_nivel < 1) {
+  // ── Vía 1: tracking N1 disponible — evaluación estricta por escalamiento ──────
+  if (row.hora_correo_n1 && row.max_nivel != null && row.max_nivel >= 1) {
+    const escaladoN2 = row.max_nivel >= 2
+    const tPrimeraRespuestaMin = diffMin(row.hora_primera_resp, row.hora_correo_n1)
+    const tResolucionMin       = diffMin(row.hora_fin, row.hora_correo_n1)
+
+    const slaRespuesta =
+      !escaladoN2 &&
+      tPrimeraRespuestaMin != null &&
+      tPrimeraRespuestaMin <= (row.slaRespuestaOverride ?? SLA_RESPUESTA_MIN)
+
+    const slaResolucion = tResolucionMin != null && tResolucionMin <= slaResolucionObj
+    const slaGeneral    = slaRespuesta && slaResolucion
+
+    let motivoIncumplimiento: string | null = null
+    if (!slaGeneral) {
+      const parts: string[] = []
+      if (!slaRespuesta) parts.push(escaladoN2 ? 'Nivel 1 sin respuesta' : 'Respuesta fuera de tiempo')
+      if (!slaResolucion) parts.push('Resolución fuera de tiempo')
+      motivoIncumplimiento = parts.join(' + ') || null
+    }
+
     return {
-      evaluable: false, escaladoN2: false,
-      tPrimeraRespuestaMin: null, tResolucionMin: null,
-      slaResolucionObj, slaRespuesta: false, slaResolucion: false,
-      slaGeneral: false, motivoIncumplimiento: null,
+      evaluable: true, escaladoN2,
+      tPrimeraRespuestaMin: tPrimeraRespuestaMin != null ? Math.round(tPrimeraRespuestaMin) : null,
+      tResolucionMin:       tResolucionMin != null       ? Math.round(tResolucionMin)       : null,
+      slaResolucionObj, slaRespuesta, slaResolucion, slaGeneral, motivoIncumplimiento,
     }
   }
 
-  const escaladoN2 = row.max_nivel >= 2
-  const tPrimeraRespuestaMin = diffMin(row.hora_primera_resp, row.hora_correo_n1)
-  const tResolucionMin       = diffMin(row.hora_fin, row.hora_correo_n1)
-
-  const slaRespuesta =
-    !escaladoN2 &&
-    tPrimeraRespuestaMin != null &&
-    tPrimeraRespuestaMin <= (row.slaRespuestaOverride ?? SLA_RESPUESTA_MIN)
-
-  const slaResolucion = tResolucionMin != null && tResolucionMin <= slaResolucionObj
-  const slaGeneral    = slaRespuesta && slaResolucion
-
-  let motivoIncumplimiento: string | null = null
-  if (!slaGeneral) {
-    const parts: string[] = []
-    if (!slaRespuesta) parts.push(escaladoN2 ? 'Nivel 1 sin respuesta' : 'Respuesta fuera de tiempo')
-    if (!slaResolucion) parts.push('Resolución fuera de tiempo')
-    motivoIncumplimiento = parts.join(' + ') || null
+  // ── Vía 2: sin tracking N1 — fallback MTTR desde hora_registro ───────────────
+  if (row.hora_registro && row.hora_fin) {
+    const escaladoN2     = (row.max_nivel ?? 0) >= 2
+    const tResolucionMin = diffMin(row.hora_fin, row.hora_registro)
+    const slaResolucion  = tResolucionMin != null && tResolucionMin <= slaResolucionObj
+    return {
+      evaluable: true, escaladoN2,
+      tPrimeraRespuestaMin: null,
+      tResolucionMin: tResolucionMin != null ? Math.round(tResolucionMin) : null,
+      slaResolucionObj, slaRespuesta: true, slaResolucion,
+      slaGeneral: slaResolucion,
+      motivoIncumplimiento: slaResolucion ? null : 'Resolución fuera de tiempo',
+    }
   }
 
+  // ── No hay datos suficientes para evaluar ─────────────────────────────────────
   return {
-    evaluable: true, escaladoN2,
-    tPrimeraRespuestaMin: tPrimeraRespuestaMin != null ? Math.round(tPrimeraRespuestaMin) : null,
-    tResolucionMin:       tResolucionMin != null       ? Math.round(tResolucionMin)       : null,
-    slaResolucionObj, slaRespuesta, slaResolucion, slaGeneral, motivoIncumplimiento,
+    evaluable: false, escaladoN2: false,
+    tPrimeraRespuestaMin: null, tResolucionMin: null,
+    slaResolucionObj, slaRespuesta: false, slaResolucion: false,
+    slaGeneral: false, motivoIncumplimiento: null,
   }
 }
 

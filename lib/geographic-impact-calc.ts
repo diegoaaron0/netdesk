@@ -50,6 +50,7 @@ function calcSLA(row: RawGeoRow): boolean | null {
     hora_correo_n1: row.hora_correo_n1,
     hora_primera_resp: row.hora_primera_resp,
     hora_fin: row.hora_fin,
+    hora_registro: row.hora_registro,
     max_nivel: row.max_nivel,
   })
   return res.evaluable ? res.slaGeneral : null
