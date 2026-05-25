@@ -81,6 +81,7 @@ export async function GET(req: NextRequest) {
       contingenciaActiva: tiendas.contingenciaActiva,
       contingenciaDescripcion: tiendas.contingenciaDescripcion,
       contingenciaActivadaPor: tiendas.contingenciaActivadaPor,
+      estadoServicio: tiendas.estadoServicio,
     })
       .from(tiendas)
       .leftJoin(proveedores, eq(tiendas.proveedorId, proveedores.id))

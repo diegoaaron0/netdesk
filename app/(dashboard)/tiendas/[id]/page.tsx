@@ -4,17 +4,22 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 
 const PROVEEDOR_COLORS: Record<string, { bg: string; color: string }> = {
-  BITEL:              { bg: '#dbeafe', color: '#1e40af' },
-  CLARO:              { bg: '#fee2e2', color: '#b91c1c' },
-  CONVERGIA:          { bg: '#ede9fe', color: '#7c3aed' },
-  ENTEL:              { bg: '#dcfce7', color: '#15803d' },
-  MOVISTAR:           { bg: '#1e3a8a', color: '#bfdbfe' },
-  GTD:                { bg: '#ffedd5', color: '#c2410c' },
-  FIBERLUX:           { bg: '#fef9c3', color: '#854d0e' },
-  'FIBRA AMAZÓNICA':  { bg: '#d1fae5', color: '#065f46' },
-  DITSAC:             { bg: '#fce7f3', color: '#9d174d' },
-  TELCONET:           { bg: '#e0f2fe', color: '#075985' },
-  GONET:              { bg: '#f0fdf4', color: '#166534' },
+  BITEL:             { bg: '#dbeafe', color: '#1e40af' },
+  CLARO:             { bg: '#fee2e2', color: '#b91c1c' },
+  CONVERGIA:         { bg: '#ede9fe', color: '#7c3aed' },
+  ENTEL:             { bg: '#dcfce7', color: '#15803d' },
+  MOVISTAR:          { bg: '#1e3a8a', color: '#bfdbfe' },
+  GTD:               { bg: '#ffedd5', color: '#c2410c' },
+  'GTD PERU':        { bg: '#ffedd5', color: '#c2410c' },
+  FIBERLUX:          { bg: '#fef9c3', color: '#854d0e' },
+  FIBERTEL:          { bg: '#fef3c7', color: '#713f12' },
+  'FIBRA AMAZÓNICA': { bg: '#d1fae5', color: '#065f46' },
+  DITSAC:            { bg: '#fce7f3', color: '#9d174d' },
+  'DIT SAC':         { bg: '#fce7f3', color: '#9d174d' },
+  TELCONET:          { bg: '#e0f2fe', color: '#075985' },
+  GONET:             { bg: '#d1fae5', color: '#064e3b' },
+  AMERICATEL:        { bg: '#e0e7ff', color: '#3730a3' },
+  WIN:               { bg: '#ecfdf5', color: '#047857' },
 }
 function provColor(n: string | null) {
   if (!n) return { bg: '#f3f4f6', color: '#6b7280' }
