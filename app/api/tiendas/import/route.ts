@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
         if (trim(row.supervisor_nombre))    upd.supervisorNombre     = trim(row.supervisor_nombre)
         if (trim(row.administrador_nombre)) upd.administradorNombre  = trim(row.administrador_nombre)
         if (trim(row.administrador_email))  upd.administradorEmail   = trim(row.administrador_email)
-        if (trim(row.contacto_soporte))     upd.administradorCelular = trim(row.contacto_soporte)
+        if (trim(row.contacto_soporte))     upd.celularTienda        = trim(row.contacto_soporte)
         if (trim(row.telefono_fijo))        upd.contactoSoporte      = trim(row.telefono_fijo)
         if (trim(row.tipo_conexion))        upd.tipoConexion         = trim(row.tipo_conexion)
         if (resolvedProvId !== undefined)   upd.proveedorId          = resolvedProvId
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
           supervisorNombre:     trim(row.supervisor_nombre)    || null,
           administradorNombre:  trim(row.administrador_nombre) || null,
           administradorEmail:   trim(row.administrador_email)  || null,
-          administradorCelular: trim(row.contacto_soporte)    || null,
+          celularTienda:        trim(row.contacto_soporte)    || null,
           contactoSoporte:      trim(row.telefono_fijo)        || null,
           tipoConexion:         trim(row.tipo_conexion)        || null,
           proveedorId:          resolvedProvId ?? null,

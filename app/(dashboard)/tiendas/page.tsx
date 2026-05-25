@@ -29,12 +29,14 @@ function provColor(nombre: string | null) {
 }
 
 function parseCSVText(text: string) {
+  const firstLine = text.trim().split(/\r?\n/)[0] ?? ''
+  const sep = firstLine.includes(';') ? ';' : ','
   function parseLine(line: string): string[] {
     const res: string[] = []
     let cur = '', inQ = false
     for (const ch of line) {
       if (ch === '"') inQ = !inQ
-      else if (ch === ',' && !inQ) { res.push(cur.trim()); cur = '' }
+      else if (ch === sep && !inQ) { res.push(cur.trim()); cur = '' }
       else cur += ch
     }
     res.push(cur.trim())

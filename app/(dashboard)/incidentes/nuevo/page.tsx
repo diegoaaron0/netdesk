@@ -175,10 +175,10 @@ export default function NuevoIncidentePage() {
               <div>
                 {fieldLabel('Tienda', true)}
                 <TiendaAutocomplete onSelect={(t, h) => { setTienda(t); setHistorial(h) }} />
-                {tienda?.administradorCelular && (
+                {(tienda?.celularTienda || tienda?.administradorCelular) && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '6px', fontSize: '11px', color: 'var(--muted-foreground)' }}>
                     <IcoPhone />
-                    <span>Contacto tienda: <strong style={{ color: 'var(--foreground)' }}>{tienda.administradorCelular}</strong></span>
+                    <span>Contacto tienda: <strong style={{ color: 'var(--foreground)' }}>{tienda.celularTienda ?? tienda.administradorCelular}</strong></span>
                   </div>
                 )}
               </div>
@@ -338,7 +338,7 @@ export default function NuevoIncidentePage() {
                 </div>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '3px' }}><IcoWA /> Contacto Tienda</div>
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--foreground)' }}>{tienda?.administradorCelular ?? '—'}</div>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--foreground)' }}>{tienda?.celularTienda ?? tienda?.administradorCelular ?? '—'}</div>
                 </div>
               </div>
 

@@ -121,6 +121,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     contactoSoporte: tiendas.contactoSoporte, administradorNombre: tiendas.administradorNombre,
     administradorEmail: tiendas.administradorEmail, administradorCelular: tiendas.administradorCelular,
     ventaHoraSoles: tiendas.ventaHoraSoles,
+    celularTienda: tiendas.celularTienda,
+    supervisorCelular: tiendas.supervisorCelular,
+    contingenciaChip: tiendas.contingenciaChip,
+    contingenciaPaquete: tiendas.contingenciaPaquete,
+    extras: tiendas.extras,
   }).from(tiendas).where(eq(tiendas.id, id))
   if (!current) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
@@ -159,11 +164,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     const fullValues = {
       ...baseValues,
-      celularTienda:       'celularTienda'       in body ? (body.celularTienda       ?? null) : null,
-      supervisorCelular:   'supervisorCelular'   in body ? (body.supervisorCelular   ?? null) : null,
-      contingenciaChip:    'contingenciaChip'    in body ? (body.contingenciaChip    ?? null) : null,
-      contingenciaPaquete: 'contingenciaPaquete' in body ? (body.contingenciaPaquete ?? null) : null,
-      extras:              'extras'              in body ? (body.extras              ?? null) : null,
+      celularTienda:       'celularTienda'       in body ? (body.celularTienda       ?? null) : current.celularTienda,
+      supervisorCelular:   'supervisorCelular'   in body ? (body.supervisorCelular   ?? null) : current.supervisorCelular,
+      contingenciaChip:    'contingenciaChip'    in body ? (body.contingenciaChip    ?? null) : current.contingenciaChip,
+      contingenciaPaquete: 'contingenciaPaquete' in body ? (body.contingenciaPaquete ?? null) : current.contingenciaPaquete,
+      extras:              'extras'              in body ? (body.extras              ?? null) : current.extras,
     }
     const [r] = await db.update(tiendas).set(fullValues).where(eq(tiendas.id, id)).returning()
     updated = r
