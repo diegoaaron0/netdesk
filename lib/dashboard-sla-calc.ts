@@ -110,6 +110,14 @@ export function getCausaPrincipal(motivos: (string | null)[]): string | null {
   return top
 }
 
+export interface ProvDayMetrics {
+  registrados: number
+  evaluables: number
+  dentraSLA: number
+  fueraSLA: number
+  slaPct: number | null
+}
+
 export interface DayMetrics {
   dia: string
   registrados: number
@@ -125,6 +133,7 @@ export interface DayMetrics {
   causaPrincipal: string | null
   estado: 'optimo' | 'en_riesgo' | 'critico' | 'sin_datos'
   proveedoresAfectados: string[]
+  porProveedor: Record<string, ProvDayMetrics>
 }
 
 export function buildDayMetrics(casos: SLACaso[]): DayMetrics[] {
@@ -161,6 +170,26 @@ export function buildDayMetrics(casos: SLACaso[]): DayMetrics[] {
     const motivos = evaluables.filter((c) => !c.slaGeneral).map((c) => c.motivoIncumplimiento)
     const causaPrincipal = getCausaPrincipal(motivos)
 
+    // SLA desglosado por proveedor
+    const byProv: Record<string, SLACaso[]> = {}
+    for (const c of arr) {
+      if (!byProv[c.provNombre]) byProv[c.provNombre] = []
+      byProv[c.provNombre].push(c)
+    }
+    const porProveedor: Record<string, ProvDayMetrics> = {}
+    for (const [prov, casos] of Object.entries(byProv)) {
+      const ev = casos.filter((c) => c.evaluable)
+      const dentro = ev.filter((c) => c.slaGeneral).length
+      const fuera = ev.length - dentro
+      porProveedor[prov] = {
+        registrados: casos.length,
+        evaluables: ev.length,
+        dentraSLA: dentro,
+        fueraSLA: fuera,
+        slaPct: ev.length > 0 ? Math.round(dentro / ev.length * 100) : null,
+      }
+    }
+
     return {
       dia,
       registrados: arr.length,
@@ -176,6 +205,7 @@ export function buildDayMetrics(casos: SLACaso[]): DayMetrics[] {
       causaPrincipal,
       estado: getEstadoSLA(slaPct),
       proveedoresAfectados: [...new Set(evaluables.filter((c) => !c.slaGeneral).map((c) => c.provNombre))],
+      porProveedor,
     }
   })
 }

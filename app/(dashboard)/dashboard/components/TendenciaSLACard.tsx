@@ -6,6 +6,14 @@ import {
   ReferenceLine, ReferenceArea, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
 
+interface ProvDay {
+  registrados: number
+  evaluables: number
+  dentraSLA: number
+  fueraSLA: number
+  slaPct: number | null
+}
+
 interface DayData {
   dia: string
   registrados: number
@@ -16,6 +24,7 @@ interface DayData {
   tPromResolucionMin: number | null
   proveedorMasAfectado: string | null
   estado: string
+  porProveedor?: Record<string, ProvDay>
 }
 
 interface Resumen {
@@ -65,30 +74,51 @@ function CustomTooltip({ active, payload }: any) {
   const pct = d.slaPct
   const col = slaColor(pct)
 
+  const provEntries = Object.entries(d.porProveedor ?? {})
+    .sort((a, b) => (b[1].fueraSLA - a[1].fueraSLA) || (b[1].registrados - a[1].registrados))
+
   return (
-    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '12px 14px', fontSize: '12px', minWidth: '200px', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }}>
+    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '12px 14px', fontSize: '12px', minWidth: '220px', maxWidth: '280px', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }}>
+      {/* Header: fecha + SLA global */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', paddingBottom: '7px', borderBottom: '0.5px solid #e5e7eb' }}>
         <span style={{ fontWeight: 700, fontSize: '13px' }}>{shortDia}</span>
         {pct != null
-          ? <span style={{ fontWeight: 700, fontSize: '16px', color: col }}>{pct}%</span>
-          : <span style={{ fontSize: '11px', color: '#888' }}>Sin datos evaluables</span>
+          ? <span style={{ fontWeight: 700, fontSize: '15px', color: col }}>{pct}% global</span>
+          : <span style={{ fontSize: '11px', color: '#888' }}>Sin evaluables</span>
         }
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-        <div>Incidentes: <strong>{d.registrados}</strong></div>
-        {d.evaluables > 0 && <>
-          <div>Dentro SLA: <strong style={{ color: '#1D9E75' }}>{d.dentraSLA}</strong></div>
-          <div>Fuera SLA: <strong style={{ color: '#A32D2D' }}>{d.fueraSLA}</strong></div>
-        </>}
-        {d.tPromResolucionMin != null && (
-          <div style={{ marginTop: '2px', borderTop: '0.5px solid #f0f0f0', paddingTop: '3px' }}>
-            MTTR: <strong style={{ color: d.tPromResolucionMin > 120 ? '#A32D2D' : '#1D9E75' }}>{fmtMin(d.tPromResolucionMin)}</strong>
-          </div>
-        )}
-        {d.proveedorMasAfectado && (
-          <div>Prov.: <strong style={{ color: '#185FA5' }}>{d.proveedorMasAfectado}</strong></div>
-        )}
-      </div>
+
+      {/* Desglose por proveedor */}
+      {provEntries.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+          {provEntries.map(([prov, m]) => {
+            const pc = m.slaPct
+            const c = slaColor(pc)
+            return (
+              <div key={prov} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0 }}>
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: c, flexShrink: 0 }} />
+                  <span style={{ fontWeight: 600, fontSize: '11px', color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prov}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, fontSize: '11px' }}>
+                  <span style={{ color: '#64748b' }}>{m.registrados} inc.</span>
+                  {pc != null
+                    ? <span style={{ fontWeight: 700, color: c, minWidth: '36px', textAlign: 'right' }}>{pc}%</span>
+                    : <span style={{ color: '#888', fontStyle: 'italic', minWidth: '36px', textAlign: 'right' }}>s/eval</span>
+                  }
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* MTTR al pie */}
+      {d.tPromResolucionMin != null && (
+        <div style={{ marginTop: '7px', paddingTop: '6px', borderTop: '0.5px solid #f0f0f0', fontSize: '11px', color: '#64748b' }}>
+          MTTR: <strong style={{ color: d.tPromResolucionMin > 120 ? '#A32D2D' : '#1D9E75' }}>{fmtMin(d.tPromResolucionMin)}</strong>
+        </div>
+      )}
     </div>
   )
 }
