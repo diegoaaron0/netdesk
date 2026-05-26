@@ -1162,12 +1162,8 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
   const [tiempoEstText, setTiempoEstText] = useState(esc.tiempoEstimadoSolucion ?? '')
   const [horaRespManual, setHoraRespManual] = useState('')
   const [editTiempos, setEditTiempos] = useState(false)
-  const [horaEnvioEdit, setHoraEnvioEdit] = useState(
-    esc.horaEnvioCorreo ? new Date(esc.horaEnvioCorreo).toLocaleString('sv-SE', { timeZone: 'America/Lima' }).slice(0, 16) : ''
-  )
-  const [horaRespEdit, setHoraRespEdit] = useState(
-    esc.horaRespuesta ? new Date(esc.horaRespuesta).toLocaleString('sv-SE', { timeZone: 'America/Lima' }).slice(0, 16) : ''
-  )
+  const [horaEnvioEdit, setHoraEnvioEdit] = useState(toDatetimeLocal(esc.horaEnvioCorreo) ?? '')
+  const [horaRespEdit, setHoraRespEdit] = useState(toDatetimeLocal(esc.horaRespuesta) ?? '')
   const [savingTiempos, setSavingTiempos] = useState(false)
   const [saving, setSaving]             = useState(false)
   const [showAtc, setShowAtc]           = useState(false)
@@ -1212,7 +1208,7 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
       body: JSON.stringify({
         respuestaTexto: respuestaText,
         tiempoEstimadoSolucion: tiempoEstText,
-        horaRespuesta: horaRespManual || undefined,
+        horaRespuesta: fromDatetimeLocal(horaRespManual) ?? undefined,
       }),
     })
     setSaving(false); onRefresh()
@@ -1241,8 +1237,8 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        horaEnvioCorreo: horaEnvioEdit || null,
-        horaRespuesta:   horaRespEdit  || null,
+        horaEnvioCorreo: fromDatetimeLocal(horaEnvioEdit),
+        horaRespuesta:   fromDatetimeLocal(horaRespEdit),
       }),
     })
     setSavingTiempos(false)
