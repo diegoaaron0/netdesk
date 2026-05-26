@@ -1285,8 +1285,10 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
         </div>
       </div>
 
-      <div style={{ padding: '14px' }}
-        onPaste={!isClosed ? async (e) => {
+      <div style={{ padding: '14px' }}>
+
+        {/* Sección envío: paste aquí guarda con contexto='envio' */}
+        <div onPaste={!isClosed ? async (e) => {
           const items = e.clipboardData?.items
           if (!items) return
           for (const item of Array.from(items)) {
@@ -1296,12 +1298,11 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
               const reader = new FileReader()
               const dataUrl = await new Promise<string>(res => { reader.onload = ev => res(ev.target!.result as string); reader.readAsDataURL(file) })
               const compressed = await compressImage(dataUrl)
-              await fetch('/api/adjuntos', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url: compressed, nombre:`captura-${Date.now()}.jpg`, tipo:'image/jpeg', tamanoBytes: Math.round(compressed.length*0.75), escalamientoId: esc.id }) })
+              await fetch('/api/adjuntos', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url: compressed, nombre:`captura-${Date.now()}.jpg`, tipo:'image/jpeg', tamanoBytes: Math.round(compressed.length*0.75), escalamientoId: esc.id, contexto: 'envio' }) })
               setEscAdjKey(k => k + 1)
             }
           }
-        } : undefined}
-      >
+        } : undefined}>
 
         {/* 1. Contacto */}
         <div style={{ marginBottom: '12px', padding: '10px 12px', background: 'var(--card)', borderRadius: '8px', border: '1px solid var(--border)' }}>
@@ -1358,6 +1359,25 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
             ✉ Correo enviado → Iniciar cronómetro
           </button>
         )}
+
+        </div>{/* /sección envío */}
+
+        {/* Sección respuesta: paste aquí guarda con contexto='respuesta' */}
+        <div onPaste={!isClosed ? async (e) => {
+          const items = e.clipboardData?.items
+          if (!items) return
+          for (const item of Array.from(items)) {
+            if (item.type.startsWith('image/')) {
+              const file = item.getAsFile()
+              if (!file) continue
+              const reader = new FileReader()
+              const dataUrl = await new Promise<string>(res => { reader.onload = ev => res(ev.target!.result as string); reader.readAsDataURL(file) })
+              const compressed = await compressImage(dataUrl)
+              await fetch('/api/adjuntos', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url: compressed, nombre:`captura-${Date.now()}.jpg`, tipo:'image/jpeg', tamanoBytes: Math.round(compressed.length*0.75), escalamientoId: esc.id, contexto: 'respuesta' }) })
+              setEscAdjKey(k => k + 1)
+            }
+          }
+        } : undefined}>
 
         {/* 5. Cronómetro + respuesta */}
         {isCorriendo && (
@@ -1447,6 +1467,8 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
             <div style={{ fontSize: '11px', fontWeight: 600, color: '#b91c1c' }}>✗ No hubo respuesta del proveedor</div>
           </div>
         )}
+
+        </div>{/* /sección respuesta */}
 
         {/* ATC */}
         <div style={{ marginTop: '12px', borderTop: '1px solid var(--border)', paddingTop: '10px' }}>
