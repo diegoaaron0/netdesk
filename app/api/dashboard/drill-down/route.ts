@@ -124,6 +124,7 @@ export async function GET(req: NextRequest) {
           codigo: r.codigo,
           tipo: r.tipo,
           horaInicio:             fmtLima(r.hora_registro),
+          horaRegistroMs:         r.hora_registro ? new Date(r.hora_registro).getTime() : null,
           horaFin:                fmtLima(r.hora_fin),
           mttrMin:                r.mttr_minutos,
           horaEnvioN1:            fmtLima(r.hora_envio_correo),
