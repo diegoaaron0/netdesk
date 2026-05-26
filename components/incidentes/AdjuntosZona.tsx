@@ -31,7 +31,7 @@ function formatBytes(b: number | null) {
   return `${(b / 1024 / 1024).toFixed(1)} MB`
 }
 
-export function AdjuntosZona({ incidenteId, escalamientoId, disabled, noGrid }: { incidenteId?: string; escalamientoId?: string; disabled?: boolean; noGrid?: boolean }) {
+export function AdjuntosZona({ incidenteId, escalamientoId, disabled, noGrid, contexto }: { incidenteId?: string; escalamientoId?: string; disabled?: boolean; noGrid?: boolean; contexto?: string }) {
   const [adjuntos, setAdjuntos] = useState<Adjunto[]>([])
   const [uploading, setUploading] = useState(false)
   const [lightbox, setLightbox] = useState<string | null>(null)
@@ -39,12 +39,13 @@ export function AdjuntosZona({ incidenteId, escalamientoId, disabled, noGrid }: 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
-    const param = incidenteId
-      ? `incidenteId=${incidenteId}`
-      : `escalamientoId=${escalamientoId}`
-    const res = await fetch(`/api/adjuntos?${param}`)
+    const params = new URLSearchParams()
+    if (incidenteId)    params.set('incidenteId', incidenteId)
+    if (escalamientoId) params.set('escalamientoId', escalamientoId)
+    if (contexto)       params.set('contexto', contexto)
+    const res = await fetch(`/api/adjuntos?${params}`)
     if (res.ok) setAdjuntos(await res.json())
-  }, [incidenteId, escalamientoId])
+  }, [incidenteId, escalamientoId, contexto])
 
   useEffect(() => { load() }, [load])
 
@@ -74,6 +75,7 @@ export function AdjuntosZona({ incidenteId, escalamientoId, disabled, noGrid }: 
           tamanoBytes,
           incidenteId: incidenteId ?? null,
           escalamientoId: escalamientoId ?? null,
+          contexto: contexto ?? null,
         }),
       })
       if (res.ok) await load()

@@ -1160,6 +1160,7 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
   const [copied, setCopied]             = useState(false)
   const [respuestaText, setRespuestaText] = useState(esc.respuestaTexto ?? '')
   const [tiempoEstText, setTiempoEstText] = useState(esc.tiempoEstimadoSolucion ?? '')
+  const [horaRespManual, setHoraRespManual] = useState('')
   const [saving, setSaving]             = useState(false)
   const [showAtc, setShowAtc]           = useState(false)
   const [savingTemplate, setSavingTemplate] = useState(false)
@@ -1200,7 +1201,11 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
     await fetch(`/api/escalamientos/${esc.id}/respuesta`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ respuestaTexto: respuestaText, tiempoEstimadoSolucion: tiempoEstText }),
+      body: JSON.stringify({
+        respuestaTexto: respuestaText,
+        tiempoEstimadoSolucion: tiempoEstText,
+        horaRespuesta: horaRespManual || undefined,
+      }),
     })
     setSaving(false); onRefresh()
   }
@@ -1325,7 +1330,7 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
 
         {/* 3. Adjuntos */}
         <div style={{ marginBottom: '12px' }}>
-          <AdjuntosZona key={`${escAdjKey}-1`} escalamientoId={esc.id} disabled={isClosed} />
+          <AdjuntosZona key={`${escAdjKey}-1`} escalamientoId={esc.id} contexto="envio" disabled={isClosed} />
         </div>
 
         {/* 4. Correo enviado */}
@@ -1354,18 +1359,31 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
             </div>
             <div style={{ marginTop: '10px' }}>
               <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Adjuntos respuesta</div>
-              <AdjuntosZona key={`${escAdjKey}-2`} escalamientoId={esc.id} disabled={isClosed} />
+              <AdjuntosZona key={`${escAdjKey}-2`} escalamientoId={esc.id} contexto="respuesta" disabled={isClosed} />
             </div>
             {!isClosed && (
-              <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                <button onClick={handleRespuesta} disabled={saving}
-                  style={{ flex: 1, padding: '8px', background: '#14532d', color: '#86efac', border: 'none', borderRadius: '8px', fontSize: '11px', fontWeight: 600, cursor: saving ? 'wait' : 'pointer' }}>
-                  {saving ? 'Guardando...' : '✓ Registrar respuesta recibida'}
-                </button>
-                <button onClick={handleSinRespuesta}
-                  style={{ flex: 1, padding: '8px', background: 'var(--muted)', color: 'var(--muted-foreground)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '8px', fontSize: '11px', cursor: 'pointer' }}>
-                  ✗ No hubo respuesta
-                </button>
+              <div style={{ marginTop: '10px' }}>
+                <div style={{ marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '3px' }}>
+                    Hora de respuesta <span style={{ fontWeight: 400, textTransform: 'none' }}>(dejar vacío = ahora)</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={horaRespManual}
+                    onChange={e => setHoraRespManual(e.target.value)}
+                    style={{ padding: '5px 8px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={handleRespuesta} disabled={saving}
+                    style={{ flex: 1, padding: '8px', background: '#14532d', color: '#86efac', border: 'none', borderRadius: '8px', fontSize: '11px', fontWeight: 600, cursor: saving ? 'wait' : 'pointer' }}>
+                    {saving ? 'Guardando...' : '✓ Registrar respuesta recibida'}
+                  </button>
+                  <button onClick={handleSinRespuesta}
+                    style={{ flex: 1, padding: '8px', background: 'var(--muted)', color: 'var(--muted-foreground)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '8px', fontSize: '11px', cursor: 'pointer' }}>
+                    ✗ No hubo respuesta
+                  </button>
+                </div>
               </div>
             )}
           </div>

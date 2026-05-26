@@ -14,7 +14,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const [esc] = await db.select({ horaEnvioCorreo: escalamientos.horaEnvioCorreo })
     .from(escalamientos).where(eq(escalamientos.id, id))
 
-  const horaRespuesta = new Date()
+  const horaRespuesta = body.horaRespuesta ? new Date(body.horaRespuesta) : new Date()
   const tiempoRespuestaMin = esc?.horaEnvioCorreo
     ? Math.round((horaRespuesta.getTime() - new Date(esc.horaEnvioCorreo).getTime()) / 60000)
     : null

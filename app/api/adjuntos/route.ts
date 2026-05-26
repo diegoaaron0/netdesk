@@ -10,7 +10,18 @@ export async function GET(req: NextRequest) {
 
   const incidenteId    = req.nextUrl.searchParams.get('incidenteId')
   const escalamientoId = req.nextUrl.searchParams.get('escalamientoId')
+  const contexto       = req.nextUrl.searchParams.get('contexto')
   if (!incidenteId && !escalamientoId) return NextResponse.json([])
+
+  const { and, isNull } = await import('drizzle-orm')
+
+  const baseFilter = incidenteId
+    ? eq(adjuntos.incidenteId, incidenteId)
+    : eq(adjuntos.escalamientoId, escalamientoId!)
+
+  const contextoFilter = contexto
+    ? eq(adjuntos.contexto, contexto)
+    : isNull(adjuntos.contexto)
 
   const data = await db.select({
     id: adjuntos.id,
@@ -20,9 +31,7 @@ export async function GET(req: NextRequest) {
     tamanoBytes: adjuntos.tamanoBytes,
     creadoEn: adjuntos.creadoEn,
   }).from(adjuntos).where(
-    incidenteId
-      ? eq(adjuntos.incidenteId, incidenteId)
-      : eq(adjuntos.escalamientoId, escalamientoId!)
+    incidenteId ? baseFilter : and(baseFilter, contextoFilter)
   )
 
   return NextResponse.json(data)
@@ -40,6 +49,7 @@ export async function POST(req: NextRequest) {
     tamanoBytes: body.tamanoBytes ?? null,
     incidenteId: body.incidenteId ?? null,
     escalamientoId: body.escalamientoId ?? null,
+    contexto: body.contexto ?? null,
   }).returning()
 
   return NextResponse.json(adj, { status: 201 })

@@ -261,6 +261,7 @@ export const adjuntos = pgTable('adjuntos', {
   tamanoBytes:    integer('tamano_bytes'),
   incidenteId:    uuid('incidente_id').references(() => incidentes.id),
   escalamientoId: uuid('escalamiento_id').references(() => escalamientos.id),
+  contexto:       text('contexto'),
   creadoEn:       timestamp('creado_en').defaultNow(),
 })
 
