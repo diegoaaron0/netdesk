@@ -11,6 +11,7 @@ import ProviderSlaComplianceCard from './ProviderSlaComplianceCard'
 import GeographicImpactCard from './GeographicImpactCard'
 import SlaTrendSixMonthsCard from './SlaTrendSixMonthsCard'
 import InsightsRecommendationsCard from './InsightsRecommendationsCard'
+import DrillPanel from './DrillPanel'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -204,6 +205,12 @@ export default function DashboardAnalitico() {
   const [ieiTiendaSelected, setIeiTiendaSelected] = useState<string | null>(null)
   const [provIncOpen, setProvIncOpen] = useState(false)
   const [mttrProvSelected, setMttrProvSelected] = useState<string | null>(null)
+  const [drillOpen, setDrillOpen] = useState(false)
+  const [drillMetrica, setDrillMetrica] = useState<'sla' | 'mttr' | 'reincidencia' | null>(null)
+
+  function openDrill(m: 'sla' | 'mttr' | 'reincidencia') {
+    setDrillMetrica(m); setDrillOpen(true)
+  }
 
   const fetchData = useCallback(async (d = desde, h = hasta, pId = proveedorId) => {
     setLoading(true)
@@ -285,67 +292,210 @@ export default function DashboardAnalitico() {
         </div>
       )}
       {!error && <>
-      {/* 7 Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '10px', marginBottom: '8px' }}>
+      {/* ── 3 Hero KPI cards ─────────────────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '12px' }}>
+
+        {/* HERO 1 — SLA general */}
+        <div
+          onClick={() => openDrill('sla')}
+          style={{ background: 'white', border: `1.5px solid ${drillOpen && drillMetrica === 'sla' ? '#185FA5' : '#e5e7eb'}`, borderRadius: '14px', padding: '20px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '6px', transition: 'border-color 0.2s, box-shadow 0.2s', boxShadow: drillOpen && drillMetrica === 'sla' ? '0 0 0 3px rgba(24,95,165,0.12)' : 'none' }}
+          onMouseEnter={e => { if (!(drillOpen && drillMetrica === 'sla')) e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.07)' }}
+          onMouseLeave={e => { if (!(drillOpen && drillMetrica === 'sla')) e.currentTarget.style.boxShadow = 'none' }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>SLA general</span>
+            <IconShield />
+          </div>
+          {loading ? <Sk w="45%" h={44} /> : (
+            <div style={{ fontSize: '44px', fontWeight: 700, lineHeight: 1, color: slaColor(cards?.cumplimientoSLA.porcentaje ?? 0) }}>
+              {cards?.cumplimientoSLA.porcentaje ?? 0}<span style={{ fontSize: '22px', fontWeight: 500 }}>%</span>
+            </div>
+          )}
+          {!loading && cards?.cumplimientoSLA.deltaVsAnterior != null && (
+            <div style={{ fontSize: '12px', color: (cards.cumplimientoSLA.deltaVsAnterior ?? 0) >= 0 ? '#3B6D11' : '#A32D2D' }}>
+              {(cards.cumplimientoSLA.deltaVsAnterior ?? 0) >= 0 ? '↑' : '↓'} {Math.abs(cards.cumplimientoSLA.deltaVsAnterior ?? 0)}pp vs período anterior
+            </div>
+          )}
+          {!loading && (
+            <ProgressBar value={cards?.cumplimientoSLA.porcentaje ?? 0} color={slaColor(cards?.cumplimientoSLA.porcentaje ?? 0)} />
+          )}
+          <div style={{ marginTop: 'auto', paddingTop: '10px', borderTop: '0.5px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '11px', color: '#185FA5', fontWeight: 500 }}>Ver por proveedor →</span>
+            <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>click para desglosar</span>
+          </div>
+        </div>
+
+        {/* HERO 2 — MTTR */}
+        <div
+          onClick={() => openDrill('mttr')}
+          style={{ background: 'white', border: `1.5px solid ${drillOpen && drillMetrica === 'mttr' ? '#185FA5' : '#e5e7eb'}`, borderRadius: '14px', padding: '20px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '6px', transition: 'border-color 0.2s, box-shadow 0.2s', boxShadow: drillOpen && drillMetrica === 'mttr' ? '0 0 0 3px rgba(24,95,165,0.12)' : 'none' }}
+          onMouseEnter={e => { if (!(drillOpen && drillMetrica === 'mttr')) e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.07)' }}
+          onMouseLeave={e => { if (!(drillOpen && drillMetrica === 'mttr')) e.currentTarget.style.boxShadow = 'none' }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>MTTR promedio</span>
+            <IconClock />
+          </div>
+          {loading ? <Sk w="55%" h={44} /> : (
+            <div style={{ fontSize: '38px', fontWeight: 700, lineHeight: 1, color: mttrColor(cards?.mttrPromedio.minutos ?? null) }}>
+              {fmtMttr(cards?.mttrPromedio.minutos)}
+            </div>
+          )}
+          {!loading && cards?.mttrPromedio.deltaMinutos != null && (
+            <div style={{ fontSize: '12px', color: (cards.mttrPromedio.deltaMinutos ?? 0) > 0 ? '#A32D2D' : '#3B6D11' }}>
+              {(cards.mttrPromedio.deltaMinutos ?? 0) > 0 ? '↑' : '↓'} {Math.abs(cards.mttrPromedio.deltaMinutos)}m vs período anterior
+            </div>
+          )}
+          {!loading && cards?.mttrPromedio.byDay.length ? <MiniSparkline data={cards.mttrPromedio.byDay} /> : null}
+          <div style={{ marginTop: 'auto', paddingTop: '10px', borderTop: '0.5px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '11px', color: '#185FA5', fontWeight: 500 }}>Ver por proveedor →</span>
+            <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>click para desglosar</span>
+          </div>
+        </div>
+
+        {/* HERO 3 — Reincidencia */}
+        <div
+          onClick={() => openDrill('reincidencia')}
+          style={{ background: 'white', border: `1.5px solid ${drillOpen && drillMetrica === 'reincidencia' ? '#185FA5' : '#e5e7eb'}`, borderRadius: '14px', padding: '20px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '6px', transition: 'border-color 0.2s, box-shadow 0.2s', boxShadow: drillOpen && drillMetrica === 'reincidencia' ? '0 0 0 3px rgba(24,95,165,0.12)' : 'none' }}
+          onMouseEnter={e => { if (!(drillOpen && drillMetrica === 'reincidencia')) e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.07)' }}
+          onMouseLeave={e => { if (!(drillOpen && drillMetrica === 'reincidencia')) e.currentTarget.style.boxShadow = 'none' }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Reincidencia crítica</span>
+            <IconAlert />
+          </div>
+          {loading ? <Sk w="35%" h={44} /> : (
+            <div style={{ fontSize: '44px', fontWeight: 700, lineHeight: 1, color: (cards?.reincidenciaCritica.total ?? 0) > 0 ? '#A32D2D' : '#3B6D11' }}>
+              {cards?.reincidenciaCritica.total ?? 0}
+            </div>
+          )}
+          <div style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>tiendas con 2+ caídas</div>
+          {!loading && (() => {
+            const tiendas = cards?.reincidenciaCritica.tiendas ?? []
+            if (!tiendas.length) return <div style={{ fontSize: '12px', color: '#3B6D11' }}>Sin reincidencias en el período</div>
+            const t = tiendas[rotatingIdx % tiendas.length]
+            return (
+              <div key={rotatingIdx} className="reincide-fade" style={{ border: '1px solid #FECACA', borderRadius: '8px', padding: '7px 9px', background: '#FFF5F5' }}>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: '#A32D2D' }}>{t.codigo} · {t.proveedor}</div>
+                <div style={{ fontSize: '10px', color: '#854F0B' }}>{t.caidas} caídas{t.diasEntreCaidas != null ? ` · ~${t.diasEntreCaidas}d entre caídas` : ''}</div>
+              </div>
+            )
+          })()}
+          <div style={{ marginTop: 'auto', paddingTop: '10px', borderTop: '0.5px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '11px', color: '#185FA5', fontWeight: 500 }}>Ver por proveedor →</span>
+            <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>click para desglosar</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── 4 Secondary cards ────────────────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '8px' }}>
 
         {/* CARD 1 — Incidentes */}
         <Card onClick={() => toggle('incidentes')} isOpen={openCard === 'incidentes'}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)' }}>1. Incidentes del período</span>
+            <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)' }}>Incidentes</span>
             <IconIncidentes />
           </div>
-          {loading ? <Sk w="50%" h={32} /> : (
-            <div style={{ fontSize: '30px', fontWeight: 600, color: '#0f172a', lineHeight: 1 }}>{cards?.incidentes.total ?? 0}</div>
+          {loading ? <Sk w="50%" h={28} /> : (
+            <div style={{ fontSize: '28px', fontWeight: 600, color: '#0f172a', lineHeight: 1 }}>{cards?.incidentes.total ?? 0}</div>
           )}
-          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>incidentes</div>
-          {!loading && cards && (
-            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{cards.tiendasAfectadas.total} tiendas afectadas</div>
-          )}
+          {!loading && cards && <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{cards.tiendasAfectadas.total} tiendas afectadas</div>}
           {!loading && <DeltaBadge delta={cards?.incidentes.deltaVsAnterior ?? null} />}
           {!loading && cards?.incidentes.byDay.length ? <MiniBarChart data={cards.incidentes.byDay} /> : null}
-          <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '6px 14px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver detalle →</button>
+          <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver lista →</button>
         </Card>
 
         {/* CARD 2 — Tiendas afectadas */}
         <Card onClick={() => toggle('tiendas')} isOpen={openCard === 'tiendas'}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)' }}>2. Tiendas afectadas</span>
+            <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)' }}>Tiendas afectadas</span>
             <IconTienda />
           </div>
-          {loading ? <Sk w="40%" h={32} /> : (
-            <div style={{ fontSize: '30px', fontWeight: 600, color: '#0f172a', lineHeight: 1 }}>{cards?.tiendasAfectadas.total ?? 0}</div>
+          {loading ? <Sk w="40%" h={28} /> : (
+            <div style={{ fontSize: '28px', fontWeight: 600, color: '#0f172a', lineHeight: 1 }}>{cards?.tiendasAfectadas.total ?? 0}</div>
           )}
-          {!loading && cards && (
-            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{cards.tiendasAfectadas.porcentajeRed}% de la red</div>
-          )}
+          {!loading && cards && <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{cards.tiendasAfectadas.porcentajeRed}% de la red</div>}
           {!loading && <DeltaBadge delta={cards?.tiendasAfectadas.deltaVsAnterior ?? null} />}
-          {!loading && cards && (
-            <ProgressBar value={cards.tiendasAfectadas.porcentajeRed} color="#1D9E75" />
-          )}
-          <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '6px 14px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver detalle →</button>
+          {!loading && cards && <ProgressBar value={cards.tiendasAfectadas.porcentajeRed} color="#1D9E75" />}
+          <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver lista →</button>
         </Card>
 
-        {/* CARD 3 — MTTR */}
-        <Card onClick={() => toggle('mttr')} isOpen={openCard === 'mttr'}>
+        {/* CARD 3 — I.E.I */}
+        <Card onClick={() => toggle('costo')} isOpen={openCard === 'costo'}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)' }}>3. MTTR promedio</span>
+            <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)' }}>I.E.I estimado</span>
+            <IconDollar />
+          </div>
+          {loading ? <Sk w="55%" h={28} /> : (
+            <div style={{ fontSize: '22px', fontWeight: 600, color: '#0f172a', lineHeight: 1 }}>{fmtCosto(cards?.costoEstimado.total ?? 0)}</div>
+          )}
+          {!loading && cards?.costoEstimado.deltaVsAnterior != null && <DeltaBadge delta={cards.costoEstimado.deltaVsAnterior} />}
+          {!loading && cards && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <span style={{ fontSize: '10px', color: '#1D4ED8' }}>↩ Agente: {fmtCosto(cards.costoEstimado.totalAgente)}</span>
+              <span style={{ fontSize: '10px', color: '#A32D2D' }}>↩ Prov.: {fmtCosto(cards.costoEstimado.totalProveedor)}</span>
+            </div>
+          )}
+          <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver detalle →</button>
+        </Card>
+
+        {/* CARD 4 — Proveedor crítico */}
+        <Card onClick={() => toggle('proveedor')} isOpen={openCard === 'proveedor'} pulse={!loading && !!cards?.proveedorCritico}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)' }}>Proveedor crítico</span>
+            <IconZap />
+          </div>
+          {loading ? <Sk w="60%" h={28} /> : cards?.proveedorCritico ? (
+            <div style={{ fontSize: '20px', fontWeight: 700, color: '#EA580C', lineHeight: 1 }}>{cards.proveedorCritico.nombre}</div>
+          ) : (
+            <div style={{ fontSize: '13px', fontWeight: 600, color: '#3B6D11', lineHeight: 1 }}>Sin proveedor crítico</div>
+          )}
+          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
+            {!loading && (cards?.proveedorCritico ? 'Mayor impacto del período' : 'Todos en nivel aceptable')}
+          </div>
+          <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver detalle →</button>
+        </Card>
+
+        {/* CARD SLA eficiencia — kept for old panel compatibility */}
+        <Card onClick={() => toggle('sla')} isOpen={openCard === 'sla'} pulse={false}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)' }}>SLA eficiencia</span>
+            <IconShield />
+          </div>
+          {loading ? <Sk w="45%" h={28} /> : (
+            <div style={{ fontSize: '22px', fontWeight: 600, color: slaColor(cards?.cumplimientoSLA.scoreEficiencia ?? cards?.cumplimientoSLA.porcentaje ?? 0), lineHeight: 1 }}>
+              {cards?.cumplimientoSLA.scoreEficiencia ?? cards?.cumplimientoSLA.porcentaje ?? 0}
+            </div>
+          )}
+          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Score resp. + resol.</div>
+          {!loading && <ProgressBar value={cards?.cumplimientoSLA.scoreEficiencia ?? cards?.cumplimientoSLA.porcentaje ?? 0} color={slaColor(cards?.cumplimientoSLA.scoreEficiencia ?? cards?.cumplimientoSLA.porcentaje ?? 0)} />}
+          <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver detalle →</button>
+        </Card>
+
+        {/* CARD MTTR — kept for old panel compatibility */}
+        <Card onClick={() => toggle('mttr')} isOpen={openCard === 'mttr'} pulse={false}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)' }}>MTTR x proveedor</span>
             <IconClock />
           </div>
-          {loading ? <Sk w="55%" h={32} /> : (
-            <div style={{ fontSize: '26px', fontWeight: 600, color: mttrColor(cards?.mttrPromedio.minutos ?? null), lineHeight: 1 }}>
+          {loading ? <Sk w="55%" h={28} /> : (
+            <div style={{ fontSize: '22px', fontWeight: 600, color: mttrColor(cards?.mttrPromedio.minutos ?? null), lineHeight: 1 }}>
               {fmtMttr(cards?.mttrPromedio.minutos)}
             </div>
           )}
           {!loading && cards?.mttrPromedio.deltaMinutos != null && (
             <div style={{ fontSize: '11px', color: (cards.mttrPromedio.deltaMinutos ?? 0) > 0 ? '#A32D2D' : '#3B6D11' }}>
-              {(cards.mttrPromedio.deltaMinutos ?? 0) > 0 ? '↑' : '↓'} {Math.abs(cards.mttrPromedio.deltaMinutos)}m vs período anterior
+              {(cards.mttrPromedio.deltaMinutos ?? 0) > 0 ? '↑' : '↓'} {Math.abs(cards.mttrPromedio.deltaMinutos)}m
             </div>
           )}
-          {!loading && cards?.mttrPromedio.byDay.length ? <MiniSparkline data={cards.mttrPromedio.byDay} /> : null}
-          <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '6px 14px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver detalle →</button>
+          <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver tabla →</button>
         </Card>
 
-        {/* CARD 4 — SLA */}
+      </div>
+
+      {/* ── Legacy hidden cards (keep panel state triggers alive) ────────────── */}
+      <div style={{ display: 'none' }}>
         <Card onClick={() => toggle('sla')} isOpen={openCard === 'sla'}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)' }}>4. Cumplimiento SLA</span>
@@ -896,6 +1046,15 @@ export default function DashboardAnalitico() {
           )}
         </Panel>
       )}
+
+      {/* ── Drill-down panel ─────────────────────────────────────────────────── */}
+      <DrillPanel
+        open={drillOpen}
+        onClose={() => setDrillOpen(false)}
+        metrica={drillMetrica}
+        desde={desde}
+        hasta={hasta}
+      />
 
       {/* KPIs — A activo, B-H placeholders */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '20px' }}>
