@@ -129,6 +129,7 @@ export async function GET(req: NextRequest) {
           horaEnvioN1:            fmtLima(r.hora_envio_correo),
           horaRespuesta:          fmtLima(r.hora_respuesta),
           noHuboRespuesta:        r.no_hubo_respuesta,
+          evaluableProveedor:     r.evaluable_proveedor !== false,
           minHastaEnvio,
           minRespuesta,
           minSolucionDesdeCorreo,

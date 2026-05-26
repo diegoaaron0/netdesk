@@ -14,6 +14,7 @@ interface DrillIncidente {
   horaEnvioN1: string | null
   horaRespuesta: string | null
   noHuboRespuesta: boolean
+  evaluableProveedor: boolean
   minHastaEnvio: number | null
   minRespuesta: number | null
   minSolucionDesdeCorreo: number | null
@@ -111,24 +112,32 @@ function TimelineRow({ dot, label, hora, delta, isAlert = false, isLast = false 
 // ─── Incident card with timeline ──────────────────────────────────────────────
 
 function IncidentTimeline({ inc, onNavigate }: { inc: DrillIncidente; onNavigate: () => void }) {
-  const status = inc.dentroSLA === true ? 'ok' : inc.dentroSLA === false ? 'fail' : 'na'
+  const isAgente = !inc.horaEnvioN1
+  const status = isAgente ? 'na' : inc.dentroSLA === true ? 'ok' : inc.dentroSLA === false ? 'fail' : 'na'
+
   return (
     <div style={{
       background: 'var(--background)',
-      border: `0.5px solid ${status === 'fail' ? '#fca5a5' : status === 'ok' ? '#bbf7d0' : 'var(--border)'}`,
+      border: `0.5px solid ${isAgente ? '#e5e7eb' : status === 'fail' ? '#fca5a5' : status === 'ok' ? '#bbf7d0' : 'var(--border)'}`,
       borderRadius: 8, padding: '10px 12px', fontSize: 11,
+      opacity: isAgente ? 0.82 : 1,
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <button onClick={onNavigate} style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 600, color: '#185FA5', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
             {inc.codigo}
           </button>
           <span style={{ color: 'var(--muted-foreground)' }}>·</span>
           <span style={{ color: 'var(--muted-foreground)' }}>{TIPO_LABELS[inc.tipo] ?? inc.tipo}</span>
+          {isAgente && (
+            <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 999, background: '#F3F4F6', color: '#6B7280', fontWeight: 500 }}>
+              agente · no evaluable
+            </span>
+          )}
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           {inc.mttrMin != null && <span style={{ fontFamily: 'monospace', fontSize: 10, color: 'var(--muted-foreground)' }}>{fmtMin(inc.mttrMin)}</span>}
-          {status !== 'na' && (
+          {!isAgente && status !== 'na' && (
             <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 999, fontWeight: 600, background: status === 'ok' ? '#EAF3DE' : '#FCEBEB', color: status === 'ok' ? '#3B6D11' : '#A32D2D' }}>
               {status === 'ok' ? '✓ SLA' : '✗ SLA'}
             </span>
@@ -136,20 +145,28 @@ function IncidentTimeline({ inc, onNavigate }: { inc: DrillIncidente; onNavigate
         </div>
       </div>
 
-      <TimelineRow dot="blue"   label="Inicio del incidente"  hora={inc.horaInicio}    delta={null} />
-      {inc.horaEnvioN1 && (
-        <TimelineRow dot="orange" label="Correo N1 enviado"    hora={inc.horaEnvioN1}   delta={inc.minHastaEnvio   != null ? `+${fmtMin(inc.minHastaEnvio)} desde inicio`    : null} />
-      )}
-      {inc.horaRespuesta
-        ? <TimelineRow dot="green" label="Respuesta recibida"  hora={inc.horaRespuesta} delta={inc.minRespuesta     != null ? `+${fmtMin(inc.minRespuesta)} desde correo`    : null} />
-        : inc.horaEnvioN1
-          ? <TimelineRow dot="red" label="No hubo respuesta"   hora={null}              delta={null} isAlert />
+      <TimelineRow dot="blue" label="Inicio del incidente" hora={inc.horaInicio} delta={null} isLast={isAgente && !inc.horaFin} />
+      {isAgente ? (
+        inc.horaFin
+          ? <TimelineRow dot="green" label="Resuelto por agente" hora={inc.horaFin} delta={inc.mttrMin != null ? `${fmtMin(inc.mttrMin)} total` : null} isLast />
           : null
-      }
-      {inc.horaFin
-        ? <TimelineRow dot="purple" label="Incidente resuelto" hora={inc.horaFin}       delta={inc.minSolucionDesdeCorreo != null ? `+${fmtMin(inc.minSolucionDesdeCorreo)} desde correo` : null} isLast />
-        : <TimelineRow dot="gray"   label="Sin resolver"       hora={null}              delta={null} isLast />
-      }
+      ) : (
+        <>
+          {inc.horaEnvioN1 && (
+            <TimelineRow dot="orange" label="Correo N1 enviado" hora={inc.horaEnvioN1} delta={inc.minHastaEnvio != null ? `+${fmtMin(inc.minHastaEnvio)} desde inicio` : null} />
+          )}
+          {inc.horaRespuesta
+            ? <TimelineRow dot="green" label="Respuesta recibida" hora={inc.horaRespuesta} delta={inc.minRespuesta != null ? `+${fmtMin(inc.minRespuesta)} desde correo` : null} />
+            : inc.horaEnvioN1
+              ? <TimelineRow dot="red" label="No hubo respuesta" hora={null} delta={null} isAlert />
+              : null
+          }
+          {inc.horaFin
+            ? <TimelineRow dot="purple" label="Incidente resuelto" hora={inc.horaFin} delta={inc.minSolucionDesdeCorreo != null ? `+${fmtMin(inc.minSolucionDesdeCorreo)} desde correo` : null} isLast />
+            : <TimelineRow dot="gray" label="Sin resolver" hora={null} delta={null} isLast />
+          }
+        </>
+      )}
     </div>
   )
 }
@@ -286,6 +303,7 @@ export default function DrillPanel({ open, onClose, metrica, desde, hasta }: Dri
               {sortedTiendas.map((tienda) => {
                 const isExpanded = expandedTienda === tienda.codigo
                 const hasFailSLA = tienda.slaFail > 0
+                const agenteCount = tienda.incidentes.filter(i => !i.horaEnvioN1).length
                 return (
                   <div key={tienda.codigo} style={{ borderBottom: '0.5px solid var(--border)' }}>
                     {/* Store row */}
@@ -312,6 +330,11 @@ export default function DrillPanel({ open, onClose, metrica, desde, hasta }: Dri
                         {(tienda.slaOk + tienda.slaFail) > 0 && (
                           <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, fontWeight: 600, whiteSpace: 'nowrap', background: hasFailSLA ? '#FCEBEB' : '#EAF3DE', color: hasFailSLA ? '#A32D2D' : '#3B6D11' }}>
                             {hasFailSLA ? `✗ ${tienda.slaFail} fuera` : '✓ SLA OK'}
+                          </span>
+                        )}
+                        {agenteCount > 0 && (
+                          <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, background: '#F3F4F6', color: '#6B7280', whiteSpace: 'nowrap' }}>
+                            {agenteCount} agente
                           </span>
                         )}
                         <span style={{ color: 'var(--muted-foreground)', fontSize: 14, display: 'inline-block', transform: isExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>›</span>
