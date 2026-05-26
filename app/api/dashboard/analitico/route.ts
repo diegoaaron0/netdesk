@@ -697,6 +697,8 @@ async function buildCards(
         fecha: fmtFechaInc(i.hora_registro),
         horaInicio: new Date(i.hora_registro).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Lima' }),
         horaFin: i.hora_fin ? new Date(i.hora_fin).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Lima' }) : null,
+        horaEnvioN1: i.hora_correo_n1 ? new Date(i.hora_correo_n1).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Lima' }) : null,
+        horaRespuesta: i.hora_primera_resp ? new Date(i.hora_primera_resp).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Lima' }) : null,
         tiendaIncCount: tiendasDetailMap.get(i.tienda_id)?.count ?? 1,
       })),
       byDay,

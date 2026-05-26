@@ -217,17 +217,24 @@ export default function DrillPanel({ open, onClose, metrica, desde, hasta }: Dri
 
   const proveedores = data?.proveedores ?? []
 
-  const sortedProvs = [...proveedores].sort((a, b) =>
-    metrica === 'sla'  ? (a.slaPct  ?? 100) - (b.slaPct  ?? 100)
-    : metrica === 'mttr' ? (b.mttrAvg ?? 0)   - (a.mttrAvg ?? 0)
-    : b.incidentesCount - a.incidentesCount
-  )
+  const sortedProvs = [...proveedores].sort((a, b) => {
+    if (metrica === 'sla')  return (a.slaPct  ?? 100) - (b.slaPct  ?? 100)
+    if (metrica === 'mttr') return (b.mttrAvg ?? 0)   - (a.mttrAvg ?? 0)
+    // reincidencia: ordenar por tiendas con 2+ incidentes desc
+    const aReinc = a.tiendas.filter(t => t.incidentesCount >= 2).length
+    const bReinc = b.tiendas.filter(t => t.incidentesCount >= 2).length
+    return bReinc !== aReinc ? bReinc - aReinc : b.incidentesCount - a.incidentesCount
+  })
 
   const selData = selectedProv ? proveedores.find(p => p.nombre === selectedProv) ?? null : null
 
   const sortedTiendas = selData
-    ? [...selData.tiendas].sort((a, b) =>
-        metrica === 'sla' ? (b.slaFail - a.slaFail) : (b.mttrAvg ?? 0) - (a.mttrAvg ?? 0)
+    ? [...selData.tiendas]
+      .filter(t => metrica !== 'reincidencia' || t.incidentesCount >= 2)
+      .sort((a, b) =>
+        metrica === 'sla'          ? (b.slaFail - a.slaFail)
+        : metrica === 'reincidencia' ? b.incidentesCount - a.incidentesCount
+        : (b.mttrAvg ?? 0) - (a.mttrAvg ?? 0)
       )
     : []
 
@@ -263,7 +270,12 @@ export default function DrillPanel({ open, onClose, metrica, desde, hasta }: Dri
             </div>
             {selData && (
               <div style={{ display: 'flex', gap: 10, marginTop: 2, flexWrap: 'wrap' }}>
-                {selData.slaPct != null && <span style={{ fontSize: 11, color: slaColor(selData.slaPct) }}>SLA {selData.slaPct}%</span>}
+                {metrica === 'reincidencia' && (
+                  <span style={{ fontSize: 11, fontWeight: 600, color: sortedTiendas.length > 0 ? '#A32D2D' : '#3B6D11' }}>
+                    {sortedTiendas.length} tienda{sortedTiendas.length !== 1 ? 's' : ''} reincidente{sortedTiendas.length !== 1 ? 's' : ''}
+                  </span>
+                )}
+                {metrica !== 'reincidencia' && selData.slaPct != null && <span style={{ fontSize: 11, color: slaColor(selData.slaPct) }}>SLA {selData.slaPct}%</span>}
                 {selData.mttrAvg != null && <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>MTTR {fmtMin(selData.mttrAvg)}</span>}
                 <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>{selData.incidentesCount} incidente{selData.incidentesCount !== 1 ? 's' : ''}</span>
               </div>
@@ -284,34 +296,47 @@ export default function DrillPanel({ open, onClose, metrica, desde, hasta }: Dri
               {sortedProvs.length === 0 && (
                 <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted-foreground)', fontSize: 13 }}>Sin datos para el período seleccionado.</div>
               )}
-              {sortedProvs.map((prov, i) => (
-                <div
-                  key={prov.nombre}
-                  onClick={() => setSelectedProv(prov.nombre)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '0.5px solid var(--border)', cursor: 'pointer' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = '')}
-                >
-                  <div style={{ fontSize: 20, fontWeight: 800, color: '#e5e7eb', minWidth: 22, textAlign: 'center', lineHeight: 1 }}>{i + 1}</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>{prov.nombre}</div>
-                    <div style={{ fontSize: 11, color: 'var(--muted-foreground)', marginTop: 2 }}>
-                      {prov.incidentesCount} incidente{prov.incidentesCount !== 1 ? 's' : ''} · {prov.tiendas.length} tienda{prov.tiendas.length !== 1 ? 's' : ''}
+              {sortedProvs.map((prov, i) => {
+                const reincCount = prov.tiendas.filter(t => t.incidentesCount >= 2).length
+                return (
+                  <div
+                    key={prov.nombre}
+                    onClick={() => setSelectedProv(prov.nombre)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '0.5px solid var(--border)', cursor: 'pointer' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = '')}
+                  >
+                    <div style={{ fontSize: 20, fontWeight: 800, color: '#e5e7eb', minWidth: 22, textAlign: 'center', lineHeight: 1 }}>{i + 1}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{prov.nombre}</div>
+                      <div style={{ fontSize: 11, color: 'var(--muted-foreground)', marginTop: 2 }}>
+                        {metrica === 'reincidencia'
+                          ? `${reincCount} tienda${reincCount !== 1 ? 's' : ''} reincidente${reincCount !== 1 ? 's' : ''} · ${prov.incidentesCount} incidente${prov.incidentesCount !== 1 ? 's' : ''}`
+                          : `${prov.incidentesCount} incidente${prov.incidentesCount !== 1 ? 's' : ''} · ${prov.tiendas.length} tienda${prov.tiendas.length !== 1 ? 's' : ''}`
+                        }
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexShrink: 0 }}>
+                      {metrica === 'reincidencia' ? (
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 10, color: 'var(--muted-foreground)' }}>Reinc.</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: reincCount > 0 ? '#A32D2D' : '#3B6D11' }}>{reincCount}</div>
+                        </div>
+                      ) : (
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 10, color: 'var(--muted-foreground)' }}>SLA</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: slaColor(prov.slaPct) }}>{prov.slaPct != null ? `${prov.slaPct}%` : '—'}</div>
+                        </div>
+                      )}
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: 10, color: 'var(--muted-foreground)' }}>MTTR</div>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: mttrClr(prov.mttrAvg) }}>{fmtMin(prov.mttrAvg)}</div>
+                      </div>
+                      <span style={{ color: 'var(--muted-foreground)', fontSize: 18 }}>›</span>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexShrink: 0 }}>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 10, color: 'var(--muted-foreground)' }}>SLA</div>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: slaColor(prov.slaPct) }}>{prov.slaPct != null ? `${prov.slaPct}%` : '—'}</div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 10, color: 'var(--muted-foreground)' }}>MTTR</div>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: mttrClr(prov.mttrAvg) }}>{fmtMin(prov.mttrAvg)}</div>
-                    </div>
-                    <span style={{ color: 'var(--muted-foreground)', fontSize: 18 }}>›</span>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
 

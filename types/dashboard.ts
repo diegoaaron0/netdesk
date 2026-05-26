@@ -9,6 +9,8 @@ export interface IncidenteListItem {
   fecha: string
   horaInicio: string
   horaFin: string | null
+  horaEnvioN1: string | null
+  horaRespuesta: string | null
   tiendaIncCount: number
 }
 

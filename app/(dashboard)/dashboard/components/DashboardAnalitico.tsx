@@ -207,6 +207,7 @@ export default function DashboardAnalitico() {
   const [mttrProvSelected, setMttrProvSelected] = useState<string | null>(null)
   const [drillOpen, setDrillOpen] = useState(false)
   const [drillMetrica, setDrillMetrica] = useState<'sla' | 'mttr' | 'reincidencia' | null>(null)
+  const [reincSelectedTienda, setReincSelectedTienda] = useState<string | null>(null)
 
   function openDrill(m: 'sla' | 'mttr' | 'reincidencia') {
     setDrillMetrica(m); setDrillOpen(true)
@@ -583,58 +584,85 @@ export default function DashboardAnalitico() {
       {/* Panel detail */}
       {openCard === 'incidentes' && cards && (
         <Panel title={`Incidentes del período (${cards.incidentes.total})`} onClose={() => setOpenCard(null)}>
-          <div style={{ display: 'grid', gridTemplateColumns: '90px 60px 100px 100px 80px 90px 55px 55px 40px', gap: '8px', padding: '0 0 8px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
-            {['Código','Tienda','Proveedor','Tipo','Estado','Fecha','Inicio','Fin','Incs.'].map((h) => (
+          <div style={{ display: 'grid', gridTemplateColumns: '90px 55px 80px 85px 85px 50px 50px 55px 55px 35px', gap: '8px', padding: '0 0 8px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
+            {['Código','Tienda','Proveedor','Tipo','Estado','Inicio','Fin','Env.N1','Resp.N1','#'].map((h) => (
               <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
             ))}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-            {cards.incidentes.lista.map((inc, i) => (
-              <div key={inc.id}
-                onClick={() => router.push(`/incidentes/${inc.id}`)}
-                style={{ display: 'grid', gridTemplateColumns: '90px 60px 100px 100px 80px 90px 55px 55px 40px', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center', cursor: 'pointer' }}>
-                <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#185FA5' }}>{inc.codigo}</span>
-                <span style={{ fontSize: '11px', fontWeight: 500 }}>{inc.tiendaCodigo}</span>
-                <span style={{ fontSize: '12px' }}>{inc.proveedor}</span>
-                <span style={{ fontSize: '11px' }}>{fmtTipo(inc.tipo)}</span>
-                <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: inc.estado === 'RESUELTO' ? '#EAF3DE' : '#E6F1FB', color: inc.estado === 'RESUELTO' ? '#3B6D11' : '#185FA5', whiteSpace: 'nowrap' }}>
-                  {fmtEstado(inc.estado)}
-                </span>
-                <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{inc.fecha}</span>
-                <span style={{ fontSize: '11px', fontFamily: 'monospace' }}>{inc.horaInicio}</span>
-                <span style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--muted-foreground)' }}>{inc.horaFin ?? '—'}</span>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: inc.tiendaIncCount > 2 ? '#A32D2D' : '#0f172a' }}>{inc.tiendaIncCount}</span>
-              </div>
-            ))}
+            {[...cards.incidentes.lista].sort((a, b) => {
+              const aOpen = a.estado !== 'RESUELTO' ? 1 : 0
+              const bOpen = b.estado !== 'RESUELTO' ? 1 : 0
+              return bOpen - aOpen
+            }).map((inc, i) => {
+              const esAbierto  = inc.estado !== 'RESUELTO'
+              const esPorAgente = inc.estado === 'RESUELTO' && !inc.horaEnvioN1
+              return (
+                <div key={inc.id}
+                  onClick={() => router.push(`/incidentes/${inc.id}`)}
+                  style={{ display: 'grid', gridTemplateColumns: '90px 55px 80px 85px 85px 50px 50px 55px 55px 35px', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center', cursor: 'pointer' }}>
+                  <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#185FA5' }}>{inc.codigo}</span>
+                  <span style={{ fontSize: '11px', fontWeight: 500 }}>{inc.tiendaCodigo}</span>
+                  <span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inc.proveedor}</span>
+                  <span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fmtTipo(inc.tipo)}</span>
+                  <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', whiteSpace: 'nowrap',
+                    background: esAbierto ? '#FECACA' : esPorAgente ? '#F3F4F6' : '#EAF3DE',
+                    color:      esAbierto ? '#B91C1C' : esPorAgente ? '#6B7280' : '#3B6D11' }}>
+                    {esAbierto ? 'Abierto' : esPorAgente ? 'Agente' : 'Resuelto'}
+                  </span>
+                  <span style={{ fontSize: '11px', fontFamily: 'monospace' }}>{inc.horaInicio}</span>
+                  <span style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--muted-foreground)' }}>{inc.horaFin ?? '—'}</span>
+                  <span style={{ fontSize: '11px', fontFamily: 'monospace', color: inc.horaEnvioN1 ? '#854F0B' : 'var(--muted-foreground)' }}>{inc.horaEnvioN1 ?? '—'}</span>
+                  <span style={{ fontSize: '11px', fontFamily: 'monospace', color: inc.horaRespuesta ? '#3B6D11' : 'var(--muted-foreground)' }}>{inc.horaRespuesta ?? '—'}</span>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: inc.tiendaIncCount > 2 ? '#A32D2D' : '#0f172a' }}>{inc.tiendaIncCount}</span>
+                </div>
+              )
+            })}
           </div>
         </Panel>
       )}
 
       {openCard === 'tiendas' && cards && (
         <Panel title={`Tiendas afectadas (${cards.tiendasAfectadas.total} de 156)`} onClose={() => setOpenCard(null)}>
-          <div style={{ display: 'grid', gridTemplateColumns: '65px 1fr 90px 60px 70px 80px', gap: '8px', padding: '0 0 8px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
-            {['Código','Nombre','Proveedor','Distrito','Incidentes','Estado'].map((h) => (
-              <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
-            ))}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-            {cards.tiendasAfectadas.lista.map((t, i) => (
-              <div key={t.id}
-                onClick={() => router.push(`/tiendas/${t.id}`)}
-                style={{ display: 'grid', gridTemplateColumns: '65px 1fr 90px 60px 70px 80px', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center', cursor: 'pointer' }}>
-                <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 600 }}>{t.codigo}</span>
-                <span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.nombre}</span>
-                <span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.proveedor}</span>
-                <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{t.distrito ?? '—'}</span>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: t.incidentesCount > 2 ? '#A32D2D' : '#0f172a', textAlign: 'center' }}>{t.incidentesCount}</span>
-                <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', whiteSpace: 'nowrap',
-                  background: t.estadoReciente === 'RESUELTO' ? '#EAF3DE' : '#FEF3C7',
-                  color:      t.estadoReciente === 'RESUELTO' ? '#3B6D11' : '#92400E' }}>
-                  {t.estadoReciente === 'RESUELTO' ? 'Resuelto' : 'Activo'}
-                </span>
-              </div>
-            ))}
-          </div>
+          {(() => {
+            const reincSet = new Set(cards.reincidenciaCritica.tiendas.map(t => t.codigo))
+            const ieiMap   = new Map(cards.costoEstimado.top5Tiendas.map(t => [t.codigo, t.costo]))
+            const sorted   = [...cards.tiendasAfectadas.lista].sort((a, b) => b.incidentesCount - a.incidentesCount)
+            return (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: '65px 1fr 80px 55px 70px 70px', gap: '8px', padding: '0 0 8px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
+                  {['Código','Nombre','Proveedor','Incs.','I.E.I','Estado'].map((h) => (
+                    <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                  {sorted.map((t, i) => (
+                    <div key={t.id}
+                      onClick={() => router.push(`/tiendas/${t.id}`)}
+                      style={{ display: 'grid', gridTemplateColumns: '65px 1fr 80px 55px 70px 70px', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center', cursor: 'pointer' }}>
+                      <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 600 }}>{t.codigo}</span>
+                      <span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.nombre}</span>
+                      <span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.proveedor}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: t.incidentesCount > 2 ? '#A32D2D' : '#0f172a' }}>{t.incidentesCount}</span>
+                        {reincSet.has(t.codigo) && (
+                          <span title="Reincidencia crítica" style={{ fontSize: '11px', color: '#A32D2D', fontWeight: 700, lineHeight: 1 }}>↺</span>
+                        )}
+                      </div>
+                      <span style={{ fontSize: '11px', fontFamily: 'monospace', color: ieiMap.has(t.codigo) ? '#854F0B' : 'var(--muted-foreground)' }}>
+                        {ieiMap.has(t.codigo) ? fmtCosto(ieiMap.get(t.codigo)!) : '—'}
+                      </span>
+                      <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', whiteSpace: 'nowrap',
+                        background: t.estadoReciente === 'RESUELTO' ? '#EAF3DE' : '#FEF3C7',
+                        color:      t.estadoReciente === 'RESUELTO' ? '#3B6D11' : '#92400E' }}>
+                        {t.estadoReciente === 'RESUELTO' ? 'Resuelto' : 'Activo'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )
+          })()}
         </Panel>
       )}
 
@@ -799,7 +827,12 @@ export default function DashboardAnalitico() {
       {openCard === 'costo' && cards && (
         <Panel title="Desglose de Impacto Económico de Indisponibilidad" onClose={() => setOpenCard(null)}>
           <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '10px', marginTop: '-4px' }}>
-            Solo incidentes resueltos con hora de fin registrada. Incidentes aún abiertos no se incluyen.
+            {(() => {
+              const abiertos = cards.incidentes.lista.filter(i => i.estado !== 'RESUELTO').length
+              return abiertos > 0
+                ? `Solo incidentes resueltos con hora de fin registrada. ${abiertos} incidente${abiertos > 1 ? 's' : ''} aún abierto${abiertos > 1 ? 's' : ''} no ${abiertos > 1 ? 'están incluidos' : 'está incluido'}.`
+                : 'Solo incidentes resueltos con hora de fin registrada.'
+            })()}
           </div>
           <div style={{ background: 'var(--muted)', borderRadius: '8px', padding: '12px', marginBottom: '8px', display: 'grid', gridTemplateColumns: '1fr auto', rowGap: '4px', columnGap: '16px' }}>
             <span style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>Venta afectada estimada:</span>
@@ -912,48 +945,81 @@ export default function DashboardAnalitico() {
               </>
             )
           })()}
-          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: '6px', marginTop: '12px' }}>Top tiendas por I.E.I</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '60px 80px 70px 50px 1fr 90px', gap: '8px', padding: '0 0 6px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
-            {['Tienda','Proveedor','V.Afectada','Margen','Motivo','I.E.I'].map((h) => (
-              <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
-            ))}
-          </div>
-          {cards.costoEstimado.top5Tiendas.map((t, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '60px 80px 70px 50px 1fr 90px', gap: '8px', padding: '6px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
-              <span style={{ fontSize: '12px', fontWeight: 500 }}>{t.codigo}</span>
-              <span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.proveedor}</span>
-              <span style={{ fontSize: '11px', fontFamily: 'monospace' }}>{fmtCosto(t.ventaAfectada)}</span>
-              <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>35%</span>
-              <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.motivo}</span>
-              <span style={{ fontSize: '12px', fontWeight: 600, fontFamily: 'monospace', textAlign: 'right' }}>{fmtCosto(t.costo)}</span>
-            </div>
-          ))}
         </Panel>
       )}
 
       {openCard === 'reincidencia' && cards && (
-        <Panel title="Tiendas con reincidencia" onClose={() => setOpenCard(null)}>
-          <div style={{ display: 'grid', gridTemplateColumns: '65px 80px 45px 55px 80px 90px 80px 80px', gap: '8px', padding: '0 0 8px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
+        <Panel title={`Reincidencia crítica — ${cards.reincidenciaCritica.total} tiendas`} onClose={() => setOpenCard(null)}>
+          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '8px', marginTop: '-4px' }}>
+            Ordenadas por mayor número de caídas. Clic en fila para ver sus incidentes.
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '65px 80px 45px 55px 80px 85px 75px 80px', gap: '8px', padding: '0 0 8px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
             {['Tienda','Prov.','Caídas','Cada','Tipo rep.','Contingencia','Tendencia','I.E.I'].map((h) => (
               <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
             ))}
           </div>
-          {cards.reincidenciaCritica.tiendas.map((t, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '65px 80px 45px 55px 80px 90px 80px 80px', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
-              <span style={{ fontSize: '12px', fontWeight: 500 }}>{t.codigo}</span>
-              <span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.proveedor}</span>
-              <span style={{ fontSize: '12px', fontWeight: 600, color: t.caidas >= 3 ? '#A32D2D' : '#854F0B' }}>{t.caidas}</span>
-              <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{t.diasEntreCaidas != null ? `~${t.diasEntreCaidas}d` : '—'}</span>
-              <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{fmtTipo(t.tipoRepetido)}</span>
-              <span style={{ fontSize: '11px', fontWeight: 500, color: t.tieneContingencia ? '#3B6D11' : '#A32D2D' }}>{t.tieneContingencia ? '✓ Sí' : '✗ No'}</span>
-              <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', whiteSpace: 'nowrap',
-                background: t.tendencia === 'EMPEORA' ? '#FCEBEB' : t.tendencia === 'ESTABLE' ? '#FAEEDA' : '#EAF3DE',
-                color:      t.tendencia === 'EMPEORA' ? '#A32D2D' : t.tendencia === 'ESTABLE' ? '#854F0B' : '#3B6D11' }}>
-                {t.tendencia}
-              </span>
-              <span style={{ fontSize: '11px', fontFamily: 'monospace' }}>{fmtCosto(t.costoEstimado)}</span>
-            </div>
-          ))}
+          {[...cards.reincidenciaCritica.tiendas].sort((a, b) => b.caidas - a.caidas).map((t, i) => {
+            const isExpanded  = reincSelectedTienda === t.codigo
+            const incsTienda  = cards.incidentes.lista.filter(inc => inc.tiendaCodigo === t.codigo)
+            return (
+              <div key={i}>
+                <div
+                  onClick={() => setReincSelectedTienda(isExpanded ? null : t.codigo)}
+                  style={{ display: 'grid', gridTemplateColumns: '65px 80px 45px 55px 80px 85px 75px 80px', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center', cursor: 'pointer', background: isExpanded ? 'var(--muted)' : 'transparent', borderRadius: isExpanded ? '6px' : undefined }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600 }}>{t.codigo}</span>
+                  <span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.proveedor}</span>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: t.caidas >= 3 ? '#A32D2D' : '#854F0B' }}>{t.caidas}</span>
+                  <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{t.diasEntreCaidas != null ? `~${t.diasEntreCaidas}d` : '—'}</span>
+                  <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{fmtTipo(t.tipoRepetido)}</span>
+                  <span style={{ fontSize: '11px', fontWeight: 500, color: t.tieneContingencia ? '#3B6D11' : '#A32D2D' }}>{t.tieneContingencia ? '✓ Sí' : '✗ No'}</span>
+                  <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', whiteSpace: 'nowrap',
+                    background: t.tendencia === 'EMPEORA' ? '#FCEBEB' : t.tendencia === 'ESTABLE' ? '#FAEEDA' : '#EAF3DE',
+                    color:      t.tendencia === 'EMPEORA' ? '#A32D2D' : t.tendencia === 'ESTABLE' ? '#854F0B' : '#3B6D11' }}>
+                    {t.tendencia}
+                  </span>
+                  <span style={{ fontSize: '11px', fontFamily: 'monospace' }}>{fmtCosto(t.costoEstimado)}</span>
+                </div>
+                {isExpanded && (
+                  <div style={{ margin: '2px 0 8px 8px', padding: '8px 10px', background: 'var(--muted)', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+                      Incidentes de {t.codigo} ({incsTienda.length})
+                    </div>
+                    {incsTienda.length === 0 ? (
+                      <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Sin incidentes en el período visible.</div>
+                    ) : (
+                      <>
+                        <div style={{ display: 'grid', gridTemplateColumns: '90px 72px 50px 55px 55px 50px', gap: '8px', padding: '0 0 4px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
+                          {['Código','Estado','Inicio','Env.N1','Resp.N1','Fin'].map(h => (
+                            <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
+                          ))}
+                        </div>
+                        {incsTienda.map((inc, j) => {
+                          const esAbierto   = inc.estado !== 'RESUELTO'
+                          const esPorAgente = inc.estado === 'RESUELTO' && !inc.horaEnvioN1
+                          return (
+                            <div key={j}
+                              onClick={(e) => { e.stopPropagation(); router.push(`/incidentes/${inc.id}`) }}
+                              style={{ display: 'grid', gridTemplateColumns: '90px 72px 50px 55px 55px 50px', gap: '8px', padding: '5px 0', borderTop: j > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center', cursor: 'pointer' }}>
+                              <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#185FA5' }}>{inc.codigo}</span>
+                              <span style={{ fontSize: '10px', padding: '2px 5px', borderRadius: '999px', whiteSpace: 'nowrap',
+                                background: esAbierto ? '#FECACA' : esPorAgente ? '#F3F4F6' : '#EAF3DE',
+                                color:      esAbierto ? '#B91C1C' : esPorAgente ? '#6B7280' : '#3B6D11' }}>
+                                {esAbierto ? 'Abierto' : esPorAgente ? 'Agente' : 'Resuelto'}
+                              </span>
+                              <span style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--muted-foreground)' }}>{inc.horaInicio}</span>
+                              <span style={{ fontSize: '11px', fontFamily: 'monospace', color: inc.horaEnvioN1 ? '#854F0B' : 'var(--muted-foreground)' }}>{inc.horaEnvioN1 ?? '—'}</span>
+                              <span style={{ fontSize: '11px', fontFamily: 'monospace', color: inc.horaRespuesta ? '#3B6D11' : 'var(--muted-foreground)' }}>{inc.horaRespuesta ?? '—'}</span>
+                              <span style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--muted-foreground)' }}>{inc.horaFin ?? '—'}</span>
+                            </div>
+                          )
+                        })}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </Panel>
       )}
 
@@ -973,10 +1039,10 @@ export default function DashboardAnalitico() {
         <Panel title={`${cards.proveedorCritico.nombre} — proveedor más crítico`} onClose={() => setOpenCard(null)}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '14px' }}>
             {[
+              { label: 'I.E.I estimado', valor: fmtCosto(cards.proveedorCritico.metricas.costoEstimado), ok: false, click: false },
+              { label: 'Incidentes', valor: String(cards.proveedorCritico.metricas.incidentes), ok: cards.proveedorCritico.metricas.incidentes <= 2, click: true },
               { label: 'SLA', valor: `${cards.proveedorCritico.metricas.slaPct}%`, ok: cards.proveedorCritico.metricas.slaPct >= 90, click: false },
               { label: 'MTTR prom.', valor: fmtMttr(cards.proveedorCritico.metricas.mttrMinutos), ok: cards.proveedorCritico.metricas.mttrMinutos < 120, click: false },
-              { label: 'I.E.I', valor: fmtCosto(cards.proveedorCritico.metricas.costoEstimado), ok: false, click: false },
-              { label: 'Incidentes', valor: String(cards.proveedorCritico.metricas.incidentes), ok: cards.proveedorCritico.metricas.incidentes <= 2, click: true },
               { label: 'Tiendas reinc.', valor: String(cards.proveedorCritico.metricas.reincidenciaTiendas), ok: cards.proveedorCritico.metricas.reincidenciaTiendas === 0, click: false },
             ].map(({ label, valor, ok, click }) => (
               <div
@@ -991,28 +1057,39 @@ export default function DashboardAnalitico() {
           {provIncOpen && cards.proveedorCritico.incidentesDetalle.length > 0 && (
             <div>
               <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Incidentes del proveedor</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '80px 60px 90px 65px 55px 75px 90px', gap: '8px', padding: '0 0 6px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
-                {['Código','Tienda','Tipo','MTTR','SLA','IEI','Fecha'].map((h) => (
+              <div style={{ display: 'grid', gridTemplateColumns: '80px 60px 90px 65px 55px 75px 75px', gap: '8px', padding: '0 0 6px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
+                {['Código','Tienda','Tipo','MTTR','SLA','IEI','Estado'].map((h) => (
                   <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
                 ))}
               </div>
-              {[...cards.proveedorCritico.incidentesDetalle].sort((a, b) => b.iei - a.iei).map((inc, i) => (
-                <div key={i} style={{ display: 'grid', gridTemplateColumns: '80px 60px 90px 65px 55px 75px 90px', gap: '8px', padding: '5px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
-                  <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#185FA5' }}>{inc.codigo}</span>
-                  <span style={{ fontSize: '11px', fontWeight: 500 }}>{inc.tiendaCodigo}</span>
-                  <span style={{ fontSize: '11px' }}>{fmtTipo(inc.tipo)}</span>
-                  <span style={{ fontSize: '11px', fontFamily: 'monospace', color: mttrColor(inc.mttrMinutos) }}>{fmtMttr(inc.mttrMinutos)}</span>
-                  {inc.slaCumplido == null ? (
-                    <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', background: '#F1F5F9', color: '#475569', whiteSpace: 'nowrap' }}>N/A</span>
-                  ) : (
-                    <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', background: inc.slaCumplido ? '#EAF3DE' : '#FCEBEB', color: inc.slaCumplido ? '#3B6D11' : '#A32D2D', whiteSpace: 'nowrap' }}>
-                      {inc.slaCumplido ? '✓ OK' : '✗ Fuera'}
+              {[...cards.proveedorCritico.incidentesDetalle].sort((a, b) => {
+                const aOpen = a.estado !== 'RESUELTO' ? 1 : 0
+                const bOpen = b.estado !== 'RESUELTO' ? 1 : 0
+                return bOpen !== aOpen ? bOpen - aOpen : b.iei - a.iei
+              }).map((inc, i) => {
+                const isOpen = inc.estado !== 'RESUELTO'
+                return (
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '80px 60px 90px 65px 55px 75px 75px', gap: '8px', padding: '5px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
+                    <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#185FA5' }}>{inc.codigo}</span>
+                    <span style={{ fontSize: '11px', fontWeight: 500 }}>{inc.tiendaCodigo}</span>
+                    <span style={{ fontSize: '11px' }}>{fmtTipo(inc.tipo)}</span>
+                    <span style={{ fontSize: '11px', fontFamily: 'monospace', color: mttrColor(inc.mttrMinutos) }}>{fmtMttr(inc.mttrMinutos)}</span>
+                    {inc.slaCumplido == null ? (
+                      <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', background: '#F1F5F9', color: '#475569', whiteSpace: 'nowrap' }}>N/A</span>
+                    ) : (
+                      <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', background: inc.slaCumplido ? '#EAF3DE' : '#FCEBEB', color: inc.slaCumplido ? '#3B6D11' : '#A32D2D', whiteSpace: 'nowrap' }}>
+                        {inc.slaCumplido ? '✓ OK' : '✗ Fuera'}
+                      </span>
+                    )}
+                    <span style={{ fontSize: '11px', fontFamily: 'monospace' }}>{fmtCosto(inc.iei)}</span>
+                    <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', whiteSpace: 'nowrap',
+                      background: isOpen ? '#FECACA' : '#EAF3DE',
+                      color:      isOpen ? '#B91C1C' : '#3B6D11' }}>
+                      {isOpen ? 'Abierto' : 'Resuelto'}
                     </span>
-                  )}
-                  <span style={{ fontSize: '11px', fontFamily: 'monospace' }}>{fmtCosto(inc.iei)}</span>
-                  <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{inc.horaRegistro}</span>
-                </div>
-              ))}
+                  </div>
+                )
+              })}
             </div>
           )}
         </Panel>
