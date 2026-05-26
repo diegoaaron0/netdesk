@@ -1166,6 +1166,13 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
   const [horaRespEdit, setHoraRespEdit] = useState(toDatetimeLocal(esc.horaRespuesta) ?? '')
   const [savingTiempos, setSavingTiempos] = useState(false)
   const [saving, setSaving]             = useState(false)
+
+  useEffect(() => {
+    if (!editTiempos) {
+      setHoraEnvioEdit(toDatetimeLocal(esc.horaEnvioCorreo) ?? '')
+      setHoraRespEdit(toDatetimeLocal(esc.horaRespuesta) ?? '')
+    }
+  }, [esc.horaEnvioCorreo, esc.horaRespuesta, editTiempos])
   const [showAtc, setShowAtc]           = useState(false)
   const [savingTemplate, setSavingTemplate] = useState(false)
   const [escAdjKey, setEscAdjKey] = useState(0)
@@ -1178,7 +1185,7 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
   const isRespondido   = !!esc.horaRespuesta
   const isSinRespuesta = !!esc.noHuboRespuesta
   const isCorriendo    = !!esc.horaEnvioCorreo && !isRespondido && !isSinRespuesta
-  const horaCreado     = new Date(esc.creadoEn).toLocaleString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
+  const horaCreado     = new Date(esc.horaEnvioCorreo ?? esc.creadoEn).toLocaleString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
 
   async function copyTemplate() {
     await navigator.clipboard.writeText(templateBody)
