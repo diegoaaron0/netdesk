@@ -104,18 +104,19 @@ export async function GET(req: NextRequest) {
       const mttrAvg = mttrVals.length ? Math.round(mttrVals.reduce((a, b) => a + b) / mttrVals.length) : null
 
       const evaluables = incRows.filter(r => r.evaluable_proveedor !== false && r.hora_envio_correo != null)
-      const slaOk   = evaluables.filter(r => r.hora_respuesta != null && (r.tiempo_respuesta_min ?? Infinity) <= SLA_RESPUESTA_MIN).length
-      const slaFail = evaluables.filter(r => r.no_hubo_respuesta || (r.hora_respuesta != null && (r.tiempo_respuesta_min ?? 0) > SLA_RESPUESTA_MIN)).length
+      // Compute response time from timestamps (tiempo_respuesta_min in DB may be null/stale)
+      const slaOk   = evaluables.filter(r => { const t = minBetween(r.hora_envio_correo, r.hora_respuesta); return t != null && t <= SLA_RESPUESTA_MIN }).length
+      const slaFail = evaluables.filter(r => { const t = minBetween(r.hora_envio_correo, r.hora_respuesta); return r.no_hubo_respuesta || (t != null && t > SLA_RESPUESTA_MIN) }).length
 
       const incidentes = incRows.map(r => {
-        const minHastaEnvio         = minBetween(r.hora_registro, r.hora_envio_correo)
-        const minRespuesta          = minBetween(r.hora_envio_correo, r.hora_respuesta)
+        const minHastaEnvio          = minBetween(r.hora_registro, r.hora_envio_correo)
+        const minRespuesta           = minBetween(r.hora_envio_correo, r.hora_respuesta)
         const minSolucionDesdeCorreo = minBetween(r.hora_envio_correo, r.hora_fin)
 
         let dentroSLA: boolean | null = null
         if (r.hora_envio_correo != null) {
-          if (r.hora_respuesta != null)  dentroSLA = (r.tiempo_respuesta_min ?? Infinity) <= SLA_RESPUESTA_MIN
-          else if (r.no_hubo_respuesta)  dentroSLA = false
+          if (minRespuesta != null)     dentroSLA = minRespuesta <= SLA_RESPUESTA_MIN
+          else if (r.no_hubo_respuesta) dentroSLA = false
         }
 
         return {
