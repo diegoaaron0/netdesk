@@ -349,6 +349,7 @@ async function buildCards(
   const slaByProvIncidentes = new Map<string, SlaIncRow[]>()
 
   let slaCumplidos = 0
+  let slaRespuestaOk = 0
   let slaEvaluablesCount = 0
   const evaluables: { codigo: string; tiendaCodigo: string; proveedor: string; tipo: string; fecha: string; cumplido: boolean }[] = []
   for (const i of incs) {
@@ -368,6 +369,7 @@ async function buildCards(
     slaEvaluablesCount++
     const cumplido = slaRes.slaGeneral
     if (cumplido) slaCumplidos++
+    if (slaRes.slaRespuesta) slaRespuestaOk++
 
     const prov = i.prov_nombre ?? '—'
     const eficiencia = calcEficienciaSLA({
@@ -425,9 +427,11 @@ async function buildCards(
       cumplido,
     })
   }
-  const slaPct = slaEvaluablesCount > 0 ? Math.round(slaCumplidos / slaEvaluablesCount * 100) : 0
+  const slaPct          = slaEvaluablesCount > 0 ? Math.round(slaCumplidos    / slaEvaluablesCount * 100) : 0
+  const slaRespuestaPct = slaEvaluablesCount > 0 ? Math.round(slaRespuestaOk / slaEvaluablesCount * 100) : 0
 
   let prevSlaOk = 0
+  let prevSlaRespuestaOk = 0
   let prevEvaluablesCount = 0
   for (const i of prevIncs) {
     const sla = getSlaParaIncidente(i.proveedor_id ?? '', i.tienda_id ?? '')
@@ -442,10 +446,13 @@ async function buildCards(
     })
     if (!slaRes.evaluable) continue
     prevEvaluablesCount++
-    if (slaRes.slaGeneral) prevSlaOk++
+    if (slaRes.slaGeneral)   prevSlaOk++
+    if (slaRes.slaRespuesta) prevSlaRespuestaOk++
   }
-  const prevSlaPct = prevEvaluablesCount > 0 ? Math.round(prevSlaOk / prevEvaluablesCount * 100) : null
-  const dSla = prevSlaPct != null ? slaPct - prevSlaPct : null
+  const prevSlaPct          = prevEvaluablesCount > 0 ? Math.round(prevSlaOk          / prevEvaluablesCount * 100) : null
+  const prevSlaRespuestaPct = prevEvaluablesCount > 0 ? Math.round(prevSlaRespuestaOk / prevEvaluablesCount * 100) : null
+  const dSla          = prevSlaPct          != null ? slaPct          - prevSlaPct          : null
+  const dSlaRespuesta = prevSlaRespuestaPct != null ? slaRespuestaPct - prevSlaRespuestaPct : null
 
   const slaPorProveedor = [...slaByProv.entries()]
     .map(([nombre, s]) => ({
@@ -466,7 +473,7 @@ async function buildCards(
   let costoProveedor = 0
   let ventaAfectadaTotal = 0
   const costoByProv   = new Map<string, number>()
-  type CostoAccum = { codigo: string; proveedor: string; horas: number; costo: number; ventaAfectada: number; topCosto: number; topFactor: number; topMotivo: string; topVentaHora: number | null; topMargen: number; topContingencia: boolean; topMovil: boolean; topBoleta: boolean }
+  type CostoAccum = { codigo: string; proveedor: string; horas: number; costo: number; ventaAfectada: number; topCosto: number; topFactor: number; topMotivo: string; topVentaHora: number | null; topVentaHoraEsEstimada: boolean; topCluster: string | null; topMargen: number; topContingencia: boolean; topMovil: boolean; topBoleta: boolean }
   const costoByTienda = new Map<string, CostoAccum>()
 
   for (const i of incs) {
@@ -486,7 +493,8 @@ async function buildCards(
       existing.horas += (i.mttr_minutos ?? 0) / 60
       if (costo > existing.topCosto) {
         existing.topCosto = costo; existing.topFactor = factor; existing.topMotivo = motivo
-        existing.topVentaHora = ventaHora; existing.topMargen = margen
+        existing.topVentaHora = ventaHora; existing.topVentaHoraEsEstimada = i.venta_hora_soles == null; existing.topCluster = i.cluster
+        existing.topMargen = margen
         existing.topContingencia = i.contingencia_activa
         existing.topMovil = i.hubo_movil
         existing.topBoleta = i.boleta_manual ?? false
@@ -496,7 +504,8 @@ async function buildCards(
         codigo: i.tienda_codigo, proveedor: prov,
         horas: (i.mttr_minutos ?? 0) / 60,
         costo, ventaAfectada, topCosto: costo, topFactor: factor, topMotivo: motivo,
-        topVentaHora: ventaHora, topMargen: margen,
+        topVentaHora: ventaHora, topVentaHoraEsEstimada: i.venta_hora_soles == null, topCluster: i.cluster,
+        topMargen: margen,
         topContingencia: i.contingencia_activa,
         topMovil: i.hubo_movil,
         topBoleta: i.boleta_manual ?? false,
@@ -521,6 +530,8 @@ async function buildCards(
     factor: t.topFactor,
     motivo: t.topMotivo,
     ventaHora: t.topVentaHora != null ? Math.round(t.topVentaHora) : null,
+    ventaHoraEsEstimada: t.topVentaHoraEsEstimada,
+    cluster: t.topCluster,
     margen: t.topMargen,
     horasAfectadas: Math.round(t.horas * 10) / 10,
     huboContingencia: t.topContingencia,
@@ -708,6 +719,8 @@ async function buildCards(
         const scores = slaPorProveedor.map(p => p.scoreEficiencia).filter((s): s is number => s != null)
         return scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null
       })(),
+      slaRespuestaPct,
+      deltaRespuestaPct: dSlaRespuesta,
       deltaVsAnterior: dSla,
       porProveedor: slaPorProveedor,
       evaluables,

@@ -307,17 +307,18 @@ export default function DashboardAnalitico() {
             <IconShield />
           </div>
           {loading ? <Sk w="45%" h={44} /> : (
-            <div style={{ fontSize: '44px', fontWeight: 700, lineHeight: 1, color: slaColor(cards?.cumplimientoSLA.porcentaje ?? 0) }}>
-              {cards?.cumplimientoSLA.porcentaje ?? 0}<span style={{ fontSize: '22px', fontWeight: 500 }}>%</span>
+            <div style={{ fontSize: '44px', fontWeight: 700, lineHeight: 1, color: slaColor(cards?.cumplimientoSLA.slaRespuestaPct ?? 0) }}>
+              {cards?.cumplimientoSLA.slaRespuestaPct ?? 0}<span style={{ fontSize: '22px', fontWeight: 500 }}>%</span>
             </div>
           )}
-          {!loading && cards?.cumplimientoSLA.deltaVsAnterior != null && (
-            <div style={{ fontSize: '12px', color: (cards.cumplimientoSLA.deltaVsAnterior ?? 0) >= 0 ? '#3B6D11' : '#A32D2D' }}>
-              {(cards.cumplimientoSLA.deltaVsAnterior ?? 0) >= 0 ? '↑' : '↓'} {Math.abs(cards.cumplimientoSLA.deltaVsAnterior ?? 0)}pp vs período anterior
+          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Respuesta N1 ≤ 60 min</div>
+          {!loading && cards?.cumplimientoSLA.deltaRespuestaPct != null && (
+            <div style={{ fontSize: '12px', color: (cards.cumplimientoSLA.deltaRespuestaPct ?? 0) >= 0 ? '#3B6D11' : '#A32D2D' }}>
+              {(cards.cumplimientoSLA.deltaRespuestaPct ?? 0) >= 0 ? '↑' : '↓'} {Math.abs(cards.cumplimientoSLA.deltaRespuestaPct ?? 0)}pp vs período anterior
             </div>
           )}
           {!loading && (
-            <ProgressBar value={cards?.cumplimientoSLA.porcentaje ?? 0} color={slaColor(cards?.cumplimientoSLA.porcentaje ?? 0)} />
+            <ProgressBar value={cards?.cumplimientoSLA.slaRespuestaPct ?? 0} color={slaColor(cards?.cumplimientoSLA.slaRespuestaPct ?? 0)} />
           )}
           <div style={{ marginTop: 'auto', paddingTop: '10px', borderTop: '0.5px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '11px', color: '#185FA5', fontWeight: 500 }}>Ver por proveedor →</span>
@@ -388,7 +389,7 @@ export default function DashboardAnalitico() {
         </div>
       </div>
 
-      {/* ── 4 Secondary cards ────────────────────────────────────────────────── */}
+      {/* ── Secondary cards ──────────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '8px' }}>
 
         {/* CARD 1 — Incidentes */}
@@ -455,41 +456,6 @@ export default function DashboardAnalitico() {
             {!loading && (cards?.proveedorCritico ? 'Mayor impacto del período' : 'Todos en nivel aceptable')}
           </div>
           <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver detalle →</button>
-        </Card>
-
-        {/* CARD SLA eficiencia — kept for old panel compatibility */}
-        <Card onClick={() => toggle('sla')} isOpen={openCard === 'sla'} pulse={false}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)' }}>SLA eficiencia</span>
-            <IconShield />
-          </div>
-          {loading ? <Sk w="45%" h={28} /> : (
-            <div style={{ fontSize: '22px', fontWeight: 600, color: slaColor(cards?.cumplimientoSLA.scoreEficiencia ?? cards?.cumplimientoSLA.porcentaje ?? 0), lineHeight: 1 }}>
-              {cards?.cumplimientoSLA.scoreEficiencia ?? cards?.cumplimientoSLA.porcentaje ?? 0}
-            </div>
-          )}
-          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Score resp. + resol.</div>
-          {!loading && <ProgressBar value={cards?.cumplimientoSLA.scoreEficiencia ?? cards?.cumplimientoSLA.porcentaje ?? 0} color={slaColor(cards?.cumplimientoSLA.scoreEficiencia ?? cards?.cumplimientoSLA.porcentaje ?? 0)} />}
-          <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver detalle →</button>
-        </Card>
-
-        {/* CARD MTTR — kept for old panel compatibility */}
-        <Card onClick={() => toggle('mttr')} isOpen={openCard === 'mttr'} pulse={false}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)' }}>MTTR x proveedor</span>
-            <IconClock />
-          </div>
-          {loading ? <Sk w="55%" h={28} /> : (
-            <div style={{ fontSize: '22px', fontWeight: 600, color: mttrColor(cards?.mttrPromedio.minutos ?? null), lineHeight: 1 }}>
-              {fmtMttr(cards?.mttrPromedio.minutos)}
-            </div>
-          )}
-          {!loading && cards?.mttrPromedio.deltaMinutos != null && (
-            <div style={{ fontSize: '11px', color: (cards.mttrPromedio.deltaMinutos ?? 0) > 0 ? '#A32D2D' : '#3B6D11' }}>
-              {(cards.mttrPromedio.deltaMinutos ?? 0) > 0 ? '↑' : '↓'} {Math.abs(cards.mttrPromedio.deltaMinutos)}m
-            </div>
-          )}
-          <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver tabla →</button>
         </Card>
 
       </div>
@@ -907,12 +873,17 @@ export default function DashboardAnalitico() {
                                 {isTiendaSel && (
                                   <div style={{ margin: '4px 0 6px 0', padding: '10px 12px', background: 'white', border: '0.5px solid var(--border)', borderRadius: '8px' }}>
                                     <div style={{ fontSize: '11px', fontWeight: 600, marginBottom: '6px' }}>{t.codigo} · {t.proveedor}</div>
-                                    <div style={{ fontSize: '11px', fontFamily: 'monospace', background: '#f8fafc', padding: '8px 10px', borderRadius: '6px', marginBottom: '8px', lineHeight: 1.9 }}>
+                                    <div style={{ fontSize: '11px', fontFamily: 'monospace', background: '#f8fafc', padding: '8px 10px', borderRadius: '6px', marginBottom: '6px', lineHeight: 1.9 }}>
                                       {'IEI = S/'}{t.ventaHora != null ? t.ventaHora.toLocaleString('es-PE') : '—'}{'/h'}
                                       {' × '}{t.horasAfectadas}{'h'}
                                       {' × '}{Math.round(t.margen * 100)}{'% margen'}
                                       {' × '}{t.factor}{' factor'}
                                     </div>
+                                    {t.ventaHoraEsEstimada && (
+                                      <div style={{ fontSize: '10px', color: '#92400E', background: '#FEF3C7', padding: '3px 8px', borderRadius: '6px', marginBottom: '8px', display: 'inline-block' }}>
+                                        estimado · cluster {t.cluster ?? '—'}
+                                      </div>
+                                    )}
                                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
                                       {t.huboContingencia && (
                                         <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: '#F1F5F9', color: '#475569', fontWeight: 500 }}>Contingencia activa</span>

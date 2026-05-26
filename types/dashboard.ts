@@ -66,6 +66,8 @@ export interface CostoTienda {
   factor: number
   motivo: string
   ventaHora: number | null
+  ventaHoraEsEstimada: boolean
+  cluster: string | null
   margen: number
   horasAfectadas: number
   huboContingencia: boolean
@@ -120,6 +122,8 @@ export interface MttrPromedioCard {
 
 export interface CumplimientoSLACard {
   porcentaje: number
+  slaRespuestaPct: number
+  deltaRespuestaPct: number | null
   scoreEficiencia: number | null
   deltaVsAnterior: number | null
   porProveedor: SlaProveedor[]
