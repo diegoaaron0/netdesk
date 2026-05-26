@@ -31,11 +31,24 @@ function formatBytes(b: number | null) {
   return `${(b / 1024 / 1024).toFixed(1)} MB`
 }
 
-export function AdjuntosZona({ incidenteId, escalamientoId, disabled, noGrid, contexto }: { incidenteId?: string; escalamientoId?: string; disabled?: boolean; noGrid?: boolean; contexto?: string }) {
-  const [adjuntos, setAdjuntos] = useState<Adjunto[]>([])
+export function AdjuntosZona({
+  incidenteId,
+  escalamientoId,
+  disabled,
+  noGrid,
+  contexto,
+}: {
+  incidenteId?: string
+  escalamientoId?: string
+  disabled?: boolean
+  noGrid?: boolean
+  contexto?: string
+}) {
+  const [adjuntos, setAdjuntos]   = useState<Adjunto[]>([])
   const [uploading, setUploading] = useState(false)
-  const [lightbox, setLightbox] = useState<string | null>(null)
-  const [dragging, setDragging] = useState(false)
+  const [uploadError, setUploadError] = useState('')
+  const [lightbox, setLightbox]   = useState<string | null>(null)
+  const [dragging, setDragging]   = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
@@ -49,9 +62,9 @@ export function AdjuntosZona({ incidenteId, escalamientoId, disabled, noGrid, co
 
   useEffect(() => { load() }, [load])
 
-
-  const uploadFile = async (file: File) => {
+  const uploadFile = useCallback(async (file: File) => {
     setUploading(true)
+    setUploadError('')
     try {
       const reader = new FileReader()
       const dataUrl = await new Promise<string>(resolve => {
@@ -78,22 +91,47 @@ export function AdjuntosZona({ incidenteId, escalamientoId, disabled, noGrid, co
           contexto: contexto ?? null,
         }),
       })
-      if (res.ok) await load()
+      if (res.ok) {
+        await load()
+      } else {
+        setUploadError(`Error al guardar (${res.status})`)
+      }
+    } catch {
+      setUploadError('Error al procesar la imagen')
     } finally {
       setUploading(false)
     }
-  }
+  }, [incidenteId, escalamientoId, contexto, load])
+
+  // Global paste listener — solo para la zona de incidente (no escalamiento).
+  // Captura Ctrl+V desde cualquier parte de la página, incluyendo cuando el
+  // foco está en el textarea de comentarios.
+  useEffect(() => {
+    if (disabled || !incidenteId || escalamientoId) return
+    const handlePaste = async (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items
+      if (!items) return
+      const imageItems = Array.from(items).filter(i => i.type.startsWith('image/'))
+      if (imageItems.length === 0) return
+      for (const item of imageItems) {
+        const file = item.getAsFile()
+        if (file) await uploadFile(file)
+      }
+    }
+    document.addEventListener('paste', handlePaste)
+    return () => document.removeEventListener('paste', handlePaste)
+  }, [disabled, incidenteId, escalamientoId, uploadFile])
 
   const handleFiles = async (files: FileList | null) => {
     if (!files) return
-    for (const file of Array.from(files)) {
-      await uploadFile(file)
-    }
+    for (const file of Array.from(files)) await uploadFile(file)
   }
 
   const handleDelete = async (id: string) => {
-    await fetch(`/api/adjuntos/${id}`, { method: 'DELETE' })
+    // Optimistic remove
     setAdjuntos(prev => prev.filter(a => a.id !== id))
+    const res = await fetch(`/api/adjuntos/${id}`, { method: 'DELETE' })
+    if (!res.ok) load() // rollback si falla
   }
 
   const isImage = (a: Adjunto) => (a.tipo ?? '').startsWith('image/') || a.url.startsWith('data:image')
@@ -124,6 +162,8 @@ export function AdjuntosZona({ incidenteId, escalamientoId, disabled, noGrid, co
             onDragLeave={() => setDragging(false)}
             onDrop={e => { e.preventDefault(); setDragging(false); handleFiles(e.dataTransfer.files) }}
             onPaste={async (e) => {
+              // stopPropagation evita doble-upload si hay listener exterior en la página
+              e.stopPropagation()
               const items = e.clipboardData?.items
               if (!items) return
               for (const item of Array.from(items)) {
@@ -137,7 +177,7 @@ export function AdjuntosZona({ incidenteId, escalamientoId, disabled, noGrid, co
             <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
               {uploading
                 ? 'Subiendo...'
-                : 'Arrastra, haz clic, o haz clic aquí y pega Ctrl+V'}
+                : 'Arrastra, haz clic o pega una imagen (Ctrl+V)'}
             </div>
           </div>
           <input
@@ -148,6 +188,11 @@ export function AdjuntosZona({ incidenteId, escalamientoId, disabled, noGrid, co
             style={{ display: 'none' }}
             onChange={e => handleFiles(e.target.files)}
           />
+          {uploadError && (
+            <div style={{ fontSize: '11px', color: '#DC2626', marginTop: '4px' }}>
+              {uploadError}
+            </div>
+          )}
         </>
       )}
 
@@ -189,7 +234,6 @@ export function AdjuntosZona({ incidenteId, escalamientoId, disabled, noGrid, co
         </div>
       )}
 
-      {/* Lightbox */}
       {lightbox && (
         <div
           onClick={() => setLightbox(null)}

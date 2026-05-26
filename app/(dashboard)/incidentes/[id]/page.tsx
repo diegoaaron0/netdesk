@@ -166,7 +166,6 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   const [reopening, setReopening]   = useState(false)
   const [showGuia, setShowGuia]       = useState(false)
   const [showSolucionado, setShowSolucionado] = useState(false)
-  const [bgAdjKey, setBGAdjKey] = useState(0)
 
   // Escalamiento
   const [showNivelMenu, setShowNivelMenu] = useState(false)
@@ -743,21 +742,6 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
             {/* Comentarios */}
               <div
                 style={{ marginTop:'12px', background:'var(--card)', border:'1px solid var(--border)', borderRadius:'10px', padding:'12px' }}
-                onPaste={canEditB ? async (e) => {
-                  const items = e.clipboardData?.items
-                  if (!items) return
-                  for (const item of Array.from(items)) {
-                    if (item.type.startsWith('image/')) {
-                      const file = item.getAsFile()
-                      if (!file) continue
-                      const reader = new FileReader()
-                      const dataUrl = await new Promise<string>(res => { reader.onload = ev => res(ev.target!.result as string); reader.readAsDataURL(file) })
-                      const compressed = await compressImage(dataUrl)
-                      await fetch('/api/adjuntos', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url: compressed, nombre:`captura-${Date.now()}.jpg`, tipo:'image/jpeg', tamanoBytes: Math.round(compressed.length*0.75), incidenteId: id }) })
-                      setBGAdjKey(k => k + 1)
-                    }
-                  }
-                } : undefined}
               >
                 <div style={{ fontSize:'11px',fontWeight:600,color:'var(--foreground)',marginBottom:'8px' }}>Comentarios</div>
                 <textarea disabled={!canEditB}
@@ -766,7 +750,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   placeholder="Describe qué se validó, resultados, respuesta de tienda, acciones del agente..."
                 />
                 <div style={{ marginTop:'10px' }}>
-                  <AdjuntosZona key={bgAdjKey} incidenteId={id} disabled={!canEditB} />
+                  <AdjuntosZona incidenteId={id} disabled={!canEditB} />
                 </div>
               </div>
             </div>
