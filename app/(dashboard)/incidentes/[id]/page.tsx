@@ -1161,6 +1161,14 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
   const [respuestaText, setRespuestaText] = useState(esc.respuestaTexto ?? '')
   const [tiempoEstText, setTiempoEstText] = useState(esc.tiempoEstimadoSolucion ?? '')
   const [horaRespManual, setHoraRespManual] = useState('')
+  const [editTiempos, setEditTiempos] = useState(false)
+  const [horaEnvioEdit, setHoraEnvioEdit] = useState(
+    esc.horaEnvioCorreo ? new Date(esc.horaEnvioCorreo).toLocaleString('sv-SE', { timeZone: 'America/Lima' }).slice(0, 16) : ''
+  )
+  const [horaRespEdit, setHoraRespEdit] = useState(
+    esc.horaRespuesta ? new Date(esc.horaRespuesta).toLocaleString('sv-SE', { timeZone: 'America/Lima' }).slice(0, 16) : ''
+  )
+  const [savingTiempos, setSavingTiempos] = useState(false)
   const [saving, setSaving]             = useState(false)
   const [showAtc, setShowAtc]           = useState(false)
   const [savingTemplate, setSavingTemplate] = useState(false)
@@ -1217,11 +1225,28 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
   }
 
   async function handleDelete() {
-    const msg = isCorriendo
-      ? 'El cronómetro ya está corriendo. ¿Eliminar de todas formas?'
-      : '¿Eliminar este escalamiento?'
+    const msg = isRespondido
+      ? `Nivel ${esc.nivel} ya tiene respuesta registrada. ¿Eliminar de todas formas? Esta acción no se puede deshacer.`
+      : isCorriendo
+        ? 'El cronómetro ya está corriendo. ¿Eliminar de todas formas?'
+        : '¿Eliminar este escalamiento?'
     if (!confirm(msg)) return
     await fetch(`/api/escalamientos/${esc.id}`, { method: 'DELETE' })
+    onRefresh()
+  }
+
+  async function handleGuardarTiempos() {
+    setSavingTiempos(true)
+    await fetch(`/api/escalamientos/${esc.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        horaEnvioCorreo: horaEnvioEdit || null,
+        horaRespuesta:   horaRespEdit  || null,
+      }),
+    })
+    setSavingTiempos(false)
+    setEditTiempos(false)
     onRefresh()
   }
 
@@ -1258,7 +1283,13 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
           {isRespondido && <span style={{ fontSize: '10px', padding: '2px 8px', background: '#dcfce7', color: '#15803d', borderRadius: '20px', fontWeight: 600 }}>Respondido</span>}
           {isSinRespuesta && <span style={{ fontSize: '10px', padding: '2px 8px', background: '#fee2e2', color: '#b91c1c', borderRadius: '20px', fontWeight: 600 }}>Sin respuesta</span>}
           <span style={{ fontSize: '9px', color: 'var(--muted-foreground)' }}>{horaCreado}</span>
-          {!isClosed && !isRespondido && (
+          {!isClosed && isRespondido && (
+            <button onClick={() => setEditTiempos(v => !v)} title="Editar tiempos"
+              style={{ width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: editTiempos ? '#dbeafe' : 'rgba(0,0,0,0.06)', border: `1px solid ${editTiempos ? '#93c5fd' : 'var(--border)'}`, borderRadius: '5px', color: editTiempos ? '#1d4ed8' : 'var(--muted-foreground)', cursor: 'pointer', fontSize: '11px' }}>
+              ✎
+            </button>
+          )}
+          {!isClosed && (
             <button onClick={handleDelete} title="Eliminar escalamiento"
               style={{ width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '5px', color: '#dc2626', cursor: 'pointer' }}>
               <IcoTrashEsc />
@@ -1391,12 +1422,35 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
 
         {/* Respondido */}
         {isRespondido && (
-          <div style={{ padding: '10px 12px', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #86efac', marginBottom: '8px' }}>
-            <div style={{ fontSize: '11px', fontWeight: 600, color: '#15803d' }}>
-              ✓ Respondido en {minToHM(esc.tiempoRespuestaMin)} · {new Date(esc.horaRespuesta).toLocaleString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit' })}
+          <div style={{ marginBottom: '8px' }}>
+            <div style={{ padding: '10px 12px', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #86efac' }}>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: '#15803d' }}>
+                ✓ Respondido en {minToHM(esc.tiempoRespuestaMin)} · {new Date(esc.horaRespuesta).toLocaleString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit' })}
+              </div>
+              {esc.tiempoEstimadoSolucion && <div style={{ fontSize: '10px', color: '#15803d', marginTop: '3px' }}>Estimado proveedor: {esc.tiempoEstimadoSolucion}</div>}
+              {esc.respuestaTexto && <div style={{ fontSize: '11px', color: 'var(--foreground)', marginTop: '6px', whiteSpace: 'pre-wrap' }}>{esc.respuestaTexto}</div>}
             </div>
-            {esc.tiempoEstimadoSolucion && <div style={{ fontSize: '10px', color: '#15803d', marginTop: '3px' }}>Estimado proveedor: {esc.tiempoEstimadoSolucion}</div>}
-            {esc.respuestaTexto && <div style={{ fontSize: '11px', color: 'var(--foreground)', marginTop: '6px', whiteSpace: 'pre-wrap' }}>{esc.respuestaTexto}</div>}
+            {editTiempos && (
+              <div style={{ marginTop: '8px', padding: '10px 12px', background: '#eff6ff', borderRadius: '8px', border: '1px solid #93c5fd', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ fontSize: '10px', fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Corregir tiempos</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <div>
+                    <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '3px' }}>Hora envío N{esc.nivel}</div>
+                    <input type="datetime-local" value={horaEnvioEdit} onChange={e => setHoraEnvioEdit(e.target.value)}
+                      style={{ width: '100%', padding: '5px 7px', fontSize: '11px', border: '1px solid #93c5fd', borderRadius: '6px', background: 'white', outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '3px' }}>Hora respuesta</div>
+                    <input type="datetime-local" value={horaRespEdit} onChange={e => setHoraRespEdit(e.target.value)}
+                      style={{ width: '100%', padding: '5px 7px', fontSize: '11px', border: '1px solid #93c5fd', borderRadius: '6px', background: 'white', outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+                </div>
+                <button onClick={handleGuardarTiempos} disabled={savingTiempos}
+                  style={{ padding: '6px', background: '#1d4ed8', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: savingTiempos ? 'wait' : 'pointer' }}>
+                  {savingTiempos ? 'Guardando...' : 'Guardar tiempos'}
+                </button>
+              </div>
+            )}
           </div>
         )}
 
