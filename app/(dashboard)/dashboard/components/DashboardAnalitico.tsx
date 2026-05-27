@@ -449,13 +449,31 @@ export default function DashboardAnalitico() {
             <IconZap />
           </div>
           {loading ? <Sk w="60%" h={28} /> : cards?.proveedorCritico ? (
-            <div style={{ fontSize: '20px', fontWeight: 700, color: '#EA580C', lineHeight: 1 }}>{cards.proveedorCritico.nombre}</div>
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap' }}>
+                <div style={{ fontSize: '20px', fontWeight: 700, color: '#EA580C', lineHeight: 1 }}>{cards.proveedorCritico.nombre}</div>
+                <span style={{ fontSize: '10px', background: '#FEE2E2', color: '#991B1B', borderRadius: '4px', padding: '2px 5px', fontWeight: 700 }}>Score {cards.proveedorCritico.score}</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px 10px', marginTop: '7px' }}>
+                {[
+                  { label: 'SLA', val: `${Math.round(cards.proveedorCritico.metricas.slaPct)}%` },
+                  { label: 'MTTR', val: fmtMttr(cards.proveedorCritico.metricas.mttrMinutos) },
+                  { label: 'I.E.I', val: fmtCosto(cards.proveedorCritico.metricas.costoEstimado) },
+                  { label: 'Incidentes', val: String(cards.proveedorCritico.metricas.incidentes) },
+                ].map(({ label, val }) => (
+                  <div key={label}>
+                    <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{label}</div>
+                    <div style={{ fontSize: '12px', fontWeight: 700, fontFamily: label === 'I.E.I' || label === 'MTTR' ? 'monospace' : undefined }}>{val}</div>
+                  </div>
+                ))}
+              </div>
+            </>
           ) : (
-            <div style={{ fontSize: '13px', fontWeight: 600, color: '#3B6D11', lineHeight: 1 }}>Sin proveedor crítico</div>
+            <>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#3B6D11', lineHeight: 1 }}>Sin proveedor crítico</div>
+              <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Todos en nivel aceptable</div>
+            </>
           )}
-          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
-            {!loading && (cards?.proveedorCritico ? 'Mayor impacto del período' : 'Todos en nivel aceptable')}
-          </div>
           <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver detalle →</button>
         </Card>
 
@@ -566,17 +584,31 @@ export default function DashboardAnalitico() {
             <IconZap />
           </div>
           {loading ? <Sk w="60%" h={28} /> : cards?.proveedorCritico ? (
-            <div style={{ fontSize: '24px', fontWeight: 700, color: '#EA580C', lineHeight: 1 }}>
-              {cards.proveedorCritico.nombre}
-            </div>
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <div style={{ fontSize: '24px', fontWeight: 700, color: '#EA580C', lineHeight: 1 }}>{cards.proveedorCritico.nombre}</div>
+                <span style={{ fontSize: '10px', background: '#FEE2E2', color: '#991B1B', borderRadius: '4px', padding: '2px 6px', fontWeight: 700 }}>Score {cards.proveedorCritico.score}</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 14px', marginTop: '8px' }}>
+                {[
+                  { label: 'SLA', val: `${Math.round(cards.proveedorCritico.metricas.slaPct)}%` },
+                  { label: 'MTTR', val: fmtMttr(cards.proveedorCritico.metricas.mttrMinutos) },
+                  { label: 'I.E.I estimado', val: fmtCosto(cards.proveedorCritico.metricas.costoEstimado) },
+                  { label: 'Incidentes', val: String(cards.proveedorCritico.metricas.incidentes) },
+                ].map(({ label, val }) => (
+                  <div key={label}>
+                    <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{label}</div>
+                    <div style={{ fontSize: '13px', fontWeight: 700, fontFamily: label === 'I.E.I estimado' || label === 'MTTR' ? 'monospace' : undefined }}>{val}</div>
+                  </div>
+                ))}
+              </div>
+            </>
           ) : (
-            <div style={{ fontSize: '14px', fontWeight: 600, color: '#3B6D11', lineHeight: 1 }}>
-              Sin proveedor crítico
-            </div>
+            <>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: '#3B6D11', lineHeight: 1 }}>Sin proveedor crítico</div>
+              <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Todos en nivel aceptable</div>
+            </>
           )}
-          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
-            {loading ? null : cards?.proveedorCritico ? 'Mayor impacto operativo del período' : 'Todos en nivel aceptable'}
-          </div>
           <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '6px 14px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver detalle →</button>
         </Card>
       </div>
