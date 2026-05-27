@@ -293,324 +293,150 @@ export default function DashboardAnalitico() {
         </div>
       )}
       {!error && <>
-      {/* ── 3 Hero KPI cards ─────────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '12px' }}>
+      {/* ── KPI strip — 7 chips compactos ───────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', marginBottom: '12px' }}>
 
-        {/* HERO 1 — SLA general */}
-        <div
-          onClick={() => openDrill('sla')}
-          style={{ background: 'white', border: `1.5px solid ${drillOpen && drillMetrica === 'sla' ? '#185FA5' : '#e5e7eb'}`, borderRadius: '14px', padding: '20px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '6px', transition: 'border-color 0.2s, box-shadow 0.2s', boxShadow: drillOpen && drillMetrica === 'sla' ? '0 0 0 3px rgba(24,95,165,0.12)' : 'none' }}
-          onMouseEnter={e => { if (!(drillOpen && drillMetrica === 'sla')) e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.07)' }}
-          onMouseLeave={e => { if (!(drillOpen && drillMetrica === 'sla')) e.currentTarget.style.boxShadow = 'none' }}
-        >
+        {/* ── Chip 1 — SLA ──────────────────────────────────────────────────── */}
+        <div onClick={() => openDrill('sla')}
+          style={{ background: 'white', border: `0.5px solid ${drillOpen && drillMetrica === 'sla' ? '#185FA5' : '#e5e7eb'}`, borderRadius: '12px', padding: '10px 12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>SLA general</span>
+            <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>SLA</span>
             <IconShield />
           </div>
-          {loading ? <Sk w="45%" h={44} /> : (
-            <div style={{ fontSize: '44px', fontWeight: 700, lineHeight: 1, color: slaColor(cards?.cumplimientoSLA.slaRespuestaPct ?? 0) }}>
-              {cards?.cumplimientoSLA.slaRespuestaPct ?? 0}<span style={{ fontSize: '22px', fontWeight: 500 }}>%</span>
+          {loading ? <Sk w="50%" h={22} /> : (
+            <div style={{ fontSize: '26px', fontWeight: 700, color: slaColor(cards?.cumplimientoSLA.scoreEficiencia ?? cards?.cumplimientoSLA.porcentaje ?? 0), lineHeight: 1 }}>
+              {cards?.cumplimientoSLA.scoreEficiencia ?? cards?.cumplimientoSLA.porcentaje ?? 0}%
             </div>
           )}
-          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Respuesta N1 ≤ 60 min</div>
-          {!loading && cards?.cumplimientoSLA.deltaRespuestaPct != null && (
-            <div style={{ fontSize: '12px', color: (cards.cumplimientoSLA.deltaRespuestaPct ?? 0) >= 0 ? '#3B6D11' : '#A32D2D' }}>
-              {(cards.cumplimientoSLA.deltaRespuestaPct ?? 0) >= 0 ? '↑' : '↓'} {Math.abs(cards.cumplimientoSLA.deltaRespuestaPct ?? 0)}pp vs período anterior
-            </div>
+          {!loading && cards && <ProgressBar value={cards.cumplimientoSLA.scoreEficiencia ?? cards.cumplimientoSLA.porcentaje ?? 0} color={slaColor(cards.cumplimientoSLA.scoreEficiencia ?? cards.cumplimientoSLA.porcentaje ?? 0)} />}
+          {!loading && cards?.cumplimientoSLA.slaRespuestaPct != null && (
+            <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Resp. {Math.round(cards.cumplimientoSLA.slaRespuestaPct)}%</span>
           )}
-          {!loading && (
-            <ProgressBar value={cards?.cumplimientoSLA.slaRespuestaPct ?? 0} color={slaColor(cards?.cumplimientoSLA.slaRespuestaPct ?? 0)} />
-          )}
-          <div style={{ marginTop: 'auto', paddingTop: '10px', borderTop: '0.5px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '11px', color: '#185FA5', fontWeight: 500 }}>Ver por proveedor →</span>
-            <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>click para desglosar</span>
-          </div>
         </div>
 
-        {/* HERO 2 — MTTR */}
-        <div
-          onClick={() => openDrill('mttr')}
-          style={{ background: 'white', border: `1.5px solid ${drillOpen && drillMetrica === 'mttr' ? '#185FA5' : '#e5e7eb'}`, borderRadius: '14px', padding: '20px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '6px', transition: 'border-color 0.2s, box-shadow 0.2s', boxShadow: drillOpen && drillMetrica === 'mttr' ? '0 0 0 3px rgba(24,95,165,0.12)' : 'none' }}
-          onMouseEnter={e => { if (!(drillOpen && drillMetrica === 'mttr')) e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.07)' }}
-          onMouseLeave={e => { if (!(drillOpen && drillMetrica === 'mttr')) e.currentTarget.style.boxShadow = 'none' }}
-        >
+        {/* ── Chip 2 — MTTR ─────────────────────────────────────────────────── */}
+        <div onClick={() => openDrill('mttr')}
+          style={{ background: 'white', border: `0.5px solid ${drillOpen && drillMetrica === 'mttr' ? '#185FA5' : '#e5e7eb'}`, borderRadius: '12px', padding: '10px 12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>MTTR promedio</span>
+            <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>MTTR</span>
             <IconClock />
           </div>
-          {loading ? <Sk w="55%" h={44} /> : (
-            <div style={{ fontSize: '38px', fontWeight: 700, lineHeight: 1, color: mttrColor(cards?.mttrPromedio.minutos ?? null) }}>
+          {loading ? <Sk w="45%" h={22} /> : (
+            <div style={{ fontSize: '22px', fontWeight: 700, color: mttrColor(cards?.mttrPromedio.minutos ?? null), lineHeight: 1, fontFamily: 'monospace' }}>
               {fmtMttr(cards?.mttrPromedio.minutos)}
             </div>
           )}
           {!loading && cards?.mttrPromedio.deltaMinutos != null && (
-            <div style={{ fontSize: '12px', color: (cards.mttrPromedio.deltaMinutos ?? 0) > 0 ? '#A32D2D' : '#3B6D11' }}>
-              {(cards.mttrPromedio.deltaMinutos ?? 0) > 0 ? '↑' : '↓'} {Math.abs(cards.mttrPromedio.deltaMinutos)}m vs período anterior
-            </div>
+            <span style={{ fontSize: '10px', color: (cards.mttrPromedio.deltaMinutos ?? 0) > 0 ? '#A32D2D' : '#3B6D11' }}>
+              {(cards.mttrPromedio.deltaMinutos ?? 0) > 0 ? '↑' : '↓'} {Math.abs(cards.mttrPromedio.deltaMinutos ?? 0)}m vs. anterior
+            </span>
           )}
-          {!loading && cards?.mttrPromedio.byDay.length ? <MiniSparkline data={cards.mttrPromedio.byDay} /> : null}
-          <div style={{ marginTop: 'auto', paddingTop: '10px', borderTop: '0.5px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '11px', color: '#185FA5', fontWeight: 500 }}>Ver por proveedor →</span>
-            <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>click para desglosar</span>
-          </div>
         </div>
 
-        {/* HERO 3 — Reincidencia */}
-        <div
-          onClick={() => openDrill('reincidencia')}
-          style={{ background: 'white', border: `1.5px solid ${drillOpen && drillMetrica === 'reincidencia' ? '#185FA5' : '#e5e7eb'}`, borderRadius: '14px', padding: '20px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '6px', transition: 'border-color 0.2s, box-shadow 0.2s', boxShadow: drillOpen && drillMetrica === 'reincidencia' ? '0 0 0 3px rgba(24,95,165,0.12)' : 'none' }}
-          onMouseEnter={e => { if (!(drillOpen && drillMetrica === 'reincidencia')) e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.07)' }}
-          onMouseLeave={e => { if (!(drillOpen && drillMetrica === 'reincidencia')) e.currentTarget.style.boxShadow = 'none' }}
-        >
+        {/* ── Chip 3 — Reincidencia ─────────────────────────────────────────── */}
+        <div onClick={() => openDrill('reincidencia')}
+          style={{ background: 'white', border: `0.5px solid ${drillOpen && drillMetrica === 'reincidencia' ? '#185FA5' : '#e5e7eb'}`, borderRadius: '12px', padding: '10px 12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Reincidencia crítica</span>
+            <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Reincidencia</span>
             <IconAlert />
           </div>
-          {loading ? <Sk w="35%" h={44} /> : (
-            <div style={{ fontSize: '44px', fontWeight: 700, lineHeight: 1, color: (cards?.reincidenciaCritica.total ?? 0) > 0 ? '#A32D2D' : '#3B6D11' }}>
+          {loading ? <Sk w="35%" h={22} /> : (
+            <div style={{ fontSize: '26px', fontWeight: 700, color: (cards?.reincidenciaCritica.total ?? 0) > 0 ? '#A32D2D' : '#0f172a', lineHeight: 1 }}>
               {cards?.reincidenciaCritica.total ?? 0}
             </div>
           )}
-          <div style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>tiendas con 2+ caídas</div>
+          <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>tiendas críticas</span>
           {!loading && (() => {
-            const tiendas = cards?.reincidenciaCritica.tiendas ?? []
-            if (!tiendas.length) return <div style={{ fontSize: '12px', color: '#3B6D11' }}>Sin reincidencias en el período</div>
-            const t = tiendas[rotatingIdx % tiendas.length]
-            return (
-              <div key={rotatingIdx} className="reincide-fade" style={{ border: '1px solid #FECACA', borderRadius: '8px', padding: '7px 9px', background: '#FFF5F5' }}>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: '#A32D2D' }}>{t.codigo} · {t.proveedor}</div>
-                <div style={{ fontSize: '10px', color: '#854F0B' }}>{t.caidas} caídas{t.diasEntreCaidas != null ? ` · ~${t.diasEntreCaidas}d entre caídas` : ''}</div>
-              </div>
-            )
+            const ts = cards?.reincidenciaCritica.tiendas ?? []
+            if (!ts.length) return null
+            const t = ts[rotatingIdx % ts.length]
+            return <div key={rotatingIdx} className="reincide-fade" style={{ fontSize: '10px', fontWeight: 600, color: '#A32D2D', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.codigo} · {t.caidas} caídas</div>
           })()}
-          <div style={{ marginTop: 'auto', paddingTop: '10px', borderTop: '0.5px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '11px', color: '#185FA5', fontWeight: 500 }}>Ver por proveedor →</span>
-            <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>click para desglosar</span>
-          </div>
         </div>
-      </div>
 
-      {/* ── Secondary cards ──────────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '8px' }}>
-
-        {/* CARD 1 — Incidentes */}
-        <Card onClick={() => toggle('incidentes')} isOpen={openCard === 'incidentes'}>
+        {/* ── Chip 4 — Incidentes ───────────────────────────────────────────── */}
+        <div onClick={() => toggle('incidentes')}
+          style={{ background: 'white', border: `0.5px solid ${openCard === 'incidentes' ? '#185FA5' : '#e5e7eb'}`, borderRadius: '12px', padding: '10px 12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)' }}>Incidentes</span>
+            <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Incidentes</span>
             <IconIncidentes />
           </div>
-          {loading ? <Sk w="50%" h={28} /> : (
-            <div style={{ fontSize: '28px', fontWeight: 600, color: '#0f172a', lineHeight: 1 }}>{cards?.incidentes.total ?? 0}</div>
+          {loading ? <Sk w="40%" h={22} /> : (
+            <div style={{ fontSize: '26px', fontWeight: 700, color: '#0f172a', lineHeight: 1 }}>{cards?.incidentes.total ?? 0}</div>
           )}
-          {!loading && cards && <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{cards.tiendasAfectadas.total} tiendas afectadas</div>}
-          {!loading && <DeltaBadge delta={cards?.incidentes.deltaVsAnterior ?? null} />}
-          {!loading && cards?.incidentes.byDay.length ? <MiniBarChart data={cards.incidentes.byDay} /> : null}
-          <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver lista →</button>
-        </Card>
+          {!loading && cards && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{cards.tiendasAfectadas.total} tiendas</span>}
+          {!loading && cards?.incidentes.deltaVsAnterior != null && (
+            <span style={{ fontSize: '10px', color: (cards.incidentes.deltaVsAnterior ?? 0) > 0 ? '#A32D2D' : '#3B6D11' }}>
+              {(cards.incidentes.deltaVsAnterior ?? 0) > 0 ? '↑' : '↓'} {Math.abs(cards.incidentes.deltaVsAnterior ?? 0)}% vs. anterior
+            </span>
+          )}
+        </div>
 
-        {/* CARD 2 — Tiendas afectadas */}
-        <Card onClick={() => toggle('tiendas')} isOpen={openCard === 'tiendas'}>
+        {/* ── Chip 5 — Tiendas ─────────────────────────────────────────────── */}
+        <div onClick={() => toggle('tiendas')}
+          style={{ background: 'white', border: `0.5px solid ${openCard === 'tiendas' ? '#185FA5' : '#e5e7eb'}`, borderRadius: '12px', padding: '10px 12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)' }}>Tiendas afectadas</span>
+            <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tiendas</span>
             <IconTienda />
           </div>
-          {loading ? <Sk w="40%" h={28} /> : (
-            <div style={{ fontSize: '28px', fontWeight: 600, color: '#0f172a', lineHeight: 1 }}>{cards?.tiendasAfectadas.total ?? 0}</div>
+          {loading ? <Sk w="35%" h={22} /> : (
+            <div style={{ fontSize: '26px', fontWeight: 700, color: '#0f172a', lineHeight: 1 }}>{cards?.tiendasAfectadas.total ?? 0}</div>
           )}
-          {!loading && cards && <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{cards.tiendasAfectadas.porcentajeRed}% de la red</div>}
-          {!loading && <DeltaBadge delta={cards?.tiendasAfectadas.deltaVsAnterior ?? null} />}
+          {!loading && cards && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{cards.tiendasAfectadas.porcentajeRed}% de la red</span>}
           {!loading && cards && <ProgressBar value={cards.tiendasAfectadas.porcentajeRed} color="#1D9E75" />}
-          <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver lista →</button>
-        </Card>
+        </div>
 
-        {/* CARD 3 — I.E.I */}
-        <Card onClick={() => toggle('costo')} isOpen={openCard === 'costo'}>
+        {/* ── Chip 6 — I.E.I ───────────────────────────────────────────────── */}
+        <div onClick={() => toggle('costo')}
+          style={{ background: 'white', border: `0.5px solid ${openCard === 'costo' ? '#185FA5' : '#e5e7eb'}`, borderRadius: '12px', padding: '10px 12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)' }}>I.E.I estimado</span>
+            <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>I.E.I</span>
             <IconDollar />
           </div>
-          {loading ? <Sk w="55%" h={28} /> : (
-            <div style={{ fontSize: '22px', fontWeight: 600, color: '#0f172a', lineHeight: 1 }}>{fmtCosto(cards?.costoEstimado.total ?? 0)}</div>
+          {loading ? <Sk w="55%" h={22} /> : (
+            <div style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', lineHeight: 1.2, fontFamily: 'monospace' }}>{fmtCosto(cards?.costoEstimado.total ?? 0)}</div>
           )}
-          {!loading && cards?.costoEstimado.deltaVsAnterior != null && <DeltaBadge delta={cards.costoEstimado.deltaVsAnterior} />}
           {!loading && cards && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <span style={{ fontSize: '10px', color: '#1D4ED8' }}>↩ Agente: {fmtCosto(cards.costoEstimado.totalAgente)}</span>
-              <span style={{ fontSize: '10px', color: '#A32D2D' }}>↩ Prov.: {fmtCosto(cards.costoEstimado.totalProveedor)}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+              <span style={{ fontSize: '10px', color: '#1D4ED8' }}>↩ Ag.: {fmtCosto(cards.costoEstimado.totalAgente)}</span>
+              <span style={{ fontSize: '10px', color: '#A32D2D' }}>↩ Pv.: {fmtCosto(cards.costoEstimado.totalProveedor)}</span>
             </div>
           )}
-          <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver detalle →</button>
-        </Card>
+        </div>
 
-        {/* CARD 4 — Proveedor crítico */}
-        <Card onClick={() => toggle('proveedor')} isOpen={openCard === 'proveedor'} pulse={!loading && !!cards?.proveedorCritico}>
+        {/* ── Chip 7 — Proveedor crítico ────────────────────────────────────── */}
+        <div onClick={() => toggle('proveedor')}
+          className={(!loading && !!cards?.proveedorCritico) ? 'card-critico' : undefined}
+          style={{ background: 'white', border: `0.5px solid ${openCard === 'proveedor' ? '#185FA5' : '#e5e7eb'}`, borderRadius: '12px', padding: '10px 12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)' }}>Proveedor crítico</span>
+            <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Proveedor crítico</span>
             <IconZap />
           </div>
-          {loading ? <Sk w="60%" h={28} /> : cards?.proveedorCritico ? (
+          {loading ? <Sk w="60%" h={22} /> : cards?.proveedorCritico ? (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap' }}>
-                <div style={{ fontSize: '20px', fontWeight: 700, color: '#EA580C', lineHeight: 1 }}>{cards.proveedorCritico.nombre}</div>
-                <span style={{ fontSize: '10px', background: '#FEE2E2', color: '#991B1B', borderRadius: '4px', padding: '2px 5px', fontWeight: 700 }}>Score {cards.proveedorCritico.score}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+                <div style={{ fontSize: '18px', fontWeight: 700, color: '#EA580C', lineHeight: 1 }}>{cards.proveedorCritico.nombre}</div>
+                <span style={{ fontSize: '9px', background: '#FEE2E2', color: '#991B1B', borderRadius: '4px', padding: '1px 4px', fontWeight: 700 }}>Score {cards.proveedorCritico.score}</span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px 10px', marginTop: '7px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 8px' }}>
                 {[
                   { label: 'SLA', val: `${Math.round(cards.proveedorCritico.metricas.slaPct)}%` },
                   { label: 'MTTR', val: fmtMttr(cards.proveedorCritico.metricas.mttrMinutos) },
-                  { label: 'I.E.I', val: fmtCosto(cards.proveedorCritico.metricas.costoEstimado) },
-                  { label: 'Incidentes', val: String(cards.proveedorCritico.metricas.incidentes) },
+                  { label: 'IEI', val: fmtCosto(cards.proveedorCritico.metricas.costoEstimado) },
+                  { label: 'Incs.', val: String(cards.proveedorCritico.metricas.incidentes) },
                 ].map(({ label, val }) => (
                   <div key={label}>
-                    <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{label}</div>
-                    <div style={{ fontSize: '12px', fontWeight: 700, fontFamily: label === 'I.E.I' || label === 'MTTR' ? 'monospace' : undefined }}>{val}</div>
+                    <div style={{ fontSize: '8px', color: 'var(--muted-foreground)', textTransform: 'uppercase', fontWeight: 600 }}>{label}</div>
+                    <div style={{ fontSize: '11px', fontWeight: 700 }}>{val}</div>
                   </div>
                 ))}
               </div>
             </>
           ) : (
-            <>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#3B6D11', lineHeight: 1 }}>Sin proveedor crítico</div>
-              <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Todos en nivel aceptable</div>
-            </>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: '#3B6D11' }}>Sin crítico</div>
           )}
-          <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '5px 12px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver detalle →</button>
-        </Card>
+        </div>
 
-      </div>
-
-      {/* ── Legacy hidden cards (keep panel state triggers alive) ────────────── */}
-      <div style={{ display: 'none' }}>
-        <Card onClick={() => toggle('sla')} isOpen={openCard === 'sla'}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)' }}>4. Cumplimiento SLA</span>
-            <IconShield />
-          </div>
-          {loading ? <Sk w="45%" h={32} /> : (
-            <div style={{ fontSize: '30px', fontWeight: 600, color: slaColor(cards?.cumplimientoSLA.scoreEficiencia ?? cards?.cumplimientoSLA.porcentaje ?? 0), lineHeight: 1 }}>
-              {cards?.cumplimientoSLA.scoreEficiencia ?? cards?.cumplimientoSLA.porcentaje ?? 0}
-            </div>
-          )}
-          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Eficiencia promedio · Respuesta + Resolución</div>
-          {!loading && cards?.cumplimientoSLA.deltaVsAnterior != null && (
-            <div style={{ fontSize: '11px', color: (cards.cumplimientoSLA.deltaVsAnterior ?? 0) >= 0 ? '#3B6D11' : '#A32D2D' }}>
-              {(cards.cumplimientoSLA.deltaVsAnterior ?? 0) >= 0 ? '↑' : '↓'} {Math.abs(cards.cumplimientoSLA.deltaVsAnterior ?? 0)}% vs período anterior
-            </div>
-          )}
-          {!loading && (
-            <ProgressBar value={cards?.cumplimientoSLA.scoreEficiencia ?? cards?.cumplimientoSLA.porcentaje ?? 0} color={slaColor(cards?.cumplimientoSLA.scoreEficiencia ?? cards?.cumplimientoSLA.porcentaje ?? 0)} />
-          )}
-          <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '6px 14px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver detalle →</button>
-        </Card>
-
-        {/* CARD 5 — Costo estimado */}
-        <Card onClick={() => toggle('costo')} isOpen={openCard === 'costo'}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)' }}>5. I.E.I</span>
-            <IconDollar />
-          </div>
-          {loading ? <Sk w="55%" h={28} /> : (
-            <div style={{ fontSize: '24px', fontWeight: 600, color: '#0f172a', lineHeight: 1 }}>
-              {fmtCosto(cards?.costoEstimado.total ?? 0)}
-            </div>
-          )}
-          {!loading && cards?.costoEstimado.deltaVsAnterior != null && (
-            <DeltaBadge delta={cards.costoEstimado.deltaVsAnterior} />
-          )}
-          {!loading && cards && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <span style={{ fontSize: '10px', color: '#1D4ED8' }}>↩ Agente: {fmtCosto(cards.costoEstimado.totalAgente)}</span>
-              <span style={{ fontSize: '10px', color: '#A32D2D' }}>↩ Proveedor: {fmtCosto(cards.costoEstimado.totalProveedor)}</span>
-            </div>
-          )}
-          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', lineHeight: 1.4 }}>
-            Basado en horas de caída, venta promedio y margen
-          </div>
-          <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '6px 14px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver detalle →</button>
-        </Card>
-
-        {/* CARD 6 — Reincidencia */}
-        <Card onClick={() => toggle('reincidencia')} isOpen={openCard === 'reincidencia'}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)' }}>6. Reincidencia crítica</span>
-            <IconAlert />
-          </div>
-          {loading ? <Sk w="35%" h={32} /> : (
-            <div style={{ fontSize: '30px', fontWeight: 600, color: '#0f172a', lineHeight: 1 }}>
-              {cards?.reincidenciaCritica.total ?? 0}
-            </div>
-          )}
-          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>2+ caídas en el período</div>
-          {!loading && (() => {
-            const tiendas = cards?.reincidenciaCritica.tiendas ?? []
-            if (!tiendas.length) return null
-            const t = tiendas[rotatingIdx % tiendas.length]
-            return (
-              <div key={rotatingIdx} className="reincide-fade"
-                style={{ border: '1px solid #FECACA', borderRadius: '8px', padding: '8px 10px', background: '#FFF5F5', marginTop: '4px' }}>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: '#A32D2D' }}>{t.codigo} · {t.proveedor}</div>
-                <div style={{ fontSize: '10px', color: '#854F0B', marginTop: '2px' }}>{t.caidas} caídas</div>
-                <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{t.razon}</div>
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px', alignItems: 'center' }}>
-                  {!t.tieneContingencia && (
-                    <span style={{ fontSize: '10px', color: '#A32D2D' }}>Sin contingencia</span>
-                  )}
-                  {t.diasEntreCaidas != null && (
-                    <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Cada ~{t.diasEntreCaidas}d</span>
-                  )}
-                  {t.tendencia === 'EMPEORA' && (
-                    <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '999px', background: '#FCEBEB', color: '#A32D2D', fontWeight: 500 }}>↑ Empeora</span>
-                  )}
-                </div>
-                <div style={{ display: 'flex', gap: '4px', marginTop: '6px', justifyContent: 'center' }}>
-                  {tiendas.map((_, i) => (
-                    <div key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: i === rotatingIdx % tiendas.length ? '#A32D2D' : '#FCA5A5' }} />
-                  ))}
-                </div>
-              </div>
-            )
-          })()}
-          <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '6px 14px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver detalle →</button>
-        </Card>
-
-        {/* CARD 7 — Proveedor crítico */}
-        <Card
-          onClick={() => toggle('proveedor')}
-          isOpen={openCard === 'proveedor'}
-          pulse={!loading && !!cards?.proveedorCritico}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)' }}>7. Proveedor crítico</span>
-            <IconZap />
-          </div>
-          {loading ? <Sk w="60%" h={28} /> : cards?.proveedorCritico ? (
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <div style={{ fontSize: '24px', fontWeight: 700, color: '#EA580C', lineHeight: 1 }}>{cards.proveedorCritico.nombre}</div>
-                <span style={{ fontSize: '10px', background: '#FEE2E2', color: '#991B1B', borderRadius: '4px', padding: '2px 6px', fontWeight: 700 }}>Score {cards.proveedorCritico.score}</span>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 14px', marginTop: '8px' }}>
-                {[
-                  { label: 'SLA', val: `${Math.round(cards.proveedorCritico.metricas.slaPct)}%` },
-                  { label: 'MTTR', val: fmtMttr(cards.proveedorCritico.metricas.mttrMinutos) },
-                  { label: 'I.E.I estimado', val: fmtCosto(cards.proveedorCritico.metricas.costoEstimado) },
-                  { label: 'Incidentes', val: String(cards.proveedorCritico.metricas.incidentes) },
-                ].map(({ label, val }) => (
-                  <div key={label}>
-                    <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{label}</div>
-                    <div style={{ fontSize: '13px', fontWeight: 700, fontFamily: label === 'I.E.I estimado' || label === 'MTTR' ? 'monospace' : undefined }}>{val}</div>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <>
-              <div style={{ fontSize: '14px', fontWeight: 600, color: '#3B6D11', lineHeight: 1 }}>Sin proveedor crítico</div>
-              <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Todos en nivel aceptable</div>
-            </>
-          )}
-          <button style={{ marginTop: 'auto', background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '6px 14px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-start' }}>Ver detalle →</button>
-        </Card>
       </div>
 
       {/* Panel detail */}
@@ -1166,7 +992,7 @@ export default function DashboardAnalitico() {
         </div>
 
         {/* B — Impacto por proveedor (activo) */}
-        <div style={{ gridColumn: '1 / -1' }}>
+        <div>
           <ProviderImpactCard
             desde={desde}
             hasta={hasta}
@@ -1176,7 +1002,7 @@ export default function DashboardAnalitico() {
         </div>
 
         {/* C — Tiendas críticas (activo) */}
-        <div style={{ gridColumn: '1 / -1' }}>
+        <div>
           <CriticalStoresCard
             desde={desde}
             hasta={hasta}
@@ -1196,7 +1022,7 @@ export default function DashboardAnalitico() {
         </div>
 
         {/* E — Cumplimiento SLA por proveedor (activo) */}
-        <div style={{ gridColumn: '1 / -1' }}>
+        <div>
           <ProviderSlaComplianceCard
             desde={desde}
             hasta={hasta}
