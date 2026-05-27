@@ -437,108 +437,80 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
 
   return (
     <>
-      {/* Toolbar: historical banner + CSV download */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+      {/* Toolbar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
         {!isToday ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px', background: '#FFF3E0', border: '1px solid #FDBA74', borderRadius: '8px', fontSize: '11px', color: '#C84B00', fontWeight: 600 }}>
+          <div style={{ padding: '4px 12px', background: '#FFF3E0', border: '1px solid #FDBA74', borderRadius: '7px', fontSize: '11px', color: '#C84B00', fontWeight: 600 }}>
             ⏪ Vista histórica — {fecha} · Solo lectura
           </div>
         ) : <div />}
-        <button
-          onClick={() => downloadCSV(activos ?? [], resoluciones ?? [], fecha)}
-          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', fontSize: '11px', fontWeight: 600, background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer', color: 'var(--foreground)' }}>
-          ⬇ Descargar CSV
+        <button onClick={() => downloadCSV(activos ?? [], resoluciones ?? [], fecha)}
+          style={{ padding: '4px 12px', fontSize: '11px', fontWeight: 600, background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '7px', cursor: 'pointer', color: 'var(--foreground)' }}>
+          ⬇ CSV
         </button>
       </div>
 
-      {/* KPI Cards row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '10px', marginBottom: '16px' }}>
+      {/* KPI Cards row — compact */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '6px', marginBottom: '10px' }}>
         {kpiCards.map((card) => (
           <div key={card.label}
             onClick={() => { if (card.link) router.push(card.link); else if (card.filterKey) handleCardClick(card.filterKey) }}
-            style={{ background: 'var(--card)', border: `0.5px solid ${cardFiltro === card.filterKey && card.filterKey ? '#185FA5' : 'var(--border)'}`, borderRadius: '12px', padding: '14px 16px', cursor: card.filterKey || card.link ? 'pointer' : 'default', boxShadow: cardFiltro === card.filterKey && card.filterKey ? '0 0 0 2px rgba(24,95,165,0.15)' : 'none' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-              <div style={{ width: 36, height: 36, borderRadius: '8px', background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>
+            style={{ background: 'var(--card)', border: `0.5px solid ${cardFiltro === card.filterKey && card.filterKey ? '#185FA5' : 'var(--border)'}`, borderRadius: '10px', padding: '9px 11px', cursor: card.filterKey || card.link ? 'pointer' : 'default', boxShadow: cardFiltro === card.filterKey && card.filterKey ? '0 0 0 2px rgba(24,95,165,0.15)' : 'none', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: 24, height: 24, borderRadius: '5px', background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', flexShrink: 0 }}>
                 {card.icon}
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: 1.3 }}>{card.label}</div>
+              <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', lineHeight: 1.2 }}>{card.label}</div>
             </div>
-            <div style={{ fontSize: '24px', fontWeight: 700, color: card.colorIcon, lineHeight: 1 }}>{card.value}</div>
-            {card.sub && <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '4px' }}>{card.sub}</div>}
+            <div style={{ fontSize: '20px', fontWeight: 700, color: card.colorIcon, lineHeight: 1 }}>{card.value}</div>
+            {card.sub && <div style={{ fontSize: '9px', color: 'var(--muted-foreground)' }}>{card.sub}</div>}
           </div>
         ))}
       </div>
 
-      {/* Panel contingencias activas — persistente, span completo */}
+      {/* Contingencias — tira horizontal con scroll */}
       {(contingenciasActivas ?? []).length > 0 && (
-        <div style={{ background: '#fffbeb', border: '1.5px solid #f59e0b', borderRadius: '12px', padding: '12px 16px', marginBottom: '14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-            <span style={{ fontSize: '15px' }}>⚠</span>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        <div style={{ background: '#fffbeb', border: '1.5px solid #f59e0b', borderRadius: '10px', padding: '7px 10px', marginBottom: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '5px' }}>
+            <span>⚠</span>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               {(contingenciasActivas ?? []).length} tienda{(contingenciasActivas ?? []).length > 1 ? 's' : ''} en contingencia activa
             </span>
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
             {(contingenciasActivas ?? []).map((c: any) => {
-              const rendLabel: Record<string,{l:string;bg:string;c:string}> = {
-                TOTAL:   { l: 'Cubrió total',    bg: '#dcfce7', c: '#15803d' },
-                PARCIAL: { l: 'Con limitaciones', bg: '#fef9c3', c: '#a16207' },
-                FALLIDA: { l: 'No funcionó',      bg: '#fee2e2', c: '#b91c1c' },
-              }
-              const rend = c.cont_rendimiento ? rendLabel[c.cont_rendimiento] : null
-              const horaActivacion = c.cont_hora_activacion
-                ? new Date(c.cont_hora_activacion).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Lima' })
-                : null
               const confirmando  = confirmarCont === c.tienda_id
               const desactivando = desactivandoCont === c.tienda_id
+              const horaAct = c.cont_hora_activacion
+                ? new Date(c.cont_hora_activacion).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Lima' })
+                : null
               return (
-                <div key={c.tienda_id} style={{ background: 'white', border: '1px solid #f59e0b', borderRadius: '8px', padding: '8px 12px', minWidth: '220px', flex: '1 1 220px', maxWidth: '340px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#78350f' }}>{c.tienda_codigo} — {c.tienda_nombre}</span>
-                    {rend && (
-                      <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 6px', borderRadius: '4px', background: rend.bg, color: rend.c, whiteSpace: 'nowrap', marginLeft: '6px' }}>
-                        {rend.l}
-                      </span>
-                    )}
+                <div key={c.tienda_id} style={{ flex: '0 0 auto', background: 'white', border: '1px solid #f59e0b', borderRadius: '7px', padding: '5px 10px', minWidth: '160px', maxWidth: '230px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#78350f', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {c.tienda_codigo} — {c.tienda_nombre}
                   </div>
-                  <div style={{ fontSize: '10px', color: '#92400e', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <div style={{ fontSize: '9px', color: '#92400e', display: 'flex', gap: '5px', flexWrap: 'wrap', marginTop: '2px' }}>
                     {c.tienda_distrito && <span>{c.tienda_distrito}</span>}
                     {c.proveedor_nombre && <span>· {c.proveedor_nombre}</span>}
-                    {horaActivacion && <span>· Activada {horaActivacion}</span>}
+                    {horaAct && <span>· {horaAct}</span>}
                   </div>
-                  {c.contingencia_descripcion && (
-                    <div style={{ fontSize: '10px', color: '#78350f', marginTop: '4px', fontStyle: 'italic', lineHeight: 1.4 }}>
-                      {c.contingencia_descripcion}
-                    </div>
-                  )}
-                  {/* Footer: incidente link + acción desactivar */}
-                  <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px solid #fde68a', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ marginTop: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     {c.incidente_codigo
-                      ? <span onClick={() => router.push(`/incidentes/${c.incidente_id}`)} style={{ fontSize: '10px', color: '#92400e', textDecoration: 'underline', cursor: 'pointer', fontFamily: 'monospace' }}>
-                          {c.incidente_codigo}
-                        </span>
-                      : <span />
-                    }
+                      ? <span onClick={() => router.push(`/incidentes/${c.incidente_id}`)} style={{ fontSize: '9px', color: '#92400e', textDecoration: 'underline', cursor: 'pointer', fontFamily: 'monospace' }}>{c.incidente_codigo}</span>
+                      : <span />}
                     {confirmando ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px' }}>
+                      <div style={{ display: 'flex', gap: '3px', fontSize: '9px', alignItems: 'center' }}>
                         <span style={{ color: '#78350f', fontWeight: 500 }}>¿Confirmar?</span>
-                        <button
-                          disabled={desactivando}
-                          onClick={() => c.incidente_id ? desactivarContingencia(c.incidente_id, c.tienda_id) : undefined}
-                          style={{ padding: '2px 8px', fontSize: '10px', fontWeight: 700, background: '#b45309', color: 'white', border: 'none', borderRadius: '4px', cursor: desactivando ? 'default' : 'pointer', opacity: desactivando ? 0.6 : 1 }}>
+                        <button disabled={desactivando} onClick={() => c.incidente_id ? desactivarContingencia(c.incidente_id, c.tienda_id) : undefined}
+                          style={{ padding: '1px 5px', fontSize: '9px', fontWeight: 700, background: '#b45309', color: 'white', border: 'none', borderRadius: '3px', cursor: desactivando ? 'default' : 'pointer', opacity: desactivando ? 0.6 : 1 }}>
                           {desactivando ? '…' : 'Sí'}
                         </button>
-                        <button
-                          disabled={desactivando}
-                          onClick={() => setConfirmarCont(null)}
-                          style={{ padding: '2px 8px', fontSize: '10px', background: '#fef3c7', color: '#78350f', border: '1px solid #fcd34d', borderRadius: '4px', cursor: 'pointer' }}>
-                          No
-                        </button>
+                        <button disabled={desactivando} onClick={() => setConfirmarCont(null)}
+                          style={{ padding: '1px 5px', fontSize: '9px', background: '#fef3c7', color: '#78350f', border: '1px solid #fcd34d', borderRadius: '3px', cursor: 'pointer' }}>No</button>
                       </div>
                     ) : (
-                      <button
-                        onClick={() => setConfirmarCont(c.tienda_id)}
-                        style={{ padding: '2px 10px', fontSize: '10px', fontWeight: 600, background: '#fef3c7', color: '#78350f', border: '1px solid #f59e0b', borderRadius: '4px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      <button onClick={() => setConfirmarCont(c.tienda_id)}
+                        style={{ padding: '1px 7px', fontSize: '9px', fontWeight: 600, background: '#fef3c7', color: '#78350f', border: '1px solid #f59e0b', borderRadius: '3px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                         Desactivar
                       </button>
                     )}
@@ -550,281 +522,199 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
         </div>
       )}
 
-      {/* Body grid: main + sidebar */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '14px', alignItems: 'start' }}>
+      {/* Main grid: Cola LEFT | Sidebar RIGHT */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 270px', gap: '10px', alignItems: 'start' }}>
 
-        {/* ── MAIN ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-
-          {/* Charts row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-
-            {/* Estado breakdown */}
-            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>
-                Activos por estado
-                <span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--muted-foreground)', marginLeft: '8px' }}>{totalActivos} total</span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {Object.entries(BADGE_OP).map(([key, badge]) => {
-                  const count = (activos ?? []).filter((i: any) => getEstadoOpClient(i, Date.now()).estadoOp === key).length
-                  const pct = totalActivos > 0 ? Math.round(count / totalActivos * 100) : 0
+        {/* ── COLA OPERATIVA ── */}
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px' }}>
+          {incidentesHeredados.length > 0 && (
+            <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '7px', padding: '5px 10px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px' }}>
+              <span>📋 <strong>{incidentesHeredados.length}</strong> heredado(s) del turno anterior</span>
+              <input type="time" value={turnoInicio} onChange={e => setTurnoInicio(e.target.value)} style={{ fontSize: '11px', border: '1px solid #BFDBFE', borderRadius: '4px', padding: '1px 5px' }} />
+            </div>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '7px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 600 }}>
+              Cola operativa
+              {(cardFiltro || filtroHeredados) && <span style={{ fontSize: '10px', fontWeight: 400, color: 'var(--muted-foreground)', marginLeft: '6px' }}>({colaFiltrada.length})</span>}
+            </div>
+            {(cardFiltro || filtroHeredados) && (
+              <button onClick={() => { setCardFiltro(null); setFiltroHeredados(false) }}
+                style={{ fontSize: '10px', background: 'none', border: 'none', color: '#185FA5', cursor: 'pointer', textDecoration: 'underline' }}>Limpiar filtro</button>
+            )}
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '8px' }}>
+            {PROVS.map(p => (
+              <button key={p} onClick={() => setProvFiltro(p)}
+                style={{ padding: '2px 9px', fontSize: '10px', fontWeight: provFiltro === p ? 600 : 400, background: provFiltro === p ? 'hsl(221,83%,23%)' : 'var(--muted)', color: provFiltro === p ? 'white' : 'var(--foreground)', border: 'none', borderRadius: '999px', cursor: 'pointer' }}>
+                {p}
+              </button>
+            ))}
+          </div>
+          <div style={{ overflowX: 'auto', maxHeight: '480px', overflowY: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+              <thead style={{ position: 'sticky', top: 0, background: 'var(--card)', zIndex: 1 }}>
+                <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
+                  {['ID','Tienda','Proveedor','Tipo','Impacto','Estado op.','Agente','Tiempo',''].map(h => (
+                    <th key={h} style={{ padding: '5px 7px', textAlign: 'left', fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {colaFiltrada.length === 0 && (
+                  <tr><td colSpan={9} style={{ padding: '20px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Sin incidentes activos</td></tr>
+                )}
+                {colaFiltrada.map((inc: any, idx: number) => {
+                  const imp  = IMP_BADGE[inc.nivel_impacto] ?? IMP_BADGE.BAJO
+                  const nowM = Date.now()
+                  const { minutosTranscurridos } = getEstadoOpClient(inc, nowM)
                   return (
-                    <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ flex: '0 0 110px', fontSize: '10px', fontWeight: 500, padding: '2px 7px', borderRadius: '4px', background: badge.bg, color: badge.color, textAlign: 'center' }}>{badge.label}</div>
-                      <div style={{ flex: 1, height: '6px', background: 'var(--muted)', borderRadius: '3px', overflow: 'hidden' }}>
-                        <div style={{ width: `${pct}%`, height: '100%', background: badge.color, borderRadius: '3px', transition: 'width 0.4s' }} />
-                      </div>
-                      <div style={{ fontSize: '11px', fontWeight: 700, fontFamily: 'monospace', minWidth: '24px', textAlign: 'right' }}>{count}</div>
-                    </div>
+                    <tr key={inc.id} style={{
+                      borderTop: idx > 0 ? '0.5px solid var(--border)' : 'none',
+                      borderLeft: inc.estadoOp === 'SLA_VENCIDO' ? '3px solid #DC2626' : inc.estadoOp === 'EN_RIESGO_SLA' ? '3px solid #F59E0B' : inc.estadoOp === 'ESCALADO' ? '3px solid #B45309' : '3px solid transparent',
+                      backgroundColor: inc.estadoOp === 'SLA_VENCIDO' ? '#FEF2F2' : inc.estadoOp === 'EN_RIESGO_SLA' ? '#FFFBEB' : 'transparent',
+                    }}>
+                      <td style={{ padding: '5px 7px', fontFamily: 'monospace', fontSize: '9px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>{inc.codigo}</td>
+                      <td style={{ padding: '5px 7px', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontWeight: 600, fontSize: '10px' }}>{inc.tienda_codigo}</div>
+                        <div style={{ fontSize: '9px', color: 'var(--muted-foreground)' }}>{inc.tienda_nombre}</div>
+                      </td>
+                      <td style={{ padding: '5px 7px' }}>
+                        {inc.proveedor_nombre
+                          ? <span style={{ padding: '1px 6px', borderRadius: '999px', background: '#E6F1FB', color: '#185FA5', fontSize: '9px', fontWeight: 500, whiteSpace: 'nowrap' }}>{inc.proveedor_nombre}</span>
+                          : <span style={{ color: '#888', fontSize: '9px' }}>—</span>}
+                      </td>
+                      <td style={{ padding: '5px 7px', whiteSpace: 'nowrap', fontSize: '10px' }}>{TIPO_LABELS[inc.tipo] ?? inc.tipo}</td>
+                      <td style={{ padding: '5px 7px' }}>
+                        <span style={{ fontSize: '9px', fontWeight: 500, padding: '1px 5px', borderRadius: '4px', background: imp.bg, color: imp.color }}>{imp.label}</span>
+                      </td>
+                      <td style={{ padding: '5px 7px' }}>
+                        <SLABadge inc={inc} nowMs={nowM} />
+                        {inc.sinMovimiento && <span style={{ display: 'block', marginTop: '1px', fontSize: '9px', padding: '1px 4px', borderRadius: '999px', background: '#F1F5F9', color: '#475569' }}>⏸ {fmtMin(inc.sinMovimientoMin)}</span>}
+                      </td>
+                      <td style={{ padding: '5px 7px', whiteSpace: 'nowrap', fontSize: '10px' }}>{inc.agente_nombre ?? '—'}</td>
+                      <td style={{ padding: '5px 7px', fontFamily: 'monospace', fontSize: '10px', fontWeight: 600, whiteSpace: 'nowrap', color: minutosTranscurridos >= 240 ? '#A32D2D' : minutosTranscurridos >= 120 ? '#C84B00' : 'var(--foreground)' }}>
+                        {fmtMin(minutosTranscurridos)}
+                      </td>
+                      <td style={{ padding: '5px 7px' }}>
+                        <button onClick={() => router.push(`/incidentes/${inc.id}`)}
+                          style={{ padding: '2px 8px', fontSize: '9px', background: '#E6F1FB', color: '#185FA5', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                          Ver →
+                        </button>
+                      </td>
+                    </tr>
                   )
                 })}
-              </div>
-            </div>
-
-            {/* Resumen del turno */}
-            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>Resumen del turno</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                {([
-                  { label: 'Creados hoy',   value: kpis.creadosHoy ?? 0,  color: '#185FA5', bg: '#E6F1FB' },
-                  { label: 'Activos ahora', value: kpis.abiertos,          color: '#C84B00', bg: '#FFF3E0' },
-                  { label: 'Resueltos hoy', value: kpis.resueltoHoy,       color: '#27500A', bg: '#EAF3DE' },
-                  { label: 'MTTR promedio', value: mttrProm != null ? fmtMin(mttrProm) : '—', color: '#5B21B6', bg: '#EEE8FF' },
-                ] as const).map(({ label, value, color, bg }) => (
-                  <div key={label} style={{ background: bg, borderRadius: '8px', padding: '10px 12px' }}>
-                    <div style={{ fontSize: '22px', fontWeight: 700, color, lineHeight: 1 }}>{value}</div>
-                    <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '4px' }}>{label}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '0.5px solid var(--border)', display: 'flex', gap: '12px', fontSize: '11px', color: 'var(--muted-foreground)' }}>
-                <span>Agente: <strong style={{ color: 'var(--foreground)' }}>{kpis.resueltoHoyAgente}</strong></span>
-                <span>Proveedor: <strong style={{ color: 'var(--foreground)' }}>{kpis.resueltoHoyProveedor}</strong></span>
-              </div>
-            </div>
+              </tbody>
+            </table>
           </div>
-
-          {/* Estado del equipo */}
-          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 600 }}>Estado del equipo</div>
-              {isToday && (
-                <button onClick={() => setAsignarOpen(true)}
-                  style={{ padding: '5px 12px', fontSize: '11px', background: '#E6F1FB', color: '#185FA5', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>
-                  + Asignar
-                </button>
-              )}
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px' }}>
-              {(equipoStats ?? []).map((ag: any, idx: number) => {
-                const carga = ag.casosActivos === 0 ? 'libre'
-                  : ag.casosActivos <= 2 ? 'normal'
-                  : ag.casosActivos <= 4 ? 'cargado'
-                  : 'saturado'
-                const cargaBadge = {
-                  libre:    { label: 'Libre',    bg: '#F3F4F6', color: '#6B7280' },
-                  normal:   { label: 'Normal',   bg: '#EAF3DE', color: '#27500A' },
-                  cargado:  { label: 'Cargado',  bg: '#FFF3E0', color: '#C84B00' },
-                  saturado: { label: 'Saturado', bg: '#FCEBEB', color: '#A32D2D' },
-                }[carga]
-                const borderColor = carga === 'saturado' ? '#FECACA' : carga === 'cargado' ? '#FED7AA' : '#E5E7EB'
-                return (
-                  <div key={ag.id} style={{ padding: '12px', background: 'var(--muted)', borderRadius: '10px', border: `0.5px solid ${borderColor}` }}>
-                    {/* Header: avatar + nombre + badge carga */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-                      <AvatarCircle nombre={ag.nombre} color={AVATAR_COLORS[idx % AVATAR_COLORS.length]} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '12px', fontWeight: 600, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ag.nombre}</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '3px' }}>
-                          <span style={{ fontSize: '9px', color: 'var(--muted-foreground)' }}>{ag.rol}</span>
-                          <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 7px', borderRadius: '999px', background: cargaBadge.bg, color: cargaBadge.color }}>
-                            {cargaBadge.label}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Métricas principales: número grande + dos columnas */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '8px' }}>
-                      <div style={{ textAlign: 'center', minWidth: '44px' }}>
-                        <div style={{ fontSize: '24px', fontWeight: 700, lineHeight: 1, color: carga === 'saturado' ? '#A32D2D' : carga === 'cargado' ? '#C84B00' : 'var(--foreground)' }}>{ag.casosActivos}</div>
-                        <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', marginTop: '2px' }}>activos</div>
-                      </div>
-                      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
-                        <div style={{ background: ag.enRiesgoSla > 0 ? '#FEF2F2' : 'transparent', borderRadius: '6px', padding: '4px 6px', border: ag.enRiesgoSla > 0 ? '0.5px solid #FECACA' : '0.5px solid transparent' }}>
-                          <div style={{ fontSize: '16px', fontWeight: 700, lineHeight: 1, color: ag.enRiesgoSla > 0 ? '#A32D2D' : 'var(--muted-foreground)' }}>{ag.enRiesgoSla}</div>
-                          <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', marginTop: '1px' }}>En riesgo</div>
-                        </div>
-                        <div style={{ background: '#F0FDF4', borderRadius: '6px', padding: '4px 6px', border: '0.5px solid #BBF7D0' }}>
-                          <div style={{ fontSize: '16px', fontWeight: 700, lineHeight: 1, color: '#27500A' }}>{ag.resueltoHoyAgente + ag.resueltoHoyProveedor}</div>
-                          <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', marginTop: '1px' }}>Resueltos hoy</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Métricas secundarias */}
-                    <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '6px', fontSize: '11px', display: 'flex', flexWrap: 'wrap', gap: '4px 12px' }}>
-                      {ag.escalados > 0 && (
-                        <span style={{ color: '#854F0B' }}>↑ {ag.escalados} escal.</span>
-                      )}
-                      {ag.pendientesProveedor > 0 && (
-                        <span style={{ color: '#5B21B6' }}>⏳ {ag.pendientesProveedor} pend.</span>
-                      )}
-                      <span style={{ color: 'var(--muted-foreground)' }}>Sol. ag. {ag.resueltoHoyAgente} · prov. {ag.resueltoHoyProveedor}</span>
-                      {ag.mttrPromedioAgente != null && (
-                        <span style={{ color: ag.mttrPromedioAgente > 240 ? '#A32D2D' : ag.mttrPromedioAgente > 120 ? '#854F0B' : '#3B6D11' }}>
-                          MTTR {fmtMin(ag.mttrPromedioAgente)}
-                        </span>
-                      )}
-                    </div>
-
-                    {isToday && (
-                      <button onClick={() => setAsignarOpen(true)}
-                        style={{ marginTop: '8px', width: '100%', padding: '5px', fontSize: '11px', background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '6px', cursor: 'pointer', color: '#185FA5', fontWeight: 500 }}>
-                        Asignar
-                      </button>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Cola operativa */}
-          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
-
-            {/* Banner heredados */}
-            {incidentesHeredados.length > 0 && (
-              <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '8px', padding: '8px 14px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px' }}>
-                <span>📋 <strong>{incidentesHeredados.length}</strong> incidente(s) heredado(s) del turno anterior</span>
-                <input type="time" value={turnoInicio} onChange={e => setTurnoInicio(e.target.value)} style={{ fontSize: '12px', border: '1px solid #BFDBFE', borderRadius: '4px', padding: '2px 6px' }} />
-              </div>
-            )}
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 600 }}>
-                Cola operativa
-                {(cardFiltro || filtroHeredados) && <span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--muted-foreground)', marginLeft: '8px' }}>({colaFiltrada.length} mostrando)</span>}
-              </div>
-              {(cardFiltro || filtroHeredados) && (
-                <button onClick={() => { setCardFiltro(null); setFiltroHeredados(false) }}
-                  style={{ fontSize: '11px', background: 'none', border: 'none', color: '#185FA5', cursor: 'pointer', textDecoration: 'underline' }}>
-                  Limpiar filtro
-                </button>
-              )}
-            </div>
-
-            {/* Provider filter chips */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
-              {PROVS.map(p => (
-                <button key={p} onClick={() => setProvFiltro(p)}
-                  style={{ padding: '4px 12px', fontSize: '11px', fontWeight: provFiltro === p ? 600 : 400, background: provFiltro === p ? 'hsl(221,83%,23%)' : 'var(--muted)', color: provFiltro === p ? 'white' : 'var(--foreground)', border: 'none', borderRadius: '999px', cursor: 'pointer' }}>
-                  {p}
-                </button>
-              ))}
-            </div>
-
-            <div style={{ overflowX: 'auto', maxHeight: '420px', overflowY: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
-                <thead style={{ position: 'sticky', top: 0, background: 'var(--card)', zIndex: 1 }}>
-                  <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
-                    {['ID', 'Tienda', 'Proveedor', 'Tipo', 'Impacto', 'Estado operativo', 'Asignado a', 'Tiempo abierto', 'Acción'].map(h => (
-                      <th key={h} style={{ padding: '7px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {colaFiltrada.length === 0 && (
-                    <tr><td colSpan={9} style={{ padding: '24px', textAlign: 'center', color: 'var(--muted-foreground)' }}>Sin incidentes</td></tr>
-                  )}
-                  {colaFiltrada.map((inc: any, idx: number) => {
-                    const imp  = IMP_BADGE[inc.nivel_impacto] ?? IMP_BADGE.BAJO
-                    const nowM = Date.now()
-                    const { minutosTranscurridos } = getEstadoOpClient(inc, nowM)
-                    return (
-                      <tr key={inc.id} style={{
-                        borderTop: idx > 0 ? '0.5px solid var(--border)' : 'none',
-                        borderLeft: inc.estadoOp === 'SLA_VENCIDO' ? '3px solid #DC2626' : inc.estadoOp === 'EN_RIESGO_SLA' ? '3px solid #F59E0B' : inc.estadoOp === 'ESCALADO' ? '3px solid #B45309' : '3px solid transparent',
-                        backgroundColor: inc.estadoOp === 'SLA_VENCIDO' ? '#FEF2F2' : inc.estadoOp === 'EN_RIESGO_SLA' ? '#FFFBEB' : 'transparent',
-                        transition: 'background-color 0.2s',
-                      }}>
-                        <td style={{ padding: '8px', fontFamily: 'monospace', fontSize: '10px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>{inc.codigo}</td>
-                        <td style={{ padding: '8px', whiteSpace: 'nowrap' }}>
-                          <div style={{ fontWeight: 500 }}>{inc.tienda_codigo}</div>
-                          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{inc.tienda_nombre}</div>
-                        </td>
-                        <td style={{ padding: '8px', whiteSpace: 'nowrap' }}>
-                          {inc.proveedor_nombre
-                            ? <span style={{ padding: '1px 7px', borderRadius: '999px', background: '#E6F1FB', color: '#185FA5', fontSize: '10px', fontWeight: 500 }}>{inc.proveedor_nombre}</span>
-                            : <span style={{ color: '#888' }}>—</span>}
-                        </td>
-                        <td style={{ padding: '8px', whiteSpace: 'nowrap' }}>{TIPO_LABELS[inc.tipo] ?? inc.tipo}</td>
-                        <td style={{ padding: '8px' }}>
-                          <span style={{ fontSize: '10px', fontWeight: 500, padding: '2px 7px', borderRadius: '4px', background: imp.bg, color: imp.color }}>{imp.label}</span>
-                        </td>
-                        <td style={{ padding: '8px' }}>
-                          <SLABadge inc={inc} nowMs={nowM} />
-                          {inc.sinMovimiento && (
-                            <span style={{ display: 'block', marginTop: '2px', fontSize: '10px', padding: '1px 5px', borderRadius: '999px', background: '#F1F5F9', color: '#475569' }}>
-                              ⏸ {fmtMin(inc.sinMovimientoMin)}
-                            </span>
-                          )}
-                        </td>
-                        <td style={{ padding: '8px', whiteSpace: 'nowrap', fontSize: '11px' }}>{inc.agente_nombre ?? '—'}</td>
-                        <td style={{ padding: '8px', fontFamily: 'monospace', fontSize: '11px', fontWeight: 600, whiteSpace: 'nowrap', color: minutosTranscurridos >= 240 ? '#A32D2D' : minutosTranscurridos >= 120 ? '#C84B00' : 'var(--foreground)' }}>
-                          {fmtMin(minutosTranscurridos)}
-                        </td>
-                        <td style={{ padding: '8px' }}>
-                          <button onClick={() => router.push(`/incidentes/${inc.id}`)}
-                            style={{ padding: '4px 10px', fontSize: '10px', background: '#E6F1FB', color: '#185FA5', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}>
-                            Ver →
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <div style={{ marginTop: '8px', fontSize: '10px', color: 'var(--muted-foreground)' }}>
-              Mostrando {colaFiltrada.length} de {totalActivos} incidente{totalActivos !== 1 ? 's' : ''}
-            </div>
+          <div style={{ marginTop: '5px', fontSize: '9px', color: 'var(--muted-foreground)' }}>
+            {colaFiltrada.length} de {totalActivos} incidente{totalActivos !== 1 ? 's' : ''}
           </div>
         </div>
 
         {/* ── SIDEBAR ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+
+          {/* Resumen turno */}
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 600, marginBottom: '7px' }}>Resumen del turno</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px' }}>
+              {([
+                { label: 'Creados',  value: kpis.creadosHoy ?? 0, color: '#185FA5', bg: '#E6F1FB' },
+                { label: 'Activos',  value: kpis.abiertos,         color: '#C84B00', bg: '#FFF3E0' },
+                { label: 'Resueltos',value: kpis.resueltoHoy,      color: '#27500A', bg: '#EAF3DE' },
+                { label: 'MTTR',     value: mttrProm != null ? fmtMin(mttrProm) : '—', color: '#5B21B6', bg: '#EEE8FF' },
+              ] as const).map(({ label, value, color, bg }) => (
+                <div key={label} style={{ background: bg, borderRadius: '6px', padding: '6px 8px' }}>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color, lineHeight: 1 }}>{value}</div>
+                  <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{label}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: '6px', paddingTop: '5px', borderTop: '0.5px solid var(--border)', display: 'flex', gap: '8px', fontSize: '9px', color: 'var(--muted-foreground)' }}>
+              <span>Ag. <strong style={{ color: 'var(--foreground)' }}>{kpis.resueltoHoyAgente}</strong></span>
+              <span>Prov. <strong style={{ color: 'var(--foreground)' }}>{kpis.resueltoHoyProveedor}</strong></span>
+            </div>
+          </div>
+
+          {/* Equipo — tabla compacta */}
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '7px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 600 }}>Equipo</div>
+              {isToday && (
+                <button onClick={() => setAsignarOpen(true)}
+                  style={{ padding: '2px 8px', fontSize: '9px', background: '#E6F1FB', color: '#185FA5', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 500 }}>
+                  + Asignar
+                </button>
+              )}
+            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
+                  {['Agente','Act.','Rsg.','Res.','Carga'].map(h => (
+                    <th key={h} style={{ padding: '3px 4px', textAlign: h === 'Agente' ? 'left' : 'center', fontSize: '8px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(equipoStats ?? []).map((ag: any, idx: number) => {
+                  const carga = ag.casosActivos === 0 ? 'libre' : ag.casosActivos <= 2 ? 'normal' : ag.casosActivos <= 4 ? 'cargado' : 'saturado'
+                  const cargaBadge = {
+                    libre:    { label: 'Libre',    bg: '#F3F4F6', color: '#6B7280' },
+                    normal:   { label: 'Normal',   bg: '#EAF3DE', color: '#27500A' },
+                    cargado:  { label: 'Cargado',  bg: '#FFF3E0', color: '#C84B00' },
+                    saturado: { label: 'Saturado', bg: '#FCEBEB', color: '#A32D2D' },
+                  }[carga]
+                  return (
+                    <tr key={ag.id} style={{ borderTop: idx > 0 ? '0.5px solid var(--border)' : 'none' }}>
+                      <td style={{ padding: '5px 4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <div style={{ width: 20, height: 20, borderRadius: '50%', background: AVATAR_COLORS[idx % AVATAR_COLORS.length], display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
+                            {initials(ag.nombre)}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '10px', fontWeight: 600, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', maxWidth: '90px', textOverflow: 'ellipsis' }}>{ag.nombre.split(' ').slice(0,2).join(' ')}</div>
+                            <div style={{ fontSize: '8px', color: 'var(--muted-foreground)' }}>{ag.rol}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ padding: '5px 4px', textAlign: 'center', fontWeight: 700, fontSize: '11px', color: ag.casosActivos > 4 ? '#A32D2D' : ag.casosActivos > 2 ? '#C84B00' : 'var(--foreground)' }}>{ag.casosActivos}</td>
+                      <td style={{ padding: '5px 4px', textAlign: 'center', fontWeight: 700, fontSize: '11px', color: ag.enRiesgoSla > 0 ? '#A32D2D' : 'var(--muted-foreground)' }}>{ag.enRiesgoSla}</td>
+                      <td style={{ padding: '5px 4px', textAlign: 'center', fontWeight: 700, fontSize: '11px', color: '#27500A' }}>{ag.resueltoHoyAgente + ag.resueltoHoyProveedor}</td>
+                      <td style={{ padding: '5px 4px', textAlign: 'center' }}>
+                        <span style={{ fontSize: '8px', fontWeight: 700, padding: '1px 4px', borderRadius: '999px', background: cargaBadge.bg, color: cargaBadge.color, whiteSpace: 'nowrap' }}>{cargaBadge.label}</span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
 
           {/* Pendientes proveedor */}
-          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
-            <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '10px' }}>Pendientes proveedor</div>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 600, marginBottom: '7px' }}>Pendientes proveedor</div>
             {(proveedoresPendientes ?? []).length === 0 ? (
-              <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', padding: '8px 0' }}>Sin pendientes de proveedor</div>
+              <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Sin pendientes</div>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
-                    {['Proveedor', 'Pend.', 'Más antiguo', 'Acción'].map(h => (
-                      <th key={h} style={{ padding: '5px 6px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
+                    {['Proveedor','Pend.','Espera',''].map(h => (
+                      <th key={h} style={{ padding: '3px 4px', textAlign: 'left', fontSize: '8px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {(proveedoresPendientes ?? []).map((p: any, i: number) => (
                     <tr key={p.nombre} style={{ borderTop: i > 0 ? '0.5px solid var(--border)' : 'none' }}>
-                      <td style={{ padding: '7px 6px' }}>
-                        <span style={{ padding: '2px 8px', borderRadius: '999px', background: '#E6F1FB', color: '#185FA5', fontSize: '10px', fontWeight: 600 }}>{p.nombre}</span>
-                      </td>
-                      <td style={{ padding: '7px 6px', fontWeight: 700, fontFamily: 'monospace' }}>{p.count}</td>
-                      <td style={{ padding: '7px 6px', fontFamily: 'monospace', color: p.masAntiguoMin > 60 ? '#A32D2D' : p.masAntiguoMin > 30 ? '#C84B00' : 'var(--foreground)', fontWeight: 500 }}>
-                        {fmtEspera(p.masAntiguoMin)}
-                      </td>
-                      <td style={{ padding: '7px 6px' }}>
+                      <td style={{ padding: '4px' }}><span style={{ padding: '1px 5px', borderRadius: '999px', background: '#E6F1FB', color: '#185FA5', fontSize: '9px', fontWeight: 600 }}>{p.nombre}</span></td>
+                      <td style={{ padding: '4px', fontWeight: 700, fontSize: '11px', textAlign: 'center' }}>{p.count}</td>
+                      <td style={{ padding: '4px', fontSize: '9px', color: p.masAntiguoMin > 60 ? '#A32D2D' : p.masAntiguoMin > 30 ? '#C84B00' : 'var(--foreground)', fontWeight: 500 }}>{fmtEspera(p.masAntiguoMin)}</td>
+                      <td style={{ padding: '4px' }}>
                         <button onClick={() => { setProvFiltro(p.nombre); setCardFiltro('pendientes') }}
-                          style={{ fontSize: '10px', background: 'none', border: 'none', color: '#185FA5', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}>
-                          Ver →
-                        </button>
+                          style={{ fontSize: '9px', background: 'none', border: 'none', color: '#185FA5', cursor: 'pointer', fontWeight: 500 }}>Ver →</button>
                       </td>
                     </tr>
                   ))}
@@ -833,31 +723,27 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
             )}
           </div>
 
-          {/* Alertas rápidas */}
-          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
-            <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '10px' }}>Alertas rápidas</div>
+          {/* Alertas */}
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 600, marginBottom: '7px' }}>Alertas</div>
             {alertas.length === 0 ? (
-              <div style={{ fontSize: '11px', color: '#27500A', padding: '8px 0' }}>✓ Sin alertas activas</div>
+              <div style={{ fontSize: '10px', color: '#27500A' }}>✓ Sin alertas activas</div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {alertas.slice(0, 6).map((a, i) => {
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {alertas.slice(0, 5).map((a, i) => {
                   const cfg = {
-                    vencido:     { icon: '🔴', bg: '#FCEBEB', border: '#FECACA', color: '#A32D2D' },
-                    riesgo:      { icon: '⚠',  bg: '#FFF3E0', border: '#FDBA74', color: '#C84B00' },
-                    pendiente:   { icon: '🏢', bg: '#EEE8FF', border: '#C4B5FD', color: '#5B21B6' },
-                    sin_resp:    { icon: '⏱',  bg: '#FAEEDA', border: '#FCD34D', color: '#854F0B' },
-                    sobrecarga:  { icon: '👤', bg: '#E6F1FB', border: '#93C5FD', color: '#185FA5' },
+                    vencido:    { icon: '🔴', bg: '#FCEBEB', border: '#FECACA', color: '#A32D2D' },
+                    riesgo:     { icon: '⚠',  bg: '#FFF3E0', border: '#FDBA74', color: '#C84B00' },
+                    pendiente:  { icon: '🏢', bg: '#EEE8FF', border: '#C4B5FD', color: '#5B21B6' },
+                    sin_resp:   { icon: '⏱',  bg: '#FAEEDA', border: '#FCD34D', color: '#854F0B' },
+                    sobrecarga: { icon: '👤', bg: '#E6F1FB', border: '#93C5FD', color: '#185FA5' },
                   }[a.tipo] ?? { icon: '●', bg: 'var(--muted)', border: 'var(--border)', color: 'var(--foreground)' }
                   return (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', background: cfg.bg, border: `0.5px solid ${cfg.border}`, borderRadius: '8px', fontSize: '11px' }}>
-                      <span style={{ fontSize: '14px', flexShrink: 0 }}>{cfg.icon}</span>
-                      <span style={{ flex: 1, color: cfg.color }}>{a.texto}</span>
-                      <button
-                        onClick={() => {
-                          if (a.filterKey) setCardFiltro(a.filterKey)
-                          if (a.provFilter) setProvFiltro(a.provFilter)
-                        }}
-                        style={{ fontSize: '10px', fontWeight: 600, background: 'none', border: 'none', color: cfg.color, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 7px', background: cfg.bg, border: `0.5px solid ${cfg.border}`, borderRadius: '6px', fontSize: '10px' }}>
+                      <span style={{ fontSize: '10px', flexShrink: 0 }}>{cfg.icon}</span>
+                      <span style={{ flex: 1, color: cfg.color, fontSize: '9px' }}>{a.texto}</span>
+                      <button onClick={() => { if (a.filterKey) setCardFiltro(a.filterKey); if (a.provFilter) setProvFiltro(a.provFilter) }}
+                        style={{ fontSize: '9px', fontWeight: 600, background: 'none', border: 'none', color: cfg.color, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                         {a.accion} →
                       </button>
                     </div>
@@ -868,25 +754,21 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
           </div>
 
           {/* Actividad reciente */}
-          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 600 }}>Actividad reciente</div>
-              <button onClick={() => router.push('/incidentes')}
-                style={{ fontSize: '10px', color: '#185FA5', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>
-                Ver toda →
-              </button>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '7px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 600 }}>Actividad reciente</div>
+              <button onClick={() => router.push('/incidentes')} style={{ fontSize: '9px', color: '#185FA5', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>Ver toda →</button>
             </div>
-            {/* Tabs */}
-            <div style={{ display: 'flex', gap: '4px', marginBottom: '10px' }}>
+            <div style={{ display: 'flex', gap: '3px', marginBottom: '7px', flexWrap: 'wrap' }}>
               {([
                 { key: 'todos',      label: 'Todos' },
                 { key: 'escalados',  label: 'Escalados' },
                 { key: 'resueltos',  label: 'Resueltos' },
-                { key: 'respuestas', label: 'Respuestas prov.' },
-              ] as const).map(tab => (
-                <button key={tab.key} onClick={() => setTabActividad(tab.key)}
-                  style={{ padding: '4px 12px', fontSize: '11px', fontWeight: tabActividad === tab.key ? 600 : 400, background: tabActividad === tab.key ? 'hsl(221,83%,23%)' : 'var(--muted)', color: tabActividad === tab.key ? 'white' : 'var(--foreground)', border: 'none', borderRadius: '999px', cursor: 'pointer' }}>
-                  {tab.label}
+                { key: 'respuestas', label: 'Resp. prov.' },
+              ] as const).map(t => (
+                <button key={t.key} onClick={() => setTabActividad(t.key)}
+                  style={{ padding: '2px 7px', fontSize: '9px', fontWeight: tabActividad === t.key ? 600 : 400, background: tabActividad === t.key ? 'hsl(221,83%,23%)' : 'var(--muted)', color: tabActividad === t.key ? 'white' : 'var(--foreground)', border: 'none', borderRadius: '999px', cursor: 'pointer' }}>
+                  {t.label}
                 </button>
               ))}
             </div>
@@ -898,35 +780,33 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                 return true
               })
               return (
-            <div style={{ maxHeight: '320px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-              {actFiltrada.length === 0 ? (
-                <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', padding: '8px 0' }}>Sin actividad reciente</div>
-              ) : (
-                actFiltrada.map((ev: any, i: number) => {
-                  const conf: Record<string, { icon: string; color: string }> = {
-                    CREADO:               { icon: '●', color: '#185FA5' },
-                    ESCALADO:             { icon: '↑', color: '#C84B00' },
-                    RESPUESTA_PROVEEDOR:  { icon: '✓', color: '#27500A' },
-                    RESUELTO:             { icon: '✓', color: '#27500A' },
-                  }
-                  const c = conf[ev.tipo_evento] ?? { icon: '●', color: '#888' }
-                  let texto = ''
-                  if (ev.tipo_evento === 'CREADO')              texto = `Incidente ${ev.codigo} registrado por ${ev.actor}`
-                  else if (ev.tipo_evento === 'ESCALADO')       texto = `Incidente ${ev.codigo} escalado${ev.nivel ? ` a Nivel ${ev.nivel}` : ''}${ev.proveedor_nombre ? ` (${ev.proveedor_nombre})` : ''} por ${ev.actor}`
-                  else if (ev.tipo_evento === 'RESPUESTA_PROVEEDOR') texto = `Respuesta de ${ev.proveedor_nombre ?? 'proveedor'} en incidente ${ev.codigo}`
-                  else if (ev.tipo_evento === 'RESUELTO')       texto = `Incidente ${ev.codigo} resuelto por ${ev.actor}`
-                  else texto = ev.codigo ?? ''
-                  const { text: horaText, isOld } = fmtHoraEvento(ev.hora)
-                  return (
-                    <div key={i} style={{ display: 'flex', gap: '8px', padding: '6px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none' }}>
-                      <div style={{ fontSize: '10px', color: isOld ? '#B45309' : 'var(--muted-foreground)', whiteSpace: 'nowrap', minWidth: isOld ? '68px' : '38px', paddingTop: '1px', fontWeight: isOld ? 600 : 400 }}>{horaText}</div>
-                      <span style={{ color: c.color, fontSize: '12px', paddingTop: '1px', flexShrink: 0 }}>{c.icon}</span>
-                      <div style={{ fontSize: '11px', flex: 1, lineHeight: 1.4, color: isOld ? 'var(--muted-foreground)' : 'var(--foreground)' }}>{texto}</div>
-                    </div>
-                  )
-                })
-              )}
-            </div>
+                <div style={{ maxHeight: '240px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+                  {actFiltrada.length === 0 ? (
+                    <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Sin actividad</div>
+                  ) : actFiltrada.map((ev: any, i: number) => {
+                    const conf: Record<string, { icon: string; color: string }> = {
+                      CREADO:              { icon: '●', color: '#185FA5' },
+                      ESCALADO:            { icon: '↑', color: '#C84B00' },
+                      RESPUESTA_PROVEEDOR: { icon: '✓', color: '#27500A' },
+                      RESUELTO:            { icon: '✓', color: '#27500A' },
+                    }
+                    const c = conf[ev.tipo_evento] ?? { icon: '●', color: '#888' }
+                    let texto = ''
+                    if (ev.tipo_evento === 'CREADO')              texto = `${ev.codigo} por ${ev.actor}`
+                    else if (ev.tipo_evento === 'ESCALADO')       texto = `${ev.codigo} escalado${ev.nivel ? ` N${ev.nivel}` : ''}${ev.proveedor_nombre ? ` (${ev.proveedor_nombre})` : ''}`
+                    else if (ev.tipo_evento === 'RESPUESTA_PROVEEDOR') texto = `Resp. ${ev.proveedor_nombre ?? 'prov.'} — ${ev.codigo}`
+                    else if (ev.tipo_evento === 'RESUELTO')       texto = `${ev.codigo} resuelto por ${ev.actor}`
+                    else texto = ev.codigo ?? ''
+                    const { text: horaText, isOld } = fmtHoraEvento(ev.hora)
+                    return (
+                      <div key={i} style={{ display: 'flex', gap: '5px', padding: '4px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none' }}>
+                        <div style={{ fontSize: '9px', color: isOld ? '#B45309' : 'var(--muted-foreground)', whiteSpace: 'nowrap', minWidth: isOld ? '55px' : '32px', paddingTop: '1px', fontWeight: isOld ? 600 : 400 }}>{horaText}</div>
+                        <span style={{ color: c.color, fontSize: '10px', paddingTop: '1px', flexShrink: 0 }}>{c.icon}</span>
+                        <div style={{ fontSize: '10px', flex: 1, lineHeight: 1.3, color: isOld ? 'var(--muted-foreground)' : 'var(--foreground)' }}>{texto}</div>
+                      </div>
+                    )
+                  })}
+                </div>
               )
             })()}
           </div>
