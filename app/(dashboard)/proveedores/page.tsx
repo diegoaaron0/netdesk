@@ -3,7 +3,6 @@ import { useEffect, useState, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
 function fmtSoles(v: string | number | null | undefined) {
   if (v == null || v === '' || Number(v) === 0) return '—'
   return `S/ ${Number(v).toLocaleString('es-PE', { minimumFractionDigits: 0 })}`
@@ -16,13 +15,20 @@ function slaColor(v: number | null) {
   return '#dc2626'
 }
 
+function slaBg(v: number | null) {
+  if (v == null) return 'transparent'
+  if (v >= 80) return '#f0fdf4'
+  if (v >= 60) return '#fffbeb'
+  return '#fef2f2'
+}
+
 function estadoBadge(estado: string) {
-  const map: Record<string, { bg: string; color: string }> = {
-    VIGENTE:    { bg: '#d1fae5', color: '#065f46' },
-    POR_VENCER: { bg: '#fef3c7', color: '#92400e' },
-    VENCIDO:    { bg: '#fee2e2', color: '#b91c1c' },
+  const map: Record<string, { bg: string; color: string; label: string }> = {
+    VIGENTE:    { bg: '#d1fae5', color: '#065f46', label: 'Vigente' },
+    POR_VENCER: { bg: '#fef3c7', color: '#92400e', label: 'Por vencer' },
+    VENCIDO:    { bg: '#fee2e2', color: '#b91c1c', label: 'Vencido' },
   }
-  return map[estado] ?? { bg: '#f3f4f6', color: '#6b7280' }
+  return map[estado] ?? { bg: '#f3f4f6', color: '#6b7280', label: estado }
 }
 
 const SORT_OPTIONS = [
@@ -34,18 +40,25 @@ const SORT_OPTIONS = [
   { value: 'mas-incidentes', label: 'Más incidentes' },
 ]
 
+const thStyle: React.CSSProperties = {
+  padding: '9px 12px', fontSize: '10px', fontWeight: 700,
+  color: 'var(--muted-foreground)', textTransform: 'uppercase',
+  letterSpacing: '0.06em', textAlign: 'left',
+  borderBottom: '0.5px solid var(--border)',
+  background: 'var(--muted)', whiteSpace: 'nowrap',
+}
+
 export default function ProveedoresPage() {
   const { data: session } = useSession()
   const router = useRouter()
   const canEdit = ['SUPERVISOR', 'INFRAESTRUCTURA'].includes((session?.user as any)?.rol ?? '')
 
-  const [lista, setLista]   = useState<any[]>([])
+  const [lista, setLista]     = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [filtros, setFiltros] = useState({ buscar: '', tipoServicio: '', estadoContrato: '', plan: '', ordenar: '' })
   const [tiposServicio, setTiposServicio] = useState<string[]>([])
-  const [planes, setPlanes] = useState<string[]>([])
+  const [hoveredRow, setHoveredRow] = useState<string | null>(null)
 
-  // Modal nuevo proveedor
   const [modal, setModal] = useState(false)
   const [form, setForm]   = useState<any>({})
   const [saving, setSaving] = useState(false)
@@ -53,47 +66,45 @@ export default function ProveedoresPage() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     const p = new URLSearchParams()
-    if (filtros.buscar)        p.set('buscar',         filtros.buscar)
-    if (filtros.tipoServicio)  p.set('tipoServicio',   filtros.tipoServicio)
+    if (filtros.buscar)         p.set('buscar',         filtros.buscar)
+    if (filtros.tipoServicio)   p.set('tipoServicio',   filtros.tipoServicio)
     if (filtros.estadoContrato) p.set('estadoContrato', filtros.estadoContrato)
-    if (filtros.plan)          p.set('plan',           filtros.plan)
-    if (filtros.ordenar)       p.set('ordenar',        filtros.ordenar)
+    if (filtros.plan)           p.set('plan',           filtros.plan)
+    if (filtros.ordenar)        p.set('ordenar',        filtros.ordenar)
     const res = await fetch(`/api/proveedores?${p}`)
     if (!res.ok) { setLoading(false); return }
     const data = await res.json()
     setLista(data)
-    // Collect unique values for selects
     const ts = Array.from(new Set(data.map((d: any) => d.tipoServicio).filter(Boolean))) as string[]
-    const pl = Array.from(new Set(data.map((d: any) => d.planContrato ?? d.planPrincipal).filter(Boolean))) as string[]
     setTiposServicio(ts)
-    setPlanes(pl)
     setLoading(false)
   }, [filtros])
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  // Derived cards
-  const totalProveedores   = lista.length
-  const totalTiendasAsoc   = lista.reduce((s, p) => s + (p.totalTiendas ?? 0), 0)
-  const costoTotal         = lista.reduce((s, p) => s + Number(p.costoTotal ?? 0), 0)
-  const slaValidos         = lista.filter(p => p.slaPromedio != null)
-  const slaPromGlobal      = slaValidos.length > 0 ? Math.round(slaValidos.reduce((s, p) => s + p.slaPromedio, 0) / slaValidos.length) : null
-  const contratosVencer    = lista.filter(p => p.estadoContratoCalc === 'POR_VENCER' || p.estadoContratoCalc === 'VENCIDO').length
+  const totalProveedores = lista.length
+  const totalTiendas     = lista.reduce((s, p) => s + (p.totalTiendas ?? 0), 0)
+  const costoTotal       = lista.reduce((s, p) => s + Number(p.costoTotal ?? 0), 0)
+  const totalInc30d      = lista.reduce((s, p) => s + (p.incidentes30d ?? 0), 0)
+  const slaValidos       = lista.filter(p => p.slaPromedio != null)
+  const slaPromGlobal    = slaValidos.length > 0
+    ? Math.round(slaValidos.reduce((s, p) => s + p.slaPromedio, 0) / slaValidos.length)
+    : null
+  const peorProveedor    = slaValidos.length > 0
+    ? slaValidos.reduce((prev, cur) => cur.slaPromedio < prev.slaPromedio ? cur : prev)
+    : null
 
   function setF(k: string, v: any) { setFiltros(f => ({ ...f, [k]: v })) }
+  const hayFiltros = filtros.buscar || filtros.tipoServicio || filtros.estadoContrato || filtros.plan || filtros.ordenar
 
   async function handleCreate() {
     if (!form.nombre?.trim()) return
     setSaving(true)
     await fetch('/api/proveedores', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form),
     })
-    setSaving(false)
-    setModal(false)
-    setForm({})
-    fetchData()
+    setSaving(false); setModal(false); setForm({}); fetchData()
   }
 
   const inp: React.CSSProperties = {
@@ -103,9 +114,10 @@ export default function ProveedoresPage() {
   }
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Proveedores</h1>
           <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{lista.length} proveedores</div>
@@ -118,130 +130,188 @@ export default function ProveedoresPage() {
         )}
       </div>
 
-      {/* Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '10px', marginBottom: '16px' }}>
-        {[
-          { label: 'Total proveedores',   value: totalProveedores, color: '#3b82f6', fmt: String },
-          { label: 'Tiendas asociadas',   value: totalTiendasAsoc, color: '#10b981', fmt: String },
-          { label: 'Costo mensual total', value: costoTotal, color: '#8b5cf6', fmt: (v: number) => fmtSoles(v) },
-          { label: 'SLA promedio (30d)',  value: slaPromGlobal, color: slaColor(slaPromGlobal), fmt: (v: number | null) => v != null ? `${v}%` : '—' },
-          { label: 'Contratos por vencer', value: contratosVencer, color: contratosVencer > 0 ? '#ef4444' : '#6b7280', fmt: String },
-        ].map(c => (
-          <div key={c.label} style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
-            <div style={{ fontSize: '20px', fontWeight: 700, color: c.color }}>{(c.fmt as any)(c.value)}</div>
-            <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{c.label}</div>
-          </div>
-        ))}
+      {/* KPI cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '10px' }}>
+        <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+          <div style={{ fontSize: '22px', fontWeight: 700, color: '#3b82f6' }}>{totalProveedores}</div>
+          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Proveedores</div>
+        </div>
+        <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+          <div style={{ fontSize: '22px', fontWeight: 700, color: '#10b981' }}>{totalTiendas}</div>
+          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Tiendas cubiertas</div>
+        </div>
+        <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+          <div style={{ fontSize: '18px', fontWeight: 700, color: '#8b5cf6', letterSpacing: '-0.02em' }}>{fmtSoles(costoTotal)}</div>
+          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Costo mensual total</div>
+        </div>
+        <div style={{ background: slaPromGlobal != null ? slaBg(slaPromGlobal) : 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+          <div style={{ fontSize: '22px', fontWeight: 700, color: slaColor(slaPromGlobal) }}>{slaPromGlobal != null ? `${slaPromGlobal}%` : '—'}</div>
+          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>SLA promedio 30d</div>
+          {peorProveedor && slaPromGlobal != null && slaPromGlobal < 80 && (
+            <div style={{ fontSize: '9px', color: '#dc2626', marginTop: '3px' }}>Peor: {peorProveedor.nombre} ({peorProveedor.slaPromedio}%)</div>
+          )}
+        </div>
+        <div style={{ background: totalInc30d > 0 ? '#fef2f2' : 'var(--card)', border: `0.5px solid ${totalInc30d > 0 ? '#fecaca' : 'var(--border)'}`, borderRadius: '10px', padding: '12px 14px' }}>
+          <div style={{ fontSize: '22px', fontWeight: 700, color: totalInc30d > 0 ? '#dc2626' : 'var(--muted-foreground)' }}>{totalInc30d}</div>
+          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Incidentes 30d</div>
+        </div>
       </div>
 
       {/* Filtros */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', flexWrap: 'wrap', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
         <input placeholder="Buscar proveedor..." value={filtros.buscar}
           onChange={e => setF('buscar', e.target.value)}
           style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', minWidth: '200px' }} />
-
         <select value={filtros.tipoServicio} onChange={e => setF('tipoServicio', e.target.value)}
           style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
           <option value="">Tipo de servicio</option>
           {tiposServicio.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
-
         <select value={filtros.estadoContrato} onChange={e => setF('estadoContrato', e.target.value)}
           style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
           <option value="">Estado contrato</option>
-          <option value="VIGENTE">VIGENTE</option>
-          <option value="POR_VENCER">POR VENCER</option>
-          <option value="VENCIDO">VENCIDO</option>
+          <option value="VIGENTE">Vigente</option>
+          <option value="POR_VENCER">Por vencer</option>
+          <option value="VENCIDO">Vencido</option>
         </select>
-
-        <select value={filtros.plan} onChange={e => setF('plan', e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
-          <option value="">Plan</option>
-          {planes.map(p => <option key={p} value={p}>{p}</option>)}
-        </select>
-
         <select value={filtros.ordenar} onChange={e => setF('ordenar', e.target.value)}
           style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
-          <option value="">Ordenar</option>
+          <option value="">Ordenar: A→Z</option>
           {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-
-        {(filtros.buscar || filtros.tipoServicio || filtros.estadoContrato || filtros.plan || filtros.ordenar) && (
+        {hayFiltros && (
           <button onClick={() => setFiltros({ buscar: '', tipoServicio: '', estadoContrato: '', plan: '', ordenar: '' })}
             style={{ padding: '6px 12px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', color: 'var(--muted-foreground)', cursor: 'pointer' }}>
             Limpiar
           </button>
         )}
+        <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginLeft: 'auto' }}>
+          {lista.length} {lista.length === 1 ? 'proveedor' : 'proveedores'}
+        </span>
       </div>
 
       {/* Tabla */}
       <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
           <thead>
-            <tr style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--muted)' }}>
-              {['Proveedor', 'Tiendas', 'Plan', 'Costo total', 'SLA (30d)', 'Estado', ''].map(h => (
-                <th key={h} style={{ padding: '9px 12px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
-                  {h}
-                </th>
-              ))}
+            <tr>
+              <th style={thStyle}>Proveedor</th>
+              <th style={{ ...thStyle, textAlign: 'center' }}>Tiendas</th>
+              <th style={{ ...thStyle, textAlign: 'center' }}>Inc. 30d</th>
+              <th style={thStyle}>Costo/mes</th>
+              <th style={{ ...thStyle, textAlign: 'center' }}>SLA 30d</th>
+              <th style={thStyle}>Contrato</th>
+              <th style={thStyle}>Soporte</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
-              <tr><td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Cargando...</td></tr>
+              <tr><td colSpan={7} style={{ padding: '28px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Cargando...</td></tr>
             )}
             {!loading && lista.length === 0 && (
-              <tr><td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Sin resultados</td></tr>
+              <tr><td colSpan={7} style={{ padding: '28px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Sin resultados</td></tr>
             )}
             {!loading && lista.map((p, i) => {
-              const est   = estadoBadge(p.estadoContratoCalc)
+              const est    = estadoBadge(p.estadoContratoCalc)
               const sColor = slaColor(p.slaPromedio)
+              const sBg    = slaBg(p.slaPromedio)
+              const isHov  = hoveredRow === p.id
+              const incAlta = (p.incidentes30d ?? 0) > 10
+              const incMedia = (p.incidentes30d ?? 0) > 3
               return (
                 <tr key={p.id}
                   onClick={() => router.push(`/proveedores/${p.id}`)}
-                  style={{ borderBottom: i < lista.length - 1 ? '0.5px solid var(--border)' : 'none', cursor: 'pointer', transition: 'background 0.1s' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                  onMouseEnter={() => setHoveredRow(p.id)}
+                  onMouseLeave={() => setHoveredRow(null)}
+                  style={{
+                    borderBottom: i < lista.length - 1 ? '0.5px solid var(--border)' : 'none',
+                    cursor: 'pointer',
+                    background: isHov ? 'var(--muted)' : 'transparent',
+                  }}>
 
-                  <td style={{ padding: '10px 12px' }}>
-                    <div style={{ fontWeight: 600, color: 'var(--foreground)' }}>{p.nombre}</div>
-                    {p.tipoServicio && (
-                      <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'var(--muted)', color: 'var(--muted-foreground)', marginTop: '2px', display: 'inline-block' }}>
-                        {p.tipoServicio}
-                      </span>
-                    )}
+                  {/* Proveedor */}
+                  <td style={{ padding: '10px 12px', minWidth: '160px' }}>
+                    <div style={{ fontWeight: 700, fontSize: '12px', color: 'var(--foreground)' }}>{p.nombre}</div>
+                    <div style={{ display: 'flex', gap: '5px', marginTop: '3px', flexWrap: 'wrap' }}>
+                      {p.tipoServicio && (
+                        <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: 'var(--muted)', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          {p.tipoServicio}
+                        </span>
+                      )}
+                      {(p.planContrato ?? p.planPrincipal) && (
+                        <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: '#EEF4FF', color: '#185FA5', fontWeight: 600 }}>
+                          {p.planContrato ?? p.planPrincipal}
+                        </span>
+                      )}
+                    </div>
                   </td>
 
-                  <td style={{ padding: '10px 12px', color: 'var(--foreground)', fontWeight: 500 }}>
-                    {p.totalTiendas}
-                  </td>
-
-                  <td style={{ padding: '10px 12px', color: 'var(--muted-foreground)' }}>
-                    {p.planContrato ?? p.planPrincipal ?? '—'}
-                  </td>
-
-                  <td style={{ padding: '10px 12px', color: 'var(--foreground)', fontFamily: 'monospace', fontSize: '11px' }}>
-                    {fmtSoles(p.costoTotal)}
-                  </td>
-
-                  <td style={{ padding: '10px 12px' }}>
-                    {p.slaPromedio != null ? (
-                      <span style={{ fontWeight: 700, color: sColor }}>{p.slaPromedio}%</span>
-                    ) : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
-                  </td>
-
-                  <td style={{ padding: '10px 12px' }}>
-                    <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '5px', background: est.bg, color: est.color }}>
-                      {p.estadoContratoCalc}
+                  {/* Tiendas */}
+                  <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                    <span style={{ fontWeight: 600, color: p.totalTiendas > 0 ? 'var(--foreground)' : 'var(--muted-foreground)' }}>
+                      {p.totalTiendas}
                     </span>
                   </td>
 
+                  {/* Incidentes 30d */}
+                  <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                    {(p.incidentes30d ?? 0) > 0 ? (
+                      <span style={{
+                        fontWeight: 700, fontSize: '12px',
+                        color: incAlta ? '#dc2626' : incMedia ? '#d97706' : '#374151',
+                        background: incAlta ? '#fef2f2' : incMedia ? '#fffbeb' : 'transparent',
+                        padding: incAlta || incMedia ? '1px 6px' : '0',
+                        borderRadius: '4px',
+                      }}>
+                        {p.incidentes30d}
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--muted-foreground)' }}>0</span>
+                    )}
+                  </td>
+
+                  {/* Costo/mes */}
+                  <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontSize: '11px', color: 'var(--foreground)' }}>
+                    <div>{fmtSoles(p.costoTotal)}</div>
+                    {p.totalTiendas > 1 && Number(p.costoTotal) > 0 && (
+                      <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', marginTop: '1px' }}>
+                        {fmtSoles(Math.round(Number(p.costoTotal) / p.totalTiendas))}/tienda
+                      </div>
+                    )}
+                  </td>
+
+                  {/* SLA */}
+                  <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                    {p.slaPromedio != null ? (
+                      <span style={{ fontWeight: 700, fontSize: '12px', color: sColor, background: sBg, padding: '2px 7px', borderRadius: '5px' }}>
+                        {p.slaPromedio}%
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--muted-foreground)', fontSize: '11px' }}>—</span>
+                    )}
+                  </td>
+
+                  {/* Estado contrato */}
                   <td style={{ padding: '10px 12px' }}>
-                    <button
-                      onClick={e => { e.stopPropagation(); router.push(`/proveedores/${p.id}`) }}
-                      style={{ padding: '5px 10px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                      Ver detalle
-                    </button>
+                    <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '5px', background: est.bg, color: est.color, whiteSpace: 'nowrap' }}>
+                      {est.label}
+                    </span>
+                  </td>
+
+                  {/* Soporte */}
+                  <td style={{ padding: '10px 12px', fontSize: '11px' }}>
+                    {p.telefonoSoporte ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                        <span style={{ color: 'var(--foreground)', fontFamily: 'monospace', fontSize: '10px' }}>{p.telefonoSoporte}</span>
+                        {p.correoSoporte && (
+                          <span style={{ color: 'var(--muted-foreground)', fontSize: '10px', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.correoSoporte}</span>
+                        )}
+                      </div>
+                    ) : p.correoSoporte ? (
+                      <span style={{ color: 'var(--muted-foreground)', fontSize: '10px' }}>{p.correoSoporte}</span>
+                    ) : (
+                      <span style={{ color: 'var(--muted-foreground)' }}>—</span>
+                    )}
                   </td>
                 </tr>
               )
@@ -260,12 +330,12 @@ export default function ProveedoresPage() {
             </div>
             <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {([
-                ['nombre',             'Nombre *'],
-                ['tipoServicio',       'Tipo de servicio'],
-                ['planPrincipal',      'Plan principal'],
-                ['canalAtencion',      'Canal de atención'],
-                ['correoSoporte',      'Correo soporte'],
-                ['telefonoSoporte',    'Teléfono soporte'],
+                ['nombre',          'Nombre *'],
+                ['tipoServicio',    'Tipo de servicio'],
+                ['planPrincipal',   'Plan principal'],
+                ['canalAtencion',   'Canal de atención'],
+                ['correoSoporte',   'Correo soporte'],
+                ['telefonoSoporte', 'Teléfono soporte'],
               ] as [string, string][]).map(([key, label]) => (
                 <div key={key}>
                   <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '3px' }}>{label}</label>
@@ -279,7 +349,7 @@ export default function ProveedoresPage() {
               </div>
               <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px' }}>
                 <button onClick={() => setModal(false)}
-                  style={{ padding: '8px 16px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>
+                  style={{ padding: '8px 16px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: 'var(--foreground)' }}>
                   Cancelar
                 </button>
                 <button onClick={handleCreate} disabled={saving || !form.nombre?.trim()}
