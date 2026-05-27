@@ -979,7 +979,7 @@ export default function DashboardAnalitico() {
       />
 
       {/* KPIs — A activo, B-H placeholders */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '6px' }}>
 
         {/* A — Tendencia de incidentes y SLA (activo) */}
         <div style={{ gridColumn: '1 / -1' }}>

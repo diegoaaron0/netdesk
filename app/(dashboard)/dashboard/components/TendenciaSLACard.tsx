@@ -165,7 +165,7 @@ export default function TendenciaSLACard({ desde, hasta, proveedorId, refreshKey
   }
 
   return (
-    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
 
       {/* Header: título + leyenda + botón — una sola fila */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
@@ -199,11 +199,11 @@ export default function TendenciaSLACard({ desde, hasta, proveedorId, refreshKey
       {/* Stats strip — una sola fila compacta */}
       {!loading && resumen && (
         <div style={{ display: 'flex', alignItems: 'stretch', background: slaPctBg, borderRadius: '8px', overflow: 'hidden', border: `0.5px solid ${slaPctColor}30` }}>
-          <div style={{ padding: '6px 14px', borderRight: '0.5px solid #e5e7eb30', display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: '90px' }}>
-            <div style={{ fontSize: '9px', fontWeight: 600, color: slaPctColor, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1px' }}>SLA período</div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-              <span style={{ fontSize: '22px', fontWeight: 700, color: slaPctColor, lineHeight: 1 }}>{slaPct != null ? `${slaPct}%` : '—'}</span>
-              <span style={{ fontSize: '10px', color: slaPctColor, fontWeight: 500 }}>{slaLabel(slaPct)}</span>
+          <div style={{ padding: '3px 10px', borderRight: '0.5px solid #e5e7eb30', display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: '80px' }}>
+            <div style={{ fontSize: '8px', fontWeight: 600, color: slaPctColor, textTransform: 'uppercase', letterSpacing: '0.05em' }}>SLA período</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px' }}>
+              <span style={{ fontSize: '17px', fontWeight: 700, color: slaPctColor, lineHeight: 1 }}>{slaPct != null ? `${slaPct}%` : '—'}</span>
+              <span style={{ fontSize: '9px', color: slaPctColor, fontWeight: 500 }}>{slaLabel(slaPct)}</span>
             </div>
           </div>
           {[
@@ -212,9 +212,9 @@ export default function TendenciaSLACard({ desde, hasta, proveedorId, refreshKey
             { label: 'Días críticos', value: String(diasCriticos), red: diasCriticos > 0, mono: false },
             { label: 'MTTR prom.', value: fmtMin(resumen.tPromResolucionMin), red: false, mono: true },
           ].map(({ label, value, red, mono }) => (
-            <div key={label} style={{ padding: '6px 12px', borderRight: '0.5px solid #e5e7eb30', display: 'flex', flexDirection: 'column', justifyContent: 'center', flex: 1, minWidth: '70px' }}>
-              <div style={{ fontSize: '9px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '1px' }}>{label}</div>
-              <div style={{ fontSize: '15px', fontWeight: 600, color: red ? '#A32D2D' : '#0f172a', fontFamily: mono ? 'monospace' : undefined, lineHeight: 1.1 }}>
+            <div key={label} style={{ padding: '3px 10px', borderRight: '0.5px solid #e5e7eb30', display: 'flex', flexDirection: 'column', justifyContent: 'center', flex: 1, minWidth: '60px' }}>
+              <div style={{ fontSize: '8px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: red ? '#A32D2D' : '#0f172a', fontFamily: mono ? 'monospace' : undefined, lineHeight: 1.2 }}>
                 {value}
               </div>
             </div>
@@ -235,7 +235,7 @@ export default function TendenciaSLACard({ desde, hasta, proveedorId, refreshKey
       )}
 
       {!loading && byDay && byDay.length > 0 && (
-        <ResponsiveContainer width="100%" height={180}>
+        <ResponsiveContainer width="100%" height={155}>
           <ComposedChart data={byDay} margin={{ top: 2, right: 34, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(136,135,128,0.10)" />
 
@@ -250,7 +250,7 @@ export default function TendenciaSLACard({ desde, hasta, proveedorId, refreshKey
               tickLine={false}
             />
             <YAxis yAxisId="left" tick={{ fontSize: 9, fill: '#888780' }} tickLine={false} axisLine={false}
-              width={20}
+              width={20} allowDecimals={false}
               label={{ value: 'Inc.', angle: -90, position: 'insideLeft', fontSize: 8, fill: '#888780', dx: 4 }}
             />
             <YAxis yAxisId="right" orientation="right" domain={[0, 100]}
