@@ -190,7 +190,7 @@ export async function GET(req: NextRequest) {
     db.execute(sql`
       SELECT COUNT(*)::int AS total
       FROM incidentes
-      WHERE hora_registro >= ${hoyIso}::timestamptz
+      WHERE hora_registro >= ${diaIso}::timestamptz
     `),
   ])
 
