@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import type { ImpactoProveedorResponse, ProveedorMetricas } from '@/types/provider-impact'
+import type { ImpactoProveedorResponse } from '@/types/provider-impact'
 
 interface Props {
   desde: string
@@ -18,32 +18,43 @@ function fmtMin(min: number | null | undefined) {
 function fmtCosto(n: number) {
   return `S/ ${n.toLocaleString('es-PE', { maximumFractionDigits: 0 })}`
 }
-function fmtTipo(t: string) {
-  const map: Record<string, string> = {
-    CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia',
-    LENTITUD: 'Lentitud', POS: 'POS', OTROS: 'Otros',
-  }
-  return map[t] ?? t
-}
 
-function estadoBadge(estado: ProveedorMetricas['estado']) {
-  if (estado === 'optimo')    return { label: '✓ Óptimo',    color: '#3B6D11', bg: '#EAF3DE' }
-  if (estado === 'en_riesgo') return { label: '⚠ En riesgo', color: '#854F0B', bg: '#FAEEDA' }
-  if (estado === 'critico')   return { label: '✗ Crítico',   color: '#A32D2D', bg: '#FCEBEB' }
-  return                               { label: '— Sin datos', color: '#888780', bg: '#F3F4F6' }
+function scoreColor(s: number) {
+  if (s >= 60) return '#A32D2D'
+  if (s >= 35) return '#BA7517'
+  return '#1D9E75'
+}
+function scoreBg(s: number) {
+  if (s >= 60) return '#FCEBEB'
+  if (s >= 35) return '#FAEEDA'
+  return '#EAF3DE'
+}
+function slaColor(v: number | null): string {
+  if (v == null) return '#888780'
+  if (v < 70) return '#A32D2D'
+  if (v < 90) return '#BA7517'
+  return '#1D9E75'
 }
 
 function SLABar({ pct }: { pct: number | null }) {
-  if (pct == null) return <span style={{ fontSize: '11px', color: '#888780' }}>—</span>
-  const color = pct >= 90 ? '#3B6D11' : pct >= 70 ? '#EAB308' : '#A32D2D'
+  if (pct == null) return <span style={{ fontSize: '10px', color: '#888780' }}>—</span>
+  const color = slaColor(pct)
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-      <div style={{ width: '48px', height: '5px', background: '#e5e7eb', borderRadius: '3px', overflow: 'hidden' }}>
-        <div style={{ height: '5px', width: `${pct}%`, background: color, borderRadius: '3px' }} />
+    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+      <div style={{ width: '36px', height: '4px', background: '#e5e7eb', borderRadius: '3px', overflow: 'hidden' }}>
+        <div style={{ height: '4px', width: `${pct}%`, background: color, borderRadius: '3px' }} />
       </div>
-      <span style={{ fontSize: '11px', fontWeight: 500, color }}>{pct}%</span>
+      <span style={{ fontSize: '10px', fontWeight: 600, color }}>{pct}%</span>
     </div>
   )
+}
+
+function shortCausa(causa: string | null): string {
+  if (!causa) return '—'
+  if (causa.includes('sin respuesta')) return 'Sin resp. N1'
+  if (causa.includes('Respuesta')) return 'Resp. lenta'
+  if (causa.includes('Resolución')) return 'Resol. lenta'
+  return causa.slice(0, 16)
 }
 
 export default function ProviderImpactCard({ desde, hasta, proveedorId, refreshKey }: Props) {
@@ -71,85 +82,82 @@ export default function ProviderImpactCard({ desde, hasta, proveedorId, refreshK
 
   const proveedores = data?.proveedores ?? []
   const resumen = data?.resumen
-  const globalMttr = resumen?.globalMttrMin ?? null
 
   return (
-    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>B. Impacto por proveedor</div>
-          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>
-            Comparativa de proveedores por incidentes, MTTR, SLA y costo estimado
+    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+
+      {/* Header: título + resumen inline + botón */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '12px', fontWeight: 600, color: '#0f172a', marginRight: 'auto' }}>B. Impacto por proveedor</span>
+        {!loading && resumen && (
+          <div style={{ display: 'flex', gap: '8px', fontSize: '10px', color: '#64748b' }}>
+            <span><strong style={{ color: '#0f172a' }}>{resumen.totalProveedores}</strong> provs.</span>
+            <span>SLA: <strong style={{ color: slaColor(resumen.globalSlaPct) }}>{resumen.globalSlaPct != null ? `${resumen.globalSlaPct}%` : '—'}</strong></span>
+            <span>MTTR: <strong style={{ color: '#0f172a' }}>{fmtMin(resumen.globalMttrMin)}</strong></span>
+            <span>Costo: <strong style={{ color: '#0f172a' }}>{fmtCosto(resumen.totalCosto)}</strong></span>
           </div>
-        </div>
-        <button onClick={goDetalle} style={{ background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '6px 14px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>Ver detalle →</button>
+        )}
+        <button onClick={goDetalle} style={{ background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '4px 10px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}>
+          Ver detalle →
+        </button>
       </div>
 
-      {/* Resumen mini */}
-      {!loading && resumen && (
-        <div style={{ display: 'flex', gap: '16px', fontSize: '11px', color: 'var(--muted-foreground)', flexWrap: 'wrap' }}>
-          <span><strong style={{ color: '#0f172a' }}>{resumen.totalProveedores}</strong> proveedores</span>
-          <span>SLA global: <strong style={{ color: resumen.globalSlaPct != null ? (resumen.globalSlaPct >= 90 ? '#3B6D11' : resumen.globalSlaPct >= 70 ? '#854F0B' : '#A32D2D') : '#888780' }}>{resumen.globalSlaPct != null ? `${resumen.globalSlaPct}%` : '—'}</strong></span>
-          <span>Costo total: <strong style={{ color: '#0f172a' }}>{fmtCosto(resumen.totalCosto)}</strong></span>
-          <span>MTTR global: <strong style={{ color: '#0f172a' }}>{fmtMin(resumen.globalMttrMin)}</strong></span>
-        </div>
-      )}
-
       {loading && (
-        <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
+        <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
           Cargando...
         </div>
       )}
 
       {!loading && proveedores.length === 0 && (
-        <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
+        <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
           Sin datos en el período seleccionado
         </div>
       )}
 
       {!loading && proveedores.length > 0 && (
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
             <thead>
               <tr style={{ borderBottom: '0.5px solid #e5e7eb' }}>
-                {['Proveedor', 'Incidentes', 'MTTR', 'SLA%', 'Costo est.', 'Estado'].map((h) => (
-                  <th key={h} style={{ padding: '6px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{h}</th>
+                {[
+                  { label: 'Proveedor', align: 'left' as const },
+                  { label: 'Score', align: 'center' as const },
+                  { label: 'Incs', align: 'center' as const },
+                  { label: 'Tiendas', align: 'center' as const },
+                  { label: 'SLA%', align: 'left' as const },
+                  { label: 'MTTR', align: 'right' as const },
+                  { label: 'Reincid.', align: 'center' as const },
+                  { label: 'Causa principal', align: 'left' as const },
+                ].map((h) => (
+                  <th key={h.label} style={{ padding: '4px 6px', textAlign: h.align, fontSize: '9px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
+                    {h.label}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {proveedores.slice(0, 6).map((p, i) => {
-                const badge = estadoBadge(p.estado)
-                const mttrDelta = globalMttr != null && p.mttrMinutos != null ? p.mttrMinutos - globalMttr : null
-                return (
-                  <tr key={p.id} style={{ borderTop: i > 0 ? '0.5px solid #f3f4f6' : 'none' }}>
-                    <td style={{ padding: '7px 8px', fontWeight: 500, color: '#0f172a' }}>{p.nombre}</td>
-                    <td style={{ padding: '7px 8px', textAlign: 'center', fontWeight: 600 }}>{p.incidentes}</td>
-                    <td style={{ padding: '7px 8px', whiteSpace: 'nowrap' }}>
-                      <span style={{ color: p.mttrMinutos != null && p.mttrMinutos > 240 ? '#A32D2D' : p.mttrMinutos != null && p.mttrMinutos > 120 ? '#854F0B' : '#0f172a' }}>
-                        {fmtMin(p.mttrMinutos)}
-                      </span>
-                      {mttrDelta != null && (
-                        <span style={{ fontSize: '10px', color: mttrDelta > 0 ? '#A32D2D' : '#3B6D11', marginLeft: '4px' }}>
-                          {mttrDelta > 0 ? `+${fmtMin(mttrDelta)}` : `-${fmtMin(Math.abs(mttrDelta))}`}
-                        </span>
-                      )}
-                    </td>
-                    <td style={{ padding: '7px 8px' }}>
-                      <SLABar pct={p.slaPct} />
-                    </td>
-                    <td style={{ padding: '7px 8px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{p.costoTotal > 0 ? fmtCosto(p.costoTotal) : '—'}</td>
-                    <td style={{ padding: '7px 8px' }}>
-                      <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: badge.bg, color: badge.color, whiteSpace: 'nowrap', fontWeight: 500 }}>{badge.label}</span>
-                    </td>
-                  </tr>
-                )
-              })}
+              {proveedores.slice(0, 6).map((p, i) => (
+                <tr key={p.id} style={{ borderTop: i > 0 ? '0.5px solid #f3f4f6' : 'none' }}>
+                  <td style={{ padding: '4px 6px', fontWeight: 500, color: '#0f172a', whiteSpace: 'nowrap', maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.nombre}</td>
+                  <td style={{ padding: '4px 6px', textAlign: 'center' }}>
+                    <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: '5px', background: scoreBg(p.score), color: scoreColor(p.score) }}>{p.score}</span>
+                  </td>
+                  <td style={{ padding: '4px 6px', textAlign: 'center', fontWeight: 600, color: '#0f172a' }}>{p.incidentes}</td>
+                  <td style={{ padding: '4px 6px', textAlign: 'center', color: '#0f172a' }}>{p.tiendasAfectadas}</td>
+                  <td style={{ padding: '4px 6px' }}><SLABar pct={p.slaPct} /></td>
+                  <td style={{ padding: '4px 6px', textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 500, color: p.mttrMinutos != null && p.mttrMinutos > 240 ? '#A32D2D' : p.mttrMinutos != null && p.mttrMinutos > 120 ? '#BA7517' : '#0f172a' }}>
+                    {fmtMin(p.mttrMinutos)}
+                  </td>
+                  <td style={{ padding: '4px 6px', textAlign: 'center', fontWeight: p.reincidencia > 0 ? 600 : 400, color: p.reincidencia > 0 ? '#A32D2D' : '#64748b' }}>{p.reincidencia}</td>
+                  <td style={{ padding: '4px 6px', color: '#64748b', whiteSpace: 'nowrap' }}>{shortCausa(p.causaPrincipal)}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
           {proveedores.length > 6 && (
-            <div style={{ padding: '6px 8px', fontSize: '11px', color: 'var(--muted-foreground)' }}>
-              +{proveedores.length - 6} proveedores más — <button onClick={goDetalle} style={{ background: 'none', border: 'none', color: '#185FA5', cursor: 'pointer', fontSize: '11px', fontWeight: 500, padding: 0 }}>ver todos</button>
+            <div style={{ padding: '4px 6px', fontSize: '10px', color: '#64748b' }}>
+              +{proveedores.length - 6} más —{' '}
+              <button onClick={goDetalle} style={{ background: 'none', border: 'none', color: '#185FA5', cursor: 'pointer', fontSize: '10px', fontWeight: 500, padding: 0 }}>ver todos</button>
             </div>
           )}
         </div>

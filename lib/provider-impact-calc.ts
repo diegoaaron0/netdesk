@@ -128,8 +128,6 @@ export function buildProveedorMetricas(
     })
   }
 
-  rawMetricas.sort((a, b) => b.incidentes - a.incidentes)
-
   const maximos: ScoreMaximos = {
     costo:               Math.max(...rawMetricas.map((m) => m.costoTotal), 1),
     mttrMinutos:         Math.max(...rawMetricas.map((m) => m.mttrMinutos ?? 0), 1),
@@ -151,7 +149,7 @@ export function buildProveedorMetricas(
       score,
       scoreBreakdown: breakdown as ProveedorMetricas['scoreBreakdown'],
     }
-  })
+  }).sort((a, b) => b.score - a.score)
 }
 
 export function buildTopIncidentes(
