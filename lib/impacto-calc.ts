@@ -32,8 +32,10 @@ export interface ImpactoInputRow {
   ventaHoraResolvida?: number | null
   // Condiciones del incidente — opcionales; no rompen si están ausentes
   contingencia_activa?: boolean | null
+  hubo_movil?: boolean | null
   // TOTAL = cubrió completamente, PARCIAL = con limitaciones, FALLIDA = no funcionó
   // También acepta valores legacy: EFECTIVA→TOTAL, LIMITADA→PARCIAL, NO_FUNCIONO/INOPERATIVA→FALLIDA
+  // Aplica tanto para contingencia como para datos móviles
   cont_rendimiento?: string | null
   boleta_manual?: boolean | null
   venta_parcial?: boolean | null
@@ -87,6 +89,7 @@ function normRendimiento(r: string | null | undefined): 'TOTAL' | 'PARCIAL' | 'F
 function calcFactorAfectacion(
   tipo: string,
   contingencia_activa: boolean | null | undefined,
+  hubo_movil: boolean | null | undefined,
   cont_rendimiento: string | null | undefined,
   boleta_manual: boolean | null | undefined,
   venta_parcial: boolean | null | undefined,
@@ -98,25 +101,29 @@ function calcFactorAfectacion(
   let motivo: string
 
   const rend = normRendimiento(cont_rendimiento)
+  // Datos móviles o contingencia activa = tiene operación alternativa
+  const tieneBackup = !!(contingencia_activa || hubo_movil)
+  const backupLabel = contingencia_activa && hubo_movil ? 'contingencia + datos móviles'
+    : hubo_movil ? 'datos móviles' : 'contingencia'
 
   switch (tipo) {
     case 'CAIDA_TOTAL':
       if (boleta_manual) {
         factor = 0.40
         motivo = 'Caída total con boleta manual: recuperación parcial de ventas estimada.'
-      } else if (contingencia_activa) {
+      } else if (tieneBackup) {
         if (rend === 'TOTAL') {
-          factor = 0.10
-          motivo = 'Caída total · contingencia cubrió completamente: impacto mínimo.'
+          factor = 0.00
+          motivo = `Caída total · ${backupLabel} cubrió al 100%: sin pérdida de ventas.`
         } else if (rend === 'PARCIAL') {
           factor = 0.30
-          motivo = 'Caída total · contingencia parcial: operación limitada.'
+          motivo = `Caída total · ${backupLabel} parcial: operación limitada.`
         } else if (rend === 'FALLIDA') {
           factor = 1.00
-          motivo = 'Caída total · contingencia fallida: sin operación alternativa efectiva.'
+          motivo = `Caída total · ${backupLabel} fallido: sin operación alternativa efectiva.`
         } else {
           factor = 0.25
-          motivo = 'Caída total con contingencia activa: operación alternativa reduce el impacto.'
+          motivo = `Caída total con ${backupLabel} activo: operación alternativa reduce el impacto.`
         }
       } else if (venta_parcial) {
         factor = 0.50
@@ -128,19 +135,19 @@ function calcFactorAfectacion(
       break
 
     case 'INTERMITENCIA':
-      if (contingencia_activa) {
+      if (tieneBackup) {
         if (rend === 'TOTAL') {
-          factor = 0.15
-          motivo = 'Intermitencia · contingencia cubrió completamente: impacto muy reducido.'
+          factor = 0.00
+          motivo = `Intermitencia · ${backupLabel} cubrió al 100%: sin pérdida de ventas.`
         } else if (rend === 'PARCIAL') {
           factor = 0.25
-          motivo = 'Intermitencia · contingencia parcial: impacto moderado.'
+          motivo = `Intermitencia · ${backupLabel} parcial: impacto moderado.`
         } else if (rend === 'FALLIDA') {
           factor = 0.75
-          motivo = 'Intermitencia · contingencia fallida: impacto sin mitigación.'
+          motivo = `Intermitencia · ${backupLabel} fallido: impacto sin mitigación.`
         } else {
           factor = 0.25
-          motivo = 'Intermitencia con contingencia activa: impacto reducido.'
+          motivo = `Intermitencia con ${backupLabel} activo: impacto reducido.`
         }
       } else if (venta_parcial) {
         factor = 0.35
@@ -152,19 +159,19 @@ function calcFactorAfectacion(
       break
 
     case 'LENTITUD':
-      if (contingencia_activa) {
+      if (tieneBackup) {
         if (rend === 'TOTAL') {
-          factor = 0.10
-          motivo = 'Lentitud · contingencia cubrió completamente: impacto mínimo.'
+          factor = 0.00
+          motivo = `Lentitud · ${backupLabel} cubrió al 100%: sin pérdida de ventas.`
         } else if (rend === 'PARCIAL') {
           factor = 0.20
-          motivo = 'Lentitud · contingencia parcial: impacto leve.'
+          motivo = `Lentitud · ${backupLabel} parcial: impacto leve.`
         } else if (rend === 'FALLIDA') {
           factor = 0.30
-          motivo = 'Lentitud · contingencia fallida: impacto normal sin mitigación.'
+          motivo = `Lentitud · ${backupLabel} fallido: impacto normal sin mitigación.`
         } else {
           factor = 0.20
-          motivo = 'Lentitud con contingencia activa: impacto mínimo.'
+          motivo = `Lentitud con ${backupLabel} activo: impacto mínimo.`
         }
       } else if (venta_parcial) {
         factor = 0.25
@@ -176,19 +183,19 @@ function calcFactorAfectacion(
       break
 
     case 'POS':
-      if (contingencia_activa) {
+      if (tieneBackup) {
         if (rend === 'TOTAL') {
-          factor = 0.10
-          motivo = 'Falla POS · contingencia cubrió completamente: transacciones resueltas.'
+          factor = 0.00
+          motivo = `Falla POS · ${backupLabel} cubrió al 100%: sin pérdida de ventas.`
         } else if (rend === 'PARCIAL') {
           factor = 0.20
-          motivo = 'Falla POS · contingencia parcial: transacciones alternativas limitadas.'
+          motivo = `Falla POS · ${backupLabel} parcial: transacciones alternativas limitadas.`
         } else if (rend === 'FALLIDA') {
           factor = 0.40
-          motivo = 'Falla POS · contingencia fallida: impacto total en transacciones.'
+          motivo = `Falla POS · ${backupLabel} fallido: impacto total en transacciones.`
         } else {
           factor = 0.20
-          motivo = 'Falla POS con contingencia activa: transacciones alternativas disponibles.'
+          motivo = `Falla POS con ${backupLabel} activo: transacciones alternativas disponibles.`
         }
       } else {
         factor = 0.40
@@ -237,6 +244,7 @@ export function calcImpactoRow(row: ImpactoInputRow): ImpactoResult {
   const { factor, motivo } = calcFactorAfectacion(
     row.tipo,
     row.contingencia_activa,
+    row.hubo_movil,
     row.cont_rendimiento,
     row.boleta_manual,
     row.venta_parcial,

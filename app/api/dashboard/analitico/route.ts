@@ -126,6 +126,7 @@ function calcCostoIncidente(
     tipo: inc.tipo,
     ventaHoraResolvida: ventaHora,
     contingencia_activa: inc.contingencia_activa,
+    hubo_movil: inc.hubo_movil,
     cont_rendimiento: inc.cont_rendimiento,
     boleta_manual: inc.boleta_manual,
     venta_parcial: inc.venta_parcial,
@@ -521,7 +522,7 @@ async function buildCards(
 
   const provCostoSorted  = [...costoByProv.entries()].sort((a, b) => b[1] - a[1])
   const tiendaCostoSorted = [...costoByTienda.values()].sort((a, b) => b.costo - a.costo)
-  const top5Tiendas = tiendaCostoSorted.slice(0, 5).map((t) => ({
+  const top5Tiendas = tiendaCostoSorted.filter(t => t.costo > 0).map((t) => ({
     codigo: t.codigo,
     proveedor: t.proveedor,
     horas: Math.round(t.horas * 10) / 10,
@@ -739,6 +740,7 @@ async function buildCards(
       tiendaMayorImpacto: tiendaCostoSorted.length > 0
         ? { codigo: tiendaCostoSorted[0].codigo, costo: Math.round(tiendaCostoSorted[0].costo) }
         : null,
+      proveedoresDesglose: provCostoSorted.map(([nombre, costo]) => ({ nombre, costo: Math.round(costo) })),
       top5Tiendas,
     },
     reincidenciaCritica: {

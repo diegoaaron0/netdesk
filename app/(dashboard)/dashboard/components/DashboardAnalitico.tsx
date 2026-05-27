@@ -830,10 +830,8 @@ export default function DashboardAnalitico() {
             const top     = cards.costoEstimado.top5Tiendas
             const total   = cards.costoEstimado.total
             const abiertos = cards.incidentes.lista.filter(i => i.estado !== 'RESUELTO').length
-            const provMap = new Map<string, number>()
-            for (const t of top) provMap.set(t.proveedor, (provMap.get(t.proveedor) ?? 0) + t.costo)
-            const provList    = [...provMap.entries()].sort((a, b) => b[1] - a[1])
-            const maxProvCosto = provList[0]?.[1] ?? 1
+            const provList = cards.costoEstimado.proveedoresDesglose ?? []
+            const maxProvCosto = provList[0]?.costo ?? 1
             return (
               <>
                 {/* 1. Fórmula + resumen numérico */}
@@ -876,7 +874,7 @@ export default function DashboardAnalitico() {
                 {/* 3. Responsabilidad por proveedor — barras visuales */}
                 <div style={{ marginBottom: '12px' }}>
                   <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '7px' }}>Responsabilidad por proveedor</div>
-                  {provList.map(([prov, costo], i) => {
+                  {provList.map(({ nombre: prov, costo }, i) => {
                     const pct    = total > 0 ? Math.round(costo / total * 100) : 0
                     const barPct = Math.round(costo / maxProvCosto * 100)
                     const barClr = i === 0 ? '#A32D2D' : i === 1 ? '#854F0B' : '#6B7280'

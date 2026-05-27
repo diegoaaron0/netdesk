@@ -141,6 +141,7 @@ export interface CostoEstimadoCard {
   proveedorMayorImpacto: { nombre: string; costo: number } | null
   tiendaMayorImpacto: { codigo: string; costo: number } | null
   top5Tiendas: CostoTienda[]
+  proveedoresDesglose: Array<{ nombre: string; costo: number }>
 }
 
 export interface ReincidenciaCriticaCard {
