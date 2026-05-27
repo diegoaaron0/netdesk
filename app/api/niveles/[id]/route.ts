@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { nivelesEscalamiento } from '@/drizzle/schema'
+import { nivelesEscalamiento, escalamientos } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
 import { auth } from '@/auth'
 
@@ -38,6 +38,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!['SUPERVISOR', 'INFRAESTRUCTURA'].includes((session.user as any)?.rol)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
+  await db.update(escalamientos).set({ nivelEscId: null }).where(eq(escalamientos.nivelEscId, id))
   await db.delete(nivelesEscalamiento).where(eq(nivelesEscalamiento.id, id))
   return NextResponse.json({ ok: true })
 }

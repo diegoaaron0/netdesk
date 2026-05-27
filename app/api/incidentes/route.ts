@@ -65,6 +65,13 @@ export async function GET(req: NextRequest) {
   const fechaDesde = searchParams.get('fechaDesde') ?? todayLima()
   const fechaHasta = searchParams.get('fechaHasta') ?? fechaDesde
 
+  // Join con dos aliases de proveedores para el COALESCE histórico
+  const joins = (q: any) => q
+    .leftJoin(tiendas,  eq(incidentes.tiendaId,        tiendas.id))
+    .leftJoin(provInc,  eq(incidentes.proveedorId,     provInc.id))  // histórico del incidente
+    .leftJoin(provTda,  eq(tiendas.proveedorId,        provTda.id))  // actual de la tienda (fallback)
+    .leftJoin(usuarios, eq(incidentes.registradoPorId, usuarios.id))
+
   // Búsqueda por texto: ignora fechas, busca en toda la BD
   if (q) {
     const sq = `%${q.replace(/#/g, '').trim()}%`
@@ -95,13 +102,6 @@ export async function GET(req: NextRequest) {
     inArray(incidentes.estado, OPEN_ESTADOS as any),
   ]
   if (tiendaId) overdueConds.push(eq(incidentes.tiendaId, tiendaId)) // → también en overdue
-
-  // Join con dos aliases de proveedores para el COALESCE histórico
-  const joins = (q: any) => q
-    .leftJoin(tiendas,  eq(incidentes.tiendaId,        tiendas.id))
-    .leftJoin(provInc,  eq(incidentes.proveedorId,     provInc.id))  // histórico del incidente
-    .leftJoin(provTda,  eq(tiendas.proveedorId,        provTda.id))  // actual de la tienda (fallback)
-    .leftJoin(usuarios, eq(incidentes.registradoPorId, usuarios.id))
 
   const [regular, overdue] = await Promise.all([
     joins(db.select(COLS).from(incidentes)).where(and(...rangeConds)).orderBy(desc(incidentes.horaRegistro)),
