@@ -87,7 +87,7 @@ export default function GeographicImpactCard({ desde, hasta, proveedorId, refres
     router.push(`/dashboard/impacto-geografico?desde=${desde}&hasta=${hasta}${proveedorId ? `&proveedorId=${proveedorId}` : ''}`)
 
   return (
-    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+    <div onClick={goDetalle} style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '5px', cursor: 'pointer' }}>
 
       {/* Header: título + resumen inline + botón */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -99,9 +99,6 @@ export default function GeographicImpactCard({ desde, hasta, proveedorId, refres
             {g.peorSLAZona && <span>Peor SLA: <strong style={{ color: '#A32D2D' }}>{g.peorSLAZona} {g.peorSLAPct != null ? `(${g.peorSLAPct}%)` : ''}</strong></span>}
           </div>
         )}
-        <button onClick={goDetalle} style={{ background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '4px 10px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}>
-          Ver detalle →
-        </button>
       </div>
 
       {error && (

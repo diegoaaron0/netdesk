@@ -84,7 +84,7 @@ export default function ProviderImpactCard({ desde, hasta, proveedorId, refreshK
   const resumen = data?.resumen
 
   return (
-    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+    <div onClick={goDetalle} style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '5px', cursor: 'pointer' }}>
 
       {/* Header: título + resumen inline + botón */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -97,9 +97,6 @@ export default function ProviderImpactCard({ desde, hasta, proveedorId, refreshK
             <span>Costo: <strong style={{ color: '#0f172a' }}>{fmtCosto(resumen.totalCosto)}</strong></span>
           </div>
         )}
-        <button onClick={goDetalle} style={{ background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '4px 10px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}>
-          Ver detalle →
-        </button>
       </div>
 
       {loading && (
@@ -156,8 +153,7 @@ export default function ProviderImpactCard({ desde, hasta, proveedorId, refreshK
           </table>
           {proveedores.length > 6 && (
             <div style={{ padding: '4px 6px', fontSize: '10px', color: '#64748b' }}>
-              +{proveedores.length - 6} más —{' '}
-              <button onClick={goDetalle} style={{ background: 'none', border: 'none', color: '#185FA5', cursor: 'pointer', fontSize: '10px', fontWeight: 500, padding: 0 }}>ver todos</button>
+              +{proveedores.length - 6} más (ver detalle)
             </div>
           )}
         </div>

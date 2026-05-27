@@ -79,14 +79,11 @@ export default function DistributionByTypeCard({ desde, hasta, proveedorId, refr
   const total = data?.total ?? 0
 
   return (
-    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '5px', height: '100%', boxSizing: 'border-box' }}>
+    <div onClick={goDetalle} style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '5px', height: '100%', boxSizing: 'border-box', cursor: 'pointer' }}>
 
       {/* Header: título + botón en una fila */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <span style={{ fontSize: '12px', fontWeight: 600, color: '#0f172a', marginRight: 'auto' }}>D. Distribución por tipo</span>
-        <button onClick={goDetalle} style={{ background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '4px 10px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}>
-          Ver detalle →
-        </button>
       </div>
 
       {loading && (

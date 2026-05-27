@@ -165,7 +165,7 @@ export default function TendenciaSLACard({ desde, hasta, proveedorId, refreshKey
   }
 
   return (
-    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+    <div onClick={goDetalle} style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '5px', cursor: 'pointer' }}>
 
       {/* Header: título + leyenda + botón — una sola fila */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
@@ -191,9 +191,6 @@ export default function TendenciaSLACard({ desde, hasta, proveedorId, refreshKey
           <span style={{ padding: '1px 5px', background: '#FAEEDA60', color: '#854F0B', borderRadius: '4px', border: '0.5px solid #854F0B30' }}>70–89%</span>
           <span style={{ padding: '1px 5px', background: '#FCEBEB60', color: '#A32D2D', borderRadius: '4px', border: '0.5px solid #A32D2D30' }}>{'< 70%'}</span>
         </div>
-        <button onClick={goDetalle} style={{ background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '4px 10px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}>
-          Ver detalle →
-        </button>
       </div>
 
       {/* Stats strip — una sola fila compacta */}

@@ -108,7 +108,7 @@ export default function SlaTrendSixMonthsCard({ proveedorId, refreshKey }: Props
   const lastIdx     = chartData.length - 1
 
   return (
-    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+    <div onClick={() => router.push(`/dashboard/tendencia-sla-6m${proveedorId ? `?proveedorId=${proveedorId}` : ''}`)} style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '5px', cursor: 'pointer' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -123,10 +123,6 @@ export default function SlaTrendSixMonthsCard({ proveedorId, refreshKey }: Props
             ))}
           </div>
         )}
-        <button onClick={() => router.push(`/dashboard/tendencia-sla-6m${proveedorId ? `?proveedorId=${proveedorId}` : ''}`)}
-          style={{ background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '4px 10px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}>
-          Ver detalle →
-        </button>
       </div>
 
       {loading && (

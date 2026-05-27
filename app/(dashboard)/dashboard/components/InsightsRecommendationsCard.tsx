@@ -53,7 +53,7 @@ export default function InsightsRecommendationsCard({ desde, hasta, proveedorId,
   const top   = allInsights.filter(i => i.categoria !== 'falla_sistemica').slice(0, 5)
 
   return (
-    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+    <div onClick={() => router.push(detailUrl)} style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '5px', cursor: 'pointer' }}>
 
       {/* Header: título + stats inline + botón */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -72,10 +72,6 @@ export default function InsightsRecommendationsCard({ desde, hasta, proveedorId,
             )}
           </div>
         )}
-        <button onClick={() => router.push(detailUrl)}
-          style={{ background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '4px 10px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}>
-          Ver detalle →
-        </button>
       </div>
 
       {loading && (
