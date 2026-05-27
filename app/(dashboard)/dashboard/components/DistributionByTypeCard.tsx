@@ -67,7 +67,7 @@ export default function DistributionByTypeCard({ desde, hasta, proveedorId, refr
     } finally { setLoading(false) }
   }, [desde, hasta, proveedorId])
 
-  useEffect(() => { fetchData() }, [refreshKey, proveedorId])
+  useEffect(() => { fetchData() }, [refreshKey, proveedorId, desde, hasta])
 
   const goDetalle = () => {
     const params = new URLSearchParams({ desde, hasta })

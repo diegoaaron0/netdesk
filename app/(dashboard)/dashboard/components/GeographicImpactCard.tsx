@@ -78,7 +78,7 @@ export default function GeographicImpactCard({ desde, hasta, proveedorId, refres
     finally { setLoading(false) }
   }, [desde, hasta, proveedorId])
 
-  useEffect(() => { fetchData() }, [refreshKey, proveedorId])
+  useEffect(() => { fetchData() }, [refreshKey, proveedorId, desde, hasta])
 
   const zonas = data?.zonas ?? []
   const g = data?.resumenGlobal

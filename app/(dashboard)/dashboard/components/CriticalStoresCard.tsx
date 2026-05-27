@@ -56,7 +56,7 @@ export default function CriticalStoresCard({ desde, hasta, proveedorId, refreshK
     } finally { setLoading(false) }
   }, [desde, hasta, proveedorId])
 
-  useEffect(() => { fetchData() }, [refreshKey, proveedorId])
+  useEffect(() => { fetchData() }, [refreshKey, proveedorId, desde, hasta])
 
   const goDetalle = () => {
     const params = new URLSearchParams({ desde, hasta })

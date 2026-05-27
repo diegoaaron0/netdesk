@@ -40,7 +40,7 @@ export default function InsightsRecommendationsCard({ desde, hasta, proveedorId,
     finally { setLoading(false) }
   }, [desde, hasta, proveedorId])
 
-  useEffect(() => { fetchData() }, [fetchData, refreshKey])
+  useEffect(() => { fetchData() }, [refreshKey, proveedorId, desde, hasta])
 
   const allInsights = data?.insights ?? []
   const resumen     = data?.resumenGlobal
