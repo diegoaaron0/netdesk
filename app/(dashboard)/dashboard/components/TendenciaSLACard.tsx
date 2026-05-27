@@ -78,33 +78,35 @@ function CustomTooltip({ active, payload }: any) {
     .sort((a, b) => (b[1].fueraSLA - a[1].fueraSLA) || (b[1].registrados - a[1].registrados))
 
   return (
-    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '12px 14px', fontSize: '12px', minWidth: '220px', maxWidth: '280px', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }}>
-      {/* Header: fecha + SLA global */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', paddingBottom: '7px', borderBottom: '0.5px solid #e5e7eb' }}>
-        <span style={{ fontWeight: 700, fontSize: '13px' }}>{shortDia}</span>
-        {pct != null
-          ? <span style={{ fontWeight: 700, fontSize: '15px', color: col }}>{pct}% global</span>
-          : <span style={{ fontSize: '11px', color: '#888' }}>Sin evaluables</span>
-        }
+    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '8px', padding: '8px 10px', fontSize: '11px', minWidth: '210px', maxWidth: '260px', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px', paddingBottom: '5px', borderBottom: '0.5px solid #e5e7eb' }}>
+        <span style={{ fontWeight: 700, fontSize: '12px' }}>{shortDia}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '10px', color: '#64748b' }}>{d.evaluables} eval. · {d.registrados} inc.</span>
+          {pct != null
+            ? <span style={{ fontWeight: 700, fontSize: '13px', color: col }}>{pct}%</span>
+            : <span style={{ color: '#888', fontStyle: 'italic' }}>sin eval.</span>
+          }
+        </div>
       </div>
 
-      {/* Desglose por proveedor */}
       {provEntries.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
           {provEntries.map(([prov, m]) => {
             const pc = m.slaPct
             const c = slaColor(pc)
             return (
-              <div key={prov} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0 }}>
-                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: c, flexShrink: 0 }} />
-                  <span style={{ fontWeight: 600, fontSize: '11px', color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prov}</span>
+              <div key={prov} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', minWidth: 0 }}>
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: c, flexShrink: 0 }} />
+                  <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prov}</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, fontSize: '11px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0, fontSize: '10px' }}>
+                  {m.fueraSLA > 0 && <span style={{ color: '#A32D2D', fontWeight: 600 }}>✗{m.fueraSLA}</span>}
                   <span style={{ color: '#64748b' }}>{m.registrados} inc.</span>
                   {pc != null
-                    ? <span style={{ fontWeight: 700, color: c, minWidth: '36px', textAlign: 'right' }}>{pc}%</span>
-                    : <span style={{ color: '#888', fontStyle: 'italic', minWidth: '36px', textAlign: 'right' }}>s/eval</span>
+                    ? <span style={{ fontWeight: 700, color: c, minWidth: '28px', textAlign: 'right' }}>{pc}%</span>
+                    : <span style={{ color: '#888', fontStyle: 'italic', minWidth: '28px', textAlign: 'right' }}>s/eval</span>
                   }
                 </div>
               </div>
@@ -113,10 +115,9 @@ function CustomTooltip({ active, payload }: any) {
         </div>
       )}
 
-      {/* MTTR al pie */}
       {d.tPromResolucionMin != null && (
-        <div style={{ marginTop: '7px', paddingTop: '6px', borderTop: '0.5px solid #f0f0f0', fontSize: '11px', color: '#64748b' }}>
-          MTTR: <strong style={{ color: d.tPromResolucionMin > 120 ? '#A32D2D' : '#1D9E75' }}>{fmtMin(d.tPromResolucionMin)}</strong>
+        <div style={{ marginTop: '5px', paddingTop: '4px', borderTop: '0.5px solid #f0f0f0', fontSize: '10px', color: '#64748b' }}>
+          MTTR del día: <strong style={{ color: d.tPromResolucionMin > 120 ? '#A32D2D' : '#1D9E75' }}>{fmtMin(d.tPromResolucionMin)}</strong>
         </div>
       )}
     </div>
@@ -164,114 +165,106 @@ export default function TendenciaSLACard({ desde, hasta, proveedorId, refreshKey
   }
 
   return (
-    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
 
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>A. Tendencia de incidentes y SLA</div>
-          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '1px' }}>
-            Evolución diaria de incidentes y cumplimiento SLA en el período
+      {/* Header: título + leyenda + botón — una sola fila */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '12px', fontWeight: 600, color: '#0f172a', marginRight: 'auto' }}>A. Tendencia de incidentes y SLA</span>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '10px', color: '#64748b' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+            <div style={{ width: 9, height: 9, background: '#185FA540', border: '1px solid #185FA5', borderRadius: 2 }} />
+            Dentro SLA
           </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+            <div style={{ width: 9, height: 9, background: '#A32D2D25', border: '1px solid #A32D2D70', borderRadius: 2 }} />
+            Fuera SLA
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+            <div style={{ width: 14, height: 2, background: slaPctColor, borderRadius: 1 }} />
+            SLA %
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+            <div style={{ width: 14, height: 0, borderTop: '2px dashed #888' }} />
+            Meta 90%
+          </div>
+          <span style={{ padding: '1px 5px', background: '#EAF3DE60', color: '#3B6D11', borderRadius: '4px', border: '0.5px solid #3B6D1130' }}>≥ 90%</span>
+          <span style={{ padding: '1px 5px', background: '#FAEEDA60', color: '#854F0B', borderRadius: '4px', border: '0.5px solid #854F0B30' }}>70–89%</span>
+          <span style={{ padding: '1px 5px', background: '#FCEBEB60', color: '#A32D2D', borderRadius: '4px', border: '0.5px solid #A32D2D30' }}>{'< 70%'}</span>
         </div>
-        <button onClick={goDetalle} style={{ background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '6px 14px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}>
+        <button onClick={goDetalle} style={{ background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '4px 10px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}>
           Ver detalle →
         </button>
       </div>
 
-      {/* KPI principal + stats */}
+      {/* Stats strip — una sola fila compacta */}
       {!loading && resumen && (
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'stretch' }}>
-          {/* SLA% grande */}
-          <div style={{ background: slaPctBg, borderRadius: '10px', padding: '12px 18px', display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: '110px' }}>
-            <div style={{ fontSize: '10px', fontWeight: 600, color: slaPctColor, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' }}>SLA del período</div>
-            <div style={{ fontSize: '36px', fontWeight: 700, color: slaPctColor, lineHeight: 1 }}>
-              {slaPct != null ? `${slaPct}%` : '—'}
+        <div style={{ display: 'flex', alignItems: 'stretch', background: slaPctBg, borderRadius: '8px', overflow: 'hidden', border: `0.5px solid ${slaPctColor}30` }}>
+          <div style={{ padding: '6px 14px', borderRight: '0.5px solid #e5e7eb30', display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: '90px' }}>
+            <div style={{ fontSize: '9px', fontWeight: 600, color: slaPctColor, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1px' }}>SLA período</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+              <span style={{ fontSize: '22px', fontWeight: 700, color: slaPctColor, lineHeight: 1 }}>{slaPct != null ? `${slaPct}%` : '—'}</span>
+              <span style={{ fontSize: '10px', color: slaPctColor, fontWeight: 500 }}>{slaLabel(slaPct)}</span>
             </div>
-            <div style={{ fontSize: '11px', color: slaPctColor, marginTop: '3px', fontWeight: 500 }}>{slaLabel(slaPct)}</div>
           </div>
-
-          {/* Stats secundarios */}
-          <div style={{ display: 'flex', gap: '8px', flex: 1, flexWrap: 'wrap' }}>
-            {[
-              { label: 'Evaluables', value: resumen.evaluables },
-              { label: 'Fuera SLA', value: resumen.fueraSLA, red: resumen.fueraSLA > 0 },
-              { label: 'Días críticos', value: diasCriticos, red: diasCriticos > 0 },
-              { label: 'MTTR prom.', value: fmtMin(resumen.tPromResolucionMin), mono: true },
-            ].map(({ label, value, red, mono }) => (
-              <div key={label} style={{ background: '#f9fafb', border: '0.5px solid #e5e7eb', borderRadius: '8px', padding: '10px 14px', flex: 1, minWidth: '80px' }}>
-                <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '3px' }}>{label}</div>
-                <div style={{ fontSize: '18px', fontWeight: 600, color: red ? '#A32D2D' : '#0f172a', fontFamily: mono ? 'monospace' : undefined }}>
-                  {value}
-                </div>
+          {[
+            { label: 'Evaluables', value: String(resumen.evaluables), red: false, mono: false },
+            { label: 'Fuera SLA', value: String(resumen.fueraSLA), red: resumen.fueraSLA > 0, mono: false },
+            { label: 'Días críticos', value: String(diasCriticos), red: diasCriticos > 0, mono: false },
+            { label: 'MTTR prom.', value: fmtMin(resumen.tPromResolucionMin), red: false, mono: true },
+          ].map(({ label, value, red, mono }) => (
+            <div key={label} style={{ padding: '6px 12px', borderRight: '0.5px solid #e5e7eb30', display: 'flex', flexDirection: 'column', justifyContent: 'center', flex: 1, minWidth: '70px' }}>
+              <div style={{ fontSize: '9px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '1px' }}>{label}</div>
+              <div style={{ fontSize: '15px', fontWeight: 600, color: red ? '#A32D2D' : '#0f172a', fontFamily: mono ? 'monospace' : undefined, lineHeight: 1.1 }}>
+                {value}
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Leyenda */}
-      <div style={{ display: 'flex', gap: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px' }}>
-          <div style={{ width: 12, height: 12, background: '#185FA540', border: '1px solid #185FA5', borderRadius: 2 }} />
-          Incidentes
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px' }}>
-          <div style={{ width: 16, height: 2, background: slaPctColor, borderRadius: 1 }} />
-          SLA (%)
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--muted-foreground)' }}>
-          <div style={{ width: 16, height: 0, borderTop: '2px dashed #888' }} />
-          Meta 90%
-        </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: '4px', fontSize: '10px' }}>
-          <span style={{ padding: '1px 6px', background: '#EAF3DE60', color: '#3B6D11', borderRadius: '4px', border: '0.5px solid #3B6D1130' }}>≥ 90%</span>
-          <span style={{ padding: '1px 6px', background: '#FAEEDA60', color: '#854F0B', borderRadius: '4px', border: '0.5px solid #854F0B30' }}>70–89%</span>
-          <span style={{ padding: '1px 6px', background: '#FCEBEB60', color: '#A32D2D', borderRadius: '4px', border: '0.5px solid #A32D2D30' }}>{'< 70%'}</span>
-        </div>
-      </div>
-
       {loading && (
-        <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
+        <div style={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
           Cargando...
         </div>
       )}
 
       {!loading && (!byDay || byDay.length === 0) && (
-        <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
+        <div style={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
           Sin datos en el período seleccionado
         </div>
       )}
 
       {!loading && byDay && byDay.length > 0 && (
-        <ResponsiveContainer width="100%" height={200}>
-          <ComposedChart data={byDay} margin={{ top: 2, right: 36, left: 0, bottom: 0 }}>
+        <ResponsiveContainer width="100%" height={180}>
+          <ComposedChart data={byDay} margin={{ top: 2, right: 34, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(136,135,128,0.10)" />
 
-            {/* Bandas de zona SLA como fondo */}
-            <ReferenceArea yAxisId="right" y1={0}  y2={70} fill="#FCEBEB" fillOpacity={0.35} />
-            <ReferenceArea yAxisId="right" y1={70} y2={90} fill="#FAEEDA" fillOpacity={0.35} />
-            <ReferenceArea yAxisId="right" y1={90} y2={100} fill="#EAF3DE" fillOpacity={0.35} />
+            <ReferenceArea yAxisId="right" y1={0}  y2={70} fill="#FCEBEB" fillOpacity={0.30} />
+            <ReferenceArea yAxisId="right" y1={70} y2={90} fill="#FAEEDA" fillOpacity={0.30} />
+            <ReferenceArea yAxisId="right" y1={90} y2={100} fill="#EAF3DE" fillOpacity={0.30} />
 
             <XAxis
               dataKey="dia"
-              tick={{ fontSize: 10, fill: '#888780' }}
+              tick={{ fontSize: 9, fill: '#888780' }}
               tickFormatter={(d) => d.slice(5).split('-').reverse().join('/')}
               tickLine={false}
             />
-            <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#888780' }} tickLine={false} axisLine={false}
-              width={22}
-              label={{ value: 'Inc.', angle: -90, position: 'insideLeft', fontSize: 9, fill: '#888780', dx: 4 }}
+            <YAxis yAxisId="left" tick={{ fontSize: 9, fill: '#888780' }} tickLine={false} axisLine={false}
+              width={20}
+              label={{ value: 'Inc.', angle: -90, position: 'insideLeft', fontSize: 8, fill: '#888780', dx: 4 }}
             />
             <YAxis yAxisId="right" orientation="right" domain={[0, 100]}
-              tick={{ fontSize: 10, fill: '#888780' }} tickLine={false} axisLine={false}
-              tickFormatter={(v) => `${v}%`} width={34}
+              tick={{ fontSize: 9, fill: '#888780' }} tickLine={false} axisLine={false}
+              tickFormatter={(v) => `${v}%`} width={30}
             />
 
             <Tooltip content={<CustomTooltip />} />
             <ReferenceLine yAxisId="right" y={90} stroke="#888780" strokeDasharray="4 3" strokeWidth={1.5} />
 
-            <Bar yAxisId="left" dataKey="registrados" fill="#185FA530" stroke="#185FA560" strokeWidth={0.5} radius={[2, 2, 0, 0]} />
+            {/* Barras apiladas: dentro SLA (azul) + fuera SLA (rojo) */}
+            <Bar yAxisId="left" dataKey="dentraSLA" stackId="inc" fill="#185FA540" stroke="#185FA560" strokeWidth={0.5} radius={[0, 0, 0, 0]} name="Dentro SLA" />
+            <Bar yAxisId="left" dataKey="fueraSLA"  stackId="inc" fill="#A32D2D25" stroke="#A32D2D70" strokeWidth={0.5} radius={[2, 2, 0, 0]} name="Fuera SLA" />
+
             <Line
               yAxisId="right"
               dataKey="slaPct"

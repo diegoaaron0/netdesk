@@ -107,10 +107,10 @@ function Badge({ bg, color, label }: { bg: string; color: string; label: string 
 
 function ResumenCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '14px 16px', flex: 1, minWidth: 0 }}>
-      <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '4px' }}>{label}</div>
-      <div style={{ fontSize: '22px', fontWeight: 600, color: '#0f172a', lineHeight: 1.1 }}>{value}</div>
-      {sub && <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '3px' }}>{sub}</div>}
+    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '8px', padding: '8px 12px', flex: 1, minWidth: 0 }}>
+      <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{label}</div>
+      <div style={{ fontSize: '16px', fontWeight: 600, color: '#0f172a', lineHeight: 1.1 }}>{value}</div>
+      {sub && <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{sub}</div>}
     </div>
   )
 }
@@ -226,7 +226,7 @@ function TendenciaSLAPageInner() {
       {!loading && resumen && (
         <>
           {/* 6 Cards resumen */}
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
             <ResumenCard label="Incidentes registrados" value={String(resumen.registrados)} sub="En el período" />
             <ResumenCard label="Incidentes evaluables SLA" value={String(resumen.evaluables)} sub="Solo los evaluables" />
             <ResumenCard label="SLA general" value={`${resumen.slaPct}%`} sub="Meta: 90%" />
@@ -237,7 +237,7 @@ function TendenciaSLAPageInner() {
 
           {/* TABLA 1 — Resumen por fecha (full width) */}
           <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden', marginBottom: '12px' }}>
-            <div style={{ padding: '12px 14px', borderBottom: '0.5px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ padding: '9px 12px', borderBottom: '0.5px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '13px', fontWeight: 600 }}>2. Resumen por fecha</span>
               <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>ⓘ Haz clic en una fila para ver los casos del día.</span>
             </div>
@@ -246,7 +246,7 @@ function TendenciaSLAPageInner() {
                 <thead style={{ position: 'sticky', top: 0, background: '#f9fafb', zIndex: 1 }}>
                   <tr>
                     {['Fecha', 'Inc. reg.', 'Eval. SLA', 'Dentro', 'Fuera', 'SLA%', 'T. resp.', 'T. resol.', 'Nivel prom.', 'Esc. N2+', 'Proveedor', 'Estado'].map((h) => (
-                      <th key={h} style={{ padding: '8px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', whiteSpace: 'nowrap', borderBottom: '0.5px solid #e5e7eb' }}>{h}</th>
+                      <th key={h} style={{ padding: '5px 7px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', whiteSpace: 'nowrap', borderBottom: '0.5px solid #e5e7eb' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -265,18 +265,18 @@ function TendenciaSLAPageInner() {
                           background: isSelected ? '#F0F6FF' : d.slaPct != null && d.slaPct < 70 ? '#FFF5F5' : 'transparent',
                           cursor: 'pointer',
                         }}>
-                        <td style={{ padding: '7px 8px', fontWeight: 500, fontSize: '12px', whiteSpace: 'nowrap', color: d.slaPct != null && d.slaPct < 70 ? '#A32D2D' : '#0f172a' }}>{fmtDia(d.dia)}</td>
-                        <td style={{ padding: '7px 8px', fontSize: '12px', textAlign: 'center' }}>{d.registrados}</td>
-                        <td style={{ padding: '7px 8px', fontSize: '12px', textAlign: 'center' }}>{d.evaluables}</td>
-                        <td style={{ padding: '7px 8px', fontSize: '12px', textAlign: 'center', color: '#3B6D11', fontWeight: 500 }}>{d.dentraSLA}</td>
-                        <td style={{ padding: '7px 8px', fontSize: '12px', textAlign: 'center', color: '#A32D2D', fontWeight: 500 }}>{d.fueraSLA}</td>
-                        <td style={{ padding: '7px 8px', fontSize: '12px', fontWeight: 600, color: est.color, whiteSpace: 'nowrap' }}>{d.slaPct != null ? `${d.slaPct}%` : '—'}</td>
-                        <td style={{ padding: '7px 8px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{fmtMin(d.tPromRespuestaMin)}</td>
-                        <td style={{ padding: '7px 8px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{fmtMin(d.tPromResolucionMin)}</td>
-                        <td style={{ padding: '7px 8px', fontSize: '12px', textAlign: 'center' }}>{d.nivelPromedioAlcanzado != null ? `Nivel ${d.nivelPromedioAlcanzado}` : '—'}</td>
-                        <td style={{ padding: '7px 8px', fontSize: '12px', textAlign: 'center' }}>{d.casosEscaladosN2}</td>
-                        <td style={{ padding: '7px 8px', fontSize: '11px', maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.proveedorMasAfectado ?? '—'}</td>
-                        <td style={{ padding: '7px 8px' }}><Badge bg={est.bg} color={est.color} label={est.label} /></td>
+                        <td style={{ padding: '5px 7px', fontWeight: 500, fontSize: '12px', whiteSpace: 'nowrap', color: d.slaPct != null && d.slaPct < 70 ? '#A32D2D' : '#0f172a' }}>{fmtDia(d.dia)}</td>
+                        <td style={{ padding: '5px 7px', fontSize: '12px', textAlign: 'center' }}>{d.registrados}</td>
+                        <td style={{ padding: '5px 7px', fontSize: '12px', textAlign: 'center' }}>{d.evaluables}</td>
+                        <td style={{ padding: '5px 7px', fontSize: '12px', textAlign: 'center', color: '#3B6D11', fontWeight: 500 }}>{d.dentraSLA}</td>
+                        <td style={{ padding: '5px 7px', fontSize: '12px', textAlign: 'center', color: '#A32D2D', fontWeight: 500 }}>{d.fueraSLA}</td>
+                        <td style={{ padding: '5px 7px', fontSize: '12px', fontWeight: 600, color: est.color, whiteSpace: 'nowrap' }}>{d.slaPct != null ? `${d.slaPct}%` : '—'}</td>
+                        <td style={{ padding: '5px 7px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{fmtMin(d.tPromRespuestaMin)}</td>
+                        <td style={{ padding: '5px 7px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{fmtMin(d.tPromResolucionMin)}</td>
+                        <td style={{ padding: '5px 7px', fontSize: '12px', textAlign: 'center' }}>{d.nivelPromedioAlcanzado != null ? `Nivel ${d.nivelPromedioAlcanzado}` : '—'}</td>
+                        <td style={{ padding: '5px 7px', fontSize: '12px', textAlign: 'center' }}>{d.casosEscaladosN2}</td>
+                        <td style={{ padding: '5px 7px', fontSize: '11px', maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.proveedorMasAfectado ?? '—'}</td>
+                        <td style={{ padding: '5px 7px' }}><Badge bg={est.bg} color={est.color} label={est.label} /></td>
                       </tr>
                     )
                   })}
@@ -303,7 +303,7 @@ function TendenciaSLAPageInner() {
                     <thead style={{ background: '#f9fafb' }}>
                       <tr>
                         {['ID Incidente', 'Tienda', 'Proveedor', 'Tipo', 'Nivel resp.', 'T. primera resp.', 'T. resolución', 'SLA resp.', 'SLA resol.', 'SLA general', 'Motivo incumplimiento'].map((h) => (
-                          <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', whiteSpace: 'nowrap', borderBottom: '0.5px solid #e5e7eb' }}>{h}</th>
+                          <th key={h} style={{ padding: '5px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', whiteSpace: 'nowrap', borderBottom: '0.5px solid #e5e7eb' }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -323,14 +323,14 @@ function TendenciaSLAPageInner() {
                         }) : null
                         return (
                           <tr key={c.codigo} style={{ borderTop: i > 0 ? '0.5px solid #e5e7eb' : 'none' }}>
-                            <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: '11px', color: 'var(--muted-foreground)' }}>{c.codigo}</td>
-                            <td style={{ padding: '8px 10px', fontSize: '12px' }}>{c.tiendaCodigo} {c.tiendaNombre ? `— ${c.tiendaNombre}` : ''}</td>
-                            <td style={{ padding: '8px 10px', fontSize: '12px' }}>{c.provNombre}</td>
-                            <td style={{ padding: '8px 10px', fontSize: '12px', whiteSpace: 'nowrap' }}>{fmtTipo(c.tipo)}</td>
-                            <td style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'center' }}>{c.nivelQueRespondio != null ? `N${c.nivelQueRespondio}` : '—'}</td>
-                            <td style={{ padding: '8px 10px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{fmtMin(c.tPrimeraRespuestaMin)}</td>
-                            <td style={{ padding: '8px 10px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{fmtMin(c.tResolucionMin)}</td>
-                            <td style={{ padding: '8px 10px' }}>
+                            <td style={{ padding: '5px 8px', fontFamily: 'monospace', fontSize: '11px', color: 'var(--muted-foreground)' }}>{c.codigo}</td>
+                            <td style={{ padding: '5px 8px', fontSize: '12px' }}>{c.tiendaCodigo} {c.tiendaNombre ? `— ${c.tiendaNombre}` : ''}</td>
+                            <td style={{ padding: '5px 8px', fontSize: '12px' }}>{c.provNombre}</td>
+                            <td style={{ padding: '5px 8px', fontSize: '12px', whiteSpace: 'nowrap' }}>{fmtTipo(c.tipo)}</td>
+                            <td style={{ padding: '5px 8px', fontSize: '12px', textAlign: 'center' }}>{c.nivelQueRespondio != null ? `N${c.nivelQueRespondio}` : '—'}</td>
+                            <td style={{ padding: '5px 8px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{fmtMin(c.tPrimeraRespuestaMin)}</td>
+                            <td style={{ padding: '5px 8px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{fmtMin(c.tResolucionMin)}</td>
+                            <td style={{ padding: '5px 8px' }}>
                               {slaD ? (
                                 <div>
                                   <Badge bg={slaD.respuesta.bg} color={slaD.respuesta.color} label={slaD.respuesta.texto} />
@@ -338,7 +338,7 @@ function TendenciaSLAPageInner() {
                                 </div>
                               ) : <span style={{ fontSize: '10px', color: '#888' }}>N/A</span>}
                             </td>
-                            <td style={{ padding: '8px 10px' }}>
+                            <td style={{ padding: '5px 8px' }}>
                               {slaD ? (
                                 <div>
                                   <Badge bg={slaD.resolucion.bg} color={slaD.resolucion.color} label={slaD.resolucion.texto} />
@@ -346,8 +346,8 @@ function TendenciaSLAPageInner() {
                                 </div>
                               ) : <span style={{ fontSize: '10px', color: '#888' }}>N/A</span>}
                             </td>
-                            <td style={{ padding: '8px 10px' }}>{c.evaluable ? <Badge bg={sG.bg} color={sG.color} label={sG.label} /> : <span style={{ fontSize: '10px', color: '#888' }}>N/A</span>}</td>
-                            <td style={{ padding: '8px 10px', fontSize: '11px', color: c.motivoIncumplimiento ? '#854F0B' : 'var(--muted-foreground)' }}>
+                            <td style={{ padding: '5px 8px' }}>{c.evaluable ? <Badge bg={sG.bg} color={sG.color} label={sG.label} /> : <span style={{ fontSize: '10px', color: '#888' }}>N/A</span>}</td>
+                            <td style={{ padding: '5px 8px', fontSize: '11px', color: c.motivoIncumplimiento ? '#854F0B' : 'var(--muted-foreground)' }}>
                               {c.motivoIncumplimiento ?? '—'}
                             </td>
                           </tr>
