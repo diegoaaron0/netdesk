@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useState, useEffect, useCallback, Suspense, Fragment } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { fmtSLARespResol } from '@/lib/sla-display'
 import { SLA_RESOLUCION_POR_TIPO } from '@/lib/sla-core'
@@ -89,7 +89,6 @@ function slaStyle(v: boolean): { bg: string; color: string; label: string } {
     : { bg: '#FCEBEB', color: '#A32D2D', label: 'No cumplió' }
 }
 
-
 function slaPctColor(v: number | null): string {
   if (v == null) return '#888780'
   if (v < 70) return '#A32D2D'
@@ -99,7 +98,7 @@ function slaPctColor(v: number | null): string {
 
 function Badge({ bg, color, label }: { bg: string; color: string; label: string }) {
   return (
-    <span style={{ fontSize: '10px', fontWeight: 500, padding: '2px 8px', borderRadius: '999px', background: bg, color, whiteSpace: 'nowrap' }}>
+    <span style={{ fontSize: '10px', fontWeight: 500, padding: '2px 6px', borderRadius: '999px', background: bg, color, whiteSpace: 'nowrap' }}>
       {label}
     </span>
   )
@@ -155,6 +154,7 @@ function TendenciaSLAPageInner() {
   useEffect(() => { fetchData() }, [])
 
   const fetchCasos = useCallback(async (dia: string) => {
+    if (selectedDia === dia) { setSelectedDia(null); setCasos([]); return }
     setLoadingCasos(true); setSelectedDia(dia)
     try {
       const params = new URLSearchParams({ dia })
@@ -162,17 +162,12 @@ function TendenciaSLAPageInner() {
       const res = await fetch(`/api/dashboard/tendencia-sla/fecha?${params}`)
       if (res.ok) { const j = await res.json(); setCasos(j.casos ?? []) }
     } finally { setLoadingCasos(false) }
-  }, [proveedorId])
+  }, [proveedorId, selectedDia])
 
   const resumen      = data?.resumen
   const byDay        = data?.byDay ?? []
   const conclusiones = data?.conclusiones ?? []
   const proveedores  = data?.proveedores ?? []
-  const byTienda     = (data?.byTienda ?? []).slice().sort((a, b) => {
-    if (a.slaPct == null) return 1
-    if (b.slaPct == null) return -1
-    return a.slaPct - b.slaPct
-  })
 
   const fromDesde = searchParams.get('desde')
   const fromHasta = searchParams.get('hasta')
@@ -180,104 +175,175 @@ function TendenciaSLAPageInner() {
 
   return (
     <div style={{ maxWidth: '100%' }}>
-      {/* Header */}
-      <div style={{ marginBottom: '16px' }}>
-        <button onClick={() => router.push('/dashboard?tab=analitico')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: '#185FA5', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>← Volver al dashboard</button>
-        <h1 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: '#0f172a' }}>
-          Detalle — Tendencia de incidentes y SLA
-        </h1>
-        <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginTop: '3px' }}>
-          Análisis por fecha del volumen de incidentes y cumplimiento SLA de proveedores.
-        </div>
+
+      {/* Header compacto — una sola fila */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+        <button onClick={() => router.push('/dashboard?tab=analitico')}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: '#185FA5', fontWeight: 500, padding: 0, flexShrink: 0 }}>
+          ← Volver
+        </button>
+        <span style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>Tendencia de incidentes y SLA</span>
       </div>
 
       {/* Filtros */}
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '16px', padding: '10px 12px', background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px' }}>
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '8px', padding: '7px 10px', background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '8px' }}>
         {(fromDesde || fromProv) && (
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginRight: '8px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Filtro desde dashboard:</span>
-            {fromProv && <span style={{ fontSize: '11px', padding: '2px 8px', background: '#E6F1FB', color: '#185FA5', borderRadius: '6px', fontWeight: 500 }}>Proveedor: {fromProv.nombre}</span>}
-            {fromDesde && fromHasta && <span style={{ fontSize: '11px', padding: '2px 8px', background: '#E6F1FB', color: '#185FA5', borderRadius: '6px' }}>{fromDesde.split('-').reverse().join('/')} — {fromHasta.split('-').reverse().join('/')}</span>}
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginRight: '6px' }}>
+            <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Filtro:</span>
+            {fromProv && <span style={{ fontSize: '10px', padding: '1px 6px', background: '#E6F1FB', color: '#185FA5', borderRadius: '5px', fontWeight: 500 }}>{fromProv.nombre}</span>}
+            {fromDesde && fromHasta && <span style={{ fontSize: '10px', padding: '1px 6px', background: '#E6F1FB', color: '#185FA5', borderRadius: '5px' }}>{fromDesde.split('-').reverse().join('/')} — {fromHasta.split('-').reverse().join('/')}</span>}
           </div>
         )}
         <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', outline: 'none' }} />
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', outline: 'none' }} />
         <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', outline: 'none' }} />
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', outline: 'none' }} />
         <select value={proveedorId} onChange={(e) => setProveedorId(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', outline: 'none' }}>
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', outline: 'none' }}>
           <option value="">Todos los proveedores</option>
           {proveedores.map((p) => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
         </select>
         <button onClick={() => fetchData()}
-          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', fontSize: '12px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 500 }}>
+          style={{ padding: '5px 12px', fontSize: '11px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>
           ↻ Actualizar
         </button>
         <button onClick={() => alert('Exportar CSV — próximamente')}
-          style={{ padding: '6px 14px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'pointer', background: 'white', color: 'var(--foreground)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-          ↓ Exportar CSV
+          style={{ padding: '5px 12px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', cursor: 'pointer', background: 'white', color: 'var(--foreground)' }}>
+          ↓ CSV
         </button>
       </div>
 
       {loading && (
-        <div style={{ padding: '60px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>Cargando...</div>
+        <div style={{ padding: '40px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>Cargando...</div>
       )}
 
       {!loading && resumen && (
         <>
-          {/* 6 Cards resumen */}
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
-            <ResumenCard label="Incidentes registrados" value={String(resumen.registrados)} sub="En el período" />
-            <ResumenCard label="Incidentes evaluables SLA" value={String(resumen.evaluables)} sub="Solo los evaluables" />
+          {/* Resumen strip */}
+          <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
+            <ResumenCard label="Registrados" value={String(resumen.registrados)} sub="Total período" />
+            <ResumenCard label="Evaluables SLA" value={String(resumen.evaluables)} />
             <ResumenCard label="SLA general" value={`${resumen.slaPct}%`} sub="Meta: 90%" />
             <ResumenCard label="Fuera SLA" value={String(resumen.fueraSLA)} sub={`${resumen.evaluables > 0 ? Math.round(resumen.fueraSLA / resumen.evaluables * 100) : 0}% del total`} />
-            <ResumenCard label="T. prom. primera respuesta" value={fmtMin(resumen.tPromRespuestaMin)} />
-            <ResumenCard label="T. prom. resolución final" value={fmtMin(resumen.tPromResolucionMin)} />
+            <ResumenCard label="T. prom. respuesta" value={fmtMin(resumen.tPromRespuestaMin)} />
+            <ResumenCard label="T. prom. resolución" value={fmtMin(resumen.tPromResolucionMin)} />
           </div>
 
-          {/* TABLA 1 — Resumen por fecha (full width) */}
-          <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden', marginBottom: '12px' }}>
-            <div style={{ padding: '9px 12px', borderBottom: '0.5px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600 }}>2. Resumen por fecha</span>
-              <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>ⓘ Haz clic en una fila para ver los casos del día.</span>
+          {/* Tabla por fecha + expansión inline de casos */}
+          <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', overflow: 'hidden', marginBottom: '10px' }}>
+            <div style={{ padding: '7px 12px', borderBottom: '0.5px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 600 }}>Resumen por fecha</span>
+              <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Clic en una fila para ver los incidentes del día</span>
             </div>
-            <div style={{ overflowY: 'auto', maxHeight: '420px' }}>
+            <div style={{ overflowY: 'auto', maxHeight: '520px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead style={{ position: 'sticky', top: 0, background: '#f9fafb', zIndex: 1 }}>
                   <tr>
-                    {['Fecha', 'Inc. reg.', 'Eval. SLA', 'Dentro', 'Fuera', 'SLA%', 'T. resp.', 'T. resol.', 'Nivel prom.', 'Esc. N2+', 'Proveedor', 'Estado'].map((h) => (
+                    {['', 'Fecha', 'Inc. reg.', 'Eval.', 'Dentro', 'Fuera', 'SLA%', 'T. resp.', 'T. resol.', 'Nivel prom.', 'Esc. N2+', 'Proveedor', 'Estado'].map((h) => (
                       <th key={h} style={{ padding: '5px 7px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', whiteSpace: 'nowrap', borderBottom: '0.5px solid #e5e7eb' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {byDay.length === 0 && (
-                    <tr><td colSpan={12} style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>Sin datos</td></tr>
+                    <tr><td colSpan={13} style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>Sin datos</td></tr>
                   )}
                   {byDay.map((d, i) => {
                     const est = estadoStyle(d.estado)
                     const isSelected = selectedDia === d.dia
                     return (
-                      <tr key={d.dia}
-                        onClick={() => fetchCasos(d.dia)}
-                        style={{
-                          borderTop: i > 0 ? '0.5px solid #e5e7eb' : 'none',
-                          background: isSelected ? '#F0F6FF' : d.slaPct != null && d.slaPct < 70 ? '#FFF5F5' : 'transparent',
-                          cursor: 'pointer',
-                        }}>
-                        <td style={{ padding: '5px 7px', fontWeight: 500, fontSize: '12px', whiteSpace: 'nowrap', color: d.slaPct != null && d.slaPct < 70 ? '#A32D2D' : '#0f172a' }}>{fmtDia(d.dia)}</td>
-                        <td style={{ padding: '5px 7px', fontSize: '12px', textAlign: 'center' }}>{d.registrados}</td>
-                        <td style={{ padding: '5px 7px', fontSize: '12px', textAlign: 'center' }}>{d.evaluables}</td>
-                        <td style={{ padding: '5px 7px', fontSize: '12px', textAlign: 'center', color: '#3B6D11', fontWeight: 500 }}>{d.dentraSLA}</td>
-                        <td style={{ padding: '5px 7px', fontSize: '12px', textAlign: 'center', color: '#A32D2D', fontWeight: 500 }}>{d.fueraSLA}</td>
-                        <td style={{ padding: '5px 7px', fontSize: '12px', fontWeight: 600, color: est.color, whiteSpace: 'nowrap' }}>{d.slaPct != null ? `${d.slaPct}%` : '—'}</td>
-                        <td style={{ padding: '5px 7px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{fmtMin(d.tPromRespuestaMin)}</td>
-                        <td style={{ padding: '5px 7px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{fmtMin(d.tPromResolucionMin)}</td>
-                        <td style={{ padding: '5px 7px', fontSize: '12px', textAlign: 'center' }}>{d.nivelPromedioAlcanzado != null ? `Nivel ${d.nivelPromedioAlcanzado}` : '—'}</td>
-                        <td style={{ padding: '5px 7px', fontSize: '12px', textAlign: 'center' }}>{d.casosEscaladosN2}</td>
-                        <td style={{ padding: '5px 7px', fontSize: '11px', maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.proveedorMasAfectado ?? '—'}</td>
-                        <td style={{ padding: '5px 7px' }}><Badge bg={est.bg} color={est.color} label={est.label} /></td>
-                      </tr>
+                      <Fragment key={d.dia}>
+                        <tr
+                          onClick={() => fetchCasos(d.dia)}
+                          style={{
+                            borderTop: i > 0 ? '0.5px solid #e5e7eb' : 'none',
+                            background: isSelected ? '#EEF4FF' : d.slaPct != null && d.slaPct < 70 ? '#FFF5F5' : 'transparent',
+                            cursor: 'pointer',
+                          }}>
+                          <td style={{ padding: '5px 6px', width: '16px', color: '#64748b', fontSize: '10px', textAlign: 'center' }}>
+                            {isSelected ? '▼' : '▶'}
+                          </td>
+                          <td style={{ padding: '5px 7px', fontWeight: 500, fontSize: '12px', whiteSpace: 'nowrap', color: d.slaPct != null && d.slaPct < 70 ? '#A32D2D' : '#0f172a' }}>{fmtDia(d.dia)}</td>
+                          <td style={{ padding: '5px 7px', fontSize: '12px', textAlign: 'center' }}>{d.registrados}</td>
+                          <td style={{ padding: '5px 7px', fontSize: '12px', textAlign: 'center' }}>{d.evaluables}</td>
+                          <td style={{ padding: '5px 7px', fontSize: '12px', textAlign: 'center', color: '#3B6D11', fontWeight: 500 }}>{d.dentraSLA}</td>
+                          <td style={{ padding: '5px 7px', fontSize: '12px', textAlign: 'center', color: '#A32D2D', fontWeight: 500 }}>{d.fueraSLA}</td>
+                          <td style={{ padding: '5px 7px', fontSize: '12px', fontWeight: 600, color: est.color, whiteSpace: 'nowrap' }}>{d.slaPct != null ? `${d.slaPct}%` : '—'}</td>
+                          <td style={{ padding: '5px 7px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{fmtMin(d.tPromRespuestaMin)}</td>
+                          <td style={{ padding: '5px 7px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{fmtMin(d.tPromResolucionMin)}</td>
+                          <td style={{ padding: '5px 7px', fontSize: '12px', textAlign: 'center' }}>{d.nivelPromedioAlcanzado != null ? `Nivel ${d.nivelPromedioAlcanzado}` : '—'}</td>
+                          <td style={{ padding: '5px 7px', fontSize: '12px', textAlign: 'center' }}>{d.casosEscaladosN2}</td>
+                          <td style={{ padding: '5px 7px', fontSize: '11px', maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.proveedorMasAfectado ?? '—'}</td>
+                          <td style={{ padding: '5px 7px' }}><Badge bg={est.bg} color={est.color} label={est.label} /></td>
+                        </tr>
+
+                        {/* Expansión inline de casos */}
+                        {isSelected && (
+                          <tr>
+                            <td colSpan={13} style={{ padding: 0, borderLeft: '3px solid #185FA5' }}>
+                              {loadingCasos ? (
+                                <div style={{ padding: '10px 14px', fontSize: '11px', color: 'var(--muted-foreground)' }}>Cargando incidentes...</div>
+                              ) : casos.length === 0 ? (
+                                <div style={{ padding: '10px 14px', fontSize: '11px', color: 'var(--muted-foreground)' }}>Sin incidentes registrados en esta fecha</div>
+                              ) : (
+                                <table style={{ width: '100%', borderCollapse: 'collapse', background: '#F8FAFF' }}>
+                                  <thead>
+                                    <tr style={{ background: '#EEF4FF' }}>
+                                      {['Código', 'Tienda', 'Proveedor', 'Tipo', 'Nivel', 'T. resp.', 'T. resol.', 'SLA resp.', 'SLA resol.', 'General', 'Motivo'].map((h) => (
+                                        <th key={h} style={{ padding: '4px 7px', textAlign: 'left', fontSize: '9px', fontWeight: 600, color: '#185FA5', textTransform: 'uppercase', whiteSpace: 'nowrap', borderBottom: '0.5px solid #c7d9f5' }}>{h}</th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {casos.map((c, j) => {
+                                      const sG = slaStyle(c.slaGeneral)
+                                      const slaD = c.evaluable ? fmtSLARespResol({
+                                        scoreResp: c.scoreRespuesta,
+                                        scoreResol: c.scoreResolucion,
+                                        tRespMin: c.tPrimeraRespuestaMin,
+                                        tResolMin: c.tResolucionMin,
+                                        limiteRespMin: 60,
+                                        limiteResolMin: c.slaResolucionMin || SLA_RESOLUCION_POR_TIPO[c.tipo] || 120,
+                                      }) : null
+                                      return (
+                                        <tr key={c.codigo} style={{ borderTop: j > 0 ? '0.5px solid #dde4ef' : 'none' }}>
+                                          <td style={{ padding: '4px 7px', fontFamily: 'monospace', fontSize: '10px', color: '#185FA5' }}>{c.codigo}</td>
+                                          <td style={{ padding: '4px 7px', fontSize: '11px', whiteSpace: 'nowrap' }}>{c.tiendaCodigo}{c.tiendaNombre ? ` — ${c.tiendaNombre}` : ''}</td>
+                                          <td style={{ padding: '4px 7px', fontSize: '11px' }}>{c.provNombre || '—'}</td>
+                                          <td style={{ padding: '4px 7px', fontSize: '11px', whiteSpace: 'nowrap' }}>{fmtTipo(c.tipo)}</td>
+                                          <td style={{ padding: '4px 7px', fontSize: '11px', textAlign: 'center' }}>{c.nivelQueRespondio != null ? `N${c.nivelQueRespondio}` : '—'}</td>
+                                          <td style={{ padding: '4px 7px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{fmtMin(c.tPrimeraRespuestaMin)}</td>
+                                          <td style={{ padding: '4px 7px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{fmtMin(c.tResolucionMin)}</td>
+                                          <td style={{ padding: '4px 7px' }}>
+                                            {slaD ? (
+                                              <div>
+                                                <Badge bg={slaD.respuesta.bg} color={slaD.respuesta.color} label={slaD.respuesta.texto} />
+                                                {slaD.respuesta.subTexto && <div style={{ fontSize: '9px', color: '#6B7280', marginTop: '1px', whiteSpace: 'nowrap' }}>{slaD.respuesta.subTexto}</div>}
+                                              </div>
+                                            ) : <span style={{ fontSize: '10px', color: '#888' }}>N/A</span>}
+                                          </td>
+                                          <td style={{ padding: '4px 7px' }}>
+                                            {slaD ? (
+                                              <div>
+                                                <Badge bg={slaD.resolucion.bg} color={slaD.resolucion.color} label={slaD.resolucion.texto} />
+                                                {slaD.resolucion.subTexto && <div style={{ fontSize: '9px', color: '#6B7280', marginTop: '1px', whiteSpace: 'nowrap' }}>{slaD.resolucion.subTexto}</div>}
+                                              </div>
+                                            ) : <span style={{ fontSize: '10px', color: '#888' }}>N/A</span>}
+                                          </td>
+                                          <td style={{ padding: '4px 7px' }}>{c.evaluable ? <Badge bg={sG.bg} color={sG.color} label={sG.label} /> : <span style={{ fontSize: '10px', color: '#888' }}>N/A</span>}</td>
+                                          <td style={{ padding: '4px 7px', fontSize: '10px', color: c.motivoIncumplimiento ? '#854F0B' : 'var(--muted-foreground)', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            {c.motivoIncumplimiento ?? '—'}
+                                          </td>
+                                        </tr>
+                                      )
+                                    })}
+                                  </tbody>
+                                </table>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
                     )
                   })}
                 </tbody>
@@ -285,94 +351,19 @@ function TendenciaSLAPageInner() {
             </div>
           </div>
 
-          {/* TABLA 3 — Drill-down por fecha */}
-          {selectedDia && (
-            <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', marginBottom: '12px', overflow: 'hidden' }}>
-              <div style={{ padding: '12px 14px', borderBottom: '0.5px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <span style={{ fontSize: '13px', fontWeight: 600 }}>3. Casos que explican la caída ({fmtDia(selectedDia)})</span>
-                  <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginLeft: '8px' }}>ⓘ Incidentes abiertos no incluidos</span>
-                </div>
-                <button onClick={() => { setSelectedDia(null); setCasos([]) }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--muted-foreground)' }}>✕</button>
-              </div>
-              {loadingCasos ? (
-                <div style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>Cargando casos...</div>
-              ) : (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead style={{ background: '#f9fafb' }}>
-                      <tr>
-                        {['ID Incidente', 'Tienda', 'Proveedor', 'Tipo', 'Nivel resp.', 'T. primera resp.', 'T. resolución', 'SLA resp.', 'SLA resol.', 'SLA general', 'Motivo incumplimiento'].map((h) => (
-                          <th key={h} style={{ padding: '5px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', whiteSpace: 'nowrap', borderBottom: '0.5px solid #e5e7eb' }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {casos.length === 0 && (
-                        <tr><td colSpan={11} style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>Sin casos en esta fecha</td></tr>
-                      )}
-                      {casos.map((c, i) => {
-                        const sG = slaStyle(c.slaGeneral)
-                        const slaD = c.evaluable ? fmtSLARespResol({
-                          scoreResp: c.scoreRespuesta,
-                          scoreResol: c.scoreResolucion,
-                          tRespMin: c.tPrimeraRespuestaMin,
-                          tResolMin: c.tResolucionMin,
-                          limiteRespMin: 60,
-                          limiteResolMin: c.slaResolucionMin || SLA_RESOLUCION_POR_TIPO[c.tipo] || 120,
-                        }) : null
-                        return (
-                          <tr key={c.codigo} style={{ borderTop: i > 0 ? '0.5px solid #e5e7eb' : 'none' }}>
-                            <td style={{ padding: '5px 8px', fontFamily: 'monospace', fontSize: '11px', color: 'var(--muted-foreground)' }}>{c.codigo}</td>
-                            <td style={{ padding: '5px 8px', fontSize: '12px' }}>{c.tiendaCodigo} {c.tiendaNombre ? `— ${c.tiendaNombre}` : ''}</td>
-                            <td style={{ padding: '5px 8px', fontSize: '12px' }}>{c.provNombre}</td>
-                            <td style={{ padding: '5px 8px', fontSize: '12px', whiteSpace: 'nowrap' }}>{fmtTipo(c.tipo)}</td>
-                            <td style={{ padding: '5px 8px', fontSize: '12px', textAlign: 'center' }}>{c.nivelQueRespondio != null ? `N${c.nivelQueRespondio}` : '—'}</td>
-                            <td style={{ padding: '5px 8px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{fmtMin(c.tPrimeraRespuestaMin)}</td>
-                            <td style={{ padding: '5px 8px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{fmtMin(c.tResolucionMin)}</td>
-                            <td style={{ padding: '5px 8px' }}>
-                              {slaD ? (
-                                <div>
-                                  <Badge bg={slaD.respuesta.bg} color={slaD.respuesta.color} label={slaD.respuesta.texto} />
-                                  {slaD.respuesta.subTexto && <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '2px', whiteSpace: 'nowrap' }}>{slaD.respuesta.subTexto}</div>}
-                                </div>
-                              ) : <span style={{ fontSize: '10px', color: '#888' }}>N/A</span>}
-                            </td>
-                            <td style={{ padding: '5px 8px' }}>
-                              {slaD ? (
-                                <div>
-                                  <Badge bg={slaD.resolucion.bg} color={slaD.resolucion.color} label={slaD.resolucion.texto} />
-                                  {slaD.resolucion.subTexto && <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '2px', whiteSpace: 'nowrap' }}>{slaD.resolucion.subTexto}</div>}
-                                </div>
-                              ) : <span style={{ fontSize: '10px', color: '#888' }}>N/A</span>}
-                            </td>
-                            <td style={{ padding: '5px 8px' }}>{c.evaluable ? <Badge bg={sG.bg} color={sG.color} label={sG.label} /> : <span style={{ fontSize: '10px', color: '#888' }}>N/A</span>}</td>
-                            <td style={{ padding: '5px 8px', fontSize: '11px', color: c.motivoIncumplimiento ? '#854F0B' : 'var(--muted-foreground)' }}>
-                              {c.motivoIncumplimiento ?? '—'}
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* TABLA 4 — Conclusiones */}
+          {/* Conclusiones */}
           {conclusiones.length > 0 && (
-            <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', marginBottom: '16px', overflow: 'hidden' }}>
-              <div style={{ padding: '12px 14px', borderBottom: '0.5px solid #e5e7eb', fontSize: '13px', fontWeight: 600 }}>
-                4. Conclusiones automáticas <span style={{ fontWeight: 400, fontSize: '11px', color: 'var(--muted-foreground)'}}>(generadas por el sistema)</span>
+            <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '8px', marginBottom: '10px', overflow: 'hidden' }}>
+              <div style={{ padding: '7px 12px', borderBottom: '0.5px solid #e5e7eb', fontSize: '12px', fontWeight: 600 }}>
+                Conclusiones automáticas <span style={{ fontWeight: 400, fontSize: '10px', color: 'var(--muted-foreground)' }}>(generadas por el sistema)</span>
               </div>
-              <div style={{ padding: '14px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '10px' }}>
+              <div style={{ padding: '10px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px' }}>
                 {conclusiones.map((c, i) => {
                   const icons = ['📉', '🏢', '✗', '⏱', '🛡']
                   return (
-                    <div key={i} style={{ display: 'flex', gap: '10px', padding: '10px 12px', background: '#F9FAFB', border: '0.5px solid #e5e7eb', borderRadius: '8px' }}>
-                      <span style={{ fontSize: '18px', flexShrink: 0 }}>{icons[i % icons.length]}</span>
-                      <span style={{ fontSize: '12px', lineHeight: 1.5 }}>{c}</span>
+                    <div key={i} style={{ display: 'flex', gap: '8px', padding: '8px 10px', background: '#F9FAFB', border: '0.5px solid #e5e7eb', borderRadius: '7px' }}>
+                      <span style={{ fontSize: '14px', flexShrink: 0 }}>{icons[i % icons.length]}</span>
+                      <span style={{ fontSize: '11px', lineHeight: 1.5 }}>{c}</span>
                     </div>
                   )
                 })}
@@ -381,10 +372,8 @@ function TendenciaSLAPageInner() {
           )}
 
           {/* Nota al pie */}
-          <div style={{ padding: '10px 14px', background: '#F9FAFB', border: '0.5px solid #e5e7eb', borderRadius: '8px', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: 1.6 }}>
-            ℹ️ El SLA considera el tiempo de primera respuesta por correo desde el Nivel 1 + el tiempo de resolución final desde el mismo punto de partida.
-            Los incidentes abiertos no se incluyen en el cálculo de SLA analítico.
-            Cada nivel de proveedor tiene 1 hora para responder antes de escalar al siguiente nivel.
+          <div style={{ padding: '8px 12px', background: '#F9FAFB', border: '0.5px solid #e5e7eb', borderRadius: '7px', fontSize: '10px', color: 'var(--muted-foreground)', lineHeight: 1.6 }}>
+            ℹ️ SLA = tiempo de primera respuesta por correo (Nivel 1) + tiempo de resolución final. Incidentes abiertos no se incluyen en el cálculo. Cada nivel tiene 1 hora para responder antes de escalar.
           </div>
         </>
       )}
