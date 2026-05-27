@@ -59,7 +59,7 @@ function relTime(d: string) {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px', paddingBottom: '6px', borderBottom: '0.5px solid var(--border)' }}>
+    <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px', paddingBottom: '5px', borderBottom: '0.5px solid var(--border)' }}>
       {children}
     </div>
   )
@@ -69,16 +69,16 @@ function Field({ label, value, editing, onChange, type = 'text' }: {
   label: string; value: string; editing: boolean; onChange: (v: string) => void; type?: string
 }) {
   return (
-    <div style={{ marginBottom: '10px' }}>
-      <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '3px' }}>{label}</div>
+    <div style={{ marginBottom: '8px' }}>
+      <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>{label}</div>
       {editing ? (
         type === 'textarea'
           ? <textarea value={value ?? ''} onChange={e => onChange(e.target.value)}
-              style={{ width: '100%', padding: '6px 9px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', boxSizing: 'border-box', minHeight: '64px', resize: 'vertical' }} />
+              style={{ width: '100%', padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', boxSizing: 'border-box', minHeight: '54px', resize: 'vertical' }} />
           : <input value={value ?? ''} onChange={e => onChange(e.target.value)}
-              style={{ width: '100%', padding: '6px 9px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', boxSizing: 'border-box' }} />
+              style={{ width: '100%', padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', boxSizing: 'border-box' }} />
       ) : (
-        <div style={{ fontSize: '12px', color: value ? 'var(--foreground)' : 'var(--muted-foreground)', minHeight: '20px' }}>
+        <div style={{ fontSize: '11px', color: value ? 'var(--foreground)' : 'var(--muted-foreground)', minHeight: '18px' }}>
           {value || '—'}
         </div>
       )}
@@ -171,69 +171,73 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
   const contStatus = contingenciaStatus(tienda)
 
   return (
-    <div>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '14px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+
+      {/* ── Header strip ── */}
+      <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
         <button onClick={() => router.push('/tiendas')}
-          style={{ padding: '6px 12px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', cursor: 'pointer', marginTop: '2px', whiteSpace: 'nowrap' }}>
+          style={{ padding: '5px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', color: 'var(--foreground)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
           ← Volver
         </button>
 
-        <div style={{ flex: 1 }}>
-          {/* Línea 1: código - distrito */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: 'monospace', fontSize: '20px', fontWeight: 700, letterSpacing: '-0.02em' }}>{tienda.codigo}</span>
-            {tienda.distrito && (
-              <>
-                <span style={{ fontSize: '16px', color: 'var(--muted-foreground)' }}>—</span>
-                <span style={{ fontSize: '15px', fontWeight: 500 }}>{tienda.distrito}</span>
-              </>
-            )}
-            {tienda.contingenciaActiva && (
-              <span style={{ background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '6px', padding: '2px 8px', fontSize: '10px', fontWeight: 700, color: '#92400e', textTransform: 'uppercase' }}>
-                ⚠ Contingencia activa
-              </span>
-            )}
-          </div>
+        {/* Identity tags */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '7px', flex: 1, minWidth: 0, flexWrap: 'wrap' }}>
+          <span style={{ fontFamily: 'monospace', fontSize: '17px', fontWeight: 700 }}>{tienda.codigo}</span>
+          {(tienda.nombreCc || tienda.distrito) && <span style={{ fontSize: '13px', color: 'var(--muted-foreground)' }}>—</span>}
+          {(tienda.nombreCc || tienda.distrito) && <span style={{ fontSize: '13px', fontWeight: 500 }}>{tienda.nombreCc || tienda.distrito}</span>}
+          {tienda.proveedorNombre && (
+            <span style={{ fontSize: '10px', fontWeight: 600, padding: '1px 7px', borderRadius: '4px', background: prov.bg, color: prov.color }}>{tienda.proveedorNombre}</span>
+          )}
+          {tienda.cluster && (
+            <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', background: 'var(--muted)', padding: '1px 6px', borderRadius: '4px' }}>Cluster {tienda.cluster}</span>
+          )}
+          {tienda.cidServicio && (
+            <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>CID {tienda.cidServicio}</span>
+          )}
+          {tienda.contingenciaActiva && (
+            <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 7px', borderRadius: '4px', background: '#fef3c7', color: '#92400e', border: '0.5px solid #f59e0b' }}>
+              Contingencia activa
+            </span>
+          )}
+        </div>
 
-          {/* Línea 2: proveedor · teléfono */}
-          {(tienda.proveedorNombre || tienda.proveedorTelefono) && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
-              {tienda.proveedorNombre && (
-                <span style={{ fontSize: '11px', fontWeight: 600, padding: '1px 7px', borderRadius: '4px', background: prov.bg, color: prov.color }}>
-                  {tienda.proveedorNombre}
-                </span>
-              )}
-              {tienda.proveedorTelefono && (
-                <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>· {tienda.proveedorTelefono}</span>
-              )}
+        {/* KPI mini inline */}
+        <div style={{ display: 'flex', gap: '14px', flexShrink: 0 }}>
+          {tienda.costoMensual && (
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontWeight: 700, color: 'var(--foreground)', fontSize: '13px' }}>S/ {Number(tienda.costoMensual).toLocaleString('es-PE')}</div>
+              <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>/mes</div>
             </div>
           )}
-
-          {/* Línea 3: cluster · CID */}
-          <div style={{ display: 'flex', gap: '12px', marginTop: '3px', fontSize: '11px', color: 'var(--muted-foreground)' }}>
-            {tienda.cluster && <span>Cluster: <strong style={{ color: 'var(--foreground)' }}>{tienda.cluster}</strong></span>}
-            {tienda.cidServicio && <span>CID: <strong style={{ color: 'var(--foreground)', fontFamily: 'monospace' }}>{tienda.cidServicio}</strong></span>}
+          {tienda.ventaHoraSoles && (
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontWeight: 700, color: 'var(--foreground)', fontSize: '13px' }}>S/ {Number(tienda.ventaHoraSoles).toLocaleString('es-PE', { minimumFractionDigits: 2 })}</div>
+              <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>/hora</div>
+            </div>
+          )}
+          <div style={{ padding: '3px 9px', borderRadius: '6px', background: contStatus.bg, textAlign: 'right' }}>
+            <div style={{ fontWeight: 700, color: contStatus.color, fontSize: '12px' }}>{contStatus.label}</div>
+            <div style={{ fontSize: '9px', color: contStatus.color, opacity: 0.75, textTransform: 'uppercase', letterSpacing: '0.05em' }}>contingencia</div>
           </div>
         </div>
 
+        {/* Edit controls */}
         {canEdit && (
-          <div style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
+          <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
             {editing ? (
               <>
                 <button onClick={() => { setEditing(false); setForm(tienda) }}
-                  style={{ padding: '7px 14px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--muted)', color: 'var(--foreground)', cursor: 'pointer' }}>
+                  style={{ padding: '5px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', color: 'var(--foreground)', cursor: 'pointer' }}>
                   Cancelar
                 </button>
                 <button onClick={handleSave} disabled={saving}
-                  style={{ padding: '7px 14px', fontSize: '12px', border: 'none', borderRadius: '8px', background: 'hsl(221,83%,23%)', color: 'white', fontWeight: 500, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
-                  {saving ? 'Guardando...' : 'Guardar cambios'}
+                  style={{ padding: '5px 12px', fontSize: '12px', border: 'none', borderRadius: '7px', background: 'hsl(221,83%,23%)', color: 'white', fontWeight: 500, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+                  {saving ? 'Guardando...' : 'Guardar'}
                 </button>
               </>
             ) : (
               <button onClick={() => setEditing(true)}
-                style={{ padding: '7px 14px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                style={{ padding: '5px 12px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', cursor: 'pointer' }}>
                 Editar
               </button>
             )}
@@ -241,263 +245,236 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
         )}
       </div>
 
-      {/* Mini cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '8px', marginBottom: '16px' }}>
-        {[
-          { label: 'CID / Servicio', value: tienda.cidServicio || '—', mono: true },
-          { label: 'Costo mensual', value: tienda.costoMensual ? `S/ ${Number(tienda.costoMensual).toLocaleString('es-PE')}` : '—', mono: false },
-          { label: 'Venta / hora', value: tienda.ventaHoraSoles ? `S/ ${Number(tienda.ventaHoraSoles).toLocaleString('es-PE', { minimumFractionDigits: 2 })}` : '—', mono: false },
-        ].map(c => (
-          <div key={c.label} style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '9px', padding: '10px 12px' }}>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--foreground)', fontFamily: c.mono ? 'monospace' : 'inherit' }}>{c.value}</div>
-            <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{c.label}</div>
-          </div>
-        ))}
-        {/* Contingencia mini card */}
-        <div style={{ background: contStatus.bg, border: `0.5px solid ${contStatus.color}22`, borderRadius: '9px', padding: '10px 12px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 700, color: contStatus.color }}>{contStatus.label}</div>
-          <div style={{ fontSize: '10px', color: contStatus.color, opacity: 0.7, marginTop: '2px' }}>Contingencia</div>
-        </div>
-      </div>
+      {/* ── Main grid: left 2×2 | right sidebar ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 252px', gap: '10px', alignItems: 'start' }}>
 
-      {/* Main layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '14px', alignItems: 'start' }}>
-        {/* Left: sections */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {/* Left: 2×2 cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
 
-          {/* Información general */}
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
-            <SectionTitle>Información general</SectionTitle>
+          {/* Card A: Tienda / contacto */}
+          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+            <SectionTitle>Tienda</SectionTitle>
 
-            {/* Celular tienda — campo prioritario */}
-            <div style={{ marginBottom: '14px', padding: '10px 14px', background: form.celularTienda ? '#EFF6FF' : 'var(--muted)', border: `1px solid ${form.celularTienda ? '#BFDBFE' : 'var(--border)'}`, borderRadius: '9px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '18px', flexShrink: 0 }}>📱</span>
+            {/* Celular destacado */}
+            <div style={{ padding: '7px 10px', background: form.celularTienda ? '#EFF6FF' : 'var(--muted)', border: `0.5px solid ${form.celularTienda ? '#BFDBFE' : 'var(--border)'}`, borderRadius: '7px', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '10px', fontWeight: 700, color: '#1D4ED8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Celular de tienda</div>
+                <div style={{ fontSize: '9px', fontWeight: 700, color: '#1D4ED8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '2px' }}>Celular de tienda</div>
                 {editing ? (
-                  <input
-                    value={form.celularTienda ?? ''}
-                    onChange={e => setF('celularTienda', e.target.value)}
-                    placeholder="Ej: 987 654 321"
-                    style={{ width: '100%', padding: '5px 8px', fontSize: '14px', fontWeight: 600, border: '0.5px solid #93C5FD', borderRadius: '6px', background: 'white', color: 'var(--foreground)', outline: 'none', boxSizing: 'border-box' }}
-                  />
+                  <input value={form.celularTienda ?? ''} onChange={e => setF('celularTienda', e.target.value)} placeholder="Ej: 987 654 321"
+                    style={{ width: '100%', padding: '3px 6px', fontSize: '12px', fontWeight: 600, border: '0.5px solid #93C5FD', borderRadius: '5px', background: 'white', color: '#1D4ED8', outline: 'none', boxSizing: 'border-box' }} />
                 ) : (
-                  <div style={{ fontSize: '16px', fontWeight: 700, color: form.celularTienda ? '#1D4ED8' : 'var(--muted-foreground)', fontFamily: form.celularTienda ? 'monospace' : 'inherit', letterSpacing: form.celularTienda ? '0.05em' : 0 }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: form.celularTienda ? '#1D4ED8' : 'var(--muted-foreground)', fontFamily: form.celularTienda ? 'monospace' : 'inherit' }}>
                     {form.celularTienda || 'Sin registrar'}
                   </div>
                 )}
               </div>
               {!editing && form.celularTienda && (
                 <a href={`tel:${form.celularTienda.replace(/\s/g, '')}`}
-                  style={{ padding: '5px 10px', background: '#1D4ED8', color: 'white', borderRadius: '6px', fontSize: '11px', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                  style={{ padding: '4px 8px', background: '#1D4ED8', color: 'white', borderRadius: '5px', fontSize: '10px', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}>
                   Llamar
                 </a>
               )}
             </div>
 
-            <Field label="Dirección" value={form.direccion ?? ''} editing={editing} onChange={v => setF('direccion', v)} />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-              <Field label="Provincia" value={form.provincia ?? ''} editing={editing} onChange={v => setF('provincia', v)} />
-              <Field label="Distrito"  value={form.distrito  ?? ''} editing={editing} onChange={v => setF('distrito', v)} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
+              <Field label="Nombre CC"  value={form.nombreCc  ?? ''} editing={editing} onChange={v => setF('nombreCc', v)} />
+              <Field label="Formato"    value={form.formato   ?? ''} editing={editing} onChange={v => setF('formato', v)} />
+              <Field label="Dirección"  value={form.direccion ?? ''} editing={editing} onChange={v => setF('direccion', v)} />
+              <Field label="Distrito"   value={form.distrito  ?? ''} editing={editing} onChange={v => setF('distrito', v)} />
+              <Field label="Provincia"  value={form.provincia ?? ''} editing={editing} onChange={v => setF('provincia', v)} />
+              <Field label="Referencia" value={form.referencia ?? ''} editing={editing} onChange={v => setF('referencia', v)} />
             </div>
-            <Field label="Referencia"   value={form.referencia   ?? ''} editing={editing} onChange={v => setF('referencia', v)} />
-            <Field label="Coordenadas"  value={form.coordenadas  ?? ''} editing={editing} onChange={v => setF('coordenadas', v)} />
-            <Field label="Email"        value={form.administradorEmail ?? ''} editing={editing} onChange={v => setF('administradorEmail', v)} />
-            {editing ? (
-              <div style={{ marginBottom: '10px' }}>
-                <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Cluster</div>
-                <select value={form.cluster ?? ''} onChange={e => setF('cluster', e.target.value)}
-                  style={{ width: '100%', padding: '6px 9px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
-                  <option value="">Sin cluster</option>
-                  {['A','B','C','D'].map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-            ) : (
-              <div style={{ marginBottom: '10px' }}>
-                <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '3px' }}>Cluster</div>
-                <div style={{ fontSize: '12px', color: tienda.cluster ? 'var(--foreground)' : 'var(--muted-foreground)' }}>{tienda.cluster ? `Cluster ${tienda.cluster}` : '—'}</div>
-              </div>
-            )}
+
+            <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '8px', marginTop: '2px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
+              <Field label="Admin. nombre"  value={form.administradorNombre  ?? ''} editing={editing} onChange={v => setF('administradorNombre', v)} />
+              <Field label="Admin. celular" value={form.administradorCelular ?? ''} editing={editing} onChange={v => setF('administradorCelular', v)} />
+              <Field label="Email"          value={form.administradorEmail   ?? ''} editing={editing} onChange={v => setF('administradorEmail', v)} />
+            </div>
           </div>
 
-          {/* Conectividad */}
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
+          {/* Card B: Conectividad */}
+          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
             <SectionTitle>Conectividad</SectionTitle>
-            {editing ? (
-              <div style={{ marginBottom: '10px' }}>
-                <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Proveedor</div>
+
+            <div style={{ marginBottom: '8px' }}>
+              <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Proveedor</div>
+              {editing ? (
                 <select value={form.proveedorId ?? ''} onChange={e => setF('proveedorId', e.target.value)}
-                  style={{ width: '100%', padding: '6px 9px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
+                  style={{ width: '100%', padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
                   <option value="">Sin proveedor</option>
                   {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
                 </select>
-              </div>
-            ) : (
-              <div style={{ marginBottom: '10px' }}>
-                <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '3px' }}>Proveedor</div>
-                {tienda.proveedorNombre ? (
-                  <span style={{ fontSize: '12px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: prov.bg, color: prov.color }}>{tienda.proveedorNombre}</span>
-                ) : (
-                  <div style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>—</div>
-                )}
-              </div>
-            )}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-              <Field label="Tipo conexión" value={form.tipoConexion ?? ''} editing={editing} onChange={v => setF('tipoConexion', v)} />
-              <Field label="CID / Servicio" value={form.cidServicio ?? ''} editing={editing} onChange={v => setF('cidServicio', v)} />
+              ) : tienda.proveedorNombre ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: prov.bg, color: prov.color }}>{tienda.proveedorNombre}</span>
+                  {tienda.proveedorTelefono && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{tienda.proveedorTelefono}</span>}
+                </div>
+              ) : (
+                <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>—</div>
+              )}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
+              <Field label="Tipo conexión"     value={form.tipoConexion  ?? ''} editing={editing} onChange={v => setF('tipoConexion', v)} />
+              <Field label="CID / Servicio"    value={form.cidServicio   ?? ''} editing={editing} onChange={v => setF('cidServicio', v)} />
               <Field label="Costo mensual (S/.)" value={form.costoMensual ?? ''} editing={editing} onChange={v => setF('costoMensual', v)} />
+              <Field label="Venta / hora (S/.)" value={form.ventaHoraSoles ?? ''} editing={editing} onChange={v => setF('ventaHoraSoles', v)} />
             </div>
-
-            {/* Contingencia sub-section */}
-            <div style={{ marginTop: '6px', paddingTop: '10px', borderTop: '0.5px solid var(--border)' }}>
-              <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>Contingencia</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-                {/* Tiene contingencia */}
-                <div style={{ marginBottom: '10px' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '3px' }}>Tiene</div>
-                  {editing ? (
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      {[{ v: true, l: 'Sí' }, { v: false, l: 'No' }].map(({ v, l }) => (
-                        <button key={l} type="button" onClick={() => setF('tieneContingencia', v)}
-                          style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '6px', cursor: 'pointer', border: form.tieneContingencia === v ? '1.5px solid hsl(221,83%,23%)' : '0.5px solid var(--border)', background: form.tieneContingencia === v ? 'hsl(221,83%,23%)' : 'var(--muted)', color: form.tieneContingencia === v ? 'white' : 'var(--foreground)', outline: 'none' }}>
-                          {l}
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div style={{ fontSize: '12px', fontWeight: 600, color: tienda.tieneContingencia ? '#059669' : 'var(--muted-foreground)' }}>
-                      {tienda.tieneContingencia ? 'Sí' : 'No'}
-                    </div>
-                  )}
-                </div>
-
-                {/* Activado/desactivado */}
-                <div style={{ marginBottom: '10px' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '3px' }}>Estado</div>
-                  <div style={{ fontSize: '12px' }}>
-                    {tienda.contingenciaActiva
-                      ? <span style={{ color: '#92400e', fontWeight: 600 }}>Activada</span>
-                      : <span style={{ color: 'var(--muted-foreground)' }}>Desactivada</span>}
-                  </div>
-                </div>
-
-                <Field label="Chip" value={form.contingenciaChip ?? ''} editing={editing} onChange={v => setF('contingenciaChip', v)} />
-                <Field label="Paquete" value={form.contingenciaPaquete ?? ''} editing={editing} onChange={v => setF('contingenciaPaquete', v)} />
-              </div>
-            </div>
+            <Field label="Contacto soporte" value={form.contactoSoporte ?? ''} editing={editing} onChange={v => setF('contactoSoporte', v)} />
+            <Field label="Coordenadas"      value={form.coordenadas     ?? ''} editing={editing} onChange={v => setF('coordenadas', v)} />
           </div>
 
-          {/* Supervisor */}
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
+          {/* Card C: Supervisor */}
+          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
             <SectionTitle>Supervisor</SectionTitle>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-              <Field label="Nombre" value={form.supervisorNombre ?? ''} editing={editing} onChange={v => setF('supervisorNombre', v)} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
+              <Field label="Nombre" value={form.supervisorNombre  ?? ''} editing={editing} onChange={v => setF('supervisorNombre', v)} />
               <Field label="Celular" value={form.supervisorCelular ?? ''} editing={editing} onChange={v => setF('supervisorCelular', v)} />
             </div>
 
-            {/* Clasificación */}
-            <div style={{ marginBottom: '10px' }}>
-              <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Clasificación</div>
-              {editing ? (
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  {/* Sin color */}
-                  <button type="button" onClick={() => setF('perfilSupervisor', null)}
-                    style={{ width: '22px', height: '22px', borderRadius: '4px', border: `1.5px solid ${!form.perfilSupervisor ? 'hsl(221,83%,23%)' : 'var(--border)'}`, background: 'transparent', cursor: 'pointer', outline: 'none', boxShadow: !form.perfilSupervisor ? '0 0 0 2px hsl(221,83%,23%)' : 'none' }} />
-                  {(['verde', 'amarillo', 'rojo'] as const).map(color => (
-                    <button key={color} type="button" onClick={() => setF('perfilSupervisor', color)}
-                      style={{ width: '22px', height: '22px', borderRadius: '4px', background: CLASIFICACION_COLORS[color], border: 'none', cursor: 'pointer', outline: form.perfilSupervisor === color ? `2px solid hsl(221,83%,23%)` : 'none', outlineOffset: '2px' }} />
-                  ))}
-                </div>
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{
-                    width: '16px', height: '16px', borderRadius: '3px',
-                    background: tienda.perfilSupervisor ? CLASIFICACION_COLORS[tienda.perfilSupervisor] ?? 'transparent' : 'transparent',
-                    border: tienda.perfilSupervisor && CLASIFICACION_COLORS[tienda.perfilSupervisor] ? 'none' : '1.5px solid var(--border)',
-                  }} />
-                </div>
-              )}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px', marginBottom: '4px' }}>
+              {/* Clasificación */}
+              <div style={{ marginBottom: '8px' }}>
+                <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Clasificación</div>
+                {editing ? (
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <button type="button" onClick={() => setF('perfilSupervisor', null)}
+                      style={{ width: '20px', height: '20px', borderRadius: '3px', border: `1.5px solid ${!form.perfilSupervisor ? 'hsl(221,83%,23%)' : 'var(--border)'}`, background: 'transparent', cursor: 'pointer', outline: 'none' }} />
+                    {(['verde', 'amarillo', 'rojo'] as const).map(color => (
+                      <button key={color} type="button" onClick={() => setF('perfilSupervisor', color)}
+                        style={{ width: '20px', height: '20px', borderRadius: '3px', background: CLASIFICACION_COLORS[color], border: 'none', cursor: 'pointer', outline: form.perfilSupervisor === color ? `2px solid hsl(221,83%,23%)` : 'none', outlineOffset: '2px' }} />
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ width: '14px', height: '14px', borderRadius: '3px', background: tienda.perfilSupervisor ? CLASIFICACION_COLORS[tienda.perfilSupervisor] ?? 'var(--muted)' : 'var(--muted)', border: '0.5px solid var(--border)' }} />
+                    {tienda.perfilSupervisor && <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', textTransform: 'capitalize' }}>{tienda.perfilSupervisor}</span>}
+                  </div>
+                )}
+              </div>
+              {/* Cluster */}
+              <div style={{ marginBottom: '8px' }}>
+                <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Cluster</div>
+                {editing ? (
+                  <select value={form.cluster ?? ''} onChange={e => setF('cluster', e.target.value)}
+                    style={{ width: '100%', padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
+                    <option value="">Sin cluster</option>
+                    {['A','B','C','D'].map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                ) : (
+                  <div style={{ fontSize: '11px', color: tienda.cluster ? 'var(--foreground)' : 'var(--muted-foreground)' }}>
+                    {tienda.cluster ? `Cluster ${tienda.cluster}` : '—'}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '8px' }}>
+              <Field label="Instrucción específica (I.E.)" value={form.instruccionReporte ?? ''} editing={editing} onChange={v => setF('instruccionReporte', v)} type="textarea" />
             </div>
           </div>
 
-          {/* Datos */}
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
-            <SectionTitle>Datos</SectionTitle>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-              <Field label="Venta / hora (S/.)" value={form.ventaHoraSoles ?? ''} editing={editing} onChange={v => setF('ventaHoraSoles', v)} />
-              <Field label="I.E." value={form.instruccionReporte ?? ''} editing={editing} onChange={v => setF('instruccionReporte', v)} />
+          {/* Card D: Contingencia + Extras */}
+          <div style={{ background: tienda.contingenciaActiva ? '#fffbeb' : 'var(--card)', border: `0.5px solid ${tienda.contingenciaActiva ? '#f59e0b' : 'var(--border)'}`, borderRadius: '10px', padding: '12px 14px' }}>
+            <SectionTitle>Contingencia</SectionTitle>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
+              {/* Tiene */}
+              <div style={{ marginBottom: '8px' }}>
+                <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Tiene</div>
+                {editing ? (
+                  <div style={{ display: 'flex', gap: '5px' }}>
+                    {[{ v: true, l: 'Sí' }, { v: false, l: 'No' }].map(({ v, l }) => (
+                      <button key={l} type="button" onClick={() => setF('tieneContingencia', v)}
+                        style={{ padding: '3px 8px', fontSize: '11px', borderRadius: '5px', cursor: 'pointer', border: form.tieneContingencia === v ? '1.5px solid hsl(221,83%,23%)' : '0.5px solid var(--border)', background: form.tieneContingencia === v ? 'hsl(221,83%,23%)' : 'var(--muted)', color: form.tieneContingencia === v ? 'white' : 'var(--foreground)', outline: 'none' }}>
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: tienda.tieneContingencia ? '#059669' : 'var(--muted-foreground)' }}>
+                    {tienda.tieneContingencia ? 'Sí' : 'No'}
+                  </div>
+                )}
+              </div>
+              {/* Estado */}
+              <div style={{ marginBottom: '8px' }}>
+                <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '3px' }}>Estado</div>
+                {tienda.contingenciaActiva
+                  ? <span style={{ fontSize: '11px', fontWeight: 700, color: '#92400e', background: '#fef3c7', padding: '2px 7px', borderRadius: '4px' }}>Activada</span>
+                  : <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Desactivada</span>}
+              </div>
+              <Field label="Chip"    value={form.contingenciaChip    ?? ''} editing={editing} onChange={v => setF('contingenciaChip', v)} />
+              <Field label="Paquete" value={form.contingenciaPaquete ?? ''} editing={editing} onChange={v => setF('contingenciaPaquete', v)} />
             </div>
-            <Field label="Extras" value={form.extras ?? ''} editing={editing} onChange={v => setF('extras', v)} type="textarea" />
+
+            {tienda.contingenciaActiva && (
+              <div style={{ marginBottom: '8px' }}>
+                {tienda.contingenciaDescripcion && (
+                  <div style={{ fontSize: '11px', color: '#78350f', lineHeight: 1.5, background: '#fef3c7', padding: '6px 8px', borderRadius: '6px', marginBottom: '4px' }}>
+                    {tienda.contingenciaDescripcion}
+                  </div>
+                )}
+                <div style={{ fontSize: '10px', color: '#92400e', display: 'flex', gap: '12px' }}>
+                  {tienda.contingenciaActivadaPor && <span>Por: {tienda.contingenciaActivadaPor}</span>}
+                  {tienda.contingenciaFecha && (
+                    <span>{new Date(tienda.contingenciaFecha).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '8px', marginTop: '2px' }}>
+              <Field label="Extras / notas" value={form.extras ?? ''} editing={editing} onChange={v => setF('extras', v)} type="textarea" />
+            </div>
           </div>
         </div>
 
-        {/* Right: actions + contingencia info + historial */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {/* ── Right sidebar ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
 
-          {/* Actions */}
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
+          {/* Acciones */}
+          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
             <SectionTitle>Acciones</SectionTitle>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <a href={`/incidentes/nuevo?tiendaId=${tienda.id}`}
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 12px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', textDecoration: 'none' }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '9px 12px', background: 'hsl(221,83%,23%)', color: 'white', borderRadius: '7px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', textDecoration: 'none' }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Crear incidente
               </a>
-
               <button onClick={showContingenciaWarning}
-                style={{ padding: '9px 12px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: '8px', fontSize: '12px', fontWeight: 500, color: '#92400e', cursor: 'pointer', textAlign: 'left' }}>
+                style={{ padding: '9px 12px', background: 'rgba(245,158,11,0.08)', border: '0.5px solid rgba(245,158,11,0.5)', borderRadius: '7px', fontSize: '12px', fontWeight: 500, color: '#92400e', cursor: 'pointer', textAlign: 'center' }}>
                 Activar contingencia
               </button>
-
               {contingenciaMsg && (
-                <div style={{ padding: '8px 10px', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '7px', fontSize: '11px', color: '#92400e', lineHeight: 1.4 }}>
+                <div style={{ padding: '7px 10px', background: 'rgba(245,158,11,0.1)', border: '0.5px solid rgba(245,158,11,0.3)', borderRadius: '6px', fontSize: '10px', color: '#92400e', lineHeight: 1.4 }}>
                   Para proceder tienes que justificar con un incidente
                 </div>
               )}
-
               <a href={`/incidentes?tiendaId=${tienda.id}`}
-                style={{ display: 'block', padding: '9px 12px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--foreground)', cursor: 'pointer', textDecoration: 'none', textAlign: 'center' }}>
+                style={{ display: 'block', padding: '9px 12px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '7px', fontSize: '12px', color: 'var(--foreground)', textDecoration: 'none', textAlign: 'center' }}>
                 Ver incidentes
               </a>
-
               {tienda.proveedorId && (
                 <a href={`/proveedores/${tienda.proveedorId}`}
-                  style={{ display: 'block', padding: '9px 12px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: 'var(--foreground)', cursor: 'pointer', textDecoration: 'none', textAlign: 'center' }}>
+                  style={{ display: 'block', padding: '9px 12px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '7px', fontSize: '12px', color: 'var(--foreground)', textDecoration: 'none', textAlign: 'center' }}>
                   Ver proveedor →
                 </a>
               )}
             </div>
           </div>
 
-          {/* Contingencia activa info */}
-          {tienda.contingenciaActiva && (
-            <div style={{ background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '12px', padding: '14px' }}>
-              <div style={{ fontSize: '10px', fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>Contingencia activa</div>
-              {tienda.contingenciaDescripcion && (
-                <div style={{ fontSize: '11px', color: '#78350f', marginBottom: '6px', lineHeight: 1.5 }}>{tienda.contingenciaDescripcion}</div>
-              )}
-              {tienda.contingenciaActivadaPor && (
-                <div style={{ fontSize: '10px', color: '#92400e' }}>Por: {tienda.contingenciaActivadaPor}</div>
-              )}
-              {tienda.contingenciaFecha && (
-                <div style={{ fontSize: '10px', color: '#92400e', marginTop: '2px' }}>
-                  {new Date(tienda.contingenciaFecha).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Historial */}
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
+          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
             <SectionTitle>Historial de cambios</SectionTitle>
             {historial.length === 0 ? (
               <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', textAlign: 'center', padding: '12px 0' }}>Sin cambios registrados</div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {historial.slice(0, 10).map(h => (
-                  <div key={h.id} style={{ fontSize: '11px', borderBottom: '0.5px solid var(--border)', paddingBottom: '8px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                      <span style={{ fontWeight: 500, color: 'var(--foreground)' }}>{CAMPO_LABELS[h.campoEditado] ?? h.campoEditado}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {historial.slice(0, 20).map(h => (
+                  <div key={h.id} style={{ borderBottom: '0.5px solid var(--border)', paddingBottom: '6px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1px' }}>
+                      <span style={{ fontWeight: 500, color: 'var(--foreground)', fontSize: '10px' }}>{CAMPO_LABELS[h.campoEditado] ?? h.campoEditado}</span>
                       <span style={{ color: 'var(--muted-foreground)', fontSize: '10px' }}>{relTime(h.editadoEn)}</span>
                     </div>
                     <div style={{ color: 'var(--muted-foreground)', display: 'flex', gap: '4px', flexWrap: 'wrap', fontSize: '10px' }}>
@@ -505,7 +482,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                       {h.valorAnterior && h.valorNuevo && <span>→</span>}
                       {h.valorNuevo && <span style={{ color: 'var(--foreground)' }}>{h.valorNuevo}</span>}
                     </div>
-                    {h.usuarioNombre && <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>por {h.usuarioNombre}</div>}
+                    {h.usuarioNombre && <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', marginTop: '1px' }}>por {h.usuarioNombre}</div>}
                   </div>
                 ))}
               </div>
