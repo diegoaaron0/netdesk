@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { PieChart, Pie, Cell, Tooltip as ReTooltip } from 'recharts'
 import DashboardAnalitico from './components/DashboardAnalitico'
 import { SLA_RESOLUCION_POR_TIPO } from '@/lib/sla-core'
 
@@ -18,10 +17,6 @@ const BADGE_OP: Record<string, { label: string; bg: string; color: string }> = {
   ESCALADO:            { label: 'Escalado',        bg: '#FAEEDA', color: '#633806' },
   PENDIENTE_PROVEEDOR: { label: 'Pend. proveedor', bg: '#EEE8FF', color: '#5B21B6' },
   ABIERTO:             { label: 'Abierto',         bg: '#E6F1FB', color: '#185FA5' },
-}
-const DONUT_COLORS: Record<string, string> = {
-  SLA_VENCIDO: '#A32D2D', EN_RIESGO_SLA: '#C84B00',
-  ESCALADO: '#854F0B', PENDIENTE_PROVEEDOR: '#5B21B6', ABIERTO: '#185FA5',
 }
 const ORDEN_OP: Record<string, number> = {
   SLA_VENCIDO: 0, EN_RIESGO_SLA: 1, ESCALADO: 2, PENDIENTE_PROVEEDOR: 3, ABIERTO: 4,
@@ -49,6 +44,14 @@ function fmtHora(d: string | Date | null): string {
   const raw = typeof d === 'string' && !d.includes('Z') && !d.includes('+') ? d + 'Z' : d
   return new Date(raw).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Lima' })
 }
+function fmtFechaHora(d: string | Date | null): string {
+  if (!d) return '—'
+  const raw = typeof d === 'string' && !d.includes('Z') && !d.includes('+') ? d + 'Z' : d
+  const date = new Date(raw)
+  const fecha = date.toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Lima' })
+  const hora  = date.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Lima' })
+  return `${fecha} ${hora}`
+}
 function fmtHoraEvento(d: string | Date | null): { text: string; isOld: boolean } {
   if (!d) return { text: '—', isOld: false }
   const raw = typeof d === 'string' && !d.includes('Z') && !d.includes('+') ? d + 'Z' : d
@@ -63,13 +66,14 @@ function fmtHoraEvento(d: string | Date | null): { text: string; isOld: boolean 
   }
   return { text: tStr, isOld: false }
 }
-function downloadCSV(activos: any[], resoluciones: any[]) {
+function downloadCSV(activos: any[], resoluciones: any[], fecha?: string) {
   const BOM = '﻿'
-  const headers = ['Código','Tienda','Distrito','Proveedor','Tipo','Impacto','Estado','Agente','Hora Registro','Hora Fin','MTTR (min)','Resuelto Por']
+  const headers = ['Código','Tienda','Distrito','Cluster','Proveedor','Tipo','Impacto','Estado','Agente','Hora Registro','Hora Fin','MTTR (min)','Resuelto Por']
   const toRow = (r: any, estado: string) => [
     r.codigo ?? '', r.tienda_nombre ?? r.tienda_codigo ?? '', r.tienda_distrito ?? '',
-    r.proveedor_nombre ?? '', TIPO_LABELS[r.tipo] ?? r.tipo ?? '', r.nivel_impacto ?? '',
-    estado, r.agente_nombre ?? '', fmtHora(r.hora_registro), fmtHora(r.hora_fin ?? null),
+    r.tienda_cluster ?? '', r.proveedor_nombre ?? '', TIPO_LABELS[r.tipo] ?? r.tipo ?? '',
+    r.nivel_impacto ?? '', estado, r.agente_nombre ?? '',
+    fmtFechaHora(r.hora_registro), fmtFechaHora(r.hora_fin ?? null),
     r.mttr_minutos ?? '', r.resuelto_por ?? '',
   ]
   const rows = [
@@ -83,7 +87,7 @@ function downloadCSV(activos: any[], resoluciones: any[]) {
   const url  = URL.createObjectURL(blob)
   const a    = document.createElement('a')
   a.href     = url
-  a.download = `incidentes_${new Date(Date.now() - 5 * 3600000).toISOString().slice(0, 10)}.csv`
+  a.download = `incidentes_${fecha ?? new Date(Date.now() - 5 * 3600000).toISOString().slice(0, 10)}.csv`
   a.click()
   URL.revokeObjectURL(url)
 }
@@ -145,20 +149,6 @@ function SLABadge({ inc, nowMs }: { inc: any; nowMs: number }) {
           <div style={{ position: 'absolute', bottom: '-4px', left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '4px solid #1e293b' }} />
         </div>
       )}
-    </div>
-  )
-}
-
-function DonutTooltip({ active, payload, total }: any) {
-  if (!active || !payload?.length) return null
-  const entry = payload[0]
-  const badge = BADGE_OP[entry.name] ?? { label: entry.name, bg: 'white', color: '#333' }
-  const pct = total > 0 ? Math.round(entry.value / total * 100) : 0
-  return (
-    <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '8px 12px', fontSize: '11px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-      <div style={{ fontWeight: 600 }}>Estado: {badge.label}</div>
-      <div>Cantidad: <strong>{entry.value}</strong></div>
-      <div>Porcentaje: <strong>{pct}%</strong></div>
     </div>
   )
 }
@@ -254,12 +244,18 @@ function AsignarModal({ activos, equipo, onClose, onRefresh }: { activos: any[];
 
 // ─── DashboardPage ────────────────────────────────────────────────────────────
 
+function todayLima(): string {
+  return new Date(Date.now() - 5 * 3600000).toISOString().slice(0, 10)
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const [op, setOp]                       = useState<any>(null)
   const [tick, setTick]                   = useState(0)
   const [decPendientes, setDecPendientes] = useState<number | null>(null)
   const [tab, setTab]   = useState<'operativo' | 'analitico'>('operativo')
+  const [fecha, setFecha] = useState<string>(todayLima())
+  const isToday = fecha === todayLima()
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search)
@@ -268,9 +264,10 @@ export default function DashboardPage() {
   }, [])
 
   const fetchOp = useCallback(async () => {
-    const res = await fetch('/api/dashboard/operativo')
+    const url = isToday ? '/api/dashboard/operativo' : `/api/dashboard/operativo?fecha=${fecha}`
+    const res = await fetch(url)
     if (res.ok) setOp(await res.json())
-  }, [])
+  }, [fecha, isToday])
 
   const fetchDecPendientes = useCallback(async () => {
     const res = await fetch('/api/decisiones?estado=PROPUESTO')
@@ -280,15 +277,17 @@ export default function DashboardPage() {
     }
   }, [])
 
-  useEffect(() => { fetchOp(); fetchDecPendientes() }, [fetchOp, fetchDecPendientes])
+  useEffect(() => { setOp(null); fetchOp(); fetchDecPendientes() }, [fetchOp, fetchDecPendientes])
   useEffect(() => {
+    if (!isToday) return
     const id = setInterval(() => { setTick(t => t + 1); fetchOp() }, 30000)
     return () => clearInterval(id)
-  }, [fetchOp])
+  }, [fetchOp, isToday])
   useEffect(() => {
+    if (!isToday) return
     const id = setInterval(() => setTick(t => t + 1), 1000)
     return () => clearInterval(id)
-  }, [])
+  }, [isToday])
 
   return (
     <div>
@@ -299,24 +298,45 @@ export default function DashboardPage() {
           </h1>
           <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
             {tab === 'operativo'
-              ? <><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22C55E', display: 'inline-block' }} />Actualización en tiempo real</>
+              ? isToday
+                ? <><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22C55E', display: 'inline-block' }} />Actualización en tiempo real</>
+                : <span style={{ color: '#C84B00', fontWeight: 600 }}>Vista histórica — {fecha}</span>
               : 'Vista analítica'
             }
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '4px', background: 'var(--muted)', borderRadius: '10px', padding: '4px' }}>
-          {(['operativo', 'analitico'] as const).map(t => (
-            <button key={t} onClick={() => { setTab(t); router.replace(`?tab=${t}`, { scroll: false }) }}
-              style={{ padding: '7px 18px', fontSize: '13px', border: 'none', borderRadius: '7px', cursor: 'pointer', background: tab === t ? 'hsl(221,83%,23%)' : 'transparent', color: tab === t ? 'white' : 'var(--foreground)', fontWeight: tab === t ? 600 : 400 }}>
-              {t === 'operativo' ? 'Operativo' : 'Analítico'}
-            </button>
-          ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {tab === 'operativo' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <input
+                type="date"
+                value={fecha}
+                max={todayLima()}
+                onChange={e => setFecha(e.target.value || todayLima())}
+                style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--background)', color: 'var(--foreground)' }}
+              />
+              {!isToday && (
+                <button onClick={() => setFecha(todayLima())}
+                  style={{ padding: '6px 12px', fontSize: '12px', fontWeight: 600, background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  Volver a hoy
+                </button>
+              )}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: '4px', background: 'var(--muted)', borderRadius: '10px', padding: '4px' }}>
+            {(['operativo', 'analitico'] as const).map(t => (
+              <button key={t} onClick={() => { setTab(t); router.replace(`?tab=${t}`, { scroll: false }) }}
+                style={{ padding: '7px 18px', fontSize: '13px', border: 'none', borderRadius: '7px', cursor: 'pointer', background: tab === t ? 'hsl(221,83%,23%)' : 'transparent', color: tab === t ? 'white' : 'var(--foreground)', fontWeight: tab === t ? 600 : 400 }}>
+                {t === 'operativo' ? 'Operativo' : 'Analítico'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {tab === 'operativo' && (
         op
-          ? <OperativoView op={op} tick={tick} router={router} decPendientes={decPendientes} onRefresh={fetchOp} />
+          ? <OperativoView op={op} tick={tick} router={router} decPendientes={decPendientes} onRefresh={fetchOp} isToday={isToday} fecha={fecha} />
           : <div style={{ padding: '60px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>Cargando...</div>
       )}
       {tab === 'analitico' && <DashboardAnalitico />}
@@ -326,7 +346,7 @@ export default function DashboardPage() {
 
 // ─── OperativoView ────────────────────────────────────────────────────────────
 
-function OperativoView({ op, tick, router, decPendientes, onRefresh }: { op: any; tick: number; router: any; decPendientes: number | null; onRefresh: () => void }) {
+function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fecha }: { op: any; tick: number; router: any; decPendientes: number | null; onRefresh: () => void; isToday: boolean; fecha: string }) {
   const { activos, resoluciones, contingenciasActivas, equipoStats, proveedoresPendientes, actividadReciente, kpis } = op
   const [provFiltro,      setProvFiltro]      = useState('Todos')
   const [cardFiltro,      setCardFiltro]      = useState<string | null>(null)
@@ -358,17 +378,6 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh }: { op: any
     const vals = (resoluciones ?? []).filter((r: any) => r.mttr_minutos != null).map((r: any) => r.mttr_minutos as number)
     return vals.length ? Math.round(vals.reduce((s: number, v: number) => s + v, 0) / vals.length) : null
   }, [resoluciones])
-
-  // Computed donut data
-  const donutData = useMemo(() => {
-    const now = Date.now()
-    const counts: Record<string, number> = {}
-    for (const inc of (activos ?? [])) {
-      const { estadoOp } = getEstadoOpClient(inc, now)
-      counts[estadoOp] = (counts[estadoOp] ?? 0) + 1
-    }
-    return Object.entries(counts).map(([estado, value]) => ({ estado, value }))
-  }, [activos, tick])
 
   const totalActivos = (activos ?? []).length
 
@@ -428,12 +437,17 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh }: { op: any
 
   return (
     <>
-      {/* Toolbar: CSV download */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
+      {/* Toolbar: historical banner + CSV download */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+        {!isToday ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px', background: '#FFF3E0', border: '1px solid #FDBA74', borderRadius: '8px', fontSize: '11px', color: '#C84B00', fontWeight: 600 }}>
+            ⏪ Vista histórica — {fecha} · Solo lectura
+          </div>
+        ) : <div />}
         <button
-          onClick={() => downloadCSV(activos ?? [], resoluciones ?? [])}
+          onClick={() => downloadCSV(activos ?? [], resoluciones ?? [], fecha)}
           style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', fontSize: '11px', fontWeight: 600, background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer', color: 'var(--foreground)' }}>
-          ⬇ Descargar CSV del día
+          ⬇ Descargar CSV
         </button>
       </div>
 
@@ -545,36 +559,26 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh }: { op: any
           {/* Charts row */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
 
-            {/* Donut */}
+            {/* Estado breakdown */}
             <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '10px' }}>Distribución por estado</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div style={{ position: 'relative', width: 120, height: 120, flexShrink: 0 }}>
-                  <PieChart width={120} height={120}>
-                    <Pie data={donutData} dataKey="value" nameKey="estado" cx="50%" cy="50%" innerRadius={38} outerRadius={56} paddingAngle={2}>
-                      {donutData.map((entry, i) => (
-                        <Cell key={i} fill={DONUT_COLORS[entry.estado] ?? '#6B7280'} />
-                      ))}
-                    </Pie>
-                    <ReTooltip content={<DonutTooltip total={totalActivos} />} />
-                  </PieChart>
-                  <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', textAlign: 'center', pointerEvents: 'none' }}>
-                    <div style={{ fontSize: '20px', fontWeight: 700, lineHeight: 1 }}>{totalActivos}</div>
-                    <div style={{ fontSize: '9px', color: 'var(--muted-foreground)' }}>activos</div>
-                  </div>
-                </div>
-                <div style={{ flex: 1 }}>
-                  {donutData.map(e => {
-                    const badge = BADGE_OP[e.estado]
-                    return (
-                      <div key={e.estado} style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '5px' }}>
-                        <div style={{ width: 8, height: 8, borderRadius: '2px', background: DONUT_COLORS[e.estado] ?? '#6B7280', flexShrink: 0 }} />
-                        <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', flex: 1 }}>{badge?.label ?? e.estado}</span>
-                        <span style={{ fontSize: '11px', fontWeight: 600, fontFamily: 'monospace' }}>{e.value}</span>
+              <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>
+                Activos por estado
+                <span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--muted-foreground)', marginLeft: '8px' }}>{totalActivos} total</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {Object.entries(BADGE_OP).map(([key, badge]) => {
+                  const count = (activos ?? []).filter((i: any) => getEstadoOpClient(i, Date.now()).estadoOp === key).length
+                  const pct = totalActivos > 0 ? Math.round(count / totalActivos * 100) : 0
+                  return (
+                    <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ flex: '0 0 110px', fontSize: '10px', fontWeight: 500, padding: '2px 7px', borderRadius: '4px', background: badge.bg, color: badge.color, textAlign: 'center' }}>{badge.label}</div>
+                      <div style={{ flex: 1, height: '6px', background: 'var(--muted)', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ width: `${pct}%`, height: '100%', background: badge.color, borderRadius: '3px', transition: 'width 0.4s' }} />
                       </div>
-                    )
-                  })}
-                </div>
+                      <div style={{ fontSize: '11px', fontWeight: 700, fontFamily: 'monospace', minWidth: '24px', textAlign: 'right' }}>{count}</div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
 
@@ -605,10 +609,12 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh }: { op: any
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
               <div style={{ fontSize: '13px', fontWeight: 600 }}>Estado del equipo</div>
-              <button onClick={() => setAsignarOpen(true)}
-                style={{ padding: '5px 12px', fontSize: '11px', background: '#E6F1FB', color: '#185FA5', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>
-                + Asignar
-              </button>
+              {isToday && (
+                <button onClick={() => setAsignarOpen(true)}
+                  style={{ padding: '5px 12px', fontSize: '11px', background: '#E6F1FB', color: '#185FA5', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>
+                  + Asignar
+                </button>
+              )}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px' }}>
               {(equipoStats ?? []).map((ag: any, idx: number) => {
@@ -673,10 +679,12 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh }: { op: any
                       )}
                     </div>
 
-                    <button onClick={() => setAsignarOpen(true)}
-                      style={{ marginTop: '8px', width: '100%', padding: '5px', fontSize: '11px', background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '6px', cursor: 'pointer', color: '#185FA5', fontWeight: 500 }}>
-                      Asignar
-                    </button>
+                    {isToday && (
+                      <button onClick={() => setAsignarOpen(true)}
+                        style={{ marginTop: '8px', width: '100%', padding: '5px', fontSize: '11px', background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '6px', cursor: 'pointer', color: '#185FA5', fontWeight: 500 }}>
+                        Asignar
+                      </button>
+                    )}
                   </div>
                 )
               })}
@@ -925,7 +933,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh }: { op: any
         </div>
       </div>
 
-      {asignarOpen && (
+      {asignarOpen && isToday && (
         <AsignarModal activos={activos ?? []} equipo={equipoStats ?? []} onClose={() => setAsignarOpen(false)} onRefresh={onRefresh} />
       )}
     </>

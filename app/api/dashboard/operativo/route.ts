@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
@@ -18,15 +18,21 @@ function getEstadoOp(tipo: string, horaRegistro: Date | string, pendienteProveed
   return { estadoOp, pctSla: Math.round(pct * 100), minutosTranscurridos: Math.round(minutos), slaLimite }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   if (!can(session, 'dashboard.ver')) return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
 
   const nowMs = Date.now()
-  const ahoraLima = new Date(Date.now() - 5 * 3600000)
-  const hoyLima   = ahoraLima.toISOString().slice(0, 10)
-  const hoyIso    = hoyLima + 'T05:00:00.000Z'
+  const ahoraLima  = new Date(Date.now() - 5 * 3600000)
+  const hoyLima    = ahoraLima.toISOString().slice(0, 10)
+  const fechaParam = req.nextUrl.searchParams.get('fecha')
+  const fechaLima  = fechaParam ?? hoyLima
+  const isToday    = fechaLima === hoyLima
+
+  const diaIso     = fechaLima + 'T05:00:00.000Z'   // start of Lima day in UTC
+  const [y, m, d]  = fechaLima.split('-').map(Number)
+  const siguienteIso = new Date(Date.UTC(y, m - 1, d + 1, 5, 0, 0, 0)).toISOString()
 
   const [activosRows, resueltoRows, agentesRows, incCreadosRows, escRows, respRows, resolRows, contRows, creadosHoyRows] = await Promise.all([
     db.execute(sql`
@@ -68,7 +74,10 @@ export async function GET() {
         FROM escalamientos e
         WHERE e.incidente_id = i.id
       ) mov ON true
-      WHERE i.estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
+      WHERE ${isToday
+        ? sql`i.estado NOT IN ('RESUELTO','CANCELADO','CERRADO')`
+        : sql`i.hora_registro >= ${diaIso}::timestamptz AND i.hora_registro < ${siguienteIso}::timestamptz AND i.estado NOT IN ('CANCELADO','CERRADO')`
+      }
       ORDER BY i.hora_registro ASC
     `),
 
@@ -86,6 +95,8 @@ export async function GET() {
         u.nombre AS agente_nombre,
         t.codigo AS tienda_codigo,
         t.nombre_cc AS tienda_nombre,
+        t.distrito AS tienda_distrito,
+        t.cluster  AS tienda_cluster,
         COALESCE(pi.nombre, pt.nombre) AS proveedor_nombre
       FROM incidentes i
       JOIN usuarios u ON i.registrado_por_id = u.id
@@ -93,7 +104,8 @@ export async function GET() {
       LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
       LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
       WHERE i.estado  = 'RESUELTO'
-        AND i.hora_fin >= ${hoyIso}::timestamptz
+        AND i.hora_fin >= ${diaIso}::timestamptz
+        ${!isToday ? sql`AND i.hora_fin < ${siguienteIso}::timestamptz` : sql``}
       ORDER BY i.hora_fin DESC
     `),
 
