@@ -282,14 +282,13 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
             <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
               <SectionTitle>Métricas (30 días)</SectionTitle>
               {[
-                { label: 'Costo mensual total',  value: fmtSoles(metricas?.costoTotal) },
-                { label: 'SLA comprometido',     value: metricas?.slaComprometido ?? '—' },
-                { label: 'SLA real',             value: fmtSLA({ score: metricas?.scoreEficiencia ?? metricas?.slaPromedio ?? null, tRealMin: null, tLimiteMin: null, label: 'SLA' }).texto, color: fmtSLA({ score: metricas?.scoreEficiencia ?? metricas?.slaPromedio ?? null, tRealMin: null, tLimiteMin: null, label: 'SLA' }).color },
-                { label: 'MTTR promedio',        value: fmtMttr(metricas?.mttrPromedio) },
-                { label: 'Incidentes (30d)',     value: String(metricas?.incidentes30d ?? 0) },
-                { label: 'Tiendas críticas',     value: String(metricas?.tiendasCriticas ?? 0), color: metricas?.tiendasCriticas > 0 ? '#ef4444' : undefined },
-                { label: 'Tiempo caído total',  value: fmtMttr(metricas?.mttrTotal) },
-                { label: 'Tiendas asociadas',    value: String(metricas?.totalTiendas ?? 0) },
+                { label: 'Costo mensual total',      value: fmtSoles(metricas?.costoTotal) },
+                { label: 'Cumplimiento SLA (30d)',   value: metricas?.slaPromedio != null ? `${metricas.slaPromedio}%` : '—', color: slaColor(metricas?.slaPromedio ?? null) },
+                { label: 'MTTR promedio',            value: fmtMttr(metricas?.mttrPromedio) },
+                { label: 'Incidentes (30d)',         value: String(metricas?.incidentes30d ?? 0) },
+                { label: 'Tiendas críticas',         value: String(metricas?.tiendasCriticas ?? 0), color: metricas?.tiendasCriticas > 0 ? '#ef4444' : undefined },
+                { label: 'Tiempo caído total',       value: fmtMttr(metricas?.mttrTotal) },
+                { label: 'Tiendas asociadas',        value: String(metricas?.totalTiendas ?? 0) },
               ].map(r => (
                 <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '0.5px solid var(--border)' }}>
                   <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{r.label}</span>
@@ -540,14 +539,14 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
             <thead>
               <tr style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--muted)' }}>
-                {['Tienda', 'Distrito', 'Incidentes', 'MTTR prom', 'Último incidente', 'Proveedor actual'].map(h => (
+                {['Tienda', 'Distrito', 'Incidentes', 'MTTR prom', 'Último incidente', 'Salida del proveedor', 'Proveedor actual'].map(h => (
                   <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {(data.tiendasHistoricas ?? []).length === 0 ? (
-                <tr><td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: 'var(--muted-foreground)' }}>Sin tiendas históricas</td></tr>
+                <tr><td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: 'var(--muted-foreground)' }}>Sin tiendas históricas</td></tr>
               ) : (data.tiendasHistoricas ?? []).map((t: any, i: number) => (
                 <tr key={t.tiendaId}
                   style={{ borderBottom: i < (data.tiendasHistoricas.length - 1) ? '0.5px solid var(--border)' : 'none', cursor: 'pointer' }}
@@ -562,6 +561,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
                   <td style={{ padding: '8px 10px', fontWeight: 600 }}>{t.totalIncidentes}</td>
                   <td style={{ padding: '8px 10px', fontSize: '11px' }}>{fmtMttr(t.mttrPromedio)}</td>
                   <td style={{ padding: '8px 10px', fontSize: '11px', color: 'var(--muted-foreground)' }}>{fmtDate(t.ultimoIncidente)}</td>
+                  <td style={{ padding: '8px 10px', fontSize: '11px', color: t.fechaCambioProveedor ? 'var(--foreground)' : 'var(--muted-foreground)' }}>{fmtDate(t.fechaCambioProveedor)}</td>
                   <td style={{ padding: '8px 10px', fontSize: '11px' }}>{t.proveedorActual ?? '—'}</td>
                 </tr>
               ))}
