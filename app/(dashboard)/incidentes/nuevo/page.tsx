@@ -1,6 +1,6 @@
 'use client'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { TiendaAutocomplete, Tienda } from '@/components/incidentes/TiendaAutocomplete'
 import { GuiaEscalamiento } from '@/components/incidentes/GuiaEscalamiento'
@@ -78,13 +78,16 @@ const IcoShield = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="no
 
 export default function NuevoIncidentePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const fromId = searchParams.get('from')
   const { data: session } = useSession()
   const userName = (session?.user as any)?.name ?? '—'
 
-  const [tienda, setTienda]     = useState<Tienda | null>(null)
+  const [tienda, setTienda]       = useState<Tienda | null>(null)
   const [historial, setHistorial] = useState<any[]>([])
-  const [saving, setSaving]     = useState(false)
-  const [showGuia, setShowGuia] = useState(false)
+  const [saving, setSaving]       = useState(false)
+  const [preloading, setPreloading] = useState(!!fromId)
+  const [showGuia, setShowGuia]   = useState(false)
   const [form, setForm] = useState({
     nivelImpacto:        'ALTO',
     tipo:                'CAIDA_TOTAL',
@@ -96,6 +99,40 @@ export default function NuevoIncidentePage() {
     alcanceCorte:        'SOLO_TIENDA',
     tuvoUps:             false,
   })
+
+  useEffect(() => {
+    if (!fromId) return
+    ;(async () => {
+      try {
+        const incRes = await fetch(`/api/incidentes/${fromId}`)
+        if (!incRes.ok) return
+        const inc = await incRes.json()
+        // Pre-set form fields from the source incident
+        setForm(f => ({
+          ...f,
+          tipo:              inc.tipo ?? f.tipo,
+          nivelImpacto:      inc.nivelImpacto ?? f.nivelImpacto,
+          usuariosAfectados: inc.usuariosAfectados ?? f.usuariosAfectados,
+        }))
+        // Search for the tienda by codigo to get the full Tienda object
+        if (inc.tiendaCodigo) {
+          const tRes = await fetch(`/api/tiendas?q=${encodeURIComponent(inc.tiendaCodigo)}`)
+          if (tRes.ok) {
+            const tList: Tienda[] = await tRes.json()
+            const t = tList.find((x: Tienda) => x.id === inc.tiendaId) ?? tList[0]
+            if (t) {
+              const hRes = await fetch(`/api/tiendas/${t.id}/historial`)
+              const h = hRes.ok ? await hRes.json() : []
+              setTienda(t)
+              setHistorial(Array.isArray(h) ? h.filter((x: any) => x.id !== fromId) : [])
+            }
+          }
+        }
+      } finally {
+        setPreloading(false)
+      }
+    })()
+  }, [fromId])
 
   function set(k: string, v: any) { setForm(f => ({ ...f, [k]: v })) }
 
@@ -139,7 +176,14 @@ export default function NuevoIncidentePage() {
         </button>
         <div>
           <h1 style={{ fontSize: '18px', fontWeight: 600, margin: 0, color: 'var(--foreground)', lineHeight: 1.2 }}>Nuevo incidente</h1>
-          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Registra la información inicial del incidente</div>
+          {fromId ? (
+            <div style={{ fontSize: '11px', color: '#1e40af', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span style={{ fontWeight: 600 }}>Continuación de incidente anterior</span>
+              <span style={{ color: 'var(--muted-foreground)' }}>— tienda y tipo pre-cargados</span>
+            </div>
+          ) : (
+            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Registra la información inicial del incidente</div>
+          )}
         </div>
       </div>
 
@@ -174,7 +218,21 @@ export default function NuevoIncidentePage() {
               {/* TIENDA */}
               <div>
                 {fieldLabel('Tienda', true)}
-                <TiendaAutocomplete onSelect={(t, h) => { setTienda(t); setHistorial(h) }} />
+                {preloading ? (
+                  <div style={{ padding: '8px 10px', fontSize: '12px', color: 'var(--muted-foreground)', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--muted)' }}>Cargando tienda anterior...</div>
+                ) : tienda ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--muted)' }}>
+                    <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '12px' }}>{tienda.codigo}</span>
+                    <span style={{ fontSize: '12px', flex: 1 }}>{tienda.nombreCc}</span>
+                    {fromId && <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '4px', background: '#dbeafe', color: '#1e40af', fontWeight: 600 }}>Pre-cargada</span>}
+                    <button type="button" onClick={() => setTienda(null)}
+                      style={{ fontSize: '11px', color: 'var(--muted-foreground)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px' }}>
+                      Cambiar
+                    </button>
+                  </div>
+                ) : (
+                  <TiendaAutocomplete onSelect={(t, h) => { setTienda(t); setHistorial(h) }} />
+                )}
                 {(tienda?.celularTienda || tienda?.administradorCelular) && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '6px', fontSize: '11px', color: 'var(--muted-foreground)' }}>
                     <IcoPhone />

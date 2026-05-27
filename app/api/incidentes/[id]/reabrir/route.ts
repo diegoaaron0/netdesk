@@ -27,6 +27,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       estado: 'ABIERTO',
       horaFin: null,
       mttrMinutos: null,
+      horaRegistro: new Date(),
       reabiertaInfo,
       actualizadoEn: new Date(),
     })

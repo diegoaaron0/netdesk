@@ -162,6 +162,8 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   const [contNotice, setContNotice] = useState(false)
   const [supervisorEdit, setSupervisorEdit] = useState(false)
   const [showReopenModal, setShowReopenModal] = useState(false)
+  const [showReopenWarning, setShowReopenWarning] = useState(false)
+  const [minutosDesdeResolucion, setMinutosDesdeResolucion] = useState(0)
   const [reopenMotivo, setReopenMotivo] = useState('')
   const [reopening, setReopening]   = useState(false)
   const [showGuia, setShowGuia]       = useState(false)
@@ -434,6 +436,41 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 style={{ flex: 1, padding: '8px', background: '#92400e', color: '#fde68a', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: reopening ? 'wait' : 'pointer' }}>
                 {reopening ? 'Reabriendo...' : 'Confirmar reapertura'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Reopen warning modal (> 30 min) ── */}
+      {showReopenWarning && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '420px', margin: '16px' }}>
+            <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '8px', color: '#d97706' }}>
+              ⚠ Han pasado {minutosDesdeResolucion >= 60
+                ? `${Math.floor(minutosDesdeResolucion / 60)}h ${minutosDesdeResolucion % 60}m`
+                : `${minutosDesdeResolucion} minutos`} desde la resolución
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '6px', lineHeight: 1.6 }}>
+              El servicio estuvo operativo durante ese tiempo. Según la política del equipo, esto se considera una <strong>nueva falla</strong> y debe registrarse como un incidente independiente.
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '20px', padding: '8px 10px', background: 'var(--muted)', borderRadius: '8px' }}>
+              Reabrir infla el MTTR con el tiempo que el servicio estuvo OK. Un nuevo incidente mantiene los registros limpios.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <button onClick={() => { setShowReopenWarning(false); router.push(`/incidentes/nuevo?from=${id}`) }}
+                style={{ padding: '10px', background: 'hsl(221,83%,45%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+                + Crear nuevo incidente (recomendado)
+              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => { setShowReopenWarning(false); setShowReopenModal(true) }}
+                  style={{ flex: 1, padding: '8px', background: 'rgba(133,79,11,0.12)', color: '#d97706', border: '1px solid rgba(133,79,11,0.3)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>
+                  Reabrir de todas formas
+                </button>
+                <button onClick={() => setShowReopenWarning(false)}
+                  style={{ flex: 1, padding: '8px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>
+                  Cancelar
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1065,7 +1102,17 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
             </>
           )}
           {isClosed && inc.estado !== 'CANCELADO' && (
-            <button onClick={() => setShowReopenModal(true)}
+            <button onClick={() => {
+              const mins = inc.horaFin
+                ? Math.round((Date.now() - new Date(inc.horaFin).getTime()) / 60000)
+                : 0
+              setMinutosDesdeResolucion(mins)
+              if (mins > 30) {
+                setShowReopenWarning(true)
+              } else {
+                setShowReopenModal(true)
+              }
+            }}
               style={{ ...btn, background: 'rgba(133,79,11,0.15)', color: '#d97706', border: '1px solid rgba(133,79,11,0.3)' }}>
               Reabrir incidente
             </button>
