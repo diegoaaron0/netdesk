@@ -978,8 +978,8 @@ export default function DashboardAnalitico() {
         hasta={hasta}
       />
 
-      {/* KPIs — A activo, B-H placeholders */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '6px' }}>
+      {/* KPIs — A activo, B-H activos */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '6px' }}>
 
         {/* A — Tendencia de incidentes y SLA (activo) */}
         <div style={{ gridColumn: '1 / -1' }}>
@@ -1022,7 +1022,7 @@ export default function DashboardAnalitico() {
         </div>
 
         {/* E — Cumplimiento SLA por proveedor (activo) */}
-        <div>
+        <div style={{ gridColumn: '1 / -1' }}>
           <ProviderSlaComplianceCard
             desde={desde}
             hasta={hasta}

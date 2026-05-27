@@ -11,21 +11,44 @@ interface Props {
   refreshKey: number
 }
 
+function fmtMin(min: number | null | undefined) {
+  if (!min) return '—'
+  const h = Math.floor(min / 60); const m = Math.round(min % 60)
+  return h > 0 ? `${h}h ${m}m` : `${m}m`
+}
+
 function CustomTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null
   const d: TipoResumen = payload[0]?.payload
   if (!d) return null
   return (
-    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '8px', padding: '10px 12px', fontSize: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-      <div style={{ fontWeight: 600, marginBottom: '4px' }}>Tipo: {d.label}</div>
-      <div>Incidentes: <strong>{d.cantidad}</strong></div>
-      <div>Porcentaje: <strong>{d.pct}%</strong></div>
-      {d.causaMasFrecuente && (
-        <div style={{ marginTop: '4px', color: '#854F0B' }}>
-          Causa más frecuente: <strong>{d.causaMasFrecuente}</strong>
-        </div>
-      )}
+    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '8px', padding: '8px 10px', fontSize: '11px', boxShadow: '0 4px 12px rgba(0,0,0,0.12)', minWidth: '160px' }}>
+      <div style={{ fontWeight: 700, marginBottom: '4px', color: d.color, display: 'flex', alignItems: 'center', gap: '5px' }}>
+        <div style={{ width: 8, height: 8, borderRadius: '50%', background: d.color }} />
+        {d.label}
+      </div>
+      <div style={{ fontSize: '10px', color: '#64748b', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        <div><strong style={{ color: '#0f172a' }}>{d.cantidad}</strong> incidentes · <strong style={{ color: d.color }}>{d.pct}%</strong></div>
+        <div>Tiendas afectadas: <strong style={{ color: '#0f172a' }}>{d.tiendasAfectadas}</strong></div>
+        {d.mttrPromedioMin != null && <div>MTTR prom.: <strong style={{ color: '#0f172a' }}>{fmtMin(d.mttrPromedioMin)}</strong></div>}
+        {d.causaMasFrecuente && <div>Causa: <strong style={{ color: '#854F0B' }}>{d.causaMasFrecuente}</strong></div>}
+        {d.proveedorMasAsociado && <div>Proveedor: <strong style={{ color: '#185FA5' }}>{d.proveedorMasAsociado}</strong></div>}
+      </div>
     </div>
+  )
+}
+
+function PieLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) {
+  if (percent < 0.06) return null
+  const RADIAN = Math.PI / 180
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.5
+  const x = cx + radius * Math.cos(-midAngle * RADIAN)
+  const y = cy + radius * Math.sin(-midAngle * RADIAN)
+  return (
+    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central"
+      style={{ fontSize: '10px', fontWeight: 700 }}>
+      {`${Math.round(percent * 100)}%`}
+    </text>
   )
 }
 
@@ -56,70 +79,67 @@ export default function DistributionByTypeCard({ desde, hasta, proveedorId, refr
   const total = data?.total ?? 0
 
   return (
-    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>D. Distribución por tipo</div>
-          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>
-            Desglose de incidentes según su tipo en el período seleccionado
-          </div>
-        </div>
-        <button onClick={goDetalle} style={{ background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '6px 14px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>Ver detalle →</button>
+    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+
+      {/* Header: título + botón en una fila */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span style={{ fontSize: '12px', fontWeight: 600, color: '#0f172a', marginRight: 'auto' }}>D. Distribución por tipo</span>
+        <button onClick={goDetalle} style={{ background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '4px 10px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}>
+          Ver detalle →
+        </button>
       </div>
 
       {loading && (
-        <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
+        <div style={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
           Cargando...
         </div>
       )}
 
       {!loading && total === 0 && (
-        <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
-          Sin incidentes en el período seleccionado
+        <div style={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
+          Sin incidentes en el período
         </div>
       )}
 
       {!loading && total > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-          {/* Donut */}
-          <div style={{ position: 'relative', width: '200px', height: '200px', flexShrink: 0 }}>
-            <ResponsiveContainer width={200} height={200}>
-              <PieChart>
-                <Pie
-                  data={tipos}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={65}
-                  outerRadius={90}
-                  dataKey="cantidad"
-                  startAngle={90}
-                  endAngle={-270}
-                  stroke="none"
-                >
-                  {tipos.map((t, i) => (
-                    <Cell key={i} fill={t.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-            {/* Center label */}
-            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', textAlign: 'center', pointerEvents: 'none' }}>
-              <div style={{ fontSize: '28px', fontWeight: 700, color: '#0f172a', lineHeight: 1 }}>{total}</div>
-              <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px', lineHeight: 1.3 }}>Incidentes<br/>Totales</div>
-            </div>
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+          <ResponsiveContainer width="100%" height={170}>
+            <PieChart>
+              <Pie
+                data={tipos}
+                cx="50%"
+                cy="50%"
+                innerRadius={52}
+                outerRadius={78}
+                dataKey="cantidad"
+                startAngle={90}
+                endAngle={-270}
+                stroke="none"
+                label={<PieLabel />}
+                labelLine={false}
+              >
+                {tipos.map((t, i) => (
+                  <Cell key={i} fill={t.color} />
+                ))}
+              </Pie>
+              <Tooltip content={<CustomTooltip />} />
+            </PieChart>
+          </ResponsiveContainer>
 
-          {/* Legend */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
+          {/* mini leyenda compacta debajo */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '6px 10px', fontSize: '9px', color: '#64748b' }}>
             {tipos.map((t) => (
-              <div key={t.tipo} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: t.color, flexShrink: 0 }} />
-                <span style={{ fontSize: '12px', flex: 1, color: '#0f172a' }}>{t.label}</span>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', minWidth: '44px', textAlign: 'right' }}>{t.pct}%</span>
+              <div key={t.tipo} style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: t.color }} />
+                <span style={{ fontWeight: 500, color: '#0f172a' }}>{t.label}</span>
+                <span style={{ color: '#888' }}>{t.cantidad}</span>
               </div>
             ))}
+          </div>
+
+          <div style={{ fontSize: '11px', color: '#64748b', textAlign: 'center' }}>
+            <span style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', lineHeight: 1 }}>{total}</span>
+            <span style={{ marginLeft: '4px' }}>incidentes totales</span>
           </div>
         </div>
       )}

@@ -20,27 +20,23 @@ function fmtCosto(n: number) {
 }
 
 function estadoBadge(estado: TiendaCritica['estado']) {
-  if (estado === 'critica') return { label: '● Crítica',      color: '#A32D2D', bg: '#FCEBEB' }
-  if (estado === 'revisar') return { label: '● En revisión',  color: '#854F0B', bg: '#FAEEDA' }
-  return                           { label: '● Estabilizada', color: '#3B6D11', bg: '#EAF3DE' }
+  if (estado === 'critica') return { label: '● Crít.',   color: '#A32D2D', bg: '#FCEBEB' }
+  if (estado === 'revisar') return { label: '● Rev.',    color: '#854F0B', bg: '#FAEEDA' }
+  return                           { label: '● Ok',      color: '#3B6D11', bg: '#EAF3DE' }
 }
 
-function Tooltip({ lines }: { lines: string[] }) {
-  return (
-    <div style={{ position: 'absolute', zIndex: 50, bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: '6px', background: '#1e293b', color: 'white', borderRadius: '8px', padding: '8px 12px', fontSize: '11px', lineHeight: 1.6, minWidth: '180px', maxWidth: '260px', whiteSpace: 'normal', boxShadow: '0 4px 16px rgba(0,0,0,0.25)' }}>
-      {lines.map((l, i) => <div key={i}>{l}</div>)}
-      <div style={{ position: 'absolute', bottom: '-4px', left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '4px solid #1e293b' }} />
-    </div>
-  )
-}
-
-function TooltipCell({ children, lines }: { children: React.ReactNode; lines: string[] }) {
+function HoverTip({ children, lines }: { children: React.ReactNode; lines: string[] }) {
   const [show, setShow] = useState(false)
   return (
     <div style={{ position: 'relative', display: 'inline-block' }}
       onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
       {children}
-      {show && <Tooltip lines={lines} />}
+      {show && (
+        <div style={{ position: 'absolute', zIndex: 50, bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: '6px', background: '#1e293b', color: 'white', borderRadius: '8px', padding: '7px 10px', fontSize: '10px', lineHeight: 1.6, minWidth: '160px', maxWidth: '240px', whiteSpace: 'normal', boxShadow: '0 4px 16px rgba(0,0,0,0.25)' }}>
+          {lines.map((l, i) => <div key={i}>{l}</div>)}
+          <div style={{ position: 'absolute', bottom: '-4px', left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '4px solid #1e293b' }} />
+        </div>
+      )}
     </div>
   )
 }
@@ -72,105 +68,101 @@ export default function CriticalStoresCard({ desde, hasta, proveedorId, refreshK
   const resumen = data?.resumen
 
   return (
-    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>C. Tiendas críticas</div>
-          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>
-            Ranking de tiendas con mayor impacto y necesidad de revisión estructural.
+    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+
+      {/* Header: título + resumen inline + botón */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '12px', fontWeight: 600, color: '#0f172a', marginRight: 'auto' }}>C. Tiendas críticas</span>
+        {!loading && resumen && (
+          <div style={{ display: 'flex', gap: '8px', fontSize: '10px', color: '#64748b' }}>
+            <span><strong style={{ color: resumen.reincidenciasDetectadas > 0 ? '#A32D2D' : '#0f172a' }}>{resumen.reincidenciasDetectadas}</strong> reincid.</span>
+            <span><strong style={{ color: '#0f172a' }}>{tiendas.length}</strong> tiendas</span>
+            <span>Costo: <strong style={{ color: '#0f172a' }}>{fmtCosto(resumen.costoAcumulado)}</strong></span>
           </div>
-        </div>
-        <button onClick={goDetalle} style={{ background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '6px 14px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>Ver detalle →</button>
+        )}
+        <button onClick={goDetalle} style={{ background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '4px 10px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}>
+          Ver detalle →
+        </button>
       </div>
 
-      {!loading && resumen && (
-        <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
-          <span style={{ color: '#A32D2D', fontWeight: 600 }}>{resumen.reincidenciasDetectadas}</span> reincidentes ·{' '}
-          <span style={{ fontWeight: 600 }}>{tiendas.length}</span> afectadas ·{' '}
-          Costo: <strong>{fmtCosto(resumen.costoAcumulado)}</strong>
-        </div>
-      )}
-
       {loading && (
-        <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
+        <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
           Cargando...
         </div>
       )}
 
       {!loading && tiendas.length === 0 && (
-        <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
+        <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
           Sin tiendas críticas en el período
         </div>
       )}
 
       {!loading && tiendas.length > 0 && (
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
             <thead>
               <tr style={{ borderBottom: '0.5px solid #e5e7eb' }}>
-                {['#', 'Tienda', 'Proveedor', 'Distrito', 'Incidentes', 'MTTR prom.', 'Alerta', 'Costo est.', 'Reincid.'].map((h) => (
-                  <th key={h} style={{ padding: '6px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{h}</th>
+                {[
+                  { label: 'Tienda',    align: 'left' as const },
+                  { label: 'Est.',      align: 'center' as const },
+                  { label: 'Incs',      align: 'center' as const },
+                  { label: 'MTTR',      align: 'right' as const },
+                  { label: 'Costo est.', align: 'right' as const },
+                  { label: 'Reincid.',  align: 'center' as const },
+                ].map((h) => (
+                  <th key={h.label} style={{ padding: '4px 6px', textAlign: h.align, fontSize: '9px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
+                    {h.label}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {tiendas.slice(0, 5).map((t, i) => {
+              {tiendas.slice(0, 6).map((t, i) => {
+                const badge = estadoBadge(t.estado)
+                const motivo = t.motivosPrincipales?.[0] ?? null
                 return (
                   <tr key={t.tiendaId} style={{ borderTop: i > 0 ? '0.5px solid #f3f4f6' : 'none' }}>
-                    <td style={{ padding: '7px 8px', fontSize: '11px', color: 'var(--muted-foreground)', fontWeight: 500 }}>{i + 1}</td>
-                    <td style={{ padding: '7px 8px', fontWeight: 600 }}>{t.tiendaCodigo}</td>
-                    <td style={{ padding: '7px 8px' }}>
-                      {t.proveedorNombre
-                        ? <span style={{ padding: '1px 7px', borderRadius: '999px', background: '#E6F1FB', color: '#185FA5', fontWeight: 500, fontSize: '10px' }}>{t.proveedorNombre}</span>
-                        : <span style={{ color: '#888780' }}>—</span>}
+                    <td style={{ padding: '4px 6px', maxWidth: '110px' }}>
+                      <div style={{ fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.tiendaCodigo}</div>
+                      {motivo && <div style={{ fontSize: '9px', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{motivo}</div>}
                     </td>
-                    <td style={{ padding: '7px 8px', color: 'var(--muted-foreground)', fontSize: '11px', whiteSpace: 'nowrap' }}>{t.distrito ?? '—'}</td>
-                    <td style={{ padding: '7px 8px', textAlign: 'center', fontWeight: 600 }}>{t.incidentes}</td>
-                    <td style={{ padding: '7px 8px' }}>
-                      <TooltipCell lines={[
+                    <td style={{ padding: '4px 6px', textAlign: 'center' }}>
+                      <span style={{ fontSize: '9px', fontWeight: 600, padding: '1px 4px', borderRadius: '5px', background: badge.bg, color: badge.color, whiteSpace: 'nowrap' }}>{badge.label}</span>
+                    </td>
+                    <td style={{ padding: '4px 6px', textAlign: 'center', fontWeight: 600, color: '#0f172a' }}>{t.incidentes}</td>
+                    <td style={{ padding: '4px 6px', textAlign: 'right' }}>
+                      <HoverTip lines={[
                         `MTTR tienda: ${fmtMin(t.mttrPromedioMin)}`,
                         `Horas afectadas: ${t.horasAfectadas != null ? `${t.horasAfectadas}h` : '—'}`,
                       ]}>
-                        <span style={{ color: t.mttrPromedioMin != null && t.mttrPromedioMin > 240 ? '#A32D2D' : t.mttrPromedioMin != null && t.mttrPromedioMin > 120 ? '#854F0B' : '#0f172a', textDecoration: 'underline dotted', cursor: 'help' }}>
+                        <span style={{ fontWeight: 500, color: t.mttrPromedioMin != null && t.mttrPromedioMin > 240 ? '#A32D2D' : t.mttrPromedioMin != null && t.mttrPromedioMin > 120 ? '#BA7517' : '#0f172a', textDecoration: 'underline dotted', cursor: 'help', whiteSpace: 'nowrap' }}>
                           {fmtMin(t.mttrPromedioMin)}
                         </span>
-                      </TooltipCell>
+                      </HoverTip>
                     </td>
-                    <td style={{ padding: '7px 8px' }}>
-                      {(() => {
-                        const m = t.mttrPromedioMin
-                        if (m == null) return <span style={{ color: '#888780' }}>—</span>
-                        if (m > 240) return <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: '#FCEBEB', color: '#A32D2D', fontWeight: 600, whiteSpace: 'nowrap' }}>● Alto</span>
-                        if (m >= 60) return <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: '#FEF3C7', color: '#B45309', fontWeight: 600, whiteSpace: 'nowrap' }}>● Medio</span>
-                        return              <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: '#EAF3DE', color: '#3B6D11', fontWeight: 600, whiteSpace: 'nowrap' }}>● Bajo</span>
-                      })()}
-                    </td>
-                    <td style={{ padding: '7px 8px' }}>
-                      <TooltipCell lines={[
+                    <td style={{ padding: '4px 6px', textAlign: 'right' }}>
+                      <HoverTip lines={[
                         `Costo: ${fmtCosto(t.costoEstimado)}`,
                         `Horas caída: ${t.horasAfectadas != null ? `${t.horasAfectadas}h` : '—'}`,
                         `Venta/hora: ${t.ventaHoraPromedio != null ? fmtCosto(t.ventaHoraPromedio) : '—'}`,
-                        'Margen bruto: 35%',
                       ]}>
-                        <span style={{ fontFamily: 'monospace', textDecoration: 'underline dotted', cursor: 'help' }}>
+                        <span style={{ fontFamily: 'monospace', textDecoration: 'underline dotted', cursor: 'help', whiteSpace: 'nowrap', color: t.costoEstimado > 0 ? '#0f172a' : '#888780' }}>
                           {t.costoEstimado > 0 ? fmtCosto(t.costoEstimado) : '—'}
                         </span>
-                      </TooltipCell>
+                      </HoverTip>
                     </td>
-                    <td style={{ padding: '7px 8px' }}>
-                      {t.reincidencias > 0
-                        ? <span style={{ fontWeight: 600, color: '#A32D2D' }}>Sí</span>
-                        : <span style={{ color: '#888780' }}>No</span>}
+                    <td style={{ padding: '4px 6px', textAlign: 'center', fontWeight: t.reincidencias > 0 ? 600 : 400, color: t.reincidencias > 0 ? '#A32D2D' : '#64748b' }}>
+                      {t.reincidencias > 0 ? t.reincidencias : '—'}
                     </td>
                   </tr>
                 )
               })}
             </tbody>
           </table>
-          {tiendas.length > 5 && (
-            <div style={{ padding: '6px 8px', fontSize: '11px', color: 'var(--muted-foreground)' }}>
-              Mostrando 5 de {tiendas.length} tiendas críticas —{' '}
-              <button onClick={goDetalle} style={{ background: 'none', border: 'none', color: '#185FA5', cursor: 'pointer', fontSize: '11px', fontWeight: 500, padding: 0 }}>ver todas</button>
+          {tiendas.length > 6 && (
+            <div style={{ padding: '4px 6px', fontSize: '10px', color: '#64748b' }}>
+              +{tiendas.length - 6} más —{' '}
+              <button onClick={goDetalle} style={{ background: 'none', border: 'none', color: '#185FA5', cursor: 'pointer', fontSize: '10px', fontWeight: 500, padding: 0 }}>ver todas</button>
             </div>
           )}
         </div>
