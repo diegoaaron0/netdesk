@@ -33,7 +33,7 @@ const EXPORT_CARDS = [
     icono: '📋',
     color: '#1D9E75',
     bg: '#EAF3DE',
-    desc: 'SLA % · MTTR prom · T. respuesta N1 · Escalados N2+ · Tiendas afectadas · IEI estimado · Detalle por tienda con tipo más frecuente y SLA individual',
+    desc: 'SLA % · MTTR prom · T. respuesta N1 prom · Escalados N2+ · Tiendas afectadas · IEI estimado · Detalle por tienda con tipo más frecuente y SLA individual',
     path: '/api/reportes/export/proveedores',
     full: false,
   },
@@ -43,7 +43,7 @@ const EXPORT_CARDS = [
     icono: '⚠️',
     color: '#B91C1C',
     bg: '#FEE2E2',
-    desc: 'Todos los incidentes fuera de SLA · MTTR real vs límite por tipo · Exceso en minutos · Motivo de incumplimiento: sin respuesta N1 / respuesta tardía / resolución tardía',
+    desc: 'Incidentes fuera de SLA · MTTR real vs límite por tipo · Exceso en minutos · Motivo: N1 sin respuesta / respuesta tardía / resolución tardía',
     path: '/api/reportes/export/fuera-sla',
     full: false,
   },
@@ -53,7 +53,7 @@ const EXPORT_CARDS = [
     icono: '🏪',
     color: '#854F0B',
     bg: '#FAEEDA',
-    desc: 'Tiendas con 2+ incidentes en el período · Tipo más frecuente · MTTR prom · Días promedio entre caídas · IEI acumulado (S/) · Contingencia disponible',
+    desc: 'Tiendas con 2+ incidentes · Tipo más frecuente · MTTR prom · Días promedio entre caídas · IEI acumulado (S/) · Contingencia disponible',
     path: '/api/reportes/export/tiendas-criticas',
     full: false,
   },
@@ -63,7 +63,7 @@ const EXPORT_CARDS = [
     icono: '📁',
     color: '#374151',
     bg: '#F1F5F9',
-    desc: 'Historial completo · Ticket InvGate y proveedor · N1/N2/N3 envío y respuesta · Atribución · SLA resolución y respuesta · IEI por incidente · Contingencia y efectividad · Factor operativo',
+    desc: 'Historial completo · Ticket InvGate y proveedor · N1/N2/N3 tiempos · Atribución · SLA resolución y respuesta · IEI por incidente · Contingencia y efectividad',
     path: '/api/reportes/export',
     full: false,
   },
@@ -137,31 +137,33 @@ export default function ReportesPage() {
         Reportes disponibles · CSV compatible Excel
       </div>
 
-      {/* Gerencial — full width, prominent */}
-      <div style={{ background: 'var(--card)', border: `1px solid ${main.color}33`, borderRadius: '12px', padding: '20px', marginBottom: '12px', display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-        <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: main.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0 }}>
-          {main.icono}
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-            <span style={{ fontSize: '14px', fontWeight: 700, color: main.color }}>{main.titulo}</span>
-            <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', background: 'var(--muted)', padding: '2px 7px', borderRadius: '999px' }}>Informe completo</span>
+      {/* All cards in one grid — gerencial spans full width */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+
+        {/* Gerencial — full width */}
+        <div style={{ gridColumn: '1/-1', background: 'var(--card)', border: `1px solid ${main.color}33`, borderRadius: '12px', padding: '20px', display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '10px', background: main.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>
+            {main.icono}
           </div>
-          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: 1.6, marginBottom: '12px' }}>{main.desc}</div>
-          {dlErrors[main.id] && <div style={{ fontSize: '11px', color: '#ef4444', marginBottom: '8px' }}>{dlErrors[main.id]}</div>}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+              <span style={{ fontSize: '14px', fontWeight: 700, color: main.color }}>{main.titulo}</span>
+              <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', background: 'var(--muted)', padding: '2px 7px', borderRadius: '999px', whiteSpace: 'nowrap' }}>Informe completo</span>
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: 1.5 }}>{main.desc}</div>
+            {dlErrors[main.id] && <div style={{ fontSize: '11px', color: '#ef4444', marginTop: '4px' }}>{dlErrors[main.id]}</div>}
+          </div>
           <button
             disabled={dlLoading[main.id]}
             onClick={() => download(main.id, main.path)}
-            style={{ padding: '9px 24px', borderRadius: '7px', border: 'none', background: dlLoading[main.id] ? 'var(--muted)' : main.color, color: dlLoading[main.id] ? 'var(--muted-foreground)' : 'white', fontSize: '12px', fontWeight: 600, cursor: dlLoading[main.id] ? 'not-allowed' : 'pointer' }}>
+            style={{ padding: '10px 22px', borderRadius: '7px', border: 'none', background: dlLoading[main.id] ? 'var(--muted)' : main.color, color: dlLoading[main.id] ? 'var(--muted-foreground)' : 'white', fontSize: '12px', fontWeight: 600, cursor: dlLoading[main.id] ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
             {dlLoading[main.id] ? 'Generando...' : '↓ Descargar CSV'}
           </button>
         </div>
-      </div>
 
-      {/* Other 4 cards — 2 columns */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+        {/* 4 remaining cards — 2 columns, equal height via CSS grid stretch */}
         {rest.map(card => (
-          <div key={card.id} style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div key={card.id} style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>
                 {card.icono}
@@ -178,6 +180,7 @@ export default function ReportesPage() {
             </button>
           </div>
         ))}
+
       </div>
     </div>
   )
