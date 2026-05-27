@@ -2,7 +2,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import type { SLAProveedorResponse } from '@/types/provider-sla-compliance'
-import { fmtSLA } from '@/lib/sla-display'
 
 interface Props {
   desde: string
@@ -14,7 +13,7 @@ interface Props {
 function slaColor(pct: number | null) {
   if (pct == null) return '#A32D2D'
   if (pct >= 90) return '#3B6D11'
-  if (pct >= 70) return '#854F0B'
+  if (pct >= 70) return '#BA7517'
   return '#A32D2D'
 }
 function slaBg(pct: number | null) {
@@ -34,11 +33,12 @@ function fmtMin(min: number | null | undefined) {
   const h = Math.floor(min / 60); const m = min % 60
   return h > 0 ? `${h}h ${m}m` : `${m}m`
 }
-
-function Sk({ w = '60%', h = 14 }: { w?: string; h?: number }) {
-  return (
-    <div style={{ width: w, height: h, background: 'linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%)', backgroundSize: '200% 100%', borderRadius: 4, animation: 'shimmer 1.4s infinite' }} />
-  )
+function shortMotivo(m: string | null): string {
+  if (!m) return '—'
+  if (m.includes('sin respuesta')) return 'Sin resp. N1'
+  if (m.includes('Respuesta')) return 'Resp. lenta'
+  if (m.includes('Resolución')) return 'Resol. lenta'
+  return m.slice(0, 18)
 }
 
 export default function ProviderSlaComplianceCard({ desde, hasta, proveedorId, refreshKey }: Props) {
@@ -65,109 +65,122 @@ export default function ProviderSlaComplianceCard({ desde, hasta, proveedorId, r
   const g = data?.resumenGlobal
   const proveedores = data?.proveedores ?? []
 
+  const goDetalle = () =>
+    router.push(`/dashboard/sla-proveedor?desde=${desde}&hasta=${hasta}${proveedorId ? `&proveedorId=${proveedorId}` : ''}`)
+
   return (
-    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
       <style>{`@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
 
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>E. Cumplimiento SLA por proveedor</div>
-          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Respuesta y resolución vs objetivos contractuales</div>
-        </div>
-        <button onClick={() => router.push(`/dashboard/sla-proveedor?desde=${desde}&hasta=${hasta}${proveedorId ? `&proveedorId=${proveedorId}` : ''}`)} style={{ background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '6px 14px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>Ver detalle →</button>
-      </div>
-
-      {/* KPI strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-        {[
-          { label: 'Proveedores evaluados', value: loading ? null : (g?.proveedoresEvaluados ?? 0), suffix: '' },
-          { label: 'SLA general', value: loading ? null : (g?.slaGeneral != null ? `${g.slaGeneral}%` : '—'), suffix: '', color: g?.slaGeneral != null ? slaColor(g.slaGeneral) : undefined },
-          { label: 'Fuera de SLA', value: loading ? null : (g?.fueraSLATotal ?? 0), suffix: ' casos' },
-          { label: 'Escalados N2', value: loading ? null : (g?.casosEscaladosN2 ?? 0), suffix: ' casos' },
-        ].map(({ label, value, suffix, color }) => (
-          <div key={label} style={{ background: 'var(--muted)', borderRadius: '8px', padding: '8px 10px' }}>
-            <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '4px' }}>{label}</div>
-            {loading
-              ? <Sk w="50%" h={20} />
-              : <div style={{ fontSize: '18px', fontWeight: 700, color: color ?? '#0f172a', lineHeight: 1 }}>{value}{suffix}</div>
-            }
+      {/* Header: título + resumen inline + botón */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '12px', fontWeight: 600, color: '#0f172a', marginRight: 'auto' }}>E. Cumplimiento SLA por proveedor</span>
+        {!loading && g != null && (
+          <div style={{ display: 'flex', gap: '8px', fontSize: '10px', color: '#64748b' }}>
+            <span><strong style={{ color: '#0f172a' }}>{g.proveedoresEvaluados}</strong> evaluados</span>
+            <span>SLA: <strong style={{ color: slaColor(g.slaGeneral) }}>{g.slaGeneral != null ? `${g.slaGeneral}%` : '—'}</strong></span>
+            <span>Fuera SLA: <strong style={{ color: g.fueraSLATotal > 0 ? '#A32D2D' : '#0f172a' }}>{g.fueraSLATotal}</strong></span>
+            <span>N2 esc.: <strong style={{ color: g.casosEscaladosN2 > 0 ? '#BA7517' : '#0f172a' }}>{g.casosEscaladosN2}</strong></span>
           </div>
-        ))}
+        )}
+        <button onClick={goDetalle} style={{ background: '#1e3a5f', color: 'white', border: 'none', borderRadius: '7px', padding: '4px 10px', fontSize: '11px', fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}>
+          Ver detalle →
+        </button>
       </div>
 
-      {/* Table */}
-      {error ? (
+      {error && (
         <div style={{ fontSize: '12px', color: '#A32D2D', padding: '12px 0', textAlign: 'center' }}>Error al cargar datos</div>
-      ) : (
-        <div>
-          {/* Header row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 130px 90px 90px 90px', gap: '8px', padding: '6px 0', borderBottom: '0.5px solid var(--border)' }}>
-            {['Proveedor', 'SLA%', 'T. Respuesta', 'T. Resolución', 'Estado'].map((h) => (
-              <span key={h} style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</span>
-            ))}
-          </div>
+      )}
 
-          {loading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 130px 90px 90px 90px', gap: '8px', padding: '10px 0', borderBottom: '0.5px solid var(--border)', alignItems: 'center' }}>
-                <Sk w="70%" /><Sk w="80px" /><Sk w="50px" /><Sk w="50px" /><Sk w="60px" />
-              </div>
-            ))
-          ) : proveedores.length === 0 ? (
-            <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', padding: '20px 0', textAlign: 'center' }}>Sin datos en el período</div>
-          ) : (
-            proveedores.slice(0, 5).map((p, i) => (
-              <div key={p.proveedorId} style={{ display: 'grid', gridTemplateColumns: '1fr 130px 90px 90px 90px', gap: '8px', padding: '10px 0', borderBottom: i < Math.min(proveedores.length, 5) - 1 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
-                <span style={{ fontSize: '12px', fontWeight: 500, color: '#0f172a' }}>{p.nombre}</span>
-
-                {/* SLA% — efficiency score */}
-                {(() => {
-                  const ef = fmtSLA({ score: p.scoreEficiencia ?? p.slaPct, tRealMin: p.tPromRespuestaMin ?? null, tLimiteMin: 60 })
-                  return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        <span style={{ fontSize: '16px', fontWeight: 700, color: ef.color, lineHeight: 1 }}>{ef.texto}</span>
-                        {p.evaluables > 0 && (
-                          <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>({p.evaluables})</span>
-                        )}
-                      </div>
-                      {ef.subTexto && <div style={{ fontSize: '10px', color: '#6B7280' }}>{ef.subTexto}</div>}
-                    </div>
-                  )
-                })()}
-
-                <span style={{ fontSize: '12px', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{fmtMin(p.tPromRespuestaMin)}</span>
-                <span style={{ fontSize: '12px', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{fmtMin(p.tPromResolucionMin)}</span>
-
-                <span style={{
-                  fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '999px', whiteSpace: 'nowrap',
-                  background: slaBg(p.slaPct), color: slaColor(p.slaPct),
-                }}>
-                  {estadoLabel(p.slaPct)}
-                </span>
-              </div>
-            ))
-          )}
-
-          {!loading && proveedores.length > 5 && (
-            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', paddingTop: '8px', textAlign: 'center' }}>
-              +{proveedores.length - 5} proveedores más —{' '}
-              <span
-                onClick={() => router.push(`/dashboard/sla-proveedor?desde=${desde}&hasta=${hasta}${proveedorId ? `&proveedorId=${proveedorId}` : ''}`)}
-                style={{ color: '#185FA5', cursor: 'pointer', textDecoration: 'underline' }}
-              >
-                ver todos
-              </span>
-            </div>
-          )}
+      {loading && (
+        <div style={{ height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
+          Cargando...
         </div>
       )}
 
-      {/* Footer note */}
-      {!loading && g != null && (
-        <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', borderTop: '0.5px solid var(--border)', paddingTop: '8px' }}>
-          Meta SLA: respuesta ≤60 min (N1, sin escalamiento a N2) · resolución variable por tipo · solo incidentes RESUELTO con correo N1 enviado
+      {!loading && !error && proveedores.length === 0 && (
+        <div style={{ height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
+          Sin datos en el período
+        </div>
+      )}
+
+      {!loading && !error && proveedores.length > 0 && (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
+            <thead>
+              <tr style={{ borderBottom: '0.5px solid #e5e7eb' }}>
+                {[
+                  { label: 'Proveedor',  align: 'left' as const },
+                  { label: 'SLA%',       align: 'center' as const },
+                  { label: 'Eval.',      align: 'center' as const },
+                  { label: 'Fuera SLA', align: 'center' as const },
+                  { label: 'T. Resp',   align: 'right' as const },
+                  { label: 'N2 esc.',   align: 'center' as const },
+                  { label: 'Estado',    align: 'center' as const },
+                  { label: 'Motivo',    align: 'left' as const },
+                ].map((h) => (
+                  <th key={h.label} style={{ padding: '4px 8px', textAlign: h.align, fontSize: '9px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
+                    {h.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {proveedores.slice(0, 8).map((p, i) => {
+                const col = slaColor(p.slaPct)
+                const bg  = slaBg(p.slaPct)
+                const respLenta = p.tPromRespuestaMin != null && p.tPromRespuestaMin > 60
+                return (
+                  <tr key={p.proveedorId} style={{ borderTop: i > 0 ? '0.5px solid #f3f4f6' : 'none' }}>
+                    <td style={{ padding: '4px 8px', fontWeight: 500, color: '#0f172a', whiteSpace: 'nowrap', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.nombre}</td>
+
+                    {/* SLA% — bar + number */}
+                    <td style={{ padding: '4px 8px', textAlign: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '3px', justifyContent: 'center' }}>
+                        <div style={{ width: '32px', height: '4px', background: '#e5e7eb', borderRadius: '3px', overflow: 'hidden' }}>
+                          <div style={{ height: '4px', width: `${p.slaPct ?? 0}%`, background: col, borderRadius: '3px' }} />
+                        </div>
+                        <span style={{ fontSize: '10px', fontWeight: 700, color: col, minWidth: '28px' }}>
+                          {p.slaPct != null ? `${p.slaPct}%` : '—'}
+                        </span>
+                      </div>
+                    </td>
+
+                    <td style={{ padding: '4px 8px', textAlign: 'center', color: '#64748b' }}>{p.evaluables}</td>
+
+                    <td style={{ padding: '4px 8px', textAlign: 'center', fontWeight: p.fueraSLA > 0 ? 600 : 400, color: p.fueraSLA > 0 ? '#A32D2D' : '#64748b' }}>
+                      {p.fueraSLA > 0 ? p.fueraSLA : '—'}
+                    </td>
+
+                    <td style={{ padding: '4px 8px', textAlign: 'right', fontWeight: 500, color: respLenta ? '#BA7517' : '#0f172a', whiteSpace: 'nowrap' }}>
+                      {fmtMin(p.tPromRespuestaMin)}
+                      {respLenta && <span style={{ fontSize: '8px', marginLeft: '2px', color: '#BA7517' }}>↑</span>}
+                    </td>
+
+                    <td style={{ padding: '4px 8px', textAlign: 'center', fontWeight: p.casosEscaladosN2 > 0 ? 600 : 400, color: p.casosEscaladosN2 > 0 ? '#BA7517' : '#64748b' }}>
+                      {p.casosEscaladosN2 > 0 ? p.casosEscaladosN2 : '—'}
+                    </td>
+
+                    <td style={{ padding: '4px 8px', textAlign: 'center' }}>
+                      <span style={{ fontSize: '9px', fontWeight: 600, padding: '1px 5px', borderRadius: '5px', background: bg, color: col, whiteSpace: 'nowrap' }}>
+                        {estadoLabel(p.slaPct)}
+                      </span>
+                    </td>
+
+                    <td style={{ padding: '4px 8px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                      {shortMotivo(p.motivoPrincipal)}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+          {proveedores.length > 8 && (
+            <div style={{ padding: '4px 8px', fontSize: '10px', color: '#64748b' }}>
+              +{proveedores.length - 8} más —{' '}
+              <button onClick={goDetalle} style={{ background: 'none', border: 'none', color: '#185FA5', cursor: 'pointer', fontSize: '10px', fontWeight: 500, padding: 0 }}>ver todos</button>
+            </div>
+          )}
         </div>
       )}
     </div>
