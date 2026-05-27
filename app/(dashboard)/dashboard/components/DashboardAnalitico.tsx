@@ -991,9 +991,15 @@ export default function DashboardAnalitico() {
           />
         </div>
 
-        {/* B — Impacto por proveedor (activo) */}
-        <div>
+        {/* B + E apilados en col 1 */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <ProviderImpactCard
+            desde={desde}
+            hasta={hasta}
+            proveedorId={proveedorId}
+            refreshKey={refreshKey}
+          />
+          <ProviderSlaComplianceCard
             desde={desde}
             hasta={hasta}
             proveedorId={proveedorId}
@@ -1014,16 +1020,6 @@ export default function DashboardAnalitico() {
         {/* D — Distribución por tipo (activo) */}
         <div>
           <DistributionByTypeCard
-            desde={desde}
-            hasta={hasta}
-            proveedorId={proveedorId}
-            refreshKey={refreshKey}
-          />
-        </div>
-
-        {/* E — Cumplimiento SLA por proveedor (activo) */}
-        <div style={{ gridColumn: '1 / -1' }}>
-          <ProviderSlaComplianceCard
             desde={desde}
             hasta={hasta}
             proveedorId={proveedorId}
