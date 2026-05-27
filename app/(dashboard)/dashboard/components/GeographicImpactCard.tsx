@@ -122,7 +122,7 @@ export default function GeographicImpactCard({ desde, hasta, proveedorId, refres
 
       {!loading && !error && zonas.length > 0 && (
         <>
-          <ResponsiveContainer width="100%" height={Math.max(zonas.length * 26, 90)}>
+          <ResponsiveContainer width="100%" height={Math.max(zonas.length * 18, 70)}>
             <BarChart
               layout="vertical"
               data={zonas}

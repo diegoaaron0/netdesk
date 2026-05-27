@@ -1027,18 +1027,14 @@ export default function DashboardAnalitico() {
           />
         </div>
 
-        {/* F — Impacto geográfico (activo) */}
-        <div style={{ gridColumn: '1 / -1' }}>
+        {/* F + G lado a lado */}
+        <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
           <GeographicImpactCard
             desde={desde}
             hasta={hasta}
             proveedorId={proveedorId}
             refreshKey={refreshKey}
           />
-        </div>
-
-        {/* G — Tendencia SLA últimos 6 meses (activo) */}
-        <div style={{ gridColumn: '1 / -1' }}>
           <SlaTrendSixMonthsCard
             proveedorId={proveedorId}
             refreshKey={refreshKey}
