@@ -16,54 +16,131 @@ function triggerBlob(blob: Blob, name: string) {
   URL.revokeObjectURL(url)
 }
 
+// ── Inline SVG icons ────────────────────────────────────────────────────────────
+function IconGerencial({ color }: { color: string }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M3 9h18" />
+      <path d="M9 21V9" />
+      <path d="M7 15h2M7 18h4" />
+      <path d="M14 12l2 2 3-3" />
+    </svg>
+  )
+}
+function IconProveedores({ color }: { color: string }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="9" cy="7" r="4" />
+      <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      <path d="M21 21v-2a4 4 0 0 0-3-3.87" />
+    </svg>
+  )
+}
+function IconFueraSLA({ color }: { color: string }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 8v4" />
+      <circle cx="12" cy="16" r="0.5" fill={color} />
+    </svg>
+  )
+}
+function IconTiendas({ color }: { color: string }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      <polyline points="9,22 9,12 15,12 15,22" />
+    </svg>
+  )
+}
+function IconOperativos({ color }: { color: string }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14,2 14,8 20,8" />
+      <line x1="16" y1="13" x2="8" y2="13" />
+      <line x1="16" y1="17" x2="8" y2="17" />
+      <line x1="10" y1="9" x2="8" y2="9" />
+    </svg>
+  )
+}
+
+// ── Card metadata ───────────────────────────────────────────────────────────────
 const EXPORT_CARDS = [
   {
     id: 'gerencial',
     titulo: 'Reporte Gerencial',
-    icono: '🏢',
+    badge: 'Informe completo',
     color: '#185FA5',
     bg: '#E6F1FB',
-    desc: 'Resumen ejecutivo con variación vs período anterior · SLA y MTTR por proveedor · T. respuesta N1 · Escalados N2+ · Top 15 tiendas · Distribución por tipo · Tiendas reincidentes · Por zona · Tendencia SLA 6 meses',
+    Icon: IconGerencial,
+    contenido: [
+      { label: 'Resumen ejecutivo', detail: 'Total · MTTR · SLA% · Tiendas afectadas · IEI — todos con variación vs período anterior' },
+      { label: 'Métricas por proveedor', detail: 'SLA% · MTTR · T. respuesta N1 · Escalados N2+ · Evaluables · IEI estimado' },
+      { label: 'Top 15 tiendas', detail: 'Ranking por incidentes con MTTR e impacto económico' },
+      { label: 'Distribución por tipo', detail: 'CAIDA_TOTAL · INTERMITENCIA · LENTITUD · POS — SLA% y MTTR por tipo' },
+      { label: 'Reincidentes', detail: 'Tiendas con 2+ incidentes · días promedio entre caídas' },
+      { label: 'Por zona geográfica', detail: 'Lima Norte · Este · Sur · Centro · Callao · Provincia — incidentes y MTTR' },
+      { label: 'Tendencia SLA 6 meses', detail: 'SLA% · MTTR · total por proveedor por mes — ventana histórica fija' },
+    ],
     path: '/api/reportes/export/gerencial',
     full: true,
   },
   {
     id: 'proveedores',
     titulo: 'Seguimiento Proveedores',
-    icono: '📋',
+    badge: null,
     color: '#1D9E75',
     bg: '#EAF3DE',
-    desc: 'SLA % · MTTR prom · T. respuesta N1 prom · Escalados N2+ · Tiendas afectadas · IEI estimado · Detalle por tienda con tipo más frecuente y SLA individual',
+    Icon: IconProveedores,
+    contenido: [
+      { label: 'Evaluación general', detail: 'SLA% · MTTR · T. respuesta N1 · Escalados N2+ · Evaluables · IEI' },
+      { label: 'Detalle por tienda', detail: 'Tipo más frecuente · SLA individual · MTTR · IEI por tienda' },
+    ],
     path: '/api/reportes/export/proveedores',
     full: false,
   },
   {
     id: 'fuera-sla',
     titulo: 'Incumplimientos SLA',
-    icono: '⚠️',
+    badge: null,
     color: '#B91C1C',
     bg: '#FEE2E2',
-    desc: 'Incidentes fuera de SLA · MTTR real vs límite por tipo · Exceso en minutos · Motivo: N1 sin respuesta / respuesta tardía / resolución tardía',
+    Icon: IconFueraSLA,
+    contenido: [
+      { label: 'Incidentes fuera de SLA', detail: 'MTTR real vs límite por tipo · Exceso en minutos' },
+      { label: 'Motivo de incumplimiento', detail: 'N1 sin respuesta / Respuesta N1 tardía / Resolución tardía' },
+    ],
     path: '/api/reportes/export/fuera-sla',
     full: false,
   },
   {
     id: 'tiendas-criticas',
     titulo: 'Tiendas Críticas',
-    icono: '🏪',
+    badge: null,
     color: '#854F0B',
     bg: '#FAEEDA',
-    desc: 'Tiendas con 2+ incidentes · Tipo más frecuente · MTTR prom · Días promedio entre caídas · IEI acumulado (S/) · Contingencia disponible',
+    Icon: IconTiendas,
+    contenido: [
+      { label: 'Tiendas con 2+ incidentes', detail: 'Tipo más frecuente · MTTR prom · Días entre caídas' },
+      { label: 'Impacto económico', detail: 'IEI acumulado (S/) · Contingencia disponible (Sí/No)' },
+    ],
     path: '/api/reportes/export/tiendas-criticas',
     full: false,
   },
   {
     id: 'operativos',
     titulo: 'Incidentes Operativos',
-    icono: '📁',
+    badge: null,
     color: '#374151',
     bg: '#F1F5F9',
-    desc: 'Historial completo · Ticket InvGate y proveedor · N1/N2/N3 tiempos · Atribución · SLA resolución y respuesta · IEI por incidente · Contingencia y efectividad',
+    Icon: IconOperativos,
+    contenido: [
+      { label: 'Historial completo', detail: 'Ticket InvGate y proveedor · N1/N2/N3 envío y respuesta · Atribución' },
+      { label: 'SLA e impacto', detail: 'SLA resolución y respuesta · IEI por incidente · Contingencia y efectividad' },
+    ],
     path: '/api/reportes/export',
     full: false,
   },
@@ -97,10 +174,9 @@ export default function ReportesPage() {
   const [main, ...rest] = EXPORT_CARDS
 
   return (
-    <div style={{ maxWidth: '860px' }}>
-
-      {/* Period selector */}
-      <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '14px 16px', marginBottom: '24px' }}>
+    <div>
+      {/* ── Período de descarga ───────────────────────────────────────────────── */}
+      <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '14px 16px', marginBottom: '16px' }}>
         <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>
           Período de descarga
         </div>
@@ -132,45 +208,99 @@ export default function ReportesPage() {
         </div>
       </div>
 
-      {/* Section label */}
-      <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px' }}>
+      {/* ── Label ────────────────────────────────────────────────────────────── */}
+      <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
         Reportes disponibles · CSV compatible Excel
       </div>
 
-      {/* All cards in one grid — gerencial spans full width */}
+      {/* ── Grid de cards ────────────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
 
-        {/* Gerencial — full width */}
-        <div style={{ gridColumn: '1/-1', background: 'var(--card)', border: `1px solid ${main.color}33`, borderRadius: '12px', padding: '20px', display: 'flex', gap: '16px', alignItems: 'center' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '10px', background: main.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>
-            {main.icono}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-              <span style={{ fontSize: '14px', fontWeight: 700, color: main.color }}>{main.titulo}</span>
-              <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', background: 'var(--muted)', padding: '2px 7px', borderRadius: '999px', whiteSpace: 'nowrap' }}>Informe completo</span>
+        {/* Gerencial — ancho completo */}
+        <div style={{
+          gridColumn: '1/-1',
+          background: 'var(--card)',
+          border: `1px solid ${main.color}30`,
+          borderRadius: '12px',
+          padding: '20px 24px',
+          display: 'grid',
+          gridTemplateColumns: '1fr auto',
+          gap: '24px',
+          alignItems: 'start',
+        }}>
+          {/* left: icono + título + contenido */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: main.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <main.Icon color={main.color} />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '14px', fontWeight: 700, color: main.color }}>{main.titulo}</span>
+                  <span style={{ fontSize: '10px', color: main.color, background: main.bg, padding: '2px 8px', borderRadius: '999px', fontWeight: 600 }}>{main.badge}</span>
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>
+                  Incluye {main.contenido.length} secciones · período seleccionado
+                </div>
+              </div>
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: 1.5 }}>{main.desc}</div>
-            {dlErrors[main.id] && <div style={{ fontSize: '11px', color: '#ef4444', marginTop: '4px' }}>{dlErrors[main.id]}</div>}
+            {/* secciones en grid 2 cols */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px' }}>
+              {main.contenido.map((c, i) => (
+                <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                  <div style={{ width: '3px', borderRadius: '2px', background: main.color, flexShrink: 0, marginTop: '4px', alignSelf: 'stretch', minHeight: '12px' }} />
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--foreground)' }}>{c.label}</div>
+                    <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '1px' }}>{c.detail}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          <button
-            disabled={dlLoading[main.id]}
-            onClick={() => download(main.id, main.path)}
-            style={{ padding: '10px 22px', borderRadius: '7px', border: 'none', background: dlLoading[main.id] ? 'var(--muted)' : main.color, color: dlLoading[main.id] ? 'var(--muted-foreground)' : 'white', fontSize: '12px', fontWeight: 600, cursor: dlLoading[main.id] ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
-            {dlLoading[main.id] ? 'Generando...' : '↓ Descargar CSV'}
-          </button>
+          {/* right: botón */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+            {dlErrors[main.id] && <div style={{ fontSize: '11px', color: '#ef4444' }}>{dlErrors[main.id]}</div>}
+            <button
+              disabled={dlLoading[main.id]}
+              onClick={() => download(main.id, main.path)}
+              style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', background: dlLoading[main.id] ? 'var(--muted)' : main.color, color: dlLoading[main.id] ? 'var(--muted-foreground)' : 'white', fontSize: '12px', fontWeight: 600, cursor: dlLoading[main.id] ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
+              {dlLoading[main.id] ? 'Generando...' : '↓ Descargar CSV'}
+            </button>
+          </div>
         </div>
 
-        {/* 4 remaining cards — 2 columns, equal height via CSS grid stretch */}
+        {/* 4 cards restantes */}
         {rest.map(card => (
-          <div key={card.id} style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div key={card.id} style={{
+            background: 'var(--card)',
+            border: '0.5px solid var(--border)',
+            borderRadius: '12px',
+            padding: '18px 20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '14px',
+          }}>
+            {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>
-                {card.icono}
+              <div style={{ width: '38px', height: '38px', borderRadius: '9px', background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <card.Icon color={card.color} />
               </div>
               <div style={{ fontSize: '13px', fontWeight: 700, color: card.color }}>{card.titulo}</div>
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: 1.6, flex: 1 }}>{card.desc}</div>
+
+            {/* Contenido */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
+              {card.contenido.map((c, i) => (
+                <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                  <div style={{ width: '3px', borderRadius: '2px', background: card.color, opacity: 0.5, flexShrink: 0, marginTop: '4px', alignSelf: 'stretch', minHeight: '12px' }} />
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--foreground)' }}>{c.label}</div>
+                    <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '1px' }}>{c.detail}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
             {dlErrors[card.id] && <div style={{ fontSize: '11px', color: '#ef4444' }}>{dlErrors[card.id]}</div>}
             <button
               disabled={dlLoading[card.id]}
