@@ -259,13 +259,13 @@ export default function DashboardPage() {
   const [op, setOp]                       = useState<any>(null)
   const [tick, setTick]                   = useState(0)
   const [decPendientes, setDecPendientes] = useState<number | null>(null)
-  const [tab, setTab]   = useState<'operativo' | 'analitico'>(() => {
-    if (typeof window !== 'undefined') {
-      const p = new URLSearchParams(window.location.search)
-      return (p.get('tab') as any) || 'operativo'
-    }
-    return 'operativo'
-  })
+  const [tab, setTab]   = useState<'operativo' | 'analitico'>('operativo')
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search)
+    const t = p.get('tab')
+    if (t === 'analitico' || t === 'operativo') setTab(t)
+  }, [])
 
   const fetchOp = useCallback(async () => {
     const res = await fetch('/api/dashboard/operativo')

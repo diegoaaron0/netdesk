@@ -871,17 +871,30 @@ export default function DashboardAnalitico() {
                   </div>
                 )}
 
-                {/* 3. Responsabilidad por proveedor — barras visuales */}
+                {/* 3. Responsabilidad por proveedor — barras visuales, clicables */}
                 <div style={{ marginBottom: '12px' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '7px' }}>Responsabilidad por proveedor</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '7px' }}>
+                    <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Responsabilidad por proveedor</div>
+                    {ieiProvSelected && (
+                      <button onClick={() => { setIeiProvSelected(null); setIeiTiendaSelected(null) }} style={{ fontSize: '10px', color: '#2563EB', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                        ← Ver todos
+                      </button>
+                    )}
+                  </div>
                   {provList.map(({ nombre: prov, costo }, i) => {
                     const pct    = total > 0 ? Math.round(costo / total * 100) : 0
                     const barPct = Math.round(costo / maxProvCosto * 100)
                     const barClr = i === 0 ? '#A32D2D' : i === 1 ? '#854F0B' : '#6B7280'
+                    const isSel  = ieiProvSelected === prov
+                    const isDim  = ieiProvSelected !== null && !isSel
                     return (
-                      <div key={i} style={{ marginBottom: '8px' }}>
+                      <div
+                        key={i}
+                        onClick={() => { setIeiProvSelected(isSel ? null : prov); setIeiTiendaSelected(null) }}
+                        style={{ marginBottom: '8px', cursor: 'pointer', padding: '5px 7px', borderRadius: '6px', border: isSel ? `1.5px solid ${barClr}` : '1.5px solid transparent', background: isSel ? '#F9FAFB' : 'transparent', opacity: isDim ? 0.4 : 1 }}
+                      >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '3px' }}>
-                          <span style={{ fontSize: '12px', fontWeight: 500 }}>{prov}</span>
+                          <span style={{ fontSize: '12px', fontWeight: isSel ? 700 : 500 }}>{prov}</span>
                           <div style={{ display: 'flex', gap: '10px' }}>
                             <span style={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 600 }}>{fmtCosto(Math.round(costo))}</span>
                             <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', minWidth: '28px', textAlign: 'right' }}>{pct}%</span>
@@ -895,16 +908,16 @@ export default function DashboardAnalitico() {
                   })}
                 </div>
 
-                {/* 4. Tiendas — tabla directa, visible sin clicks */}
+                {/* 4. Tiendas — tabla filtrada por proveedor seleccionado */}
                 <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
-                  Tiendas que generaron el impacto
+                  {ieiProvSelected ? `Tiendas de ${ieiProvSelected}` : 'Tiendas con mayor impacto'}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '22px 55px 70px 50px 110px 80px', gap: '8px', padding: '0 0 6px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '2px' }}>
                   {['#','Tienda','Proveedor','Horas','Operó con','I.E.I'].map(h => (
                     <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
                   ))}
                 </div>
-                {top.map((t, i) => {
+                {(ieiProvSelected ? top.filter(t => t.proveedor === ieiProvSelected) : top).map((t, i) => {
                   const isSel   = ieiTiendaSelected === t.codigo
                   const tieneBk = t.huboContingencia || t.huboMovil || t.huboBoleta
                   const opero   = t.huboContingencia ? 'Contingencia' : t.huboMovil ? 'Datos móviles' : t.huboBoleta ? 'Boleta manual' : 'Sin backup'
