@@ -31,7 +31,15 @@ export async function GET() {
         t.venta_hora_soles
       FROM tiendas t
       LEFT JOIN proveedores p ON t.proveedor_id = p.id
-      ORDER BY t.codigo
+      ORDER BY
+        CASE
+          WHEN t.codigo ~* '-C$'
+            OR t.nombre_cc ILIKE '%catalogo%'
+            OR t.formato   ILIKE '%catalogo%'
+            OR t.distrito  ILIKE '%catalogo%'
+          THEN 1 ELSE 0
+        END,
+        t.codigo
     `)
 
     const headers = [

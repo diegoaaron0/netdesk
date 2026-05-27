@@ -255,9 +255,18 @@ export default function TiendasPage() {
     return true
   })
 
+  function esCatalogo(t: any) {
+    return (
+      /-C$/i.test(t.codigo ?? '') ||
+      t.nombreCc?.toLowerCase().includes('catalogo') ||
+      t.formato?.toLowerCase().includes('catalogo') ||
+      t.distrito?.toLowerCase().includes('catalogo')
+    )
+  }
+
   filtered = [...filtered].sort((a, b) => {
-    const aCat = a.formato?.toLowerCase().includes('catalogo') ? 1 : 0
-    const bCat = b.formato?.toLowerCase().includes('catalogo') ? 1 : 0
+    const aCat = esCatalogo(a) ? 1 : 0
+    const bCat = esCatalogo(b) ? 1 : 0
     if (aCat !== bCat) return aCat - bCat
     if (filtros.sort === 'incidentes') {
       return (Number(b.incidentCount) || 0) - (Number(a.incidentCount) || 0)
