@@ -68,7 +68,7 @@ export default function CriticalStoresCard({ desde, hasta, proveedorId, refreshK
   const resumen = data?.resumen
 
   return (
-    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '5px', height: '100%', boxSizing: 'border-box' }}>
 
       {/* Header: título + resumen inline + botón */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>

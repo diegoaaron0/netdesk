@@ -79,7 +79,7 @@ export default function DistributionByTypeCard({ desde, hasta, proveedorId, refr
   const total = data?.total ?? 0
 
   return (
-    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '5px', height: '100%', boxSizing: 'border-box' }}>
 
       {/* Header: título + botón en una fila */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
