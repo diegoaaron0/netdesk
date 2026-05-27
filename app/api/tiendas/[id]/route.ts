@@ -212,3 +212,27 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   return NextResponse.json(updated)
 }
+
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const session = await auth()
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const rol = (session.user as any)?.rol
+  if (!['SUPERVISOR', 'INFRAESTRUCTURA'].includes(rol)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const [{ total }] = await db.select({ total: count() })
+    .from(incidentes)
+    .where(eq(incidentes.tiendaId, id))
+
+  if (total > 0) {
+    return NextResponse.json(
+      { error: `No se puede eliminar: la tienda tiene ${total} incidente(s) registrado(s).` },
+      { status: 409 },
+    )
+  }
+
+  await db.delete(tiendas).where(eq(tiendas.id, id))
+  return NextResponse.json({ ok: true })
+}

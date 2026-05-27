@@ -115,6 +115,8 @@ export default function TiendasPage() {
   const [sinProveedorPanel, setSinProveedorPanel] = useState(false)
   const [exportingMaestro, setExportingMaestro] = useState(false)
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; codigo: string; step: 1 | 2 } | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   // Import state
   const [showImport, setShowImport] = useState(false)
@@ -203,6 +205,20 @@ export default function TiendasPage() {
     if (fileRef.current) fileRef.current.value = ''
   }
 
+  async function handleDelete(id: string) {
+    setDeleting(true)
+    const res = await fetch(`/api/tiendas/${id}`, { method: 'DELETE' })
+    setDeleting(false)
+    if (res.ok) {
+      setDeleteConfirm(null)
+      fetchTiendas()
+    } else {
+      const err = await res.json()
+      alert(err.error ?? 'Error al eliminar')
+      setDeleteConfirm(null)
+    }
+  }
+
   async function handleImport() {
     setImporting(true)
     setImportResult(null)
@@ -239,9 +255,15 @@ export default function TiendasPage() {
     return true
   })
 
-  if (filtros.sort === 'incidentes') {
-    filtered = [...filtered].sort((a, b) => (Number(b.incidentCount) || 0) - (Number(a.incidentCount) || 0))
-  }
+  filtered = [...filtered].sort((a, b) => {
+    const aCat = a.formato?.toLowerCase().includes('catalogo') ? 1 : 0
+    const bCat = b.formato?.toLowerCase().includes('catalogo') ? 1 : 0
+    if (aCat !== bCat) return aCat - bCat
+    if (filtros.sort === 'incidentes') {
+      return (Number(b.incidentCount) || 0) - (Number(a.incidentCount) || 0)
+    }
+    return 0
+  })
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -456,9 +478,22 @@ export default function TiendasPage() {
                     {Number(t.incidentCount) || 0}
                   </td>
                   <td style={{ padding: '10px 14px', textAlign: 'right' }}>
-                    {t.contingenciaActiva && (
-                      <span style={{ fontSize: '10px', background: '#fef3c7', color: '#92400e', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>⚠</span>
-                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end' }}>
+                      {t.contingenciaActiva && (
+                        <span style={{ fontSize: '10px', background: '#fef3c7', color: '#92400e', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>⚠</span>
+                      )}
+                      {canEdit && (
+                        <button
+                          onClick={e => { e.stopPropagation(); setDeleteConfirm({ id: t.id, codigo: t.codigo, step: 1 }) }}
+                          title="Eliminar tienda"
+                          style={{ background: 'none', border: '0.5px solid transparent', borderRadius: '5px', padding: '2px 5px', cursor: 'pointer', fontSize: '12px', color: '#9ca3af', lineHeight: 1, transition: 'color 0.1s, border-color 0.1s' }}
+                          onMouseEnter={e => { const b = e.currentTarget; b.style.color = '#ef4444'; b.style.borderColor = '#fecaca' }}
+                          onMouseLeave={e => { const b = e.currentTarget; b.style.color = '#9ca3af'; b.style.borderColor = 'transparent' }}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               )
@@ -630,6 +665,49 @@ export default function TiendasPage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {deleteConfirm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', width: '100%', maxWidth: '400px', padding: '22px 24px' }}>
+            {deleteConfirm.step === 1 ? (
+              <>
+                <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Eliminar tienda</div>
+                <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '22px' }}>
+                  ¿Deseas eliminar la tienda <strong style={{ color: 'var(--foreground)' }}>{deleteConfirm.codigo}</strong>? Solo se puede eliminar si no tiene incidentes registrados.
+                </div>
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                  <button onClick={() => setDeleteConfirm(null)}
+                    style={{ padding: '8px 16px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: 'var(--foreground)' }}>
+                    Cancelar
+                  </button>
+                  <button onClick={() => setDeleteConfirm(c => c ? { ...c, step: 2 } : c)}
+                    style={{ padding: '8px 16px', background: '#fee2e2', color: '#b91c1c', border: '0.5px solid #fecaca', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>
+                    Continuar
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#b91c1c', marginBottom: '6px' }}>Confirmar eliminación</div>
+                <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '22px' }}>
+                  Esta acción es <strong>permanente</strong>. La tienda <strong style={{ color: 'var(--foreground)' }}>{deleteConfirm.codigo}</strong> y toda su configuración serán eliminadas.
+                </div>
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                  <button onClick={() => setDeleteConfirm(null)}
+                    style={{ padding: '8px 16px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: 'var(--foreground)' }}>
+                    Cancelar
+                  </button>
+                  <button onClick={() => handleDelete(deleteConfirm.id)} disabled={deleting}
+                    style={{ padding: '8px 16px', background: '#b91c1c', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: deleting ? 'not-allowed' : 'pointer', opacity: deleting ? 0.6 : 1 }}>
+                    {deleting ? 'Eliminando...' : 'Eliminar definitivamente'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
