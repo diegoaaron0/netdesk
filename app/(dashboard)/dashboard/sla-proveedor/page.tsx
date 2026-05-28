@@ -193,7 +193,7 @@ function SLAProveedorPageInner() {
                 </div>
                 <span style={{ fontSize: '12px', textAlign: 'center' }}>{p.evaluables}</span>
                 <span style={{ fontSize: '12px', textAlign: 'center', color: p.fueraSLA > 0 ? '#A32D2D' : '#3B6D11', fontWeight: p.fueraSLA > 0 ? 600 : 400 }}>{p.fueraSLA}</span>
-                <span style={{ fontSize: '12px', textAlign: 'center', color: p.casosEscaladosN2 > 0 ? '#854F0B' : 'var(--muted-foreground)' }}>{p.casosEscaladosN2}</span>
+                <span style={{ fontSize: '12px', textAlign: 'center', color: (p.tasaEscalamientoN2Pct ?? 0) > 30 ? '#854F0B' : 'var(--muted-foreground)' }}>{p.tasaEscalamientoN2Pct != null ? `${p.tasaEscalamientoN2Pct}%` : '—'}</span>
                 <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{fmtMin(p.tPromRespuestaMin)}</span>
                 <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '999px', background: slaBg(p.slaPct), color: slaColor(p.slaPct), whiteSpace: 'nowrap' }}>
                   {estadoLabel(p.slaPct)}
@@ -265,7 +265,7 @@ function SLAProveedorPageInner() {
         ) : (
           tiempos.map((t, i) => {
             const respExcede = t.tRespuestaRealProm != null && t.tRespuestaRealProm > t.slaRespuestaObj
-            const resolExcede = t.tResolucionRealProm != null && t.slaResolucionObjProm != null && t.tResolucionRealProm > t.slaResolucionObjProm
+            const resolExcede = t.tResolucionRealProm != null && t.slaResolucionObj != null && t.tResolucionRealProm > t.slaResolucionObj
             return (
               <div key={t.nombre} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 100px 110px 90px 90px 90px', gap: '8px', padding: '10px 0', borderBottom: i < tiempos.length - 1 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
                 <span style={{ fontSize: '12px', fontWeight: 500 }}>{t.nombre}</span>
@@ -273,7 +273,7 @@ function SLAProveedorPageInner() {
                 <span style={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: respExcede ? 700 : 400, color: respExcede ? '#A32D2D' : '#3B6D11' }}>
                   {fmtMin(t.tRespuestaRealProm)}
                 </span>
-                <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{fmtMin(t.slaResolucionObjProm)}</span>
+                <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{fmtMin(t.slaResolucionObj)}</span>
                 <span style={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: resolExcede ? 700 : 400, color: resolExcede ? '#A32D2D' : '#3B6D11' }}>
                   {fmtMin(t.tResolucionRealProm)}
                 </span>

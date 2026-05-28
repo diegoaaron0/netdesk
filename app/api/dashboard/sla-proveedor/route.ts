@@ -83,12 +83,23 @@ export async function GET(req: NextRequest) {
 
   const evaluablesTotal = proveedores.reduce((s, p) => s + p.evaluables, 0)
   const dentraTotal     = proveedores.reduce((s, p) => s + p.dentraSLA, 0)
+  const dentraRespTotal = proveedores.reduce((s, p) => s + (p.slaRespuestaPct != null ? Math.round(p.slaRespuestaPct * p.evaluables / 100) : 0), 0)
+  const dentraResolTotal= proveedores.reduce((s, p) => s + (p.slaResolucionPct != null ? Math.round(p.slaResolucionPct * p.evaluables / 100) : 0), 0)
   const fueraSLATotal   = proveedores.reduce((s, p) => s + p.fueraSLA, 0)
-  const slaGeneral      = evaluablesTotal > 0 ? Math.round((dentraTotal / evaluablesTotal) * 100) : null
+  const slaGeneral      = evaluablesTotal > 0 ? Math.round((dentraTotal      / evaluablesTotal) * 100) : null
+  const slaRespuestaPct = evaluablesTotal > 0 ? Math.round((dentraRespTotal  / evaluablesTotal) * 100) : null
+  const slaResolucionPct= evaluablesTotal > 0 ? Math.round((dentraResolTotal / evaluablesTotal) * 100) : null
 
   const respTimes  = proveedores.filter((p) => p.tPromRespuestaMin != null).map((p) => p.tPromRespuestaMin!)
   const resolTimes = proveedores.filter((p) => p.tPromResolucionMin != null).map((p) => p.tPromResolucionMin!)
   const avg = (arr: number[]) => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : null
+
+  const casosEscaladosN2 = niveles.reduce((s, n) => s + n.distribucion.escN2 + n.distribucion.escN3mas, 0)
+
+  const conETA = proveedores.filter((p) => p.cumplimientoETAPct != null)
+  const cumplimientoETAPct = conETA.length > 0
+    ? Math.round(conETA.reduce((s, p) => s + p.cumplimientoETAPct!, 0) / conETA.length)
+    : null
 
   return NextResponse.json({
     proveedores,
@@ -98,10 +109,13 @@ export async function GET(req: NextRequest) {
     resumenGlobal: {
       proveedoresEvaluados: proveedores.length,
       slaGeneral,
+      slaRespuestaPct,
+      slaResolucionPct,
       fueraSLATotal,
       tPromRespuestaMin:  avg(respTimes),
       tPromResolucionMin: avg(resolTimes),
-      casosEscaladosN2:   proveedores.reduce((s, p) => s + p.casosEscaladosN2, 0),
+      casosEscaladosN2,
+      cumplimientoETAPct,
     },
     conclusiones,
     proveedoresList,

@@ -1,8 +1,8 @@
 import type {
   ProveedorSLAResumen, ProveedorSLATiempos, ProveedorSLANiveles,
-  CasoFueraSLA, SLAEstado,
+  CasoFueraSLA, SLAEstado, DistribucionNiveles,
 } from '@/types/provider-sla-compliance'
-import { calcSLARow, calcEficienciaSLA, SLA_RESPUESTA_MIN, getSlaResolucionMin } from './sla-core'
+import { calcSLARow, calcEficienciaSLA, SLA_RESPUESTA_MIN, SLA_RESOLUCION_DEFAULT_MIN } from './sla-core'
 
 export interface RawSLAProvRow {
   id: string
@@ -19,15 +19,13 @@ export interface RawSLAProvRow {
   hora_primera_resp: Date | string | null
   nivel_respuesta: number | null
   max_nivel: number | null
+  tiempo_estimado_solucion_min?: number | null
+  sla_respuesta_override?: number | null
+  sla_resolucion_override?: number | null
 }
 
 function avg(vals: number[]): number | null {
   return vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null
-}
-function topEntry(counts: Record<number, number>): number | null {
-  const entries = Object.entries(counts)
-  if (!entries.length) return null
-  return Number(entries.sort((a, b) => b[1] - a[1])[0][0])
 }
 
 function calcRow(row: RawSLAProvRow) {
@@ -35,11 +33,14 @@ function calcRow(row: RawSLAProvRow) {
     return {
       evaluable: false, slaGeneral: false, slaRespuesta: false, slaResolucion: false,
       escaladoN2: false,
+      nivelFinal: null as number | null,
       tPrimeraRespuestaMin: null as number | null,
       tResolucionMin: null as number | null,
       motivoIncumplimiento: null as string | null,
-      slaResolucionObj: null as number | null,
+      slaRespuestaObj: row.sla_respuesta_override ?? SLA_RESPUESTA_MIN,
+      slaResolucionObj: row.sla_resolucion_override ?? SLA_RESOLUCION_DEFAULT_MIN,
       nivelQueRespondio: null as number | null,
+      cumplioETA: null as boolean | null,
     }
   }
   const sla = calcSLARow({
@@ -49,6 +50,9 @@ function calcRow(row: RawSLAProvRow) {
     hora_fin: row.hora_fin,
     hora_registro: row.hora_registro,
     max_nivel: row.max_nivel,
+    slaRespuestaOverride:  row.sla_respuesta_override  ?? undefined,
+    slaResolucionOverride: row.sla_resolucion_override ?? undefined,
+    tiempoEstimadoSolucionMin: row.tiempo_estimado_solucion_min ?? null,
   })
   return { ...sla, nivelQueRespondio: row.nivel_respuesta }
 }
@@ -70,30 +74,34 @@ export function buildProveedorResumen(rows: RawSLAProvRow[]): ProveedorSLAResume
 
   const result: ProveedorSLAResumen[] = []
   for (const [provId, { rows: pRows, nombre }] of map.entries()) {
-    const calcs = pRows.map(calcRow)
+    const calcs     = pRows.map(calcRow)
     const evaluables = calcs.filter((c) => c.evaluable)
-    const dentraSLA = evaluables.filter((c) => c.slaGeneral).length
-    const fueraSLA  = evaluables.length - dentraSLA
-    const slaPct    = evaluables.length > 0 ? Math.round((dentraSLA / evaluables.length) * 100) : null
-    const casosEscaladosN2 = evaluables.filter((c) => c.escaladoN2).length
 
-    const respTimes = evaluables.filter((c) => c.tPrimeraRespuestaMin != null).map((c) => c.tPrimeraRespuestaMin!)
-    const resolTimes = evaluables.filter((c) => c.tResolucionMin != null).map((c) => c.tResolucionMin!)
+    const dentraSLA        = evaluables.filter((c) => c.slaGeneral).length
+    const dentraSLAResp    = evaluables.filter((c) => c.slaRespuesta).length
+    const dentraSLAResol   = evaluables.filter((c) => c.slaResolucion).length
+    const fueraSLA         = evaluables.length - dentraSLA
+    const casosN2          = evaluables.filter((c) => c.escaladoN2).length
 
-    const nivelCounts: Record<number, number> = {}
-    for (const c of evaluables) {
-      if (c.nivelQueRespondio != null) nivelCounts[c.nivelQueRespondio] = (nivelCounts[c.nivelQueRespondio] ?? 0) + 1
-    }
+    const slaPct           = evaluables.length > 0 ? Math.round((dentraSLA      / evaluables.length) * 100) : null
+    const slaRespuestaPct  = evaluables.length > 0 ? Math.round((dentraSLAResp  / evaluables.length) * 100) : null
+    const slaResolucionPct = evaluables.length > 0 ? Math.round((dentraSLAResol / evaluables.length) * 100) : null
+    const tasaEscalamientoN2Pct = evaluables.length > 0 ? Math.round((casosN2 / evaluables.length) * 100) : null
+
+    const conETA         = evaluables.filter((c) => c.cumplioETA != null)
+    const cumplioETACount = conETA.filter((c) => c.cumplioETA === true).length
+    const cumplimientoETAPct = conETA.length > 0 ? Math.round((cumplioETACount / conETA.length) * 100) : null
+
+    const respTimes  = evaluables.filter((c) => c.tPrimeraRespuestaMin != null).map((c) => c.tPrimeraRespuestaMin!)
+    const resolTimes = evaluables.filter((c) => c.tResolucionMin        != null).map((c) => c.tResolucionMin!)
 
     let scoreSum = 0, scoreCount = 0
-    for (let idx = 0; idx < pRows.length; idx++) {
-      const c = calcs[idx]
-      if (!c.evaluable) continue
+    for (const c of evaluables) {
       const ef = calcEficienciaSLA({
-        tRespuestaMin: c.tPrimeraRespuestaMin,
-        tResolucionMin: c.tResolucionMin,
-        slaRespuestaMin: SLA_RESPUESTA_MIN,
-        slaResolucionMin: getSlaResolucionMin(pRows[idx].tipo),
+        tRespuestaMin:   c.tPrimeraRespuestaMin,
+        tResolucionMin:  c.tResolucionMin,
+        slaRespuestaMin: c.slaRespuestaObj,
+        slaResolucionMin: c.slaResolucionObj ?? SLA_RESOLUCION_DEFAULT_MIN,
       })
       if (ef.scoreSLA != null) { scoreSum += ef.scoreSLA; scoreCount++ }
     }
@@ -112,11 +120,13 @@ export function buildProveedorResumen(rows: RawSLAProvRow[]): ProveedorSLAResume
       dentraSLA,
       fueraSLA,
       slaPct,
+      slaRespuestaPct,
+      slaResolucionPct,
       scoreEficiencia: scoreCount > 0 ? Math.round(scoreSum / scoreCount) : null,
-      tPromRespuestaMin: avg(respTimes),
+      tPromRespuestaMin:  avg(respTimes),
       tPromResolucionMin: avg(resolTimes),
-      casosEscaladosN2,
-      nivelMasFrecuente: topEntry(nivelCounts),
+      tasaEscalamientoN2Pct,
+      cumplimientoETAPct,
       estado: getEstadoSLAProv(slaPct),
       motivoPrincipal,
     })
@@ -135,22 +145,22 @@ export function buildTiemposTable(rows: RawSLAProvRow[]): ProveedorSLATiempos[] 
 
   const result: ProveedorSLATiempos[] = []
   for (const [, { rows: pRows, nombre }] of map.entries()) {
-    const calcs = pRows.map(calcRow)
+    const calcs      = pRows.map(calcRow)
     const evaluables = calcs.filter((c) => c.evaluable)
 
-    const respTimes  = evaluables.filter((c) => c.tPrimeraRespuestaMin != null).map((c) => c.tPrimeraRespuestaMin!)
-    const resolTimes = evaluables.filter((c) => c.tResolucionMin != null).map((c) => c.tResolucionMin!)
-    const objTimes   = evaluables.map((c) => c.slaResolucionObj)
+    const respTimes     = evaluables.filter((c) => c.tPrimeraRespuestaMin != null).map((c) => c.tPrimeraRespuestaMin!)
+    const resolTimes    = evaluables.filter((c) => c.tResolucionMin        != null).map((c) => c.tResolucionMin!)
+    const resolObjTimes = evaluables.map((c) => c.slaResolucionObj).filter((v): v is number => v != null)
 
-    const fueraSLAPorRespuesta  = evaluables.filter((c) => !c.slaRespuesta && c.slaResolucion).length
-    const fueraSLAPorResolucion = evaluables.filter((c) => c.slaRespuesta && !c.slaResolucion).length
+    const fueraSLAPorRespuesta  = evaluables.filter((c) => !c.slaRespuesta &&  c.slaResolucion).length
+    const fueraSLAPorResolucion = evaluables.filter((c) =>  c.slaRespuesta && !c.slaResolucion).length
     const fueraSLAPorAmbos      = evaluables.filter((c) => !c.slaRespuesta && !c.slaResolucion).length
 
     result.push({
       nombre,
-      slaRespuestaObj: SLA_RESPUESTA_MIN,
+      slaRespuestaObj:    SLA_RESPUESTA_MIN,
       tRespuestaRealProm: avg(respTimes),
-      slaResolucionObjProm: avg(objTimes),
+      slaResolucionObj:   avg(resolObjTimes),
       tResolucionRealProm: avg(resolTimes),
       fueraSLAPorRespuesta,
       fueraSLAPorResolucion,
@@ -171,25 +181,32 @@ export function buildNivelesTable(rows: RawSLAProvRow[]): ProveedorSLANiveles[] 
 
   const result: ProveedorSLANiveles[] = []
   for (const [, { rows: pRows, nombre }] of map.entries()) {
-    const calcs = pRows.map(calcRow)
+    const calcs      = pRows.map(calcRow)
     const evaluables = calcs.filter((c) => c.evaluable)
+    const evalRows   = pRows.filter((_, i) => calcs[i].evaluable)
+    const total      = evaluables.length
 
-    const respondioN1 = evaluables.filter((c) => c.nivelQueRespondio === 1).length
-    const respondioN2 = evaluables.filter((c) => c.nivelQueRespondio === 2).length
-    const respondioN3 = evaluables.filter((c) => c.nivelQueRespondio === 3).length
-    const respondioN4 = evaluables.filter((c) => c.nivelQueRespondio != null && c.nivelQueRespondio >= 4).length
+    const respondioN1  = evaluables.filter((c) => c.nivelQueRespondio === 1).length
+    const respondioN2  = evaluables.filter((c) => c.nivelQueRespondio === 2).length
+    const respondioN3  = evaluables.filter((c) => c.nivelQueRespondio === 3).length
+    const respondioN4  = evaluables.filter((c) => c.nivelQueRespondio != null && c.nivelQueRespondio >= 4).length
     const sinRespuesta = evaluables.filter((c) => c.nivelQueRespondio == null).length
 
-    const nivelCounts: Record<number, number> = {}
-    for (const c of evaluables) {
-      if (c.nivelQueRespondio != null) nivelCounts[c.nivelQueRespondio] = (nivelCounts[c.nivelQueRespondio] ?? 0) + 1
+    const n1Solo   = evalRows.filter((r) => r.max_nivel === 1).length
+    const escN2    = evalRows.filter((r) => r.max_nivel === 2).length
+    const escN3mas = evalRows.filter((r) => r.max_nivel != null && r.max_nivel >= 3).length
+
+    const distribucion: DistribucionNiveles = {
+      n1Solo, escN2, escN3mas, sinRespuesta,
+      pctN1Solo:   total > 0 ? Math.round((n1Solo   / total) * 100) : null,
+      pctEscN2:    total > 0 ? Math.round((escN2    / total) * 100) : null,
+      pctEscN3mas: total > 0 ? Math.round((escN3mas / total) * 100) : null,
     }
-    const nivelMasUsado = topEntry(nivelCounts)
 
-    const llegaron2 = evaluables.filter((c) => c.escaladoN2).length
-    const pctLlegaronN2 = evaluables.length > 0 ? Math.round((llegaron2 / evaluables.length) * 100) : 0
+    const llegaron2     = evaluables.filter((c) => c.escaladoN2).length
+    const pctLlegaronN2 = total > 0 ? Math.round((llegaron2 / total) * 100) : 0
 
-    result.push({ nombre, respondioN1, respondioN2, respondioN3, respondioN4, sinRespuesta, nivelMasUsado, pctLlegaronN2 })
+    result.push({ nombre, respondioN1, respondioN2, respondioN3, respondioN4, sinRespuesta, distribucion, pctLlegaronN2 })
   }
 
   return result.sort((a, b) => a.nombre.localeCompare(b.nombre))
@@ -202,24 +219,26 @@ export function buildCasosFueraSLA(rows: RawSLAProvRow[]): CasoFueraSLA[] {
     const c = calcRow(row)
     if (!c.evaluable || c.slaGeneral) continue
     const eficiencia = calcEficienciaSLA({
-      tRespuestaMin: c.tPrimeraRespuestaMin,
-      tResolucionMin: c.tResolucionMin,
-      slaRespuestaMin: SLA_RESPUESTA_MIN,
-      slaResolucionMin: getSlaResolucionMin(row.tipo),
+      tRespuestaMin:    c.tPrimeraRespuestaMin,
+      tResolucionMin:   c.tResolucionMin,
+      slaRespuestaMin:  c.slaRespuestaObj,
+      slaResolucionMin: c.slaResolucionObj ?? SLA_RESOLUCION_DEFAULT_MIN,
     })
     result.push({
       id: row.id,
       codigo: row.codigo,
       tiendaCodigo: row.tienda_codigo,
       tiendaNombre: row.tienda_nombre ?? '',
-      provNombre: row.prov_nombre ?? '—',
+      provNombre:   row.prov_nombre ?? '—',
       tipo: row.tipo,
-      nivelQueRespondio: c.nivelQueRespondio,
+      nivelFinal:          c.nivelFinal,
+      nivelQueRespondio:   c.nivelQueRespondio,
       tPrimeraRespuestaMin: c.tPrimeraRespuestaMin,
-      tResolucionMin: c.tResolucionMin,
-      slaRespuesta: c.slaRespuesta,
+      tResolucionMin:      c.tResolucionMin,
+      slaRespuesta:  c.slaRespuesta,
       slaResolucion: c.slaResolucion,
-      slaGeneral: c.slaGeneral,
+      slaGeneral:    c.slaGeneral,
+      cumplioETA:    c.cumplioETA,
       motivoIncumplimiento: c.motivoIncumplimiento ?? '',
       scoreEficiencia: eficiencia.scoreSLA,
     })
@@ -235,19 +254,16 @@ export function buildConclusiones(
   if (!proveedores.length) return []
   const conclusiones: string[] = []
 
-  // Regla 1: menor SLA
   const peor = proveedores[0]
   if (peor.slaPct != null) {
     conclusiones.push(`${peor.nombre} presenta el menor cumplimiento SLA del período con ${peor.slaPct}%.`)
   }
 
-  // Regla 2: óptimo >=90%
   const optimos = proveedores.filter((p) => p.estado === 'optimo')
   for (const p of optimos) {
     conclusiones.push(`${p.nombre} mantiene cumplimiento SLA óptimo.`)
   }
 
-  // Reglas 3/4: motivo más frecuente global
   const totalFuerResp  = tiempos.reduce((s, t) => s + t.fueraSLAPorRespuesta + t.fueraSLAPorAmbos, 0)
   const totalFuerResol = tiempos.reduce((s, t) => s + t.fueraSLAPorResolucion + t.fueraSLAPorAmbos, 0)
   if (totalFuerResp > totalFuerResol && totalFuerResp > 0) {
@@ -256,16 +272,13 @@ export function buildConclusiones(
     conclusiones.push('El principal incumplimiento se origina en tiempos de resolución elevados.')
   }
 
-  // Regla 5: N2+ >30%
   const altaDependencia = niveles.filter((n) => n.pctLlegaronN2 > 30)
   if (altaDependencia.length >= 2) {
-    const nombres = altaDependencia.map((n) => n.nombre).join(' y ')
-    conclusiones.push(`${nombres} presentan alta dependencia de escalamiento a niveles superiores.`)
+    conclusiones.push(`${altaDependencia.map((n) => n.nombre).join(' y ')} presentan alta dependencia de escalamiento a niveles superiores.`)
   } else if (altaDependencia.length === 1) {
     conclusiones.push(`${altaDependencia[0].nombre} presenta alta dependencia de escalamiento a niveles superiores.`)
   }
 
-  // Regla 6: recomendaciones
   const criticos = proveedores.filter((p) => p.estado === 'critico')
   for (const p of criticos) {
     if (p.motivoPrincipal === 'Respuesta y resolución fuera de objetivo') {
@@ -276,8 +289,7 @@ export function buildConclusiones(
       conclusiones.push(`Se recomienda revisar capacidad técnica y tiempos de solución de ${p.nombre}.`)
     }
   }
-  const altaEscalamientoNivel = niveles.find((n) => n.pctLlegaronN2 > 30)
-  if (altaEscalamientoNivel) {
+  if (altaDependencia.length > 0) {
     conclusiones.push('Se recomienda validar contactos de Nivel 1 y tiempos de escalamiento.')
   }
 

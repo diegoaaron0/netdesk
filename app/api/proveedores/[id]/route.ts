@@ -135,11 +135,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         tipo: row.tipo,
         hora_registro: new Date(),
         hora_fin: null,
-        mttr_minutos: row.mttr_minutos,
         hora_correo_n1: row.hora_correo_n1,
         hora_primera_resp: row.hora_respuesta_n1,
         max_nivel: 1,
-        evaluable_proveedor: true,
         slaRespuestaOverride: slaContrato.respuestaMin,
         slaResolucionOverride: slaResolucionMin,
       })
