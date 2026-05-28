@@ -3,7 +3,7 @@ import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
-import { SLA_RESPUESTA_MIN } from '@/lib/sla-core'
+import { calcSLARow } from '@/lib/sla-core'
 
 function minBetween(a: Date | string | null, b: Date | string | null): number | null {
   if (!a || !b) return null
@@ -108,8 +108,11 @@ export async function GET(req: NextRequest) {
       const mttrVals = incRows.filter(r => r.mttr_minutos && r.mttr_minutos > 0).map(r => r.mttr_minutos!)
       const mttrAvg = mttrVals.length ? Math.round(mttrVals.reduce((a, b) => a + b) / mttrVals.length) : null
 
-      const evaluables = incRows.filter(r => r.evaluable_proveedor !== false && r.hora_envio_correo != null && r.max_nivel >= 1)
-      const slaOk   = evaluables.filter(r => { if (r.max_nivel >= 2) return false; const t = minBetween(r.hora_envio_correo, r.hora_respuesta); return t != null && t <= SLA_RESPUESTA_MIN }).length
+      const slaCalcs = incRows
+        .filter(r => r.evaluable_proveedor !== false)
+        .map(r => calcSLARow({ tipo: r.tipo, hora_correo_n1: r.hora_envio_correo, hora_primera_resp: r.hora_respuesta, hora_fin: r.hora_fin, max_nivel: r.max_nivel }))
+      const evaluables = slaCalcs.filter(s => s.evaluable)
+      const slaOk   = evaluables.filter(s => s.slaGeneral).length
       const slaFail = evaluables.length - slaOk
 
       const incidentes = incRows.map(r => {
@@ -118,10 +121,9 @@ export async function GET(req: NextRequest) {
         const minSolucionDesdeCorreo = minBetween(r.hora_envio_correo, r.hora_fin)
 
         let dentroSLA: boolean | null = null
-        if (r.hora_envio_correo != null && r.max_nivel >= 1) {
-          if (r.max_nivel >= 2)         dentroSLA = false  // escaló a N2 = N1 no respondió a tiempo
-          else if (minRespuesta != null) dentroSLA = minRespuesta <= SLA_RESPUESTA_MIN
-          else if (r.no_hubo_respuesta) dentroSLA = false
+        if (r.evaluable_proveedor !== false) {
+          const sla = calcSLARow({ tipo: r.tipo, hora_correo_n1: r.hora_envio_correo, hora_primera_resp: r.hora_respuesta, hora_fin: r.hora_fin, max_nivel: r.max_nivel })
+          if (sla.evaluable) dentroSLA = sla.slaGeneral
         }
 
         return {
@@ -156,8 +158,11 @@ export async function GET(req: NextRequest) {
     }).sort((a, b) => (b.slaFail - a.slaFail) || ((b.mttrAvg ?? 0) - (a.mttrAvg ?? 0)))
 
     const allRows    = [...tiendaMap.values()].flat()
-    const evs        = allRows.filter(r => r.evaluable_proveedor !== false && r.hora_envio_correo != null && r.max_nivel >= 1)
-    const dentroSLAn = evs.filter(r => { if (r.max_nivel >= 2) return false; const t = minBetween(r.hora_envio_correo, r.hora_respuesta); return t != null && t <= SLA_RESPUESTA_MIN }).length
+    const allSlaCalcs = allRows
+      .filter(r => r.evaluable_proveedor !== false)
+      .map(r => calcSLARow({ tipo: r.tipo, hora_correo_n1: r.hora_envio_correo, hora_primera_resp: r.hora_respuesta, hora_fin: r.hora_fin, max_nivel: r.max_nivel }))
+    const evs        = allSlaCalcs.filter(s => s.evaluable)
+    const dentroSLAn = evs.filter(s => s.slaGeneral).length
     const slaPct     = evs.length > 0 ? Math.round(dentroSLAn / evs.length * 100) : null
     const mttrVals   = allRows.filter(r => r.mttr_minutos && r.mttr_minutos > 0).map(r => r.mttr_minutos!)
     const mttrAvg    = mttrVals.length ? Math.round(mttrVals.reduce((a, b) => a + b) / mttrVals.length) : null
