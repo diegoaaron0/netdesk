@@ -1013,9 +1013,15 @@ export default function DashboardAnalitico() {
           />
         </div>
 
-        {/* D — Distribución por tipo (activo) */}
-        <div>
+        {/* D + F apilados en col 3 */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <DistributionByTypeCard
+            desde={desde}
+            hasta={hasta}
+            proveedorId={proveedorId}
+            refreshKey={refreshKey}
+          />
+          <GeographicImpactCard
             desde={desde}
             hasta={hasta}
             proveedorId={proveedorId}
@@ -1023,14 +1029,8 @@ export default function DashboardAnalitico() {
           />
         </div>
 
-        {/* F + G lado a lado */}
-        <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-          <GeographicImpactCard
-            desde={desde}
-            hasta={hasta}
-            proveedorId={proveedorId}
-            refreshKey={refreshKey}
-          />
+        {/* G — Tendencia SLA 6 meses, ancho completo */}
+        <div style={{ gridColumn: '1 / -1' }}>
           <SlaTrendSixMonthsCard
             proveedorId={proveedorId}
             refreshKey={refreshKey}

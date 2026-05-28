@@ -55,9 +55,10 @@ export default function DistributionByTypeCard({ desde, hasta, proveedorId, refr
 
       {!loading && total > 0 && (
         <>
-          <div>
-            <span style={{ fontSize: '20px', fontWeight: 700, color: tipos[0]?.color ?? '#0f172a', lineHeight: 1 }}>{tipos[0]?.label ?? '—'}</span>
-            <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginLeft: '6px' }}>tipo dominante · {tipos[0]?.pct ?? 0}%</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: tipos[0]?.color ?? '#0f172a', flexShrink: 0 }} />
+            <span style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>{tipos[0]?.label ?? '—'}</span>
+            <span style={{ marginLeft: 'auto', fontSize: '18px', fontWeight: 700, color: '#0f172a', fontFamily: 'monospace', lineHeight: 1 }}>{tipos[0]?.pct ?? 0}%</span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>

@@ -138,10 +138,10 @@ export default function SlaTrendSixMonthsCard({ proveedorId, refreshKey }: Props
       )}
 
       {!loading && !error && chartData.length > 0 && (
-        <ResponsiveContainer width="100%" height={145}>
-          <LineChart data={chartData} margin={{ top: 12, right: 90, bottom: 2, left: -18 }}>
+        <ResponsiveContainer width="100%" height={180}>
+          <LineChart data={chartData} margin={{ top: 12, right: 90, bottom: 2, left: -12 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(136,135,128,0.10)" />
-            <XAxis dataKey="mesLabel" tick={{ fontSize: 9, fill: '#888780' }} tickLine={false} />
+            <XAxis dataKey="mesLabel" tick={{ fontSize: 10, fill: '#888780' }} tickLine={false} />
             <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: '#888780' }} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
             <Tooltip content={<CustomTooltip />} />
             <ReferenceLine y={90} stroke="#888780" strokeDasharray="4 3" strokeWidth={1.2}
