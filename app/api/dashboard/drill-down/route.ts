@@ -51,17 +51,22 @@ export async function GET(req: NextRequest) {
       e1.hora_envio_correo,
       e1.hora_respuesta,
       COALESCE(e1.no_hubo_respuesta, false)      AS no_hubo_respuesta,
-      e1.tiempo_respuesta_min
+      COALESCE(max_n.max_nivel, 0)               AS max_nivel
     FROM incidentes i
     JOIN tiendas t ON i.tienda_id = t.id
     LEFT JOIN proveedores p  ON i.proveedor_id = p.id
     LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
     LEFT JOIN LATERAL (
-      SELECT hora_envio_correo, hora_respuesta, no_hubo_respuesta, tiempo_respuesta_min
+      SELECT hora_envio_correo, hora_respuesta, no_hubo_respuesta
       FROM   escalamientos
       WHERE  incidente_id = i.id AND nivel = 1
       ORDER  BY creado_en LIMIT 1
     ) e1 ON true
+    LEFT JOIN LATERAL (
+      SELECT COALESCE(MAX(nivel), 0) AS max_nivel
+      FROM   escalamientos
+      WHERE  incidente_id = i.id
+    ) max_n ON true
     WHERE i.hora_registro >= ${desde}::timestamptz
       AND i.hora_registro <  ${hasta}::timestamptz
       AND i.estado != 'CANCELADO'
@@ -83,7 +88,7 @@ export async function GET(req: NextRequest) {
     hora_envio_correo: Date | null
     hora_respuesta: Date | null
     no_hubo_respuesta: boolean
-    tiempo_respuesta_min: number | null
+    max_nivel: number
   }
 
   const all = rows as unknown as Row[]
@@ -103,9 +108,9 @@ export async function GET(req: NextRequest) {
       const mttrVals = incRows.filter(r => r.mttr_minutos && r.mttr_minutos > 0).map(r => r.mttr_minutos!)
       const mttrAvg = mttrVals.length ? Math.round(mttrVals.reduce((a, b) => a + b) / mttrVals.length) : null
 
-      const evaluables = incRows.filter(r => r.evaluable_proveedor !== false && r.hora_envio_correo != null)
-      const slaOk   = evaluables.filter(r => { const t = minBetween(r.hora_envio_correo, r.hora_respuesta); return t != null && t <= SLA_RESPUESTA_MIN }).length
-      const slaFail = evaluables.filter(r => { const t = minBetween(r.hora_envio_correo, r.hora_respuesta); return r.no_hubo_respuesta || t == null || t > SLA_RESPUESTA_MIN }).length
+      const evaluables = incRows.filter(r => r.evaluable_proveedor !== false && r.hora_envio_correo != null && r.max_nivel >= 1)
+      const slaOk   = evaluables.filter(r => { if (r.max_nivel >= 2) return false; const t = minBetween(r.hora_envio_correo, r.hora_respuesta); return t != null && t <= SLA_RESPUESTA_MIN }).length
+      const slaFail = evaluables.length - slaOk
 
       const incidentes = incRows.map(r => {
         const minHastaEnvio          = minBetween(r.hora_registro, r.hora_envio_correo)
@@ -113,8 +118,9 @@ export async function GET(req: NextRequest) {
         const minSolucionDesdeCorreo = minBetween(r.hora_envio_correo, r.hora_fin)
 
         let dentroSLA: boolean | null = null
-        if (r.hora_envio_correo != null) {
-          if (minRespuesta != null)     dentroSLA = minRespuesta <= SLA_RESPUESTA_MIN
+        if (r.hora_envio_correo != null && r.max_nivel >= 1) {
+          if (r.max_nivel >= 2)         dentroSLA = false  // escaló a N2 = N1 no respondió a tiempo
+          else if (minRespuesta != null) dentroSLA = minRespuesta <= SLA_RESPUESTA_MIN
           else if (r.no_hubo_respuesta) dentroSLA = false
         }
 
@@ -150,8 +156,8 @@ export async function GET(req: NextRequest) {
     }).sort((a, b) => (b.slaFail - a.slaFail) || ((b.mttrAvg ?? 0) - (a.mttrAvg ?? 0)))
 
     const allRows    = [...tiendaMap.values()].flat()
-    const evs        = allRows.filter(r => r.evaluable_proveedor !== false && r.hora_envio_correo != null)
-    const dentroSLAn = evs.filter(r => { const t = minBetween(r.hora_envio_correo, r.hora_respuesta); return t != null && t <= SLA_RESPUESTA_MIN }).length
+    const evs        = allRows.filter(r => r.evaluable_proveedor !== false && r.hora_envio_correo != null && r.max_nivel >= 1)
+    const dentroSLAn = evs.filter(r => { if (r.max_nivel >= 2) return false; const t = minBetween(r.hora_envio_correo, r.hora_respuesta); return t != null && t <= SLA_RESPUESTA_MIN }).length
     const slaPct     = evs.length > 0 ? Math.round(dentroSLAn / evs.length * 100) : null
     const mttrVals   = allRows.filter(r => r.mttr_minutos && r.mttr_minutos > 0).map(r => r.mttr_minutos!)
     const mttrAvg    = mttrVals.length ? Math.round(mttrVals.reduce((a, b) => a + b) / mttrVals.length) : null
