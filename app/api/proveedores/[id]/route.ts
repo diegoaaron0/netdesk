@@ -111,18 +111,32 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const slaRows = await db.execute(sql`
       SELECT
         i.tipo,
-        i.mttr_minutos,
         i.evaluable_proveedor,
-        i.resuelto_por,
-        MIN(e.hora_envio_correo) AS hora_correo_n1,
-        MIN(e.hora_respuesta)   AS hora_respuesta_n1
+        n1.hora_correo_n1,
+        resp.hora_primera_resp,
+        max_n.max_nivel
       FROM incidentes i
-      LEFT JOIN escalamientos e ON e.incidente_id = i.id AND e.nivel = 1
+      LEFT JOIN LATERAL (
+        SELECT hora_envio_correo AS hora_correo_n1
+        FROM   escalamientos
+        WHERE  incidente_id = i.id AND nivel = 1 AND hora_envio_correo IS NOT NULL
+        ORDER  BY creado_en LIMIT 1
+      ) n1 ON true
+      LEFT JOIN LATERAL (
+        SELECT hora_respuesta AS hora_primera_resp
+        FROM   escalamientos
+        WHERE  incidente_id = i.id AND hora_respuesta IS NOT NULL
+        ORDER  BY hora_respuesta LIMIT 1
+      ) resp ON true
+      LEFT JOIN LATERAL (
+        SELECT COALESCE(MAX(nivel), 0) AS max_nivel
+        FROM   escalamientos
+        WHERE  incidente_id = i.id
+      ) max_n ON true
       WHERE i.proveedor_id = ${id}
         AND i.hora_registro >= ${thirtyDaysAgoStr}::timestamptz
         AND i.estado = 'RESUELTO'
         AND i.evaluable_proveedor IS NOT FALSE
-      GROUP BY i.id
     `)
 
     const { calcSLARow, calcEficienciaSLA } = await import('@/lib/sla-core')
@@ -133,11 +147,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       total++
       const res = calcSLARow({
         tipo: row.tipo,
-        hora_registro: new Date(),
-        hora_fin: null,
         hora_correo_n1: row.hora_correo_n1,
-        hora_primera_resp: row.hora_respuesta_n1,
-        max_nivel: 1,
+        hora_primera_resp: row.hora_primera_resp,
+        hora_fin: null,
+        max_nivel: row.max_nivel ?? 1,
         slaRespuestaOverride: slaContrato.respuestaMin,
         slaResolucionOverride: slaResolucionMin,
       })
