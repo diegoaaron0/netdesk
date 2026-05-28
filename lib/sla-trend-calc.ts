@@ -2,7 +2,7 @@ import type {
   PuntoTendencia, ChartMes, ResumenProveedor, MesCritico,
   SLATrendResumenGlobal, SLATendenciaEstado, EstadoTendencia,
 } from '@/types/sla-trend'
-import { calcSLARow } from './sla-core'
+import { calcSLARow, parseEtaMin } from './sla-core'
 
 export interface RawSLATrendRow {
   id: string
@@ -14,6 +14,7 @@ export interface RawSLATrendRow {
   hora_correo_n1: Date | string | null
   hora_primera_resp: Date | string | null
   max_nivel: number | null
+  eta_str?: string | null
   sla_respuesta_override?: number | null
   sla_resolucion_override?: number | null
 }
@@ -46,6 +47,7 @@ function calcRow(row: RawSLATrendRow) {
     max_nivel: row.max_nivel,
     slaRespuestaOverride:  row.sla_respuesta_override  ?? undefined,
     slaResolucionOverride: row.sla_resolucion_override ?? undefined,
+    tiempoEstimadoSolucionMin: parseEtaMin(row.eta_str),
   })
 }
 

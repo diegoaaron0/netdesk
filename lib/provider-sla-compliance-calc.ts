@@ -2,7 +2,7 @@ import type {
   ProveedorSLAResumen, ProveedorSLATiempos, ProveedorSLANiveles,
   CasoFueraSLA, SLAEstado, DistribucionNiveles,
 } from '@/types/provider-sla-compliance'
-import { calcSLARow, calcEficienciaSLA, SLA_RESPUESTA_MIN, SLA_RESOLUCION_DEFAULT_MIN } from './sla-core'
+import { calcSLARow, calcEficienciaSLA, SLA_RESPUESTA_MIN, SLA_RESOLUCION_DEFAULT_MIN, parseEtaMin } from './sla-core'
 
 export interface RawSLAProvRow {
   id: string
@@ -19,7 +19,8 @@ export interface RawSLAProvRow {
   hora_primera_resp: Date | string | null
   nivel_respuesta: number | null
   max_nivel: number | null
-  tiempo_estimado_solucion_min?: number | null
+  eta_str?: string | null                   // texto libre del proveedor
+  tiempo_estimado_solucion_min?: number | null  // alternativa ya parseada
   sla_respuesta_override?: number | null
   sla_resolucion_override?: number | null
 }
@@ -52,7 +53,7 @@ function calcRow(row: RawSLAProvRow) {
     max_nivel: row.max_nivel,
     slaRespuestaOverride:  row.sla_respuesta_override  ?? undefined,
     slaResolucionOverride: row.sla_resolucion_override ?? undefined,
-    tiempoEstimadoSolucionMin: row.tiempo_estimado_solucion_min ?? null,
+    tiempoEstimadoSolucionMin: row.tiempo_estimado_solucion_min ?? parseEtaMin(row.eta_str),
   })
   return { ...sla, nivelQueRespondio: row.nivel_respuesta }
 }

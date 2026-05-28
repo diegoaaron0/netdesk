@@ -42,7 +42,10 @@ export async function GET(req: NextRequest) {
         n1.hora_correo_n1,
         resp.hora_primera_resp,
         resp.nivel_respuesta,
-        max_n.max_nivel
+        resp.eta_str,
+        max_n.max_nivel,
+        contrato.sla_respuesta_override,
+        contrato.sla_resolucion_override
       FROM incidentes i
       JOIN tiendas t ON i.tienda_id = t.id
       LEFT JOIN proveedores p  ON i.proveedor_id = p.id
@@ -54,7 +57,8 @@ export async function GET(req: NextRequest) {
         ORDER  BY creado_en LIMIT 1
       ) n1 ON true
       LEFT JOIN LATERAL (
-        SELECT hora_respuesta AS hora_primera_resp, nivel AS nivel_respuesta
+        SELECT hora_respuesta AS hora_primera_resp, nivel AS nivel_respuesta,
+               tiempo_estimado_solucion AS eta_str
         FROM   escalamientos
         WHERE  incidente_id = i.id AND hora_respuesta IS NOT NULL
         ORDER  BY hora_respuesta LIMIT 1
@@ -64,6 +68,16 @@ export async function GET(req: NextRequest) {
         FROM   escalamientos
         WHERE  incidente_id = i.id
       ) max_n ON true
+      LEFT JOIN LATERAL (
+        SELECT tiempo_respuesta_sla  AS sla_respuesta_override,
+               tiempo_resolucion_sla AS sla_resolucion_override
+        FROM   contratos_proveedor
+        WHERE  proveedor_id = COALESCE(i.proveedor_id, t.proveedor_id)
+          AND  estado = 'VIGENTE'
+          AND  (tienda_id IS NULL OR tienda_id = t.id)
+        ORDER  BY (tienda_id IS NOT NULL) DESC
+        LIMIT  1
+      ) contrato ON true
       WHERE i.hora_registro >= ${desde}::timestamptz
         AND i.hora_registro <  ${hasta}::timestamptz
         AND i.estado = 'RESUELTO'
