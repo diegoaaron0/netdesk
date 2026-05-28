@@ -104,9 +104,8 @@ export async function GET(req: NextRequest) {
       const mttrAvg = mttrVals.length ? Math.round(mttrVals.reduce((a, b) => a + b) / mttrVals.length) : null
 
       const evaluables = incRows.filter(r => r.evaluable_proveedor !== false && r.hora_envio_correo != null)
-      // Compute response time from timestamps (tiempo_respuesta_min in DB may be null/stale)
       const slaOk   = evaluables.filter(r => { const t = minBetween(r.hora_envio_correo, r.hora_respuesta); return t != null && t <= SLA_RESPUESTA_MIN }).length
-      const slaFail = evaluables.filter(r => { const t = minBetween(r.hora_envio_correo, r.hora_respuesta); return r.no_hubo_respuesta || (t != null && t > SLA_RESPUESTA_MIN) }).length
+      const slaFail = evaluables.filter(r => { const t = minBetween(r.hora_envio_correo, r.hora_respuesta); return r.no_hubo_respuesta || t == null || t > SLA_RESPUESTA_MIN }).length
 
       const incidentes = incRows.map(r => {
         const minHastaEnvio          = minBetween(r.hora_registro, r.hora_envio_correo)
@@ -152,7 +151,7 @@ export async function GET(req: NextRequest) {
 
     const allRows    = [...tiendaMap.values()].flat()
     const evs        = allRows.filter(r => r.evaluable_proveedor !== false && r.hora_envio_correo != null)
-    const dentroSLAn = evs.filter(r => r.hora_respuesta != null && (r.tiempo_respuesta_min ?? Infinity) <= SLA_RESPUESTA_MIN).length
+    const dentroSLAn = evs.filter(r => { const t = minBetween(r.hora_envio_correo, r.hora_respuesta); return t != null && t <= SLA_RESPUESTA_MIN }).length
     const slaPct     = evs.length > 0 ? Math.round(dentroSLAn / evs.length * 100) : null
     const mttrVals   = allRows.filter(r => r.mttr_minutos && r.mttr_minutos > 0).map(r => r.mttr_minutos!)
     const mttrAvg    = mttrVals.length ? Math.round(mttrVals.reduce((a, b) => a + b) / mttrVals.length) : null

@@ -48,8 +48,7 @@ export interface SLAInputRow {
   hora_correo_n1: Date | string | null
   hora_primera_resp: Date | string | null
   hora_fin: Date | string | null
-  /** Fallback: si hora_correo_n1 es null, se evalúa SLA por MTTR desde hora_registro */
-  hora_registro?: Date | string | null
+  hora_registro?: Date | string | null   // retenido por compatibilidad, no usado en evaluación
   max_nivel: number | null
   slaRespuestaOverride?: number
   slaResolucionOverride?: number
@@ -74,6 +73,9 @@ export interface SLAResult {
 /**
  * Evalúa el cumplimiento SLA de un incidente.
  *
+ * Un incidente es evaluable SOLO si el proveedor fue notificado formalmente (N1).
+ * Incidentes resueltos por el agente interno (sin correo N1) no son evaluables.
+ *
  * Evaluabilidad: hora_correo_n1 != null AND max_nivel >= 1
  * SLA Respuesta: primera respuesta dentro de SLA_RESPUESTA_MIN desde hora_correo_n1
  *                (falla automáticamente si escaló a N2+, pues N1 no respondió a tiempo)
@@ -83,7 +85,7 @@ export interface SLAResult {
 export function calcSLARow(row: SLAInputRow): SLAResult {
   const slaResolucionObj = row.slaResolucionOverride ?? getSlaResolucionMin(row.tipo)
 
-  // ── Vía 1: tracking N1 disponible — evaluación estricta por escalamiento ──────
+  // ── Evaluable solo si el proveedor recibió correo N1 y hay escalamiento ───────
   if (row.hora_correo_n1 && row.max_nivel != null && row.max_nivel >= 1) {
     const escaladoN2 = row.max_nivel >= 2
     const tPrimeraRespuestaMin = diffMin(row.hora_primera_resp, row.hora_correo_n1)
@@ -113,22 +115,7 @@ export function calcSLARow(row: SLAInputRow): SLAResult {
     }
   }
 
-  // ── Vía 2: sin tracking N1 — fallback MTTR desde hora_registro ───────────────
-  if (row.hora_registro && row.hora_fin) {
-    const escaladoN2     = (row.max_nivel ?? 0) >= 2
-    const tResolucionMin = diffMin(row.hora_fin, row.hora_registro)
-    const slaResolucion  = tResolucionMin != null && tResolucionMin <= slaResolucionObj
-    return {
-      evaluable: true, escaladoN2,
-      tPrimeraRespuestaMin: null,
-      tResolucionMin: tResolucionMin != null ? Math.round(tResolucionMin) : null,
-      slaResolucionObj, slaRespuesta: true, slaResolucion,
-      slaGeneral: slaResolucion,
-      motivoIncumplimiento: slaResolucion ? null : 'Resolución fuera de tiempo',
-    }
-  }
-
-  // ── No hay datos suficientes para evaluar ─────────────────────────────────────
+  // ── Sin N1: incidente resuelto por agente interno — no evaluable para SLA ─────
   return {
     evaluable: false, escaladoN2: false,
     tPrimeraRespuestaMin: null, tResolucionMin: null,
