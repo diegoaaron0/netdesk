@@ -19,24 +19,11 @@ function fmtCosto(n: number) {
   return `S/ ${n.toLocaleString('es-PE', { maximumFractionDigits: 0 })}`
 }
 
-function slaColor(v: number | null): string {
-  if (v == null) return '#888780'
-  if (v < 70) return '#A32D2D'
-  if (v < 90) return '#BA7517'
+function costoColor(n: number): string {
+  if (n === 0) return '#888780'
+  if (n > 5000) return '#A32D2D'
+  if (n > 1000) return '#BA7517'
   return '#1D9E75'
-}
-
-function SLABar({ pct }: { pct: number | null }) {
-  if (pct == null) return <span style={{ fontSize: '10px', color: '#888780' }}>—</span>
-  const color = slaColor(pct)
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-      <div style={{ width: '36px', height: '4px', background: '#e5e7eb', borderRadius: '3px', overflow: 'hidden' }}>
-        <div style={{ height: '4px', width: `${pct}%`, background: color, borderRadius: '3px' }} />
-      </div>
-      <span style={{ fontSize: '10px', fontWeight: 600, color }}>{pct}%</span>
-    </div>
-  )
 }
 
 export default function ProviderImpactCard({ desde, hasta, proveedorId, refreshKey }: Props) {
@@ -74,9 +61,8 @@ export default function ProviderImpactCard({ desde, hasta, proveedorId, refreshK
         {!loading && resumen && (
           <div style={{ display: 'flex', gap: '8px', fontSize: '10px', color: '#64748b' }}>
             <span><strong style={{ color: '#0f172a' }}>{resumen.totalProveedores}</strong> provs.</span>
-            <span>SLA: <strong style={{ color: slaColor(resumen.globalSlaPct) }}>{resumen.globalSlaPct != null ? `${resumen.globalSlaPct}%` : '—'}</strong></span>
             <span>MTTR: <strong style={{ color: '#0f172a' }}>{fmtMin(resumen.globalMttrMin)}</strong></span>
-            <span>Costo: <strong style={{ color: '#0f172a' }}>{fmtCosto(resumen.totalCosto)}</strong></span>
+            <span>I.E.I: <strong style={{ color: '#0f172a' }}>{fmtCosto(resumen.totalCosto)}</strong></span>
           </div>
         )}
       </div>
@@ -101,7 +87,7 @@ export default function ProviderImpactCard({ desde, hasta, proveedorId, refreshK
                 {[
                   { label: 'Proveedor', align: 'left' as const },
                   { label: 'Incs', align: 'center' as const },
-                  { label: 'SLA%', align: 'left' as const },
+                  { label: 'I.E.I', align: 'right' as const },
                   { label: 'MTTR', align: 'right' as const },
                   { label: 'Reincid.', align: 'center' as const },
                   { label: 'Estado', align: 'center' as const },
@@ -121,7 +107,7 @@ export default function ProviderImpactCard({ desde, hasta, proveedorId, refreshK
                 <tr key={p.id} style={{ borderTop: i > 0 ? '0.5px solid #f3f4f6' : 'none' }}>
                   <td style={{ padding: '4px 6px', fontWeight: 500, color: '#0f172a', whiteSpace: 'nowrap', maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.nombre}</td>
                   <td style={{ padding: '4px 6px', textAlign: 'center', fontWeight: 600, color: '#0f172a' }}>{p.incidentes}</td>
-                  <td style={{ padding: '4px 6px' }}><SLABar pct={p.slaPct} /></td>
+                  <td style={{ padding: '4px 6px', textAlign: 'right', fontFamily: 'monospace', fontSize: '10px', fontWeight: 600, color: costoColor(p.costoTotal), whiteSpace: 'nowrap' }}>{fmtCosto(p.costoTotal)}</td>
                   <td style={{ padding: '4px 6px', textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 500, color: p.mttrMinutos != null && p.mttrMinutos > 240 ? '#A32D2D' : p.mttrMinutos != null && p.mttrMinutos > 120 ? '#BA7517' : '#0f172a' }}>
                     {fmtMin(p.mttrMinutos)}
                   </td>
