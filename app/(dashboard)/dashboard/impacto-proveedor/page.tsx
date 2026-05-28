@@ -37,41 +37,33 @@ function riesgoBadge(score: number) {
   return                   { label: 'Bajo',  color: '#3B6D11', bg: '#EAF3DE' }
 }
 
+function slaColor(pct: number | null) {
+  if (pct == null) return '#888780'
+  if (pct >= 90) return '#3B6D11'
+  if (pct >= 70) return '#854F0B'
+  return '#A32D2D'
+}
+
 function SlaCell({ pct }: { pct: number | null }) {
   if (pct == null) return <span style={{ color: '#888780' }}>—</span>
-  const color = pct >= 90 ? '#3B6D11' : pct >= 70 ? '#854F0B' : '#A32D2D'
+  const color = slaColor(pct)
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-      <div style={{ width: '44px', height: '5px', background: '#e5e7eb', borderRadius: '3px', overflow: 'hidden' }}>
-        <div style={{ height: '5px', width: `${Math.min(pct, 100)}%`, background: color, borderRadius: '3px' }} />
+    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+      <div style={{ width: '36px', height: '4px', background: '#e5e7eb', borderRadius: '3px', overflow: 'hidden' }}>
+        <div style={{ height: '4px', width: `${Math.min(pct, 100)}%`, background: color, borderRadius: '3px' }} />
       </div>
-      <span style={{ fontWeight: 600, color, fontSize: '12px' }}>{pct}%</span>
+      <span style={{ fontWeight: 600, color, fontSize: '11px' }}>{pct}%</span>
     </div>
   )
 }
 
-function SumCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
+function ResumenCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
-    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '14px 16px', flex: 1, minWidth: '120px' }}>
-      <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', fontWeight: 500, marginBottom: '6px' }}>{label}</div>
-      <div style={{ fontSize: '22px', fontWeight: 700, color: color ?? '#0f172a', lineHeight: 1 }}>{value}</div>
-      {sub && <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '4px' }}>{sub}</div>}
+    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '8px', padding: '8px 12px', flex: 1, minWidth: 0 }}>
+      <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{label}</div>
+      <div style={{ fontSize: '16px', fontWeight: 600, color: color ?? '#0f172a', lineHeight: 1.1 }}>{value}</div>
+      {sub && <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{sub}</div>}
     </div>
-  )
-}
-
-function TH({ children, align = 'left', title }: { children: React.ReactNode; align?: string; title?: string }) {
-  return (
-    <th title={title} style={{ padding: '8px 10px', textAlign: align as any, fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '0.5px solid #e5e7eb', whiteSpace: 'nowrap', cursor: title ? 'help' : undefined }}>
-      {children}{title && <span style={{ marginLeft: '3px', fontSize: '9px', color: '#94a3b8' }}>?</span>}
-    </th>
-  )
-}
-function TD({ children, align = 'left', mono = false }: { children: React.ReactNode; align?: string; mono?: boolean }) {
-  return (
-    <td style={{ padding: '8px 10px', fontSize: '12px', textAlign: align as any, fontFamily: mono ? 'monospace' : undefined, borderTop: '0.5px solid #f3f4f6', verticalAlign: 'middle' }}>
-      {children}
-    </td>
   )
 }
 
@@ -110,85 +102,76 @@ function ImpactoProveedorContent() {
   const globalMttr  = resumen?.globalMttrMin ?? null
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', fontFamily: 'inherit' }}>
+    <div style={{ maxWidth: '100%' }}>
 
-      {/* Breadcrumb */}
-      <button onClick={() => router.push('/dashboard?tab=analitico')}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: '#185FA5', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '16px', padding: 0 }}>
-        ← Volver al dashboard analítico
-      </button>
-
-      {/* Header */}
-      <div style={{ marginBottom: '16px' }}>
-        <div style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>B. Impacto por proveedor</div>
-        <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginTop: '2px' }}>
-          Comparativa de proveedores por incidentes, MTTR, cumplimiento SLA e impacto económico estimado
-        </div>
+      {/* Header compacto — igual que A */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+        <button onClick={() => router.push('/dashboard?tab=analitico')}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: '#185FA5', fontWeight: 500, padding: 0, flexShrink: 0 }}>
+          ← Volver
+        </button>
+        <span style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>B. Impacto por proveedor</span>
       </div>
 
-      {/* Filters — mismo layout que sección A */}
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '16px', padding: '10px 12px', background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px' }}>
-        <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', fontWeight: 500 }}>Período:</span>
+      {/* Filtros — mismos estilos que A */}
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '8px', padding: '7px 10px', background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '8px' }}>
+        {fromDashboard && (
+          <span style={{ fontSize: '10px', padding: '1px 6px', background: '#E6F1FB', color: '#185FA5', borderRadius: '5px', fontWeight: 500 }}>
+            Filtro del dashboard
+          </span>
+        )}
         <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }} />
-        <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>–</span>
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', outline: 'none' }} />
         <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }} />
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', outline: 'none' }} />
         <select value={proveedorId} onChange={(e) => setProveedorId(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', outline: 'none' }}>
           <option value="">Todos los proveedores</option>
           {provLista.map((p) => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
         </select>
         <button onClick={() => fetchData()}
-          style={{ padding: '6px 14px', fontSize: '12px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 500 }}>
-          Aplicar
+          style={{ padding: '5px 12px', fontSize: '11px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>
+          ↻ Actualizar
         </button>
         <button onClick={() => { const d = firstDayOfMonth(), h = todayStr(); setDesde(d); setHasta(h); setProveedorId(''); fetchData(d, h, '') }}
-          style={{ padding: '6px 14px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'pointer', background: 'var(--card)', color: 'var(--foreground)' }}>
+          style={{ padding: '5px 12px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', cursor: 'pointer', background: 'white', color: 'var(--foreground)' }}>
           Limpiar
         </button>
-        {fromDashboard && (
-          <span style={{ marginLeft: '4px', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 10px', background: '#E6F1FB', borderRadius: '999px', fontSize: '11px', color: '#185FA5' }}>
-            ● Filtro del dashboard
-          </span>
-        )}
       </div>
 
       {loading && (
-        <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', color: 'var(--muted-foreground)' }}>
-          Cargando datos...
-        </div>
+        <div style={{ padding: '40px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>Cargando...</div>
       )}
 
       {!loading && data && (
         <>
-          {/* KPI strip — 6 tarjetas */}
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
-            <SumCard label="Proveedores activos" value={String(resumen?.totalProveedores ?? 0)} sub="con incidentes en el período" />
-            <SumCard
-              label="Mayor nº de incidentes"
+          {/* Resumen strip — misma ResumenCard que A */}
+          <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
+            <ResumenCard label="Proveedores activos" value={String(resumen?.totalProveedores ?? 0)} sub="con incidentes en el período" />
+            <ResumenCard
+              label="Mayor nº incidentes"
               value={resumen?.proveedorMasIncidentes ?? '—'}
               sub={`${proveedores[0]?.incidentes ?? 0} incidentes`}
               color="#EA580C"
             />
-            <SumCard
+            <ResumenCard
               label="MTTR promedio global"
               value={fmtMin(resumen?.globalMttrMin)}
               sub="tiempo medio de resolución"
               color={resumen?.globalMttrMin != null ? (resumen.globalMttrMin < 120 ? '#3B6D11' : resumen.globalMttrMin < 240 ? '#854F0B' : '#A32D2D') : undefined}
             />
-            <SumCard
+            <ResumenCard
               label="SLA global del período"
               value={resumen?.globalSlaPct != null ? `${resumen.globalSlaPct}%` : '—'}
               sub="meta: ≥ 90%"
-              color={resumen?.globalSlaPct != null ? (resumen.globalSlaPct >= 90 ? '#3B6D11' : resumen.globalSlaPct >= 70 ? '#854F0B' : '#A32D2D') : undefined}
+              color={resumen?.globalSlaPct != null ? slaColor(resumen.globalSlaPct) : undefined}
             />
-            <SumCard
+            <ResumenCard
               label="I.E.I total estimado"
               value={fmtCosto(resumen?.totalCosto ?? 0)}
               sub="impacto económico de indisponibilidad"
             />
-            <SumCard
+            <ResumenCard
               label="Mayor impacto económico"
               value={resumen?.proveedorMasCostoso ?? '—'}
               sub={proveedores.length > 0 ? fmtCosto([...proveedores].sort((a, b) => b.costoTotal - a.costoTotal)[0]?.costoTotal ?? 0) : '—'}
@@ -196,35 +179,42 @@ function ImpactoProveedorContent() {
             />
           </div>
 
-          {/* Tabla principal con accordion */}
-          <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>Resumen por proveedor</div>
-                <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>
-                  Clic en una fila para ver los incidentes de ese proveedor
-                </div>
-              </div>
+          {/* Tabla principal — mismo contenedor que A */}
+          <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', overflow: 'hidden', marginBottom: '10px' }}>
+            <div style={{ padding: '7px 12px', borderBottom: '0.5px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 600 }}>Resumen por proveedor</span>
+              <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Clic en una fila para ver los incidentes de ese proveedor</span>
             </div>
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                <thead>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead style={{ background: '#f9fafb' }}>
                   <tr>
-                    <TH>Proveedor</TH>
-                    <TH align="center">Incidentes</TH>
-                    <TH align="center" title="Incidentes RESUELTOS con escalamiento N1 enviado — son los únicos donde se puede medir si el proveedor cumplió los tiempos">Evaluables SLA</TH>
-                    <TH align="center">Dentro SLA</TH>
-                    <TH align="center">Fuera SLA</TH>
-                    <TH title="% de incidentes evaluables que cumplieron los tiempos de respuesta y resolución contractuales">SLA%</TH>
-                    <TH title="Tiempo Medio de Resolución — promedio del tiempo desde que se registra el incidente hasta que se resuelve">MTTR</TH>
-                    <TH>I.E.I est.</TH>
-                    <TH align="center">Tiendas</TH>
-                    <TH align="center" title="Tiendas que tuvieron 2 o más incidentes en el período">Reincid.</TH>
-                    <TH title="Riesgo operativo relativo al período (Alto/Medio/Bajo) basado en: costo 35% · SLA 25% · MTTR 20% · reincidencia 10% · incidentes 10%">Riesgo</TH>
+                    {[
+                      { label: '', w: '16px' },
+                      { label: 'Proveedor' },
+                      { label: 'Incidentes', align: 'center' },
+                      { label: 'Evaluables SLA', align: 'center', title: 'Incidentes RESUELTOS con correo N1 enviado — únicos donde se puede medir cumplimiento del proveedor' },
+                      { label: 'Dentro SLA', align: 'center' },
+                      { label: 'Fuera SLA', align: 'center' },
+                      { label: 'SLA%', title: '% de evaluables que cumplieron tiempos de respuesta y resolución contractuales' },
+                      { label: 'MTTR', title: 'Tiempo Medio de Resolución — promedio desde registro hasta resolución' },
+                      { label: 'I.E.I est.' },
+                      { label: 'Tiendas', align: 'center' },
+                      { label: 'Reincid.', align: 'center', title: 'Tiendas con 2 o más incidentes en el período' },
+                      { label: 'Riesgo', align: 'center', title: 'Índice relativo al período: costo 35% · SLA 25% · MTTR 20% · reincidencia 10% · vol. 10%' },
+                    ].map((h) => (
+                      <th key={h.label} title={h.title}
+                        style={{ padding: '5px 7px', textAlign: (h.align ?? 'left') as any, fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', whiteSpace: 'nowrap', borderBottom: '0.5px solid #e5e7eb', width: h.w, cursor: h.title ? 'help' : undefined }}>
+                        {h.label}{h.title && <span style={{ marginLeft: '2px', fontSize: '9px', color: '#94a3b8' }}>?</span>}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {proveedores.map((p) => {
+                  {proveedores.length === 0 && (
+                    <tr><td colSpan={12} style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>Sin datos en el período seleccionado</td></tr>
+                  )}
+                  {proveedores.map((p, idx) => {
                     const badge   = estadoBadge(p.estado)
                     const riesgo  = riesgoBadge(p.score)
                     const isOpen  = expandedProv === p.nombre
@@ -235,99 +225,103 @@ function ImpactoProveedorContent() {
                         <tr
                           key={p.id}
                           onClick={() => setExpandedProv(isOpen ? null : p.nombre)}
-                          style={{ background: isOpen ? '#F0F6FF' : p.estado === 'critico' ? '#FFF8F8' : 'transparent', cursor: 'pointer', borderLeft: isOpen ? '3px solid #185FA5' : '3px solid transparent' }}
+                          style={{
+                            borderTop: idx > 0 ? '0.5px solid #e5e7eb' : 'none',
+                            background: isOpen ? '#EEF4FF' : p.estado === 'critico' ? '#FFF5F5' : 'transparent',
+                            cursor: 'pointer',
+                            borderLeft: isOpen ? '3px solid #185FA5' : '3px solid transparent',
+                          }}
                         >
-                          <TD>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span style={{ fontSize: '10px', color: isOpen ? '#185FA5' : 'var(--muted-foreground)' }}>{isOpen ? '▼' : '▶'}</span>
-                              <span style={{ fontWeight: 600 }}>{p.nombre}</span>
-                              <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '999px', background: badge.bg, color: badge.color, fontWeight: 500 }}>{badge.label}</span>
+                          <td style={{ padding: '5px 6px', width: '16px', color: '#64748b', fontSize: '10px', textAlign: 'center' }}>
+                            {isOpen ? '▼' : '▶'}
+                          </td>
+                          <td style={{ padding: '5px 7px', fontSize: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                              <span style={{ fontWeight: 500 }}>{p.nombre}</span>
+                              <span style={{ fontSize: '9px', fontWeight: 600, padding: '1px 5px', borderRadius: '999px', background: badge.bg, color: badge.color, whiteSpace: 'nowrap' }}>{badge.label}</span>
                             </div>
-                          </TD>
-                          <TD align="center"><strong>{p.incidentes}</strong></TD>
-                          <TD align="center" >{p.evaluables > 0 ? p.evaluables : <span style={{ color: '#888780' }}>—</span>}</TD>
-                          <TD align="center"><span style={{ color: '#3B6D11', fontWeight: 500 }}>{p.dentraSLA}</span></TD>
-                          <TD align="center">
-                            <span style={{ color: p.fueraSLA > 0 ? '#A32D2D' : '#0f172a', fontWeight: p.fueraSLA > 0 ? 700 : 400 }}>
-                              {p.fueraSLA > 0 ? p.fueraSLA : '—'}
+                          </td>
+                          <td style={{ padding: '5px 7px', fontSize: '12px', textAlign: 'center', fontWeight: 600 }}>{p.incidentes}</td>
+                          <td style={{ padding: '5px 7px', fontSize: '12px', textAlign: 'center', color: 'var(--muted-foreground)' }}>
+                            {p.evaluables > 0 ? p.evaluables : '—'}
+                          </td>
+                          <td style={{ padding: '5px 7px', fontSize: '12px', textAlign: 'center', color: '#3B6D11', fontWeight: 500 }}>{p.dentraSLA}</td>
+                          <td style={{ padding: '5px 7px', fontSize: '12px', textAlign: 'center', color: p.fueraSLA > 0 ? '#A32D2D' : 'var(--muted-foreground)', fontWeight: p.fueraSLA > 0 ? 700 : 400 }}>
+                            {p.fueraSLA > 0 ? p.fueraSLA : '—'}
+                          </td>
+                          <td style={{ padding: '5px 7px' }}><SlaCell pct={p.slaPct} /></td>
+                          <td style={{ padding: '5px 7px', fontSize: '11px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                            <span style={{ color: p.mttrMinutos != null && p.mttrMinutos > 240 ? '#A32D2D' : p.mttrMinutos != null && p.mttrMinutos > 120 ? '#854F0B' : '#3B6D11', fontWeight: 500 }}>
+                              {fmtMin(p.mttrMinutos)}
                             </span>
-                          </TD>
-                          <TD><SlaCell pct={p.slaPct} /></TD>
-                          <TD>
-                            <div>
-                              <span style={{ color: p.mttrMinutos != null && p.mttrMinutos > 240 ? '#A32D2D' : p.mttrMinutos != null && p.mttrMinutos > 120 ? '#854F0B' : '#3B6D11', fontWeight: 500 }}>
-                                {fmtMin(p.mttrMinutos)}
+                            {mttrDelta != null && (
+                              <span style={{ fontSize: '10px', color: mttrDelta > 0 ? '#A32D2D' : '#3B6D11', marginLeft: '3px' }}>
+                                {mttrDelta > 0 ? `+${fmtMin(mttrDelta)}` : `-${fmtMin(Math.abs(mttrDelta))}`}
                               </span>
-                              {mttrDelta != null && (
-                                <span style={{ fontSize: '10px', color: mttrDelta > 0 ? '#A32D2D' : '#3B6D11', marginLeft: '4px' }}>
-                                  {mttrDelta > 0 ? `+${fmtMin(mttrDelta)}` : `-${fmtMin(Math.abs(mttrDelta))}`} vs prom.
-                                </span>
-                              )}
-                            </div>
-                          </TD>
-                          <TD mono>{p.costoTotal > 0 ? fmtCosto(p.costoTotal) : <span style={{ color: '#888780' }}>—</span>}</TD>
-                          <TD align="center">{p.tiendasAfectadas}</TD>
-                          <TD align="center">
+                            )}
+                          </td>
+                          <td style={{ padding: '5px 7px', fontSize: '11px', fontFamily: 'monospace' }}>
+                            {p.costoTotal > 0 ? fmtCosto(p.costoTotal) : <span style={{ color: '#888780' }}>—</span>}
+                          </td>
+                          <td style={{ padding: '5px 7px', fontSize: '12px', textAlign: 'center' }}>{p.tiendasAfectadas}</td>
+                          <td style={{ padding: '5px 7px', fontSize: '12px', textAlign: 'center' }}>
                             {p.reincidencia > 0
                               ? <span style={{ color: '#A32D2D', fontWeight: 700 }}>{p.reincidencia}</span>
                               : <span style={{ color: '#888780' }}>—</span>}
-                          </TD>
-                          <TD align="center">
-                            <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '999px', fontWeight: 600, whiteSpace: 'nowrap', background: riesgo.bg, color: riesgo.color }}>
+                          </td>
+                          <td style={{ padding: '5px 7px', textAlign: 'center' }}>
+                            <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', fontWeight: 600, whiteSpace: 'nowrap', background: riesgo.bg, color: riesgo.color }}>
                               {riesgo.label}
                             </span>
-                          </TD>
+                          </td>
                         </tr>
 
                         {/* Accordion: incidentes del proveedor */}
                         {isOpen && (
                           <tr key={`${p.id}-detail`}>
-                            <td colSpan={11} style={{ padding: '0', background: '#F8FAFC', borderTop: '0.5px solid #e5e7eb', borderBottom: '0.5px solid #e5e7eb' }}>
-                              <div style={{ padding: '12px 16px' }}>
-                                <div style={{ fontSize: '11px', fontWeight: 600, color: '#185FA5', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                  Incidentes de {p.nombre} con mayor impacto
+                            <td colSpan={12} style={{ padding: 0, borderLeft: '3px solid #185FA5', borderTop: '0.5px solid #c7d9f5', borderBottom: '0.5px solid #c7d9f5' }}>
+                              {incsProv.length === 0 ? (
+                                <div style={{ padding: '10px 14px', fontSize: '11px', color: 'var(--muted-foreground)' }}>
+                                  Sin incidentes resueltos con MTTR registrado para este proveedor en el período.
                                 </div>
-                                {incsProv.length === 0 ? (
-                                  <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', padding: '8px 0' }}>
-                                    Sin incidentes resueltos con MTTR registrado para este proveedor en el período.
-                                  </div>
-                                ) : (
-                                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
-                                    <thead>
-                                      <tr style={{ borderBottom: '0.5px solid #e5e7eb' }}>
-                                        {['Código', 'Tienda', 'Tipo', 'MTTR', 'I.E.I est.', 'SLA', 'Motivo incumplimiento', 'Fecha'].map((h) => (
-                                          <th key={h} style={{ padding: '5px 8px', textAlign: 'left', fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{h}</th>
-                                        ))}
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {incsProv.map((inc, j) => (
-                                        <tr key={j} style={{ borderTop: j > 0 ? '0.5px solid #f3f4f6' : 'none' }}>
-                                          <td style={{ padding: '6px 8px', fontFamily: 'monospace', color: '#64748b' }}>{inc.codigo}</td>
-                                          <td style={{ padding: '6px 8px' }}>
-                                            <span style={{ fontWeight: 500 }}>{inc.tiendaCodigo}</span>
-                                            {inc.tiendaNombre && <span style={{ color: 'var(--muted-foreground)', marginLeft: '4px', fontSize: '10px' }}>{inc.tiendaNombre}</span>}
-                                          </td>
-                                          <td style={{ padding: '6px 8px', color: 'var(--muted-foreground)' }}>{fmtTipo(inc.tipo)}</td>
-                                          <td style={{ padding: '6px 8px', fontFamily: 'monospace', color: inc.mttrMinutos > 240 ? '#A32D2D' : inc.mttrMinutos > 120 ? '#854F0B' : '#3B6D11', fontWeight: 500 }}>{fmtMin(inc.mttrMinutos)}</td>
-                                          <td style={{ padding: '6px 8px', fontFamily: 'monospace', fontWeight: 600 }}>{fmtCosto(inc.costoEstimado)}</td>
-                                          <td style={{ padding: '6px 8px' }}>
-                                            {inc.slaGeneral === null
-                                              ? <span style={{ fontSize: '10px', color: '#888780' }}>Sin esc.</span>
-                                              : inc.slaGeneral
-                                                ? <span style={{ fontSize: '10px', color: '#3B6D11', fontWeight: 600 }}>✓ OK</span>
-                                                : <span style={{ fontSize: '10px', color: '#A32D2D', fontWeight: 600 }}>✗ Fuera</span>}
-                                          </td>
-                                          <td style={{ padding: '6px 8px', color: inc.motivoIncumplimiento ? '#854F0B' : '#888780', fontSize: '10px' }}>
-                                            {inc.motivoIncumplimiento ?? '—'}
-                                          </td>
-                                          <td style={{ padding: '6px 8px', color: 'var(--muted-foreground)' }}>{inc.diaFmt}</td>
-                                        </tr>
+                              ) : (
+                                <table style={{ width: '100%', borderCollapse: 'collapse', background: '#F8FAFF' }}>
+                                  <thead>
+                                    <tr style={{ background: '#EEF4FF' }}>
+                                      {['Código', 'Tienda', 'Tipo', 'MTTR', 'I.E.I est.', 'SLA', 'Motivo incumplimiento', 'Fecha'].map((h) => (
+                                        <th key={h} style={{ padding: '4px 7px', textAlign: 'left', fontSize: '9px', fontWeight: 600, color: '#185FA5', textTransform: 'uppercase', whiteSpace: 'nowrap', borderBottom: '0.5px solid #c7d9f5' }}>{h}</th>
                                       ))}
-                                    </tbody>
-                                  </table>
-                                )}
-                              </div>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {incsProv.map((inc, j) => (
+                                      <tr key={j} style={{ borderTop: j > 0 ? '0.5px solid #dde4ef' : 'none' }}>
+                                        <td style={{ padding: '4px 7px', fontFamily: 'monospace', fontSize: '10px', color: '#185FA5' }}>{inc.codigo}</td>
+                                        <td style={{ padding: '4px 7px', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                                          <span style={{ fontWeight: 500 }}>{inc.tiendaCodigo}</span>
+                                          {inc.tiendaNombre && <span style={{ color: 'var(--muted-foreground)', marginLeft: '4px', fontSize: '10px' }}> — {inc.tiendaNombre}</span>}
+                                        </td>
+                                        <td style={{ padding: '4px 7px', fontSize: '11px', color: 'var(--muted-foreground)' }}>{fmtTipo(inc.tipo)}</td>
+                                        <td style={{ padding: '4px 7px', fontSize: '11px', fontFamily: 'monospace', color: inc.mttrMinutos > 240 ? '#A32D2D' : inc.mttrMinutos > 120 ? '#854F0B' : '#3B6D11', fontWeight: 500 }}>
+                                          {fmtMin(inc.mttrMinutos)}
+                                        </td>
+                                        <td style={{ padding: '4px 7px', fontSize: '11px', fontFamily: 'monospace', fontWeight: 600 }}>{fmtCosto(inc.costoEstimado)}</td>
+                                        <td style={{ padding: '4px 7px' }}>
+                                          {inc.slaGeneral === null
+                                            ? <span style={{ fontSize: '10px', color: '#888780' }}>Sin esc.</span>
+                                            : inc.slaGeneral
+                                              ? <span style={{ fontSize: '10px', color: '#3B6D11', fontWeight: 600 }}>✓ OK</span>
+                                              : <span style={{ fontSize: '10px', color: '#A32D2D', fontWeight: 600 }}>✗ Fuera</span>}
+                                        </td>
+                                        <td style={{ padding: '4px 7px', fontSize: '10px', color: inc.motivoIncumplimiento ? '#854F0B' : '#888780' }}>
+                                          {inc.motivoIncumplimiento ?? '—'}
+                                        </td>
+                                        <td style={{ padding: '4px 7px', fontSize: '11px', color: 'var(--muted-foreground)' }}>{inc.diaFmt}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
                             </td>
                           </tr>
                         )}
@@ -336,32 +330,22 @@ function ImpactoProveedorContent() {
                   })}
                 </tbody>
               </table>
-              {proveedores.length === 0 && (
-                <div style={{ padding: '32px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
-                  Sin datos en el período seleccionado
-                </div>
-              )}
-            </div>
-
-            {/* Leyenda */}
-            <div style={{ marginTop: '10px', display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '10px', color: 'var(--muted-foreground)', paddingTop: '8px', borderTop: '0.5px solid #f3f4f6' }}>
-              <span><strong>Evaluables SLA</strong>: incidentes resueltos con correo N1 enviado</span>
-              <span><strong>MTTR</strong>: tiempo medio desde registro hasta resolución</span>
-              <span><strong>Riesgo</strong>: relativo al período — costo 35% · SLA 25% · MTTR 20% · reincidencia 10% · vol. 10%</span>
             </div>
           </div>
 
-          {/* Conclusiones */}
+          {/* Conclusiones — mismo estilo que A */}
           {conclusiones.length > 0 && (
-            <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', marginBottom: '12px' }}>Conclusiones del período</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '8px' }}>
+            <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '8px', marginBottom: '10px', overflow: 'hidden' }}>
+              <div style={{ padding: '7px 12px', borderBottom: '0.5px solid #e5e7eb', fontSize: '12px', fontWeight: 600 }}>
+                Conclusiones del período
+              </div>
+              <div style={{ padding: '10px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px' }}>
                 {conclusiones.map((c, i) => {
                   const icons = ['📊', '🚨', '💰', '⚠️', '📋']
                   return (
-                    <div key={i} style={{ padding: '12px 14px', background: '#F8FAFC', border: '0.5px solid #e5e7eb', borderRadius: '8px', fontSize: '12px', lineHeight: 1.5, display: 'flex', gap: '8px' }}>
-                      <span style={{ fontSize: '16px', flexShrink: 0 }}>{icons[i] ?? '•'}</span>
-                      <span>{c}</span>
+                    <div key={i} style={{ display: 'flex', gap: '8px', padding: '8px 10px', background: '#F9FAFB', border: '0.5px solid #e5e7eb', borderRadius: '7px' }}>
+                      <span style={{ fontSize: '14px', flexShrink: 0 }}>{icons[i] ?? '•'}</span>
+                      <span style={{ fontSize: '11px', lineHeight: 1.5 }}>{c}</span>
                     </div>
                   )
                 })}
@@ -369,9 +353,9 @@ function ImpactoProveedorContent() {
             </div>
           )}
 
-          {/* Nota metodológica */}
-          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', lineHeight: 1.7, padding: '0 4px' }}>
-            <strong>Metodología:</strong> I.E.I = venta/hora × (MTTR/60) × factor impacto × factor contingencia × 35% margen. MTTR = tiempo registro → resolución. SLA evaluable = incidente RESUELTO con correo N1 enviado. Riesgo = índice relativo al período (no es absoluto).
+          {/* Nota metodológica — mismo estilo que A */}
+          <div style={{ padding: '8px 12px', background: '#F9FAFB', border: '0.5px solid #e5e7eb', borderRadius: '7px', fontSize: '10px', color: 'var(--muted-foreground)', lineHeight: 1.6 }}>
+            ℹ️ <strong>Evaluables SLA</strong>: incidentes RESUELTOS con correo N1 enviado. <strong>MTTR</strong>: tiempo desde registro hasta resolución. <strong>I.E.I</strong>: venta/hora × (MTTR/60) × factor × 35% margen. <strong>Riesgo</strong>: índice relativo al período, no absoluto.
           </div>
         </>
       )}
@@ -381,7 +365,7 @@ function ImpactoProveedorContent() {
 
 export default function ImpactoProveedorPage() {
   return (
-    <Suspense fallback={<div style={{ padding: '40px', textAlign: 'center', fontSize: '13px', color: 'var(--muted-foreground)' }}>Cargando...</div>}>
+    <Suspense fallback={<div style={{ padding: '40px', textAlign: 'center', fontSize: '12px' }}>Cargando...</div>}>
       <ImpactoProveedorContent />
     </Suspense>
   )
