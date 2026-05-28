@@ -34,31 +34,28 @@ function estadoBadge(estado: TiendaCritica['estado']) {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function SumCard({ icon, label, value, sub, color }: {
-  icon: string; label: string; value: string; sub?: string; color?: string
+function SumCard({ label, value, sub, color }: {
+  icon?: string; label: string; value: string; sub?: string; color?: string
 }) {
   return (
-    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '14px 16px', flex: 1, minWidth: '130px', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-      <span style={{ fontSize: '22px', lineHeight: 1 }}>{icon}</span>
-      <div>
-        <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 500, marginBottom: '4px' }}>{label}</div>
-        <div style={{ fontSize: '22px', fontWeight: 700, color: color ?? '#0f172a', lineHeight: 1 }}>{value}</div>
-        {sub && <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '3px' }}>{sub}</div>}
-      </div>
+    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '8px', padding: '8px 12px', flex: 1, minWidth: '100px' }}>
+      <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '3px' }}>{label}</div>
+      <div style={{ fontSize: '16px', fontWeight: 600, color: color ?? '#0f172a', lineHeight: 1 }}>{value}</div>
+      {sub && <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{sub}</div>}
     </div>
   )
 }
 
 function TH({ children, align = 'left' }: { children: React.ReactNode; align?: string }) {
   return (
-    <th style={{ padding: '8px 10px', textAlign: align as any, fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '0.5px solid #e5e7eb', whiteSpace: 'nowrap', background: '#FAFAFA' }}>
+    <th style={{ padding: '5px 7px', textAlign: align as any, fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '0.5px solid #e5e7eb', whiteSpace: 'nowrap', background: '#FAFAFA' }}>
       {children}
     </th>
   )
 }
 function TD({ children, align = 'left', mono = false }: { children: React.ReactNode; align?: string; mono?: boolean }) {
   return (
-    <td style={{ padding: '8px 10px', fontSize: '12px', textAlign: align as any, fontFamily: mono ? 'monospace' : undefined, borderTop: '0.5px solid #f3f4f6', verticalAlign: 'middle' }}>
+    <td style={{ padding: '5px 7px', fontSize: '12px', textAlign: align as any, fontFamily: mono ? 'monospace' : undefined, borderTop: '0.5px solid #f3f4f6', verticalAlign: 'middle' }}>
       {children}
     </td>
   )
@@ -171,45 +168,36 @@ function TiendasCriticasContent() {
   })()
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', fontFamily: 'inherit' }}>
+    <div style={{ maxWidth: '100%' }}>
 
       {/* Header */}
-      <div style={{ marginBottom: '20px' }}>
-        <button onClick={() => router.push('/dashboard?tab=analitico')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: '#185FA5', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>← Volver al dashboard</button>
-        <div style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a' }}>Detalle - Tiendas críticas</div>
-        <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginTop: '4px' }}>
-          Análisis de tiendas con mayor criticidad, reincidencia e impacto operativo.
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+        <button onClick={() => router.push('/dashboard?tab=analitico')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: '#185FA5', fontWeight: 500 }}>← Volver</button>
+        <span style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>C. Tiendas críticas</span>
       </div>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Fecha inicio</span>
-          <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)}
-            style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Fecha fin</span>
-          <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)}
-            style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }} />
-        </div>
+      <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '8px', padding: '7px 10px', background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '8px' }}>
+        <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)}
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', outline: 'none' }} />
+        <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)}
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', outline: 'none' }} />
         <select value={proveedorId} onChange={(e) => setProveedorId(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', outline: 'none' }}>
           <option value="">Todos los proveedores</option>
           {provLista.map((p) => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
         </select>
         <input
           type="text" placeholder="Buscar tienda..." value={buscar} onChange={(e) => setBuscar(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', minWidth: '140px' }}
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', outline: 'none', minWidth: '120px' }}
         />
         <button onClick={() => fetchData()}
-          style={{ padding: '6px 14px', fontSize: '12px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 500 }}>
-          Actualizar
+          style={{ padding: '5px 12px', fontSize: '11px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>
+          ↻ Actualizar
         </button>
         <button onClick={exportCSV}
-          style={{ padding: '6px 14px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'pointer', background: 'var(--card)', color: 'var(--foreground)', marginLeft: 'auto' }}>
-          ↓ Exportar CSV
+          style={{ padding: '5px 10px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', cursor: 'pointer', background: 'white', marginLeft: 'auto' }}>
+          ↓ CSV
         </button>
       </div>
 
@@ -228,7 +216,7 @@ function TiendasCriticasContent() {
       {!loading && data && (
         <>
           {/* 6 Summary cards */}
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
             <SumCard icon="🏪" label="Tiendas reincidentes" value={String(reincidentesCount)} sub={`${allTiendas.length} tiendas afectadas en el período`} color="#A32D2D" />
             <SumCard icon="💰" label="Costo acumulado" value={fmtCosto(resumen?.costoAcumulado ?? 0)} sub="margen bruto 35%" />
             <SumCard icon="⏱" label="MTTR promedio del período" value={fmtMin(mttrGlobal)} sub="todas las tiendas" color="#854F0B" />
@@ -238,7 +226,7 @@ function TiendasCriticasContent() {
           </div>
 
           {/* Tabla 1: Ranking */}
-          <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+          <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
             <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', marginBottom: '12px' }}>
               1. Ranking de tiendas críticas
               <span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--muted-foreground)', marginLeft: '8px' }}>
@@ -327,7 +315,7 @@ function TiendasCriticasContent() {
 
           {/* Tabla 2: Historial tienda seleccionada */}
           {selectedTienda && (
-            <div style={{ background: 'white', border: '0.5px solid #185FA5', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+            <div style={{ background: 'white', border: '0.5px solid #185FA5', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>
                   2. Historial resumido de la tienda seleccionada ({selectedTienda.tiendaCodigo})
@@ -390,7 +378,7 @@ function TiendasCriticasContent() {
 
           {/* Tabla 3: Patrones detectados */}
           {patrones.length > 0 && (
-            <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+            <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
               <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', marginBottom: '12px' }}>3. Patrón detectado</div>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
@@ -423,13 +411,13 @@ function TiendasCriticasContent() {
 
           {/* Conclusiones */}
           {conclusiones.length > 0 && (
-            <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+            <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
               <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', marginBottom: '12px' }}>4. Conclusiones automáticas</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '8px' }}>
                 {conclusiones.map((c, i) => {
                   const icons = ['⚠️', '🔄', '📡', '🛡', '📊']
                   return (
-                    <div key={i} style={{ padding: '12px 14px', background: '#F8FAFC', border: '0.5px solid #e5e7eb', borderRadius: '8px', fontSize: '12px', lineHeight: 1.5, display: 'flex', gap: '8px' }}>
+                    <div key={i} style={{ padding: '8px 10px', background: '#F8FAFC', border: '0.5px solid #e5e7eb', borderRadius: '8px', fontSize: '11px', lineHeight: 1.5, display: 'flex', gap: '8px' }}>
                       <span style={{ fontSize: '16px', flexShrink: 0 }}>{icons[i] ?? '•'}</span>
                       <span>{c}</span>
                     </div>
@@ -440,8 +428,8 @@ function TiendasCriticasContent() {
           )}
 
           {/* Footer */}
-          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', lineHeight: 1.6, padding: '0 4px' }}>
-            Nota metodológica: Score tienda = reincidencia 30% · costo estimado 25% · MTTR 20% · SLA bajo 15% · sin contingencia 10%. Estado crítica: 2+ incidentes con SLA &lt; 70%, reincidencia ≥ 2, o costo alto. Costo estimado basado en MTTR, venta/hora y margen bruto 35%.
+          <div style={{ padding: '8px 12px', background: '#F9FAFB', border: '0.5px solid #e5e7eb', borderRadius: '7px', fontSize: '10px', color: 'var(--muted-foreground)', lineHeight: 1.6 }}>
+            ℹ️ Score tienda = reincidencia 30% · costo estimado 25% · MTTR 20% · SLA bajo 15% · sin contingencia 10%. Estado crítica: 2+ incidentes con SLA &lt; 70%, reincidencia ≥ 2, o costo alto. Costo estimado basado en MTTR, venta/hora y margen bruto 35%.
           </div>
         </>
       )}

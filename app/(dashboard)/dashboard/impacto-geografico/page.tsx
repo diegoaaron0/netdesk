@@ -105,43 +105,42 @@ function ImpactoGeograficoInner() {
   const conclusiones = data?.conclusiones ?? []
 
   return (
-    <div style={{ padding: '20px 24px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div style={{ maxWidth: '100%' }}>
       <style>{`@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
 
       {/* Back + Title */}
-      <div style={{ marginBottom: '16px' }}>
-        <button onClick={() => router.push('/dashboard?tab=analitico')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: '#185FA5', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>← Volver al dashboard</button>
-        <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', margin: '8px 0 2px' }}>Impacto geográfico</h1>
-        <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', margin: 0 }}>Concentración de incidentes e impacto por zona, provincia y distrito</p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+        <button onClick={() => router.push('/dashboard?tab=analitico')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: '#185FA5', fontWeight: 500 }}>← Volver</button>
+        <span style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>F. Impacto geográfico</span>
       </div>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '20px', padding: '12px 16px', background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px' }}>
+      <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '8px', padding: '7px 10px', background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '8px' }}>
         <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', outline: 'none' }} />
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', outline: 'none' }} />
         <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', outline: 'none' }} />
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', outline: 'none' }} />
         <select value={proveedorFiltro} onChange={(e) => setProveedorFiltro(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', outline: 'none' }}>
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', outline: 'none' }}>
           <option value="">Todos los proveedores</option>
           {provList.map((p) => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
         </select>
         <button onClick={() => fetchData()}
-          style={{ padding: '6px 14px', fontSize: '12px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 500 }}>
-          Aplicar
+          style={{ padding: '5px 12px', fontSize: '11px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>
+          ↻ Aplicar
         </button>
         <button onClick={() => { setDesde(firstDayOfMonth()); setHasta(todayStr()); setProveedorFiltro(''); fetchData(firstDayOfMonth(), todayStr(), '') }}
-          style={{ padding: '6px 12px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'pointer', background: 'white' }}>
+          style={{ padding: '5px 10px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', cursor: 'pointer', background: 'white' }}>
           Limpiar
         </button>
         <button onClick={exportCSV}
-          style={{ padding: '6px 12px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'pointer', background: 'white', marginLeft: 'auto' }}>
-          Exportar CSV
+          style={{ padding: '5px 10px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', cursor: 'pointer', background: 'white', marginLeft: 'auto' }}>
+          ↓ CSV
         </button>
       </div>
 
       {/* 6 Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '10px', marginBottom: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '6px', marginBottom: '8px' }}>
         {[
           { label: 'Zona más afectada',      value: g?.zonaMasAfectada ?? '—',                            color: '#185FA5' },
           { label: 'Impacto estimado total', value: g ? fmtCosto(g.impactoTotal) : '—',                   color: '#0f172a' },
@@ -150,18 +149,18 @@ function ImpactoGeograficoInner() {
           { label: 'Mayor MTTR',             value: g?.mayorMTTRZona ? `${g.mayorMTTRZona} (${fmtMin(g.mayorMTTRMin)})` : '—', color: '#854F0B' },
           { label: 'Proveedor dominante',    value: g?.proveedorDominante ?? '—',                           color: '#0f172a' },
         ].map(({ label, value, color }) => (
-          <div key={label} style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '14px 16px' }}>
-            <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '6px', lineHeight: 1.3 }}>{label}</div>
+          <div key={label} style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '8px', padding: '8px 12px' }}>
+            <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '3px', lineHeight: 1.3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</div>
             {loading
-              ? <Sk w="70%" h={20} />
-              : <div style={{ fontSize: '15px', fontWeight: 700, color, lineHeight: 1.3 }}>{String(value)}</div>
+              ? <Sk w="70%" h={18} />
+              : <div style={{ fontSize: '16px', fontWeight: 600, color, lineHeight: 1.3 }}>{String(value)}</div>
             }
           </div>
         ))}
       </div>
 
       {/* Main two-column layout: map+Tabla1 | Conclusiones */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '16px', alignItems: 'start', marginBottom: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 260px', gap: '8px', alignItems: 'start', marginBottom: '8px' }}>
 
         {/* Left: map + Tabla 1 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -244,7 +243,7 @@ function ImpactoGeograficoInner() {
                   <span style={{ fontSize: '14px', flexShrink: 0 }}>
                     {c.startsWith('Se recomienda') ? '→' : c.includes('mayor') || c.includes('concentra') ? '⚠' : '✓'}
                   </span>
-                  <span style={{ fontSize: '12px', color: '#0f172a', lineHeight: 1.5 }}>{c}</span>
+                  <span style={{ fontSize: '11px', color: '#0f172a', lineHeight: 1.5 }}>{c}</span>
                 </li>
               ))}
             </ul>
@@ -306,7 +305,7 @@ function ImpactoGeograficoInner() {
       </div>
 
       {/* Methodology footer */}
-      <div style={{ padding: '14px 16px', background: 'var(--muted)', borderRadius: '10px', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: 1.7 }}>
+      <div style={{ padding: '8px 12px', background: '#F9FAFB', border: '0.5px solid #e5e7eb', borderRadius: '7px', fontSize: '10px', color: 'var(--muted-foreground)', lineHeight: 1.7 }}>
         <strong>Metodología:</strong> Las zonas se asignan a partir del distrito de cada tienda (Lima Norte, Lima Centro, Lima Sur, Lima Este, Callao, Provincia). El MTTR se calcula solo sobre incidentes RESUELTO con hora_fin. El SLA se evalúa sobre incidentes con correo N1 enviado. El impacto estimado = (MTTR en horas) × (venta/hora) × 35% margen.
       </div>
     </div>

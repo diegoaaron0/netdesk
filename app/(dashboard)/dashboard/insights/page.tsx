@@ -569,56 +569,44 @@ function InsightsPageContent() {
   }
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <button onClick={() => router.push('/dashboard?tab=analitico')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: '#185FA5', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>← Volver al dashboard</button>
+    <div style={{ maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-        <div>
-          <div style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>H. Insights y decisiones sugeridas</div>
-          <div style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>Recomendaciones ejecutivas generadas automáticamente a partir de los KPIs del período</div>
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <button onClick={() => router.push('/dashboard?tab=analitico')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: '#185FA5', fontWeight: 500 }}>← Volver</button>
+        <span style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>H. Insights y decisiones sugeridas</span>
       </div>
 
       {/* Filters */}
-      <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '14px 16px', display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-        {[
-          { label: 'Desde', value: desde, onChange: setDesde, type: 'date' },
-          { label: 'Hasta', value: hasta, onChange: setHasta, type: 'date' },
-        ].map(({ label, value, onChange, type }) => (
-          <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>{label}</label>
-            <input type={type} value={value} onChange={e => onChange(e.target.value)}
-              style={{ padding: '5px 8px', fontSize: '12px', border: '0.5px solid #e5e7eb', borderRadius: '6px', outline: 'none' }} />
-          </div>
-        ))}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Proveedor</label>
-          <select value={proveedorId} onChange={e => setProveedorId(e.target.value)}
-            style={{ padding: '5px 8px', fontSize: '12px', border: '0.5px solid #e5e7eb', borderRadius: '6px', outline: 'none' }}>
-            <option value=''>Todos</option>
-            {data?.proveedoresList?.map(p => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
-          </select>
-        </div>
+      <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '8px', padding: '7px 10px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <input type="date" value={desde} onChange={e => setDesde(e.target.value)}
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid #e5e7eb', borderRadius: '6px', outline: 'none' }} />
+        <input type="date" value={hasta} onChange={e => setHasta(e.target.value)}
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid #e5e7eb', borderRadius: '6px', outline: 'none' }} />
+        <select value={proveedorId} onChange={e => setProveedorId(e.target.value)}
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid #e5e7eb', borderRadius: '6px', outline: 'none' }}>
+          <option value=''>Todos los proveedores</option>
+          {data?.proveedoresList?.map(p => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
+        </select>
         <button onClick={fetchData}
-          style={{ padding: '6px 14px', fontSize: '12px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: 500 }}>
-          Aplicar
+          style={{ padding: '5px 12px', fontSize: '11px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>
+          ↻ Aplicar
         </button>
       </div>
 
       {/* KPI summary strip */}
       {resumen && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
           {[
             { label: 'Total insights',  value: resumen.totalInsights,      color: '#0f172a', sub: '' },
             { label: 'Alertas altas',   value: resumen.alertasAltas,       color: '#B91C1C', sub: 'requieren acción inmediata' },
             { label: 'Acciones pend.',  value: resumen.accionesPendientes, color: '#B45309', sub: 'mejoras posibles' },
             { label: 'Logros',          value: resumen.logros,             color: '#15803D', sub: 'tendencia positiva' },
           ].map(({ label, value, color, sub }) => (
-            <div key={label} style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '12px 16px' }}>
-              <div style={{ fontSize: '24px', fontWeight: 700, color }}>{value}</div>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: '#374151', marginTop: '2px' }}>{label}</div>
-              {sub && <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{sub}</div>}
+            <div key={label} style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '8px', padding: '8px 12px' }}>
+              <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '3px' }}>{label}</div>
+              <div style={{ fontSize: '16px', fontWeight: 600, color }}>{value}</div>
+              {sub && <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{sub}</div>}
             </div>
           ))}
         </div>
@@ -626,7 +614,7 @@ function InsightsPageContent() {
 
       {/* Entity highlight */}
       {resumen && resumen.entidadMasCritica !== '—' && (
-        <div style={{ background: '#FEF2F2', border: '0.5px solid #FECACA', borderRadius: '10px', padding: '12px 16px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+        <div style={{ background: '#FEF2F2', border: '0.5px solid #FECACA', borderRadius: '8px', padding: '8px 12px', display: 'flex', gap: '10px', alignItems: 'center' }}>
           <span style={{ fontSize: '20px' }}>⚠</span>
           <div>
             <div style={{ fontSize: '12px', fontWeight: 700, color: '#B91C1C' }}>Entidad más crítica del período</div>
@@ -649,9 +637,9 @@ function InsightsPageContent() {
       )}
 
       {/* TABLA 1 — Todos los insights */}
-      <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>Tabla 1 — Todos los insights del período</div>
+      <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+          <div style={{ fontSize: '12px', fontWeight: 600, color: '#0f172a' }}>Insights del período</div>
           <div style={{ display: 'flex', gap: '6px' }}>
             {(['todos', 'alerta', 'accion', 'logro'] as const).map(f => (
               <button key={f} onClick={() => setFilterTipo(f)}
@@ -751,8 +739,8 @@ function InsightsPageContent() {
 
       {/* TABLA 2 — KPIs origen cruzado */}
       {!loading && insights.length > 0 && (
-        <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>Tabla 2 — Insight principal por KPI</div>
+        <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ fontSize: '12px', fontWeight: 600, color: '#0f172a' }}>Insight principal por KPI</div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {(Object.keys(KPI_COLORS) as KpiOrigen[]).map(k => {
               const kpiInsights = insights.filter(i => i.kpisOrigen.includes(k))
@@ -787,12 +775,12 @@ function InsightsPageContent() {
 
       {/* TABLA 3 — Conclusiones */}
       {conclusiones.length > 0 && (
-        <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>Tabla 3 — Conclusiones ejecutivas</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+        <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ fontSize: '12px', fontWeight: 600, color: '#0f172a' }}>Conclusiones ejecutivas</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
             {conclusiones.map((c, i) => (
-              <div key={i} style={{ display: 'flex', gap: '10px', padding: '10px 14px', background: '#F8FAFC', borderRadius: '8px', border: '0.5px solid #e5e7eb' }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: 'hsl(221,83%,23%)', flexShrink: 0 }}>{i + 1}.</span>
+              <div key={i} style={{ display: 'flex', gap: '8px', padding: '8px 10px', background: '#F8FAFC', borderRadius: '8px', border: '0.5px solid #e5e7eb' }}>
+                <span style={{ fontSize: '10px', fontWeight: 700, color: 'hsl(221,83%,23%)', flexShrink: 0 }}>{i + 1}.</span>
                 <span style={{ fontSize: '11px', color: '#374151', lineHeight: 1.5 }}>{c}</span>
               </div>
             ))}
@@ -801,7 +789,7 @@ function InsightsPageContent() {
       )}
 
       {/* Metodología */}
-      <div style={{ background: '#F8FAFC', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '14px 16px', fontSize: '10px', color: 'var(--muted-foreground)', lineHeight: 1.6 }}>
+      <div style={{ background: '#F9FAFB', border: '0.5px solid #e5e7eb', borderRadius: '7px', padding: '8px 12px', fontSize: '10px', color: 'var(--muted-foreground)', lineHeight: 1.6 }}>
         <div style={{ fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Metodología de generación de insights</div>
         <strong>Regla 1</strong> Proveedor crítico combinado (SLA &lt;70% + MTTR &gt;2h + impacto &gt;S/500). <strong>Regla 2</strong> Incumplimiento SLA sostenido 3+ meses consecutivos (&lt;80%). <strong>Regla 3</strong> Tienda sin contingencia con 2+ incidentes. <strong>Regla 4</strong> Tipo de incidente dominante (&gt;40% del total). <strong>Regla 5</strong> Zona geográfica crítica (SLA &lt;70%). <strong>Regla 6</strong> Causa Otros repetida 3+ veces. <strong>Regla 7</strong> Mejora positiva sostenida 3+ meses. <strong>Regla 8</strong> Falla sistémica: 3+ proveedores con SLA crítico simultáneo.
         Score = impacto×0.30 + SLA_bajo×0.25 + reincidencia×0.20 + MTTR×0.15 + sin_contingencia×0.10. Se aplica deduplicación para proveedor con múltiples señales negativas.

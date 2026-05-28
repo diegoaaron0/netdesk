@@ -145,42 +145,38 @@ function TendenciaSLA6mInner() {
   const mesesVisibles = mostrarTodosMeses ? meses : meses.slice(0, 3)
 
   return (
-    <div style={{ padding: '20px 24px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div style={{ maxWidth: '100%' }}>
       <style>{`@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
 
       {/* Back + Title */}
-      <div style={{ marginBottom: '16px' }}>
-        <button onClick={() => router.push('/dashboard?tab=analitico')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: '#185FA5', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>← Volver al dashboard</button>
-        <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', margin: '8px 0 2px' }}>Detalle — Tendencia SLA últimos 6 meses</h1>
-        <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', margin: 0 }}>Análisis de la evolución del cumplimiento SLA por proveedor en el período seleccionado.</p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+        <button onClick={() => router.push('/dashboard?tab=analitico')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: '#185FA5', fontWeight: 500 }}>← Volver</button>
+        <span style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>G. Tendencia SLA últimos 6 meses</span>
       </div>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '20px', padding: '12px 16px', background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px' }}>
-        <label style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Fecha inicio</label>
+      <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '8px', padding: '7px 10px', background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '8px' }}>
         <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', outline: 'none' }} />
-        <label style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Fecha fin</label>
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', outline: 'none' }} />
         <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', outline: 'none' }} />
-        <label style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Proveedor</label>
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', outline: 'none' }} />
         <select value={proveedorFiltro} onChange={(e) => setProveedorFiltro(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', outline: 'none' }}>
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', outline: 'none' }}>
           <option value="">Todos los proveedores</option>
           {provList.map((p) => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
         </select>
         <button onClick={() => fetchData()}
-          style={{ padding: '6px 14px', fontSize: '12px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 500 }}>
-          Actualizar
+          style={{ padding: '5px 12px', fontSize: '11px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>
+          ↻ Actualizar
         </button>
         <button onClick={exportCSV}
-          style={{ padding: '6px 12px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'pointer', background: 'white', marginLeft: 'auto' }}>
-          Exportar CSV
+          style={{ padding: '5px 10px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', cursor: 'pointer', background: 'white', marginLeft: 'auto' }}>
+          ↓ CSV
         </button>
       </div>
 
       {/* 6 Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '10px', marginBottom: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '6px', marginBottom: '8px' }}>
         {[
           ...(mejorIgualPeor
             ? [{ label: 'Proveedor con mejor tendencia', value: 'Sin mejoras detectadas', sub: 'Todos los proveedores mantienen tendencia crítica', color: '#6B7280', icon: '—' }]
@@ -217,13 +213,10 @@ function TendenciaSLA6mInner() {
             color: '#A32D2D', icon: '⊘',
           },
         ].map(({ label, value, sub, color, icon }) => (
-          <div key={label} style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '14px 16px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '18px', lineHeight: 1, marginTop: '2px' }}>{icon}</span>
-            <div>
-              <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '4px', lineHeight: 1.3 }}>{label}</div>
-              {loading ? <Sk w="70%" h={20} /> : <div style={{ fontSize: '16px', fontWeight: 700, color, lineHeight: 1.2 }}>{value}</div>}
-              {!loading && sub && <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '3px' }}>{sub}</div>}
-            </div>
+          <div key={label} style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '8px', padding: '8px 12px' }}>
+            <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '3px', lineHeight: 1.3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</div>
+            {loading ? <Sk w="70%" h={18} /> : <div style={{ fontSize: '16px', fontWeight: 600, color, lineHeight: 1.2 }}>{value}</div>}
+            {!loading && sub && <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{sub}</div>}
           </div>
         ))}
       </div>
@@ -395,11 +388,11 @@ function TendenciaSLA6mInner() {
           <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>4. Conclusiones automáticas</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             {conclusiones.map((c, i) => (
-              <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', padding: '10px 12px', background: '#FAFAFA', borderRadius: '8px', border: '0.5px solid var(--border)' }}>
-                <span style={{ fontSize: '16px', flexShrink: 0 }}>
+              <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', padding: '8px 10px', background: '#FAFAFA', borderRadius: '8px', border: '0.5px solid var(--border)' }}>
+                <span style={{ fontSize: '14px', flexShrink: 0 }}>
                   {c.startsWith('Se recomienda') ? '→' : c.includes('peor') || c.includes('caída') || c.includes('incumplimiento') ? '⚠' : c.includes('mejora') ? '✓' : 'ℹ'}
                 </span>
-                <span style={{ fontSize: '12px', color: '#0f172a', lineHeight: 1.5 }}>{c}</span>
+                <span style={{ fontSize: '11px', color: '#0f172a', lineHeight: 1.5 }}>{c}</span>
               </div>
             ))}
           </div>
@@ -407,7 +400,7 @@ function TendenciaSLA6mInner() {
       )}
 
       {/* Methodology */}
-      <div style={{ padding: '14px 16px', background: 'var(--muted)', borderRadius: '10px', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: 1.7 }}>
+      <div style={{ padding: '8px 12px', background: '#F9FAFB', border: '0.5px solid #e5e7eb', borderRadius: '7px', fontSize: '10px', color: 'var(--muted-foreground)', lineHeight: 1.7 }}>
         <strong>Metodología:</strong> SLA mensual = incidentes evaluables con SLA cumplido / total evaluables × 100. Evaluable = RESUELTO + hora_fin + correo N1 enviado + max_nivel ≥ 1. SLA cumplido = respuesta ≤60 min (sin escalar a N2) y resolución dentro del objetivo por tipo. La variación es la diferencia en puntos porcentuales (pp) respecto al mes anterior para el mismo proveedor.
       </div>
     </div>

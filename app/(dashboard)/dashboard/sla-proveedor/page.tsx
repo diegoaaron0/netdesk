@@ -105,43 +105,42 @@ function SLAProveedorPageInner() {
   }
 
   return (
-    <div style={{ padding: '20px 24px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div style={{ maxWidth: '100%' }}>
       <style>{`@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
 
       {/* Back + Title */}
-      <div style={{ marginBottom: '16px' }}>
-        <button onClick={() => router.push('/dashboard?tab=analitico')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: '#185FA5', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>← Volver al dashboard</button>
-        <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', margin: '8px 0 2px' }}>Cumplimiento SLA por proveedor</h1>
-        <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', margin: 0 }}>Análisis de tiempos de respuesta y resolución vs objetivos contractuales</p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+        <button onClick={() => router.push('/dashboard?tab=analitico')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: '#185FA5', fontWeight: 500 }}>← Volver</button>
+        <span style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>E. Cumplimiento SLA por proveedor</span>
       </div>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '20px', padding: '12px 16px', background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px' }}>
+      <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '8px', padding: '7px 10px', background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '8px' }}>
         <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', outline: 'none' }} />
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', outline: 'none' }} />
         <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', outline: 'none' }} />
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', outline: 'none' }} />
         <select value={proveedorFiltro} onChange={(e) => setProveedorFiltro(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', outline: 'none' }}>
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', outline: 'none' }}>
           <option value="">Todos los proveedores</option>
           {provList.map((p) => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
         </select>
         <button onClick={() => fetchData()}
-          style={{ padding: '6px 14px', fontSize: '12px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 500 }}>
-          Aplicar
+          style={{ padding: '5px 12px', fontSize: '11px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>
+          ↻ Aplicar
         </button>
         <button onClick={() => { setDesde(firstDayOfMonth()); setHasta(todayStr()); setProveedorFiltro(''); fetchData(firstDayOfMonth(), todayStr(), '') }}
-          style={{ padding: '6px 12px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'pointer', background: 'white' }}>
+          style={{ padding: '5px 10px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', cursor: 'pointer', background: 'white' }}>
           Limpiar
         </button>
         <button onClick={exportCSV}
-          style={{ padding: '6px 12px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'pointer', background: 'white', marginLeft: 'auto' }}>
-          Exportar CSV
+          style={{ padding: '5px 10px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', cursor: 'pointer', background: 'white', marginLeft: 'auto' }}>
+          ↓ CSV
         </button>
       </div>
 
       {/* 6 Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '10px', marginBottom: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '6px', marginBottom: '8px' }}>
         {[
           { label: 'Proveedores evaluados', value: g?.proveedoresEvaluados ?? 0, suffix: '', color: '#185FA5' },
           { label: 'SLA general del período', value: g?.slaGeneral != null ? `${g.slaGeneral}%` : '—', suffix: '', color: g?.slaGeneral != null ? slaColor(g.slaGeneral) : '#A32D2D' },
@@ -150,18 +149,18 @@ function SLAProveedorPageInner() {
           { label: 'T. prom. resolución', value: fmtMin(g?.tPromResolucionMin), suffix: '', color: '#0f172a' },
           { label: 'Escalados a N2+', value: g?.casosEscaladosN2 ?? 0, suffix: ' casos', color: (g?.casosEscaladosN2 ?? 0) > 0 ? '#854F0B' : '#3B6D11' },
         ].map(({ label, value, suffix, color }) => (
-          <div key={label} style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '14px 16px' }}>
-            <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '6px', lineHeight: 1.3 }}>{label}</div>
+          <div key={label} style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '8px', padding: '8px 12px' }}>
+            <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '3px', lineHeight: 1.3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</div>
             {loading
-              ? <Sk w="55%" h={24} />
-              : <div style={{ fontSize: '22px', fontWeight: 700, color, lineHeight: 1 }}>{value}{suffix}</div>
+              ? <Sk w="55%" h={18} />
+              : <div style={{ fontSize: '16px', fontWeight: 600, color, lineHeight: 1 }}>{value}{suffix}</div>
             }
           </div>
         ))}
       </div>
 
       {/* Main two-column layout: Tabla 1 + Conclusiones */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '16px', alignItems: 'start', marginBottom: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '8px', alignItems: 'start', marginBottom: '8px' }}>
 
         {/* Tabla 1 — Resumen comparativo */}
         <div style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px' }}>
@@ -220,7 +219,7 @@ function SLAProveedorPageInner() {
                   <span style={{ fontSize: '14px', flexShrink: 0, marginTop: '1px' }}>
                     {c.startsWith('Se recomienda') ? '→' : c.includes('óptimo') ? '✓' : '⚠'}
                   </span>
-                  <span style={{ fontSize: '12px', color: '#0f172a', lineHeight: 1.5 }}>{c}</span>
+                  <span style={{ fontSize: '11px', color: '#0f172a', lineHeight: 1.5 }}>{c}</span>
                 </li>
               ))}
             </ul>
@@ -396,7 +395,7 @@ function SLAProveedorPageInner() {
       </div>
 
       {/* Methodology footer */}
-      <div style={{ marginTop: '20px', padding: '14px 16px', background: 'var(--muted)', borderRadius: '10px', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: 1.7 }}>
+      <div style={{ marginTop: '8px', padding: '8px 12px', background: '#F9FAFB', border: '0.5px solid #e5e7eb', borderRadius: '7px', fontSize: '10px', color: 'var(--muted-foreground)', lineHeight: 1.7 }}>
         <strong>Metodología:</strong> Se evalúan incidentes en estado RESUELTO con hora_fin registrada y proveedor asignado. Cuando existe tracking N1 (correo_n1 + escalamiento): el SLA requiere respuesta en ≤60 min sin escalar a N2, y resolución dentro del objetivo por tipo medida desde el correo N1. Sin tracking N1: se evalúa solo tiempo de resolución (MTTR) desde hora_registro vs objetivo por tipo.
       </div>
     </div>

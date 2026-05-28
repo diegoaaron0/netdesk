@@ -32,14 +32,14 @@ function estadoChip(estado: TipoResumen['estado']) {
 
 function TH({ children, align = 'left' }: { children: React.ReactNode; align?: string }) {
   return (
-    <th style={{ padding: '8px 10px', textAlign: align as any, fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '0.5px solid #e5e7eb', whiteSpace: 'nowrap', background: '#FAFAFA' }}>
+    <th style={{ padding: '5px 7px', textAlign: align as any, fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '0.5px solid #e5e7eb', whiteSpace: 'nowrap', background: '#FAFAFA' }}>
       {children}
     </th>
   )
 }
 function TD({ children, align = 'left', mono = false }: { children: React.ReactNode; align?: string; mono?: boolean }) {
   return (
-    <td style={{ padding: '8px 10px', fontSize: '12px', textAlign: align as any, fontFamily: mono ? 'monospace' : undefined, borderTop: '0.5px solid #f3f4f6', verticalAlign: 'middle' }}>
+    <td style={{ padding: '5px 7px', fontSize: '12px', textAlign: align as any, fontFamily: mono ? 'monospace' : undefined, borderTop: '0.5px solid #f3f4f6', verticalAlign: 'middle' }}>
       {children}
     </td>
   )
@@ -47,10 +47,10 @@ function TD({ children, align = 'left', mono = false }: { children: React.ReactN
 
 function SumCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
-    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '14px 16px', flex: 1, minWidth: '120px' }}>
-      <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', fontWeight: 500, marginBottom: '6px' }}>{label}</div>
-      <div style={{ fontSize: '20px', fontWeight: 700, color: color ?? '#0f172a', lineHeight: 1 }}>{value}</div>
-      {sub && <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '4px' }}>{sub}</div>}
+    <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '8px', padding: '8px 12px', flex: 1, minWidth: '100px' }}>
+      <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '3px' }}>{label}</div>
+      <div style={{ fontSize: '16px', fontWeight: 600, color: color ?? '#0f172a', lineHeight: 1 }}>{value}</div>
+      {sub && <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{sub}</div>}
     </div>
   )
 }
@@ -150,30 +150,27 @@ function DistribucionTipoContent() {
   const sinClasificar       = otrosDesglose.find((d) => d.causaClasificada === 'Sin clasificar')
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', fontFamily: 'inherit' }}>
+    <div style={{ maxWidth: '100%' }}>
 
       {/* Header */}
-      <div style={{ marginBottom: '20px' }}>
-        <button onClick={() => router.push('/dashboard?tab=analitico')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: '#185FA5', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>← Volver al dashboard</button>
-        <div style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a' }}>D. Distribución por tipo</div>
-        <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginTop: '4px' }}>
-          Desglose de incidentes por tipo con impacto económico, SLA y MTTR.
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+        <button onClick={() => router.push('/dashboard?tab=analitico')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: '#185FA5', fontWeight: 500 }}>← Volver</button>
+        <span style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>D. Distribución por tipo</span>
       </div>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '8px', padding: '7px 10px', background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '8px' }}>
         <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }} />
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', outline: 'none' }} />
         <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }} />
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', outline: 'none' }} />
         <select value={proveedorId} onChange={(e) => setProveedorId(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', outline: 'none' }}>
           <option value="">Todos los proveedores</option>
           {provLista.map((p) => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
         </select>
         <select value={tipoFiltro} onChange={(e) => setTipoFiltro(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', outline: 'none' }}>
           <option value="TODOS">Todos los tipos</option>
           <option value="CAIDA_TOTAL">Caída total</option>
           <option value="INTERMITENCIA">Intermitencia</option>
@@ -181,12 +178,12 @@ function DistribucionTipoContent() {
           <option value="OTROS">Otros</option>
         </select>
         <button onClick={() => fetchData()}
-          style={{ padding: '6px 14px', fontSize: '12px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 500 }}>
-          Actualizar
+          style={{ padding: '5px 12px', fontSize: '11px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>
+          ↻ Actualizar
         </button>
         <button onClick={exportCSV}
-          style={{ padding: '6px 14px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'pointer', background: 'var(--card)', color: 'var(--foreground)', marginLeft: 'auto' }}>
-          ↓ Exportar CSV
+          style={{ padding: '5px 10px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', cursor: 'pointer', background: 'white', marginLeft: 'auto' }}>
+          ↓ CSV
         </button>
       </div>
 
@@ -205,7 +202,7 @@ function DistribucionTipoContent() {
       {!loading && data && (
         <>
           {/* 6 Summary cards */}
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
             <SumCard label="Tipo más frecuente" value={tipoMasFrecuente?.label ?? '—'} sub={tipoMasFrecuente ? `${tipoMasFrecuente.cantidad} incidentes (${tipoMasFrecuente.pct}%)` : ''} color={tipoMasFrecuente ? TIPO_COLORS[tipoMasFrecuente.tipo] : undefined} />
             <SumCard label="Mayor impacto estimado" value={tipoMasImpacto?.label ?? '—'} sub={tipoMasImpacto ? fmtCosto(tipoMasImpacto.impactoEstimado) : ''} color="#A32D2D" />
             <SumCard label="Peor SLA" value={peorSla ? `${peorSla.slaPct}%` : '—'} sub={peorSla?.label} color={peorSla?.slaPct != null && peorSla.slaPct < 70 ? '#A32D2D' : '#854F0B'} />
@@ -218,7 +215,7 @@ function DistribucionTipoContent() {
           <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: '16px', marginBottom: '16px', alignItems: 'start' }}>
 
             {/* Mini donut */}
-            <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+            <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
               <div style={{ position: 'relative', width: '180px', height: '180px' }}>
                 <ResponsiveContainer width={180} height={180}>
                   <PieChart>
@@ -243,7 +240,7 @@ function DistribucionTipoContent() {
             </div>
 
             {/* Tabla 1: Resumen por tipo */}
-            <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '16px' }}>
+            <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '16px' }}>
               <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', marginBottom: '12px' }}>Tabla 1 — Resumen por tipo</div>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
@@ -296,7 +293,7 @@ function DistribucionTipoContent() {
 
           {/* Tabla 2: Desglose Otros */}
           {hayOtros && (
-            <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+            <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
               <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', marginBottom: '12px' }}>Tabla 2 — Desglose de "Otros"</div>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
@@ -345,7 +342,7 @@ function DistribucionTipoContent() {
           )}
 
           {/* Tabla 3: Incidentes del tipo seleccionado */}
-          <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+          <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
             <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', marginBottom: '12px' }}>
               Tabla 3 — Incidentes {tipoFiltro === 'TODOS' ? 'del período' : `· ${TIPO_LABELS[tipoFiltro as TipoVisible] ?? tipoFiltro}`}
               <span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--muted-foreground)', marginLeft: '8px' }}>({incidentesFiltrados.length} registros)</span>
@@ -427,7 +424,7 @@ function DistribucionTipoContent() {
           {patrones.length > 0 && (() => {
             const patronesFiltrados = patrones.filter((p) => p.tiendasRepetidas > 0)
             return (
-              <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+              <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', marginBottom: '12px' }}>Tabla 4 — Patrón detectado por tipo</div>
                 {patronesFiltrados.length === 0 ? (
                   <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', padding: '12px 0' }}>
@@ -467,13 +464,13 @@ function DistribucionTipoContent() {
 
           {/* Conclusiones */}
           {conclusiones.length > 0 && (
-            <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+            <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
               <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', marginBottom: '12px' }}>Conclusiones automáticas</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px' }}>
                 {conclusiones.map((c, i) => {
                   const icons = ['📊', '💰', '🚨', '📡', '📋', '🔍', '⚠️', '✏️']
                   return (
-                    <div key={i} style={{ padding: '12px 14px', background: '#F8FAFC', border: '0.5px solid #e5e7eb', borderRadius: '8px', fontSize: '12px', lineHeight: 1.5, display: 'flex', gap: '8px' }}>
+                    <div key={i} style={{ padding: '8px 10px', background: '#F8FAFC', border: '0.5px solid #e5e7eb', borderRadius: '8px', fontSize: '11px', lineHeight: 1.5, display: 'flex', gap: '8px' }}>
                       <span style={{ fontSize: '16px', flexShrink: 0 }}>{icons[i] ?? '•'}</span>
                       <span>{c}</span>
                     </div>
@@ -484,8 +481,8 @@ function DistribucionTipoContent() {
           )}
 
           {/* Footer */}
-          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', lineHeight: 1.6, padding: '0 4px' }}>
-            Nota: POS y otros tipos no estándar se agrupan en "Otros". Impacto estimado = venta/hora × horas afectadas × factor impacto × factor contingencia × margen bruto (35%). Solo se excluyen incidentes CANCELADOS. SLA evaluable: incidentes RESUELTOS con correo N1 enviado.
+          <div style={{ padding: '8px 12px', background: '#F9FAFB', border: '0.5px solid #e5e7eb', borderRadius: '7px', fontSize: '10px', color: 'var(--muted-foreground)', lineHeight: 1.6 }}>
+            ℹ️ POS y otros tipos no estándar se agrupan en "Otros". Impacto estimado = venta/hora × horas afectadas × factor impacto × factor contingencia × margen bruto (35%). Solo se excluyen incidentes CANCELADOS. SLA evaluable: incidentes RESUELTOS con correo N1 enviado.
           </div>
         </>
       )}
