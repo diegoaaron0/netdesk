@@ -91,6 +91,7 @@ function TiendasCriticasContent() {
   const [hasta, setHasta]               = useState(initialHasta)
   const [proveedorId, setProveedorId]   = useState(initialProv)
   const [buscar, setBuscar]             = useState('')
+  const [estadoFilter, setEstadoFilter] = useState<'' | 'critica' | 'revisar' | 'optima'>('')
   const [data, setData]                 = useState<TiendasCriticasResponse | null>(null)
   const [loading, setLoading]           = useState(false)
   const [selectedTienda, setSelectedTienda] = useState<TiendaCritica | null>(null)
@@ -151,11 +152,11 @@ function TiendasCriticasContent() {
 
   const resumen    = data?.resumen
   const allTiendas = data?.tiendas ?? []
-  const patrones   = data?.patrones ?? []
   const conclusiones = data?.conclusiones ?? []
   const provLista  = data?.proveedoresList ?? []
 
   const filteredTiendas = allTiendas.filter((t) => {
+    if (estadoFilter && t.estado !== estadoFilter) return false
     if (!buscar) return true
     const q = buscar.toLowerCase()
     return t.tiendaCodigo.toLowerCase().includes(q) || t.tiendaNombre.toLowerCase().includes(q)
@@ -187,6 +188,13 @@ function TiendasCriticasContent() {
           <option value="">Todos los proveedores</option>
           {provLista.map((p) => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
         </select>
+        <select value={estadoFilter} onChange={(e) => setEstadoFilter(e.target.value as any)}
+          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', outline: 'none' }}>
+          <option value="">Todos los estados</option>
+          <option value="critica">Críticas</option>
+          <option value="revisar">Revisar</option>
+          <option value="optima">Óptimas</option>
+        </select>
         <input
           type="text" placeholder="Buscar tienda..." value={buscar} onChange={(e) => setBuscar(e.target.value)}
           style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', outline: 'none', minWidth: '120px' }}
@@ -217,7 +225,7 @@ function TiendasCriticasContent() {
         <>
           {/* 6 Summary cards */}
           <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
-            <SumCard icon="🏪" label="Tiendas reincidentes" value={String(reincidentesCount)} sub={`${allTiendas.length} tiendas afectadas en el período`} color="#A32D2D" />
+            <SumCard label="Tiendas críticas" value={String(resumen?.totalCriticas ?? 0)} sub={`${reincidentesCount} con reincidencia · ${allTiendas.length} total afectadas`} color="#A32D2D" />
             <SumCard icon="💰" label="Costo acumulado" value={fmtCosto(resumen?.costoAcumulado ?? 0)} sub="margen bruto 35%" />
             <SumCard icon="⏱" label="MTTR promedio del período" value={fmtMin(mttrGlobal)} sub="todas las tiendas" color="#854F0B" />
             <SumCard icon="⚠️" label="Reincidencias detectadas" value={String(resumen?.reincidenciasDetectadas ?? 0)} sub="tipo repetido" color="#854F0B" />
@@ -247,7 +255,6 @@ function TiendasCriticasContent() {
                     <TH align="center">SLA %</TH>
                     <TH>Costo estimado</TH>
                     <TH align="center">Contingencia</TH>
-                    <TH align="center">Riesgo</TH>
                     <TH>Estado</TH>
                   </tr>
                 </thead>
@@ -260,7 +267,18 @@ function TiendasCriticasContent() {
                       <tr key={t.tiendaId}
                         onClick={() => handleSelectTienda(t)}
                         style={{ cursor: 'pointer', background: isSelected ? '#EFF6FF' : t.estado === 'critica' ? '#FFF8F8' : 'transparent', outline: isSelected ? '1px solid #185FA5' : 'none' }}>
-                        <TD><span style={{ fontWeight: 700 }}>{t.tiendaCodigo}</span> <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{t.tiendaNombre}</span></TD>
+                        <TD>
+                          <div>
+                            <a href={`/tiendas/${t.tiendaId}`} onClick={(e) => e.stopPropagation()}
+                              style={{ fontWeight: 700, color: '#185FA5', textDecoration: 'none' }}>{t.tiendaCodigo}</a>
+                            {' '}<span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{t.tiendaNombre}</span>
+                            {t.motivosPrincipales.length > 0 && (
+                              <div style={{ fontSize: '10px', color: t.estado === 'critica' ? '#A32D2D' : '#854F0B', marginTop: '2px' }}>
+                                {t.motivosPrincipales[0]}
+                              </div>
+                            )}
+                          </div>
+                        </TD>
                         <TD><ProvBadge nombre={t.proveedorNombre} /></TD>
                         <TD><span style={{ color: 'var(--muted-foreground)' }}>{t.distrito ?? '—'}</span></TD>
                         <TD align="center"><span style={{ fontFamily: 'monospace', fontSize: '11px' }}>{t.cluster ?? '—'}</span></TD>
@@ -284,16 +302,9 @@ function TiendasCriticasContent() {
                             {t.tieneContingencia ? 'Sí' : 'No'}
                           </span>
                         </TD>
-                        <TD align="center">
-                          {(() => {
-                            const rBg    = t.score >= 70 ? '#FCEBEB' : t.score >= 40 ? '#FAEEDA' : '#EAF3DE'
-                            const rColor = t.score >= 70 ? '#A32D2D' : t.score >= 40 ? '#854F0B' : '#3B6D11'
-                            const rLabel = t.score >= 70 ? 'Alto'    : t.score >= 40 ? 'Medio'   : 'Bajo'
-                            return <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '999px', background: rBg, color: rColor, fontWeight: 600, whiteSpace: 'nowrap' }}>{rLabel}</span>
-                          })()}
-                        </TD>
                         <TD>
-                          <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: badge.bg, color: badge.color, fontWeight: 500, whiteSpace: 'nowrap' }}>
+                          <span title={`Score: ${t.score}${t.motivosPrincipales.length > 1 ? ' · ' + t.motivosPrincipales.slice(1).join(' · ') : ''}`}
+                            style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: badge.bg, color: badge.color, fontWeight: 500, whiteSpace: 'nowrap', cursor: 'help' }}>
                             {badge.label}
                           </span>
                         </TD>
@@ -301,7 +312,7 @@ function TiendasCriticasContent() {
                     )
                   })}
                   {filteredTiendas.length === 0 && (
-                    <tr><td colSpan={12} style={{ padding: '32px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>Sin tiendas en el período seleccionado</td></tr>
+                    <tr><td colSpan={11} style={{ padding: '32px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>Sin tiendas en el período seleccionado</td></tr>
                   )}
                 </tbody>
               </table>
@@ -316,9 +327,18 @@ function TiendasCriticasContent() {
           {/* Tabla 2: Historial tienda seleccionada */}
           {selectedTienda && (
             <div style={{ background: 'white', border: '0.5px solid #185FA5', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>
-                  2. Historial resumido de la tienda seleccionada ({selectedTienda.tiendaCodigo})
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', marginBottom: '6px' }}>
+                    2. Historial resumido — {selectedTienda.tiendaCodigo}
+                  </div>
+                  {selectedTienda.motivosPrincipales.length > 0 && (
+                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                      {selectedTienda.motivosPrincipales.map((m, i) => (
+                        <span key={i} style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '999px', background: '#FEF3C7', color: '#854F0B', fontWeight: 500 }}>{m}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <button onClick={() => { setSelectedTienda(null); setHistorial(null) }}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--muted-foreground)', lineHeight: 1 }}>✕</button>
@@ -373,39 +393,6 @@ function TiendasCriticasContent() {
                   </table>
                 </div>
               )}
-            </div>
-          )}
-
-          {/* Tabla 3: Patrones detectados */}
-          {patrones.length > 0 && (
-            <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', marginBottom: '12px' }}>3. Patrón detectado</div>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                  <thead>
-                    <tr>
-                      <TH>Tienda</TH>
-                      <TH>Patrón detectado</TH>
-                      <TH>Tipo repetido</TH>
-                      <TH>Proveedor repetido</TH>
-                      <TH align="center">Veces</TH>
-                      <TH>Recomendación</TH>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {patrones.map((p, i) => (
-                      <tr key={i}>
-                        <TD><span style={{ fontWeight: 700 }}>{p.tiendaCodigo}</span></TD>
-                        <TD>{p.patronDetectado}</TD>
-                        <TD>{p.tipoRepetido ? fmtTipo(p.tipoRepetido) : '—'}</TD>
-                        <TD><ProvBadge nombre={p.proveedorRepetido} /></TD>
-                        <TD align="center"><strong style={{ color: p.veces >= 3 ? '#A32D2D' : '#854F0B' }}>{p.veces}</strong></TD>
-                        <TD><span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{p.recomendacion}</span></TD>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
             </div>
           )}
 
