@@ -98,7 +98,6 @@ function DistribucionTipoContent() {
   const [desde, setDesde]             = useState(initialDesde)
   const [hasta, setHasta]             = useState(initialHasta)
   const [proveedorId, setProveedorId] = useState(initialProv)
-  const [tipoFiltro, setTipoFiltro]  = useState<string>('TODOS')
   const [data, setData]               = useState<DistribucionTipoResponse | null>(null)
   const [loading, setLoading]         = useState(false)
 
@@ -131,23 +130,15 @@ function DistribucionTipoContent() {
 
   const tiposResumen  = data?.tiposResumen ?? []
   const otrosDesglose = data?.otrosDesglose ?? []
-  const patrones      = data?.patrones ?? []
   const conclusiones  = data?.conclusiones ?? []
   const provLista     = data?.proveedoresList ?? []
   const total         = data?.total ?? 0
   const hayOtros      = otrosDesglose.length > 0
 
-  const incidentesFiltrados = (data?.incidentes ?? []).filter((inc) => {
-    if (tipoFiltro === 'TODOS') return true
-    return inc.tipoVisible === tipoFiltro
-  })
-
-  const tipoMasFrecuente    = tiposResumen[0]
-  const tipoMasImpacto      = [...tiposResumen].sort((a, b) => b.impactoEstimado - a.impactoEstimado)[0]
-  const peorSla             = [...tiposResumen].filter((t) => t.slaPct != null).sort((a, b) => (a.slaPct ?? 100) - (b.slaPct ?? 100))[0]
-  const mayorMttr           = [...tiposResumen].filter((t) => t.mttrPromedioMin != null).sort((a, b) => (b.mttrPromedioMin ?? 0) - (a.mttrPromedioMin ?? 0))[0]
-  const causaOtrosMasFrecuente = otrosDesglose[0]
-  const sinClasificar       = otrosDesglose.find((d) => d.causaClasificada === 'Sin clasificar')
+  const tipoMasFrecuente = tiposResumen[0]
+  const tipoMasImpacto   = [...tiposResumen].sort((a, b) => b.impactoEstimado - a.impactoEstimado)[0]
+  const peorSla          = [...tiposResumen].filter((t) => t.slaPct != null).sort((a, b) => (a.slaPct ?? 100) - (b.slaPct ?? 100))[0]
+  const mayorMttr        = [...tiposResumen].filter((t) => t.mttrPromedioMin != null).sort((a, b) => (b.mttrPromedioMin ?? 0) - (a.mttrPromedioMin ?? 0))[0]
 
   return (
     <div style={{ maxWidth: '100%' }}>
@@ -168,14 +159,6 @@ function DistribucionTipoContent() {
           style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', outline: 'none' }}>
           <option value="">Todos los proveedores</option>
           {provLista.map((p) => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
-        </select>
-        <select value={tipoFiltro} onChange={(e) => setTipoFiltro(e.target.value)}
-          style={{ padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', outline: 'none' }}>
-          <option value="TODOS">Todos los tipos</option>
-          <option value="CAIDA_TOTAL">Caída total</option>
-          <option value="INTERMITENCIA">Intermitencia</option>
-          <option value="LENTITUD">Lentitud</option>
-          <option value="OTROS">Otros</option>
         </select>
         <button onClick={() => fetchData()}
           style={{ padding: '5px 12px', fontSize: '11px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>
@@ -207,8 +190,6 @@ function DistribucionTipoContent() {
             <SumCard label="Mayor impacto estimado" value={tipoMasImpacto?.label ?? '—'} sub={tipoMasImpacto ? fmtCosto(tipoMasImpacto.impactoEstimado) : ''} color="#A32D2D" />
             <SumCard label="Peor SLA" value={peorSla ? `${peorSla.slaPct}%` : '—'} sub={peorSla?.label} color={peorSla?.slaPct != null && peorSla.slaPct < 70 ? '#A32D2D' : '#854F0B'} />
             <SumCard label="Mayor MTTR" value={fmtMin(mayorMttr?.mttrPromedioMin)} sub={mayorMttr?.label} color="#854F0B" />
-            <SumCard label="Causa Otros más frecuente" value={causaOtrosMasFrecuente?.causaClasificada ?? '—'} sub={causaOtrosMasFrecuente ? `${causaOtrosMasFrecuente.cantidad} casos` : 'Sin Otros'} />
-            <SumCard label="Otros sin clasificar" value={sinClasificar ? String(sinClasificar.cantidad) : '0'} sub="sin causa registrada" color={sinClasificar ? '#A32D2D' : '#3B6D11'} />
           </div>
 
           {/* Donut + Tabla 1 side by side */}
@@ -340,127 +321,6 @@ function DistribucionTipoContent() {
               </div>
             </div>
           )}
-
-          {/* Tabla 3: Incidentes del tipo seleccionado */}
-          <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', marginBottom: '12px' }}>
-              Tabla 3 — Incidentes {tipoFiltro === 'TODOS' ? 'del período' : `· ${TIPO_LABELS[tipoFiltro as TipoVisible] ?? tipoFiltro}`}
-              <span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--muted-foreground)', marginLeft: '8px' }}>({incidentesFiltrados.length} registros)</span>
-            </div>
-            <div style={{ overflowX: 'auto', maxHeight: '380px', overflowY: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
-                  <tr>
-                    <TH>ID incidente</TH>
-                    <TH>Fecha</TH>
-                    <TH>Tienda</TH>
-                    <TH>Proveedor</TH>
-                    <TH>Tipo</TH>
-                    <TH>Duración</TH>
-                    <TH align="center">SLA</TH>
-                    <TH>Impacto est.</TH>
-                    <TH>Estado</TH>
-                    {(tipoFiltro === 'OTROS' || incidentesFiltrados.some((i) => i.tipoVisible === 'OTROS')) && (
-                      <>
-                        <TH>Causa escrita</TH>
-                        <TH>Causa clasificada</TH>
-                      </>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {incidentesFiltrados.slice(0, 100).map((inc, i) => {
-                    const mostrarCausa = tipoFiltro === 'OTROS' || inc.tipoVisible === 'OTROS'
-                    return (
-                      <tr key={i}>
-                        <TD><span style={{ fontFamily: 'monospace', fontSize: '11px', color: 'var(--muted-foreground)' }}>{inc.codigo}</span></TD>
-                        <TD>{inc.fecha}</TD>
-                        <TD><span style={{ fontWeight: 600 }}>{inc.tiendaCodigo}</span> <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{inc.tiendaNombre}</span></TD>
-                        <TD><ProvBadge nombre={inc.provNombre} /></TD>
-                        <TD><TipoBadge tipo={inc.tipoVisible} /></TD>
-                        <TD mono>{fmtMin(inc.duracionMin)}</TD>
-                        <TD align="center">
-                          {inc.slaGeneral === null
-                            ? <span style={{ color: '#888780', fontSize: '10px' }} title="Sin escalamiento al proveedor">S/E</span>
-                            : inc.slaGeneral
-                              ? <span style={{ color: '#3B6D11', fontWeight: 600, fontSize: '10px' }}>✓ OK</span>
-                              : <span style={{ color: '#A32D2D', fontWeight: 600, fontSize: '10px' }}>✗ Fuera</span>}
-                        </TD>
-                        <TD mono>{inc.impactoEstimado > 0 ? fmtCosto(inc.impactoEstimado) : '—'}</TD>
-                        <TD>
-                          <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '999px',
-                            background: inc.estado === 'RESUELTO' ? '#EAF3DE' : inc.estado === 'EN_SEGUIMIENTO' ? '#E6F1FB' : '#F3F4F6',
-                            color: inc.estado === 'RESUELTO' ? '#3B6D11' : inc.estado === 'EN_SEGUIMIENTO' ? '#185FA5' : '#888780' }}>
-                            {inc.estado}
-                          </span>
-                        </TD>
-                        {(tipoFiltro === 'OTROS' || incidentesFiltrados.some((ii) => ii.tipoVisible === 'OTROS')) && (
-                          <>
-                            <TD><span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{inc.causaTexto ?? '—'}</span></TD>
-                            <TD>
-                              {inc.causaClasificada
-                                ? <span style={{ fontSize: '10px', padding: '1px 6px', background: '#FEF3C7', color: '#B45309', borderRadius: '999px' }}>{inc.causaClasificada}</span>
-                                : <span style={{ color: '#888780' }}>—</span>}
-                            </TD>
-                          </>
-                        )}
-                      </tr>
-                    )
-                  })}
-                  {incidentesFiltrados.length === 0 && (
-                    <tr><td colSpan={11} style={{ padding: '32px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>Sin incidentes para el filtro seleccionado</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            {incidentesFiltrados.length > 100 && (
-              <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--muted-foreground)' }}>
-                Mostrando 100 de {incidentesFiltrados.length} incidentes
-              </div>
-            )}
-          </div>
-
-          {/* Tabla 4: Patrón detectado */}
-          {patrones.length > 0 && (() => {
-            const patronesFiltrados = patrones.filter((p) => p.tiendasRepetidas > 0)
-            return (
-              <div style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', marginBottom: '12px' }}>Tabla 4 — Patrón detectado por tipo</div>
-                {patronesFiltrados.length === 0 ? (
-                  <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', padding: '12px 0' }}>
-                    No se detectaron patrones de reincidencia en el período.
-                  </div>
-                ) : (
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                      <thead>
-                        <tr>
-                          <TH>Tipo incidente</TH>
-                          <TH>Patrón detectado</TH>
-                          <TH>Proveedor asociado</TH>
-                          <TH align="center">Tiendas repetidas</TH>
-                          <TH>Causa probable</TH>
-                          <TH>Recomendación</TH>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {patronesFiltrados.map((p, i) => (
-                          <tr key={i}>
-                            <TD><TipoBadge tipo={p.tipo} /></TD>
-                            <TD>{p.patronDetectado}</TD>
-                            <TD><ProvBadge nombre={p.proveedorAsociado} /></TD>
-                            <TD align="center"><strong style={{ color: p.tiendasRepetidas >= 3 ? '#A32D2D' : '#854F0B' }}>{p.tiendasRepetidas}</strong></TD>
-                            <TD><span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{p.causaProbable}</span></TD>
-                            <TD><span style={{ fontSize: '11px', color: '#185FA5' }}>{p.recomendacion}</span></TD>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            )
-          })()}
 
           {/* Conclusiones */}
           {conclusiones.length > 0 && (
