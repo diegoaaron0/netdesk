@@ -19,16 +19,6 @@ function fmtCosto(n: number) {
   return `S/ ${n.toLocaleString('es-PE', { maximumFractionDigits: 0 })}`
 }
 
-function scoreColor(s: number) {
-  if (s >= 60) return '#A32D2D'
-  if (s >= 35) return '#BA7517'
-  return '#1D9E75'
-}
-function scoreBg(s: number) {
-  if (s >= 60) return '#FCEBEB'
-  if (s >= 35) return '#FAEEDA'
-  return '#EAF3DE'
-}
 function slaColor(v: number | null): string {
   if (v == null) return '#888780'
   if (v < 70) return '#A32D2D'
@@ -47,14 +37,6 @@ function SLABar({ pct }: { pct: number | null }) {
       <span style={{ fontSize: '10px', fontWeight: 600, color }}>{pct}%</span>
     </div>
   )
-}
-
-function shortCausa(causa: string | null): string {
-  if (!causa) return '—'
-  if (causa.includes('sin respuesta')) return 'Sin resp. N1'
-  if (causa.includes('Respuesta')) return 'Resp. lenta'
-  if (causa.includes('Resolución')) return 'Resol. lenta'
-  return causa.slice(0, 16)
 }
 
 export default function ProviderImpactCard({ desde, hasta, proveedorId, refreshKey }: Props) {
@@ -118,13 +100,11 @@ export default function ProviderImpactCard({ desde, hasta, proveedorId, refreshK
               <tr style={{ borderBottom: '0.5px solid #e5e7eb' }}>
                 {[
                   { label: 'Proveedor', align: 'left' as const },
-                  { label: 'Score', align: 'center' as const },
                   { label: 'Incs', align: 'center' as const },
-                  { label: 'Tiendas', align: 'center' as const },
                   { label: 'SLA%', align: 'left' as const },
                   { label: 'MTTR', align: 'right' as const },
                   { label: 'Reincid.', align: 'center' as const },
-                  { label: 'Causa principal', align: 'left' as const },
+                  { label: 'Estado', align: 'center' as const },
                 ].map((h) => (
                   <th key={h.label} style={{ padding: '4px 6px', textAlign: h.align, fontSize: '9px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
                     {h.label}
@@ -133,22 +113,27 @@ export default function ProviderImpactCard({ desde, hasta, proveedorId, refreshK
               </tr>
             </thead>
             <tbody>
-              {proveedores.slice(0, 6).map((p, i) => (
+              {proveedores.slice(0, 6).map((p, i) => {
+                const estadoBg    = p.estado === 'critico' ? '#FCEBEB' : p.estado === 'en_riesgo' ? '#FAEEDA' : '#EAF3DE'
+                const estadoColor = p.estado === 'critico' ? '#A32D2D' : p.estado === 'en_riesgo' ? '#BA7517' : '#1D9E75'
+                const estadoLabel = p.estado === 'critico' ? '✗ Crítico' : p.estado === 'en_riesgo' ? '⚠ Riesgo' : '✓ Óptimo'
+                return (
                 <tr key={p.id} style={{ borderTop: i > 0 ? '0.5px solid #f3f4f6' : 'none' }}>
                   <td style={{ padding: '4px 6px', fontWeight: 500, color: '#0f172a', whiteSpace: 'nowrap', maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.nombre}</td>
-                  <td style={{ padding: '4px 6px', textAlign: 'center' }}>
-                    <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: '5px', background: scoreBg(p.score), color: scoreColor(p.score) }}>{p.score}</span>
-                  </td>
                   <td style={{ padding: '4px 6px', textAlign: 'center', fontWeight: 600, color: '#0f172a' }}>{p.incidentes}</td>
-                  <td style={{ padding: '4px 6px', textAlign: 'center', color: '#0f172a' }}>{p.tiendasAfectadas}</td>
                   <td style={{ padding: '4px 6px' }}><SLABar pct={p.slaPct} /></td>
                   <td style={{ padding: '4px 6px', textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 500, color: p.mttrMinutos != null && p.mttrMinutos > 240 ? '#A32D2D' : p.mttrMinutos != null && p.mttrMinutos > 120 ? '#BA7517' : '#0f172a' }}>
                     {fmtMin(p.mttrMinutos)}
                   </td>
-                  <td style={{ padding: '4px 6px', textAlign: 'center', fontWeight: p.reincidencia > 0 ? 600 : 400, color: p.reincidencia > 0 ? '#A32D2D' : '#64748b' }}>{p.reincidencia}</td>
-                  <td style={{ padding: '4px 6px', color: '#64748b', whiteSpace: 'nowrap' }}>{shortCausa(p.causaPrincipal)}</td>
+                  <td style={{ padding: '4px 6px', textAlign: 'center', fontWeight: p.reincidencia > 0 ? 600 : 400, color: p.reincidencia > 0 ? '#A32D2D' : '#64748b' }}>
+                    {p.reincidencia > 0 ? p.reincidencia : '—'}
+                  </td>
+                  <td style={{ padding: '4px 6px', textAlign: 'center' }}>
+                    <span style={{ fontSize: '9px', fontWeight: 600, padding: '1px 6px', borderRadius: '999px', background: estadoBg, color: estadoColor, whiteSpace: 'nowrap' }}>{estadoLabel}</span>
+                  </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
           {proveedores.length > 6 && (
