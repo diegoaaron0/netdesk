@@ -17,20 +17,6 @@ export const SLA_RESPUESTA_MIN = 60
 /** Default tiempo de resolución (min) cuando no hay contrato vigente */
 export const SLA_RESOLUCION_DEFAULT_MIN = 60
 
-/** @deprecated Shim de compatibilidad. Usar SLA_RESOLUCION_DEFAULT_MIN. */
-export const SLA_RESOLUCION_POR_TIPO: Record<string, number> = {
-  CAIDA_TOTAL:   SLA_RESOLUCION_DEFAULT_MIN,
-  INTERMITENCIA: SLA_RESOLUCION_DEFAULT_MIN,
-  LENTITUD:      SLA_RESOLUCION_DEFAULT_MIN,
-  POS:           SLA_RESOLUCION_DEFAULT_MIN,
-  OTROS:         SLA_RESOLUCION_DEFAULT_MIN,
-}
-
-/** @deprecated Shim de compatibilidad. Usar SLA_RESOLUCION_DEFAULT_MIN directamente. */
-export function getSlaResolucionMin(_tipo: string): number {
-  return SLA_RESOLUCION_DEFAULT_MIN
-}
-
 // ─── Helpers de tiempo ────────────────────────────────────────────────────────
 
 export function diffMin(a: Date | string | null, b: Date | string | null): number | null {
