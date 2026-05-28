@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, Suspense, Fragment } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { fmtSLARespResol } from '@/lib/sla-display'
-import { SLA_RESOLUCION_POR_TIPO } from '@/lib/sla-core'
+import { SLA_RESOLUCION_DEFAULT_MIN } from '@/lib/sla-core'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -303,7 +303,7 @@ function TendenciaSLAPageInner() {
                                         tRespMin: c.tPrimeraRespuestaMin,
                                         tResolMin: c.tResolucionMin,
                                         limiteRespMin: 60,
-                                        limiteResolMin: c.slaResolucionMin || SLA_RESOLUCION_POR_TIPO[c.tipo] || 120,
+                                        limiteResolMin: c.slaResolucionMin || SLA_RESOLUCION_DEFAULT_MIN,
                                       }) : null
                                       return (
                                         <tr key={c.codigo} style={{ borderTop: j > 0 ? '0.5px solid #dde4ef' : 'none' }}>

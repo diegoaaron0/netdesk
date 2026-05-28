@@ -1,25 +1,32 @@
 /**
  * sla-core.ts — única fuente de verdad para cálculo SLA.
  * Todos los módulos analíticos (KPI A, E, F, G, H) deben importar desde aquí.
- * No duplicar SLA_RESPUESTA_MIN ni SLA_RESOLUCION_POR_TIPO en otros archivos.
+ *
+ * SLA del proveedor = ¿resolvieron el incidente dentro del tiempo pactado en contrato?
+ * Medido desde hora_correo_n1 hasta hora_fin.
+ * Tiempo límite: contrato vigente (slaResolucionOverride) o SLA_RESOLUCION_DEFAULT_MIN.
  */
 
 // ─── Constantes SLA ────────────────────────────────────────────────────────────
 
-/** Tiempo máximo (min) para primera respuesta de N1 antes de escalar */
+/** Tiempo máximo (min) para primera respuesta de N1 — métrica informativa */
 export const SLA_RESPUESTA_MIN = 60
 
-/** Tiempo máximo (min) para resolución total, medido desde hora_correo_n1 */
+/** Tiempo máximo (min) para resolución cuando no hay contrato vigente */
+export const SLA_RESOLUCION_DEFAULT_MIN = 60
+
+/** @deprecated Usar SLA_RESOLUCION_DEFAULT_MIN. El tiempo lo define el contrato, no el tipo. */
 export const SLA_RESOLUCION_POR_TIPO: Record<string, number> = {
-  CAIDA_TOTAL:   60,
-  INTERMITENCIA: 120,
-  LENTITUD:      240,
-  POS:           60,
-  OTROS:         120,
+  CAIDA_TOTAL:   SLA_RESOLUCION_DEFAULT_MIN,
+  INTERMITENCIA: SLA_RESOLUCION_DEFAULT_MIN,
+  LENTITUD:      SLA_RESOLUCION_DEFAULT_MIN,
+  POS:           SLA_RESOLUCION_DEFAULT_MIN,
+  OTROS:         SLA_RESOLUCION_DEFAULT_MIN,
 }
 
-export function getSlaResolucionMin(tipo: string): number {
-  return SLA_RESOLUCION_POR_TIPO[tipo] ?? 60
+/** @deprecated Usar SLA_RESOLUCION_DEFAULT_MIN directamente. */
+export function getSlaResolucionMin(_tipo: string): number {
+  return SLA_RESOLUCION_DEFAULT_MIN
 }
 
 // ─── Helpers de tiempo ────────────────────────────────────────────────────────
@@ -42,16 +49,16 @@ export function calcMTTRMin(
 
 // ─── Interfaz de entrada mínima ───────────────────────────────────────────────
 
-/** Campos mínimos requeridos para calcular SLA. Todos los RawRow la cumplen. */
+/** Campos mínimos requeridos para calcular SLA. */
 export interface SLAInputRow {
   tipo: string
   hora_correo_n1: Date | string | null
   hora_primera_resp: Date | string | null
   hora_fin: Date | string | null
-  hora_registro?: Date | string | null   // retenido por compatibilidad, no usado en evaluación
+  hora_registro?: Date | string | null
   max_nivel: number | null
   slaRespuestaOverride?: number
-  slaResolucionOverride?: number
+  slaResolucionOverride?: number  // tiempo del contrato vigente; si nulo usa SLA_RESOLUCION_DEFAULT_MIN
 }
 
 // ─── Resultado SLA ────────────────────────────────────────────────────────────
@@ -62,8 +69,8 @@ export interface SLAResult {
   tPrimeraRespuestaMin: number | null
   tResolucionMin: number | null
   slaResolucionObj: number
-  slaRespuesta: boolean
-  slaResolucion: boolean
+  slaRespuesta: boolean   // informativo: ¿respondió N1 en tiempo?
+  slaResolucion: boolean  // = slaGeneral: ¿resolvió dentro del tiempo del contrato?
   slaGeneral: boolean
   motivoIncumplimiento: string | null
 }
@@ -73,17 +80,13 @@ export interface SLAResult {
 /**
  * Evalúa el cumplimiento SLA de un incidente.
  *
- * Un incidente es evaluable SOLO si el proveedor fue notificado formalmente (N1).
- * Incidentes resueltos por el agente interno (sin correo N1) no son evaluables.
- *
  * Evaluabilidad: hora_correo_n1 != null AND max_nivel >= 1
- * SLA Respuesta: primera respuesta dentro de SLA_RESPUESTA_MIN desde hora_correo_n1
- *                (falla automáticamente si escaló a N2+, pues N1 no respondió a tiempo)
- * SLA Resolución: resolución dentro de SLA_RESOLUCION_POR_TIPO[tipo] desde hora_correo_n1
- * SLA General: SLA Respuesta AND SLA Resolución
+ * SLA General: incidente resuelto dentro de slaResolucionOverride (contrato) o 60 min por defecto,
+ *              medido desde hora_correo_n1.
+ * SLA Respuesta: solo informativo — si N1 respondió en ≤60 min sin escalar a N2.
  */
 export function calcSLARow(row: SLAInputRow): SLAResult {
-  const slaResolucionObj = row.slaResolucionOverride ?? getSlaResolucionMin(row.tipo)
+  const slaResolucionObj = row.slaResolucionOverride ?? SLA_RESOLUCION_DEFAULT_MIN
 
   // ── Evaluable solo si el proveedor recibió correo N1 y hay escalamiento ───────
   if (row.hora_correo_n1 && row.max_nivel != null && row.max_nivel >= 1) {
@@ -91,20 +94,17 @@ export function calcSLARow(row: SLAInputRow): SLAResult {
     const tPrimeraRespuestaMin = diffMin(row.hora_primera_resp, row.hora_correo_n1)
     const tResolucionMin       = diffMin(row.hora_fin, row.hora_correo_n1)
 
+    // Informativo: ¿respondió N1 en tiempo?
     const slaRespuesta =
       !escaladoN2 &&
       tPrimeraRespuestaMin != null &&
       tPrimeraRespuestaMin <= (row.slaRespuestaOverride ?? SLA_RESPUESTA_MIN)
 
+    // SLA principal: ¿resolvieron dentro del tiempo del contrato?
     const slaResolucion = tResolucionMin != null && tResolucionMin <= slaResolucionObj
-    const slaGeneral    = slaRespuesta   // SLA proveedor = solo tiempo de respuesta
+    const slaGeneral    = slaResolucion
 
-    let motivoIncumplimiento: string | null = null
-    if (!slaGeneral) {
-      if (escaladoN2) motivoIncumplimiento = 'Enviado a N2'
-      else if (tPrimeraRespuestaMin != null) motivoIncumplimiento = 'Respuesta fuera de tiempo'
-      else motivoIncumplimiento = 'Sin respuesta'
-    }
+    const motivoIncumplimiento = slaGeneral ? null : 'Resolución fuera de tiempo'
 
     return {
       evaluable: true, escaladoN2,

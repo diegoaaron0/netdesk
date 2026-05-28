@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
-import { SLA_RESOLUCION_POR_TIPO } from '@/lib/sla-core'
+import { SLA_RESOLUCION_DEFAULT_MIN } from '@/lib/sla-core'
 import { sendMail } from '@/lib/mailer'
 
 export const dynamic = 'force-dynamic'
@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
 
     for (const inc of activosRows as any[]) {
       const minutos = (nowMs - new Date(inc.hora_registro).getTime()) / 60000
-      const slaLimite = SLA_RESOLUCION_POR_TIPO[inc.tipo as string] ?? 120
+      const slaLimite = SLA_RESOLUCION_DEFAULT_MIN
       const pctSla = minutos / slaLimite
 
       if (pctSla >= 1.0) {

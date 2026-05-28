@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import DashboardAnalitico from './components/DashboardAnalitico'
-import { SLA_RESOLUCION_POR_TIPO } from '@/lib/sla-core'
+import { SLA_RESOLUCION_DEFAULT_MIN } from '@/lib/sla-core'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const TIPO_LABELS: Record<string, string> = {
@@ -102,7 +102,7 @@ function initials(nombre: string): string {
 }
 function getEstadoOpClient(inc: any, nowMs: number) {
   const minutos  = (nowMs - tsMs(inc.hora_registro)) / 60000
-  const slaLimite = SLA_RESOLUCION_POR_TIPO[inc.tipo] ?? 120
+  const slaLimite = SLA_RESOLUCION_DEFAULT_MIN
   const pct = minutos / slaLimite
   let estadoOp: string
   if (pct >= 1.0) estadoOp = 'SLA_VENCIDO'

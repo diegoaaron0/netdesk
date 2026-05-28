@@ -1,11 +1,11 @@
 import { db } from '@/lib/db'
 import { contratosProveedor } from '@/drizzle/schema'
 import { and, eq, isNull } from 'drizzle-orm'
-import { SLA_RESPUESTA_MIN, SLA_RESOLUCION_POR_TIPO } from './sla-core'
+import { SLA_RESPUESTA_MIN, SLA_RESOLUCION_DEFAULT_MIN } from './sla-core'
 
 export interface SlaContrato {
   respuestaMin: number
-  resolucionPorTipo: Record<string, number>
+  resolucionMin: number
   fuente: 'contrato_especifico' | 'contrato_marco' | 'hardcoded'
 }
 
@@ -22,7 +22,7 @@ export async function getSlaContrato(
 
   const fallback: SlaContrato = {
     respuestaMin: SLA_RESPUESTA_MIN,
-    resolucionPorTipo: { ...SLA_RESOLUCION_POR_TIPO },
+    resolucionMin: SLA_RESOLUCION_DEFAULT_MIN,
     fuente: 'hardcoded',
   }
 
@@ -35,9 +35,7 @@ export async function getSlaContrato(
       if (especifico?.tiempoRespuestaSla || especifico?.tiempoResolucionSla) {
         const data: SlaContrato = {
           respuestaMin: especifico.tiempoRespuestaSla ?? SLA_RESPUESTA_MIN,
-          resolucionPorTipo: especifico.tiempoResolucionSla
-            ? { CAIDA_TOTAL: especifico.tiempoResolucionSla, INTERMITENCIA: especifico.tiempoResolucionSla * 2, LENTITUD: especifico.tiempoResolucionSla * 4, POS: especifico.tiempoResolucionSla, OTROS: especifico.tiempoResolucionSla * 2 }
-            : { ...SLA_RESOLUCION_POR_TIPO },
+          resolucionMin: especifico.tiempoResolucionSla ?? SLA_RESOLUCION_DEFAULT_MIN,
           fuente: 'contrato_especifico',
         }
         cache.set(key, { data, ts: Date.now() })
@@ -52,9 +50,7 @@ export async function getSlaContrato(
     if (marco?.tiempoRespuestaSla || marco?.tiempoResolucionSla) {
       const data: SlaContrato = {
         respuestaMin: marco.tiempoRespuestaSla ?? SLA_RESPUESTA_MIN,
-        resolucionPorTipo: marco.tiempoResolucionSla
-          ? { CAIDA_TOTAL: marco.tiempoResolucionSla, INTERMITENCIA: marco.tiempoResolucionSla * 2, LENTITUD: marco.tiempoResolucionSla * 4, POS: marco.tiempoResolucionSla, OTROS: marco.tiempoResolucionSla * 2 }
-          : { ...SLA_RESOLUCION_POR_TIPO },
+        resolucionMin: marco.tiempoResolucionSla ?? SLA_RESOLUCION_DEFAULT_MIN,
         fuente: 'contrato_marco',
       }
       cache.set(key, { data, ts: Date.now() })

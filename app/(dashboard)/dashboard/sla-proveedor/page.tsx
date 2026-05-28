@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import type { SLAProveedorResponse, CasoFueraSLA } from '@/types/provider-sla-compliance'
 import { fmtSLA } from '@/lib/sla-display'
-import { SLA_RESOLUCION_POR_TIPO } from '@/lib/sla-core'
+import { SLA_RESOLUCION_DEFAULT_MIN } from '@/lib/sla-core'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -379,7 +379,7 @@ function SLAProveedorPageInner() {
                         {d.subTexto && <span style={{ fontSize: '9px', color: '#6B7280', textAlign: 'center', whiteSpace: 'nowrap' }}>{d.subTexto}</span>}
                       </div>
                     )})()}
-                    {(() => { const lim = SLA_RESOLUCION_POR_TIPO[c.tipo] ?? 120; const d = fmtSLA({ score: c.scoreEficiencia, tRealMin: c.tResolucionMin, tLimiteMin: lim }); return (
+                    {(() => { const lim = SLA_RESOLUCION_DEFAULT_MIN; const d = fmtSLA({ score: c.scoreEficiencia, tRealMin: c.tResolucionMin, tLimiteMin: lim }); return (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
                         <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 6px', borderRadius: '999px', background: d.bg, color: d.color, textAlign: 'center', whiteSpace: 'nowrap' }}>{d.texto}</span>
                         {d.subTexto && <span style={{ fontSize: '9px', color: '#6B7280', textAlign: 'center', whiteSpace: 'nowrap' }}>{d.subTexto}</span>}

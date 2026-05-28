@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { proveedores, tiendas, incidentes, contratosProveedor, nivelesEscalamiento } from '@/drizzle/schema'
+import { proveedores, tiendas, incidentes, contratosProveedor, nivelesEscalamiento, tiendasHistorial } from '@/drizzle/schema'
 import { eq, gte, sql, and, asc, desc, isNotNull } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
@@ -129,7 +129,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     let ok = 0, total = 0, scoreSum = 0, scoreCount = 0
     for (const row of slaRows as any[]) {
       if (!row.hora_correo_n1) continue
-      const slaResolucionMin = slaContrato.resolucionPorTipo[row.tipo] ?? slaContrato.respuestaMin
+      const slaResolucionMin = slaContrato.resolucionMin
       total++
       const res = calcSLARow({
         tipo: row.tipo,
@@ -182,6 +182,26 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       .groupBy(tiendas.id, tiendas.codigo, tiendas.nombreCc, tiendas.distrito, provActual.nombre)
       .orderBy(desc(sql`count(${incidentes.id})`)) as any[]
   } catch { /* skip */ }
+
+  // Fecha en que cada tienda histórica fue reasignada fuera de este proveedor
+  let cambioFechas: Record<string, string> = {}
+  try {
+    const cambios = await db.execute(sql`
+      SELECT tienda_id, MAX(editado_en) AS fecha_cambio
+      FROM tiendas_historial
+      WHERE campo_editado = 'proveedorId'
+        AND valor_anterior = ${id}
+      GROUP BY tienda_id
+    `)
+    for (const c of cambios as any[]) {
+      if (c.tienda_id) cambioFechas[c.tienda_id] = c.fecha_cambio
+    }
+  } catch { /* skip */ }
+
+  tiendasHistoricas = tiendasHistoricas.map(t => ({
+    ...t,
+    fechaCambioProveedor: cambioFechas[t.tiendaId] ?? null,
+  }))
 
   return NextResponse.json({
     ...base,
