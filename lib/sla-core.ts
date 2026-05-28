@@ -97,18 +97,13 @@ export function calcSLARow(row: SLAInputRow): SLAResult {
       tPrimeraRespuestaMin <= (row.slaRespuestaOverride ?? SLA_RESPUESTA_MIN)
 
     const slaResolucion = tResolucionMin != null && tResolucionMin <= slaResolucionObj
-    const slaGeneral    = slaRespuesta && slaResolucion
+    const slaGeneral    = slaRespuesta   // SLA proveedor = solo tiempo de respuesta
 
     let motivoIncumplimiento: string | null = null
     if (!slaGeneral) {
-      const parts: string[] = []
-      if (!slaRespuesta) {
-        if (escaladoN2) parts.push('Enviado a N2')
-        else if (tPrimeraRespuestaMin != null) parts.push('Respuesta fuera de tiempo')
-        else parts.push('Sin respuesta')
-      }
-      if (!slaResolucion) parts.push('Resolución fuera de tiempo')
-      motivoIncumplimiento = parts.join(' + ') || null
+      if (escaladoN2) motivoIncumplimiento = 'Enviado a N2'
+      else if (tPrimeraRespuestaMin != null) motivoIncumplimiento = 'Respuesta fuera de tiempo'
+      else motivoIncumplimiento = 'Sin respuesta'
     }
 
     return {
