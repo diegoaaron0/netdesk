@@ -102,7 +102,11 @@ export function calcSLARow(row: SLAInputRow): SLAResult {
     let motivoIncumplimiento: string | null = null
     if (!slaGeneral) {
       const parts: string[] = []
-      if (!slaRespuesta) parts.push(escaladoN2 ? 'Nivel 1 sin respuesta' : 'Respuesta fuera de tiempo')
+      if (!slaRespuesta) {
+        if (escaladoN2) parts.push('Enviado a N2')
+        else if (tPrimeraRespuestaMin != null) parts.push('Respuesta fuera de tiempo')
+        else parts.push('Sin respuesta')
+      }
       if (!slaResolucion) parts.push('Resolución fuera de tiempo')
       motivoIncumplimiento = parts.join(' + ') || null
     }
