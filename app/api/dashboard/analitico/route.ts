@@ -12,7 +12,7 @@ import {
   getScoreProveedor,
 } from '@/lib/dashboard-calculations'
 import { calcImpactoRow } from '@/lib/impacto-calc'
-import { calcSLARow, calcEficienciaSLA, SLA_RESPUESTA_MIN, SLA_RESOLUCION_DEFAULT_MIN } from '@/lib/sla-core'
+import { calcSLARow, calcEficienciaSLA, SLA_RESPUESTA_MIN, SLA_RESOLUCION_DEFAULT_MIN, parseEtaMin } from '@/lib/sla-core'
 import {
   fetchIncidentesPeriodo,
   fetchEscalamientosPeriodo,
@@ -22,7 +22,7 @@ import {
   type RawEscalamiento,
   type RawVentaDiaria,
 } from '@/lib/dashboard-queries'
-import type { DashboardAnaliticoResponse } from '@/types/dashboard'
+import type { DashboardAnaliticoResponse, SlaEvaluableItem } from '@/types/dashboard'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -351,7 +351,7 @@ async function buildCards(
   let slaCumplidos = 0
   let slaRespuestaOk = 0
   let slaEvaluablesCount = 0
-  const evaluables: { codigo: string; tiendaCodigo: string; proveedor: string; tipo: string; fecha: string; cumplido: boolean }[] = []
+  const evaluables: SlaEvaluableItem[] = []
   for (const i of incs) {
     if (i.evaluable_proveedor === false) continue
     const sla = getSlaParaIncidente(i.proveedor_id ?? '', i.tienda_id ?? '')
@@ -363,6 +363,7 @@ async function buildCards(
       max_nivel: i.max_nivel,
       slaRespuestaOverride: sla.respuestaMin,
       slaResolucionOverride: sla.resolucionMin,
+      tiempoEstimadoSolucionMin: parseEtaMin(i.eta_str),
     })
     if (!slaRes.evaluable) continue
 
@@ -443,6 +444,7 @@ async function buildCards(
       max_nivel: i.max_nivel,
       slaRespuestaOverride: sla.respuestaMin,
       slaResolucionOverride: sla.resolucionMin,
+      tiempoEstimadoSolucionMin: parseEtaMin(i.eta_str),
     })
     if (!slaRes.evaluable) continue
     prevEvaluablesCount++
