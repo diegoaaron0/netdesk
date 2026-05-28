@@ -9,6 +9,8 @@ export interface PuntoTendencia {
   dentraSLA: number
   fueraSLA: number
   slaPct: number | null
+  slaRespuestaPct: number | null
+  slaResolucionPct: number | null
   variacionPP: number | null
   tPromRespuestaMin: number | null
   tPromResolucionMin: number | null

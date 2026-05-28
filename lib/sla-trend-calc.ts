@@ -14,6 +14,8 @@ export interface RawSLATrendRow {
   hora_correo_n1: Date | string | null
   hora_primera_resp: Date | string | null
   max_nivel: number | null
+  sla_respuesta_override?: number | null
+  sla_resolucion_override?: number | null
 }
 
 const MES_LABELS: Record<number, string> = {
@@ -42,6 +44,8 @@ function calcRow(row: RawSLATrendRow) {
     hora_primera_resp: row.hora_primera_resp,
     hora_fin: row.hora_fin,
     max_nivel: row.max_nivel,
+    slaRespuestaOverride:  row.sla_respuesta_override  ?? undefined,
+    slaResolucionOverride: row.sla_resolucion_override ?? undefined,
   })
 }
 
@@ -85,16 +89,20 @@ export function buildTendencia(allRows: RawSLATrendRow[]) {
     for (const prov of proveedores) {
       const rows = groupMap.get(`${mesKey}|${prov}`)
       if (!rows?.length) continue
-      const calcs     = rows.map(calcRow)
-      const evs       = calcs.filter((c) => c.evaluable)
-      const dentraSLA = evs.filter((c) => c.slaGeneral).length
-      const slaPct    = evs.length > 0 ? Math.round((dentraSLA / evs.length) * 100) : null
-      const respTimes = evs.map((c) => c.tPrimeraRespuestaMin).filter((v): v is number => v != null)
+      const calcs         = rows.map(calcRow)
+      const evs           = calcs.filter((c) => c.evaluable)
+      const dentraSLA     = evs.filter((c) => c.slaGeneral).length
+      const dentraSLAResp = evs.filter((c) => c.slaRespuesta).length
+      const dentraSLAResol= evs.filter((c) => c.slaResolucion).length
+      const slaPct          = evs.length > 0 ? Math.round((dentraSLA      / evs.length) * 100) : null
+      const slaRespuestaPct = evs.length > 0 ? Math.round((dentraSLAResp  / evs.length) * 100) : null
+      const slaResolucionPct= evs.length > 0 ? Math.round((dentraSLAResol / evs.length) * 100) : null
+      const respTimes  = evs.map((c) => c.tPrimeraRespuestaMin).filter((v): v is number => v != null)
       const resolTimes = evs.map((c) => c.tResolucionMin).filter((v): v is number => v != null)
       puntosRaw.push({
         mesKey, mesLabel: getMesLabel(mesKey), proveedor: prov,
         evaluables: evs.length, dentraSLA, fueraSLA: evs.length - dentraSLA,
-        slaPct, variacionPP: null,
+        slaPct, slaRespuestaPct, slaResolucionPct, variacionPP: null,
         tPromRespuestaMin: avg(respTimes), tPromResolucionMin: avg(resolTimes),
         escaladosN2: evs.filter((c) => c.escaladoN2).length,
         estado: getEstado(slaPct),
