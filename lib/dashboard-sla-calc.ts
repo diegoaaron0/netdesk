@@ -11,9 +11,12 @@ export interface RawSLARow {
   tienda_codigo: string
   tienda_nombre: string | null
   hora_correo_n1: Date | string | null
-  hora_primera_resp: Date | string | null
+  hora_primera_resp: Date | string | null   // primera respuesta de cualquier nivel
   nivel_respuesta: number | null
   max_nivel: number | null
+  tiempo_estimado_solucion_min?: number | null  // ETA del proveedor (ya parseado)
+  sla_respuesta_override?: number | null
+  sla_resolucion_override?: number | null
 }
 
 export interface SLACaso {
@@ -26,25 +29,15 @@ export interface SLACaso {
   tiendaNombre: string
   evaluable: boolean
   escaladoN2: boolean
+  nivelFinal: number | null
   tPrimeraRespuestaMin: number | null
   tResolucionMin: number | null
   nivelQueRespondio: number | null
   slaRespuesta: boolean
   slaResolucion: boolean
   slaGeneral: boolean
+  cumplioETA: boolean | null
   motivoIncumplimiento: string | null
-}
-
-export function getMotivoIncumplimiento(
-  slaRespuesta: boolean,
-  slaResolucion: boolean,
-  escaladoN2: boolean,
-): string | null {
-  if (slaRespuesta && slaResolucion) return null
-  const parts: string[] = []
-  if (!slaRespuesta) parts.push(escaladoN2 ? 'Nivel 1 sin respuesta' : 'Respuesta fuera de tiempo')
-  if (!slaResolucion) parts.push('Resolución fuera de tiempo')
-  return parts.join(' + ') || null
 }
 
 export function calcSLACaso(row: RawSLARow): SLACaso {
@@ -54,10 +47,10 @@ export function calcSLACaso(row: RawSLARow): SLACaso {
       id: row.id, codigo: row.codigo, tipo: row.tipo, dia,
       provNombre: row.prov_nombre ?? '—',
       tiendaCodigo: row.tienda_codigo, tiendaNombre: row.tienda_nombre ?? '',
-      evaluable: false, escaladoN2: false,
+      evaluable: false, escaladoN2: false, nivelFinal: null,
       tPrimeraRespuestaMin: null, tResolucionMin: null, nivelQueRespondio: null,
       slaRespuesta: false, slaResolucion: false, slaGeneral: false,
-      motivoIncumplimiento: null,
+      cumplioETA: null, motivoIncumplimiento: null,
     }
   }
   const sla = calcSLARow({
@@ -67,6 +60,9 @@ export function calcSLACaso(row: RawSLARow): SLACaso {
     hora_fin: row.hora_fin,
     hora_registro: row.hora_registro,
     max_nivel: row.max_nivel,
+    slaRespuestaOverride:  row.sla_respuesta_override  ?? undefined,
+    slaResolucionOverride: row.sla_resolucion_override ?? undefined,
+    tiempoEstimadoSolucionMin: row.tiempo_estimado_solucion_min ?? null,
   })
   return {
     id: row.id,
@@ -78,12 +74,14 @@ export function calcSLACaso(row: RawSLARow): SLACaso {
     tiendaNombre: row.tienda_nombre ?? '',
     evaluable: sla.evaluable,
     escaladoN2: sla.escaladoN2,
+    nivelFinal: sla.nivelFinal,
     tPrimeraRespuestaMin: sla.tPrimeraRespuestaMin,
     tResolucionMin: sla.tResolucionMin,
     nivelQueRespondio: row.nivel_respuesta,
     slaRespuesta: sla.slaRespuesta,
     slaResolucion: sla.slaResolucion,
     slaGeneral: sla.slaGeneral,
+    cumplioETA: sla.cumplioETA,
     motivoIncumplimiento: sla.evaluable ? sla.motivoIncumplimiento : null,
   }
 }
@@ -99,22 +97,23 @@ export function getCausaPrincipal(motivos: (string | null)[]): string | null {
   const counts: Record<string, number> = {}
   for (const m of motivos) {
     if (!m) continue
-    // Check individual parts
-    const parts = m.split(' + ')
-    for (const p of parts) {
+    for (const p of m.split(' + ')) {
       counts[p] = (counts[p] ?? 0) + 1
     }
   }
   if (!Object.keys(counts).length) return null
-  const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0]
-  return top
+  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0]
 }
 
 export interface ProvDayMetrics {
   registrados: number
   evaluables: number
+  dentraSLARespuesta: number
+  dentraSLAResolucion: number
   dentraSLA: number
   fueraSLA: number
+  slaRespuestaPct: number | null
+  slaResolucionPct: number | null
   slaPct: number | null
 }
 
@@ -125,6 +124,8 @@ export interface DayMetrics {
   dentraSLA: number
   fueraSLA: number
   slaPct: number | null
+  slaRespuestaPct: number | null
+  slaResolucionPct: number | null
   tPromRespuestaMin: number | null
   tPromResolucionMin: number | null
   nivelPromedioAlcanzado: number | null
@@ -144,21 +145,22 @@ export function buildDayMetrics(casos: SLACaso[]): DayMetrics[] {
   }
 
   return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([dia, arr]) => {
-    const evaluables = arr.filter((c) => c.evaluable)
-    const dentraSLA = evaluables.filter((c) => c.slaGeneral).length
-    const fueraSLA = evaluables.length - dentraSLA
+    const evaluables       = arr.filter((c) => c.evaluable)
+    const dentraSLA        = evaluables.filter((c) => c.slaGeneral).length
+    const dentraSLAResp    = evaluables.filter((c) => c.slaRespuesta).length
+    const dentraSLAResol   = evaluables.filter((c) => c.slaResolucion).length
+    const fueraSLA         = evaluables.length - dentraSLA
 
-    const slaPct = evaluables.length > 0
-      ? Math.round(dentraSLA / evaluables.length * 100)
-      : null
+    const slaPct           = evaluables.length > 0 ? Math.round(dentraSLA        / evaluables.length * 100) : null
+    const slaRespuestaPct  = evaluables.length > 0 ? Math.round(dentraSLAResp    / evaluables.length * 100) : null
+    const slaResolucionPct = evaluables.length > 0 ? Math.round(dentraSLAResol   / evaluables.length * 100) : null
 
-    const respTimes = evaluables.filter((c) => c.tPrimeraRespuestaMin != null).map((c) => c.tPrimeraRespuestaMin!)
-    const resolTimes = evaluables.filter((c) => c.tResolucionMin != null).map((c) => c.tResolucionMin!)
-    const nivelTimes = evaluables.filter((c) => c.nivelQueRespondio != null).map((c) => c.nivelQueRespondio!)
+    const respTimes  = evaluables.filter((c) => c.tPrimeraRespuestaMin != null).map((c) => c.tPrimeraRespuestaMin!)
+    const resolTimes = evaluables.filter((c) => c.tResolucionMin        != null).map((c) => c.tResolucionMin!)
+    const nivelTimes = evaluables.filter((c) => c.nivelFinal            != null).map((c) => c.nivelFinal!)
 
     const avg = (arr: number[]) => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : null
 
-    // Proveedor más afectado = proveedor con más casos fuera SLA
     const provCount: Record<string, number> = {}
     for (const c of evaluables.filter((c) => !c.slaGeneral)) {
       provCount[c.provNombre] = (provCount[c.provNombre] ?? 0) + 1
@@ -167,10 +169,8 @@ export function buildDayMetrics(casos: SLACaso[]): DayMetrics[] {
       ? Object.entries(provCount).sort((a, b) => b[1] - a[1])[0][0]
       : null
 
-    const motivos = evaluables.filter((c) => !c.slaGeneral).map((c) => c.motivoIncumplimiento)
-    const causaPrincipal = getCausaPrincipal(motivos)
+    const causaPrincipal = getCausaPrincipal(evaluables.filter((c) => !c.slaGeneral).map((c) => c.motivoIncumplimiento))
 
-    // SLA desglosado por proveedor
     const byProv: Record<string, SLACaso[]> = {}
     for (const c of arr) {
       if (!byProv[c.provNombre]) byProv[c.provNombre] = []
@@ -178,15 +178,20 @@ export function buildDayMetrics(casos: SLACaso[]): DayMetrics[] {
     }
     const porProveedor: Record<string, ProvDayMetrics> = {}
     for (const [prov, casos] of Object.entries(byProv)) {
-      const ev = casos.filter((c) => c.evaluable)
+      const ev     = casos.filter((c) => c.evaluable)
       const dentro = ev.filter((c) => c.slaGeneral).length
-      const fuera = ev.length - dentro
+      const resp   = ev.filter((c) => c.slaRespuesta).length
+      const resol  = ev.filter((c) => c.slaResolucion).length
       porProveedor[prov] = {
         registrados: casos.length,
         evaluables: ev.length,
+        dentraSLARespuesta: resp,
+        dentraSLAResolucion: resol,
         dentraSLA: dentro,
-        fueraSLA: fuera,
-        slaPct: ev.length > 0 ? Math.round(dentro / ev.length * 100) : null,
+        fueraSLA: ev.length - dentro,
+        slaRespuestaPct:  ev.length > 0 ? Math.round(resp   / ev.length * 100) : null,
+        slaResolucionPct: ev.length > 0 ? Math.round(resol  / ev.length * 100) : null,
+        slaPct:           ev.length > 0 ? Math.round(dentro / ev.length * 100) : null,
       }
     }
 
@@ -194,10 +199,8 @@ export function buildDayMetrics(casos: SLACaso[]): DayMetrics[] {
       dia,
       registrados: arr.length,
       evaluables: evaluables.length,
-      dentraSLA,
-      fueraSLA,
-      slaPct,
-      tPromRespuestaMin: avg(respTimes),
+      dentraSLA, fueraSLA, slaPct, slaRespuestaPct, slaResolucionPct,
+      tPromRespuestaMin:  avg(respTimes),
       tPromResolucionMin: avg(resolTimes),
       nivelPromedioAlcanzado: nivelTimes.length ? Math.round(avg(nivelTimes)!) : null,
       casosEscaladosN2: evaluables.filter((c) => c.escaladoN2).length,
@@ -213,52 +216,39 @@ export function buildDayMetrics(casos: SLACaso[]): DayMetrics[] {
 export function buildConclusiones(casos: SLACaso[], byDay: DayMetrics[]): string[] {
   const conclusiones: string[] = []
   const evaluables = casos.filter((c) => c.evaluable)
-  const fueraSLA = evaluables.filter((c) => !c.slaGeneral)
+  const fueraSLA   = evaluables.filter((c) => !c.slaGeneral)
 
-  // Regla 1: fechas críticas y en riesgo (agrupadas)
   const diasCriticos = byDay.filter((d) => d.slaPct != null && d.slaPct < 70)
   const diasRiesgo   = byDay.filter((d) => d.slaPct != null && d.slaPct >= 70 && d.slaPct < 90)
 
   if (diasCriticos.length === 1) {
-    const d = diasCriticos[0]
-    conclusiones.push(`El ${fmtDia(d.dia)} presenta caída crítica de SLA a ${d.slaPct}%.`)
+    conclusiones.push(`El ${fmtDia(diasCriticos[0].dia)} presenta caída crítica de SLA a ${diasCriticos[0].slaPct}%.`)
   } else if (diasCriticos.length >= 2) {
     conclusiones.push(`${diasCriticos.length} fechas presentan caída crítica de SLA: ${diasCriticos.map((d) => fmtDia(d.dia)).join(', ')}.`)
   }
 
   if (diasRiesgo.length === 1) {
-    const d = diasRiesgo[0]
-    conclusiones.push(`El ${fmtDia(d.dia)} presenta SLA en riesgo con ${d.slaPct}%.`)
+    conclusiones.push(`El ${fmtDia(diasRiesgo[0].dia)} presenta SLA en riesgo con ${diasRiesgo[0].slaPct}%.`)
   } else if (diasRiesgo.length >= 2) {
     conclusiones.push(`${diasRiesgo.length} fechas presentan SLA en riesgo: ${diasRiesgo.map((d) => fmtDia(d.dia)).join(', ')}.`)
   }
 
-  // Regla 2: proveedor con más incumplimientos
   const provCount: Record<string, number> = {}
   for (const c of fueraSLA) provCount[c.provNombre] = (provCount[c.provNombre] ?? 0) + 1
   const topProv = Object.entries(provCount).sort((a, b) => b[1] - a[1])[0]
   if (topProv) conclusiones.push(`${topProv[0]} concentra la mayor cantidad de casos fuera de SLA.`)
 
-  // Regla 3: causa principal del período
   const causa = getCausaPrincipal(fueraSLA.map((c) => c.motivoIncumplimiento))
-  if (causa === 'Nivel 1 sin respuesta') {
-    conclusiones.push('La principal causa de incumplimiento es falta de respuesta en Nivel 1.')
+  if (causa === 'Sin respuesta') {
+    conclusiones.push('La principal causa de incumplimiento es falta de respuesta del proveedor.')
+  } else if (causa === 'Respuesta fuera de tiempo') {
+    conclusiones.push('La principal causa de incumplimiento es respuesta tardía del proveedor.')
   } else if (causa === 'Resolución fuera de tiempo') {
     conclusiones.push('La principal causa de incumplimiento es tiempo de resolución alto.')
-  } else if (causa === 'Escalamiento tardío') {
-    conclusiones.push('La principal causa es demora en el proceso de escalamiento.')
   } else if (causa) {
     conclusiones.push(`La principal causa de incumplimiento es: ${causa}.`)
   }
 
-  // Regla 4: recomendación
-  if (causa === 'Nivel 1 sin respuesta') {
-    conclusiones.push('Se recomienda revisar el cumplimiento de atención Nivel 1 con el proveedor.')
-  } else if (causa === 'Resolución fuera de tiempo') {
-    conclusiones.push('Se recomienda revisar tiempos de solución y capacidad de respuesta técnica del proveedor.')
-  } else if (causa === 'Escalamiento tardío') {
-    conclusiones.push('Se recomienda ajustar el flujo de escalamiento y alertas internas.')
-  }
   if (topProv && topProv[1] >= 2) {
     conclusiones.push(`Se recomienda priorizar seguimiento contractual con ${topProv[0]}.`)
   }
