@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { incidentes, tiendas, proveedores, usuarios, escalamientos, nivelesEscalamiento, adjuntos, atcLlamadas, tiendasHistorial, gruposMasivos } from '@/drizzle/schema'
 import { eq, inArray, sql } from 'drizzle-orm'
+import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
+
+const infraUser = alias(usuarios, 'infra_user')
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -77,6 +80,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     alcanceCorte:        incidentes.alcanceCorte,
     tuvoUps:             incidentes.tuvoUps,
     grupoMasivoId:       incidentes.grupoMasivoId,
+    // Escalamiento infra interna
+    escaladoInfraId:      incidentes.escaladoInfraId,
+    horaEscaladoInfra:    incidentes.horaEscaladoInfra,
+    notaEscaladoInfra:    incidentes.notaEscaladoInfra,
+    infraNombre:          infraUser.nombre,
+    infraApellido:        infraUser.apellido,
+    infraEmail:           infraUser.email,
+    infraCelular:         infraUser.celular,
     // Proveedor → via incidentes.proveedorId (registro histórico del momento del incidente)
     // Esto garantiza que si la tienda cambia de proveedor en el futuro, el incidente
     // sigue mostrando quién era el proveedor responsable cuando ocurrió.
@@ -88,9 +99,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     agenteEmail:  usuarios.email,
   })
     .from(incidentes)
-    .leftJoin(tiendas,    eq(incidentes.tiendaId,    tiendas.id))
-    .leftJoin(proveedores, eq(incidentes.proveedorId, proveedores.id))  // → histórico del incidente
-    .leftJoin(usuarios,   eq(incidentes.registradoPorId, usuarios.id))
+    .leftJoin(tiendas,     eq(incidentes.tiendaId,       tiendas.id))
+    .leftJoin(proveedores,  eq(incidentes.proveedorId,    proveedores.id))
+    .leftJoin(usuarios,    eq(incidentes.registradoPorId, usuarios.id))
+    .leftJoin(infraUser,   eq(incidentes.escaladoInfraId, infraUser.id))
     .where(eq(incidentes.id, id))
 
   if (!inc) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
@@ -172,8 +184,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     'descartesDetallado','resueltoPor','atribucionFinal','evaluableProveedor',
     'boletaManual','ventaParcial','cajasAfectadas','cajasTotales',
     'alcanceCorte','tuvoUps',
+    'escaladoInfraId','horaEscaladoInfra','notaEscaladoInfra',
   ]
-  const dateFields = new Set(['horaRegistro','horaFin','horaInicioSeguimiento','contHoraActivacion','movHoraActivacion'])
+  const dateFields = new Set(['horaRegistro','horaFin','horaInicioSeguimiento','contHoraActivacion','movHoraActivacion','horaEscaladoInfra'])
   const intFields  = new Set(['cajasAfectadas','cajasTotales','mttrMinutos'])
   for (const k of editable) {
     if (k in body) {

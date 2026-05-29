@@ -1078,6 +1078,12 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                     </div>
                   )
                 })}
+                {inc.horaEscaladoInfra && (
+                  <>
+                    <div style={{ borderTop: '1px solid var(--border)', margin: '6px 0 4px' }} />
+                    <TimeRow label="Escalado a Infra" value={new Date(inc.horaEscaladoInfra).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} color="#6366f1" />
+                  </>
+                )}
                 {inc.horaFin && (
                   <>
                     <div style={{ borderTop: '1px solid var(--border)', margin: '6px 0 4px' }} />
@@ -1161,16 +1167,17 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
         </div>{/* end RIGHT */}
       </div>{/* end main grid */}
 
-      {/* ── Block D — Escalamientos (solo visible cuando hay escalamientos) ── */}
-      {inc.escalamientos?.length > 0 && (
+      {/* ── Block D — Escalamientos + Infraestructura ── */}
+      {(inc.escalamientos?.length > 0 || !isClosed || inc.escaladoInfraId) && (
         <div ref={escRef} style={{ background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', marginTop: '16px', overflow: 'hidden' }}>
           <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)' }}>
             <div style={{ fontSize: '13px', fontWeight: 600 }}>D — Escalamientos</div>
           </div>
           <div style={{ padding: '16px 18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '12px' }}>
-            {inc.escalamientos.map((esc: any) => (
+            {inc.escalamientos?.map((esc: any) => (
               <EscalamientoCard key={esc.id} esc={esc} allEscs={inc.escalamientos} inc={inc} isClosed={isClosed} onRefresh={fetchInc} />
             ))}
+            <InfraEscalamientoPanel inc={inc} isClosed={isClosed} onRefresh={fetchInc} />
           </div>
         </div>
       )}
@@ -1463,6 +1470,139 @@ function GrupoMasivoPanel({ inc, onRefresh }: { inc: any; onRefresh: () => void 
         </div>
       )}
     </div>
+  )
+}
+
+// ── InfraEscalamientoPanel ────────────────────────────────────────────────────
+function InfraEscalamientoPanel({ inc, isClosed, onRefresh }: { inc: any; isClosed: boolean; onRefresh: () => void }) {
+  const [showModal, setShowModal]     = useState(false)
+  const [agentes, setAgentes]         = useState<any[]>([])
+  const [loadingAg, setLoadingAg]     = useState(false)
+  const [selectedId, setSelectedId]   = useState('')
+  const [nota, setNota]               = useState('')
+  const [saving, setSaving]           = useState(false)
+  const [error, setError]             = useState('')
+
+  const hasInfra = !!inc.escaladoInfraId
+
+  async function openModal() {
+    setShowModal(true); setSelectedId(''); setNota(''); setError('')
+    if (agentes.length === 0) {
+      setLoadingAg(true)
+      const r = await fetch('/api/usuarios/infra')
+      const d = await r.json()
+      setAgentes(Array.isArray(d) ? d : [])
+      setLoadingAg(false)
+    }
+  }
+
+  async function handleEscalar() {
+    if (!selectedId) { setError('Selecciona un agente de infraestructura'); return }
+    setSaving(true)
+    await fetch(`/api/incidentes/${inc.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ escaladoInfraId: selectedId, horaEscaladoInfra: new Date().toISOString(), notaEscaladoInfra: nota || null }),
+    })
+    setSaving(false); setShowModal(false); onRefresh()
+  }
+
+  async function handleLiberar() {
+    await fetch(`/api/incidentes/${inc.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ escaladoInfraId: null, horaEscaladoInfra: null, notaEscaladoInfra: null }),
+    })
+    onRefresh()
+  }
+
+  const fmtH = (iso: string) => new Date(iso).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+
+  return (
+    <>
+      {hasInfra && (
+        <div style={{ background: 'linear-gradient(135deg,rgba(99,102,241,.07) 0%,rgba(139,92,246,.04) 100%)', border: '1.5px solid rgba(99,102,241,.3)', borderRadius: '10px', padding: '14px 16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '13px' }}>🔧</span>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#4f46e5' }}>Escalado a Infraestructura</span>
+            </div>
+            {!isClosed && (
+              <button onClick={handleLiberar}
+                style={{ fontSize: '10px', padding: '2px 8px', background: 'transparent', border: '1px solid rgba(99,102,241,.4)', borderRadius: '4px', color: '#6366f1', cursor: 'pointer' }}>
+                Liberar
+              </button>
+            )}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '11px' }}>
+            <div>
+              <div style={{ color: 'var(--muted-foreground)', fontSize: '10px', marginBottom: '2px' }}>Agente asignado</div>
+              <div style={{ fontWeight: 600 }}>{[inc.infraNombre, inc.infraApellido].filter(Boolean).join(' ')}</div>
+              {inc.infraEmail   && <div style={{ color: 'var(--muted-foreground)' }}>{inc.infraEmail}</div>}
+              {inc.infraCelular && <div style={{ color: 'var(--muted-foreground)' }}>{inc.infraCelular}</div>}
+            </div>
+            <div>
+              <div style={{ color: 'var(--muted-foreground)', fontSize: '10px', marginBottom: '2px' }}>Hora escalado</div>
+              <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>{inc.horaEscaladoInfra ? fmtH(inc.horaEscaladoInfra) : '—'}</div>
+            </div>
+          </div>
+          {inc.notaEscaladoInfra && (
+            <div style={{ marginTop: '8px', fontSize: '11px', background: 'rgba(99,102,241,.07)', borderRadius: '6px', padding: '6px 10px' }}>
+              {inc.notaEscaladoInfra}
+            </div>
+          )}
+        </div>
+      )}
+
+      {!hasInfra && !isClosed && (
+        <button onClick={openModal}
+          style={{ width: '100%', padding: '8px', background: 'transparent', border: '1.5px dashed rgba(99,102,241,.4)', borderRadius: '8px', color: '#6366f1', fontSize: '11px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+          🔧 Escalar a Infraestructura
+        </button>
+      )}
+
+      {showModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '22px 24px', width: '400px', maxWidth: '90vw', boxShadow: '0 8px 32px rgba(0,0,0,.25)' }}>
+            <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '4px' }}>🔧 Escalar a Infraestructura</div>
+            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '14px' }}>Selecciona el agente que tomará el caso.</div>
+            {loadingAg ? (
+              <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', padding: '12px 0' }}>Cargando agentes...</div>
+            ) : agentes.length === 0 ? (
+              <div style={{ fontSize: '11px', color: '#b91c1c', padding: '12px 0' }}>No hay agentes de infraestructura registrados.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
+                {agentes.map(ag => (
+                  <button key={ag.id} onClick={() => setSelectedId(ag.id)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: selectedId === ag.id ? 'rgba(99,102,241,.1)' : 'var(--muted)', border: `1.5px solid ${selectedId === ag.id ? '#818cf8' : 'var(--border)'}`, borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(99,102,241,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: '#4f46e5', flexShrink: 0 }}>
+                      {ag.nombre?.[0]?.toUpperCase() ?? '?'}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--foreground)' }}>{[ag.nombre, ag.apellido].filter(Boolean).join(' ')}</div>
+                      <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{ag.email}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+            <div style={{ marginBottom: '12px' }}>
+              <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '4px' }}>Nota (opcional)</div>
+              <textarea value={nota} onChange={e => setNota(e.target.value)} placeholder="Motivo del escalamiento, contexto..."
+                style={{ ...taStyle(), fontSize: '11px', minHeight: '60px' }} />
+            </div>
+            {error && <div style={{ fontSize: '11px', color: '#b91c1c', marginBottom: '8px' }}>{error}</div>}
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowModal(false)} style={{ padding: '7px 14px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={handleEscalar} disabled={saving || !selectedId}
+                style={{ padding: '7px 14px', background: saving || !selectedId ? '#c7d2fe' : '#4f46e5', color: 'white', border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: 600, cursor: saving || !selectedId ? 'not-allowed' : 'pointer' }}>
+                {saving ? 'Escalando...' : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

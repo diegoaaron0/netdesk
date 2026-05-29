@@ -217,6 +217,10 @@ export const incidentes = pgTable('incidentes', {
   tuvoUps:               boolean('tuvo_ups'),
   // Incidente masivo
   grupoMasivoId:         uuid('grupo_masivo_id'),
+  // Escalamiento a Infraestructura interna
+  escaladoInfraId:       uuid('escalado_infra_id').references(() => usuarios.id, { onDelete: 'set null' }),
+  horaEscaladoInfra:     timestamp('hora_escalado_infra'),
+  notaEscaladoInfra:     text('nota_escalado_infra'),
 })
 
 export const gruposMasivos = pgTable('grupos_masivos', {
