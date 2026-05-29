@@ -52,14 +52,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     operacionManual:     incidentes.operacionManual,
     tipoOperacionManual: incidentes.tipoOperacionManual,
     factorOperativo:     incidentes.factorOperativo,
-    contActivadoPor:     incidentes.contActivadoPor,
-    contHoraActivacion:  incidentes.contHoraActivacion,
-    contRendimiento:     incidentes.contRendimiento,
-    contObservacion:     incidentes.contObservacion,
-    movActivadoPor:      incidentes.movActivadoPor,
-    movHoraActivacion:   incidentes.movHoraActivacion,
-    movRendimiento:      incidentes.movRendimiento,
-    movObservacion:      incidentes.movObservacion,
+    contActivadoPor:        incidentes.contActivadoPor,
+    contHoraActivacion:     incidentes.contHoraActivacion,
+    contRendimiento:        incidentes.contRendimiento,
+    contObservacion:        incidentes.contObservacion,
+    contEsExterno:          incidentes.contEsExterno,
+    contHoraDesactivacion:  incidentes.contHoraDesactivacion,
+    movActivadoPor:         incidentes.movActivadoPor,
+    movHoraActivacion:      incidentes.movHoraActivacion,
+    movRendimiento:         incidentes.movRendimiento,
+    movObservacion:         incidentes.movObservacion,
+    movHoraDesactivacion:   incidentes.movHoraDesactivacion,
     descEnergia:         incidentes.descEnergia,
     descRouter:          incidentes.descRouter,
     descDns:             incidentes.descDns,
@@ -177,7 +180,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     'descripcionInicial','ticketInvgate','ticketProveedor','descartesRealizados','solucionAplicada',
     'horaInicioSeguimiento','observaciones','horaRegistro','horaFin','mttrMinutos',
     'estadoOperacion','operacionManual','tipoOperacionManual','factorOperativo',
-    'contActivadoPor','contHoraActivacion','contRendimiento','contObservacion',
+    'contActivadoPor','contHoraActivacion','contRendimiento','contObservacion','contEsExterno',
     'movActivadoPor','movHoraActivacion','movRendimiento','movObservacion',
     'descEnergia','descRouter','descDns',
     'checkIpconfig','checkPingGw','checkPingInternet','checkTracert','checkDns','checkRenovarIp',
@@ -206,6 +209,22 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       .from(incidentes).where(eq(incidentes.id, id))
     if (!prev?.contHoraActivacion) {
       allowedFields.contHoraActivacion = new Date()
+    }
+  }
+
+  // Auto-set hora desactivacion cuando se limpia contActivadoPor o movActivadoPor
+  if ('contActivadoPor' in allowedFields && !allowedFields.contActivadoPor) {
+    const [prev] = await db.select({ contHoraActivacion: incidentes.contHoraActivacion, contHoraDesactivacion: incidentes.contHoraDesactivacion })
+      .from(incidentes).where(eq(incidentes.id, id))
+    if (prev?.contHoraActivacion && !prev?.contHoraDesactivacion) {
+      allowedFields.contHoraDesactivacion = new Date()
+    }
+  }
+  if ('movActivadoPor' in allowedFields && !allowedFields.movActivadoPor) {
+    const [prev] = await db.select({ movHoraActivacion: incidentes.movHoraActivacion, movHoraDesactivacion: incidentes.movHoraDesactivacion })
+      .from(incidentes).where(eq(incidentes.id, id))
+    if (prev?.movHoraActivacion && !prev?.movHoraDesactivacion) {
+      allowedFields.movHoraDesactivacion = new Date()
     }
   }
 

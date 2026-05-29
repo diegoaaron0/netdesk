@@ -176,7 +176,8 @@ export async function GET(req: NextRequest) {
         i.codigo         AS incidente_codigo,
         i.cont_hora_activacion,
         i.cont_rendimiento,
-        i.cont_observacion
+        i.cont_observacion,
+        i.cont_es_externo
       FROM tiendas t
       LEFT JOIN incidentes i ON i.tienda_id = t.id
         AND i.cont_activado_por IS NOT NULL

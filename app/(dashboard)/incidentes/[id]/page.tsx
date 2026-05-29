@@ -211,6 +211,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
       // Operación / gestión
       estadoOperacion:     data.estadoOperacion     ?? '',
       contActivadoPor:     data.contActivadoPor     ?? '',
+      contEsExterno:       data.contEsExterno       ?? false,
       contHoraActivacion:  toDatetimeLocal(data.contHoraActivacion),
       contRendimiento:     data.contRendimiento     ?? '',
       contObservacion:     data.contObservacion     ?? '',
@@ -715,10 +716,19 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               return (
                 <div style={{ border: '1px solid var(--border)', borderRadius: '10px', marginBottom: '14px', overflow: 'hidden' }}>
                   <button type="button" onClick={() => setShowContBlock(v => !v)}
-                    style={{ width:'100%', display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', background:'var(--muted)', border:'none', cursor:'pointer', textAlign:'left' }}>
+                    style={{ width:'100%', display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', background: editForm.contEsExterno ? 'rgba(234,88,12,0.08)' : 'var(--muted)', border:'none', cursor:'pointer', textAlign:'left' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
-                      <span style={{ fontSize:'12px', fontWeight:600, color:'var(--foreground)' }}>Contingencia</span>
+                      <span style={{ fontSize:'12px', fontWeight:600, color: editForm.contEsExterno ? '#c2410c' : 'var(--foreground)' }}>
+                        {editForm.contEsExterno ? '📦 Contingencia externa' : 'Contingencia'}
+                      </span>
                       {!showContBlock && summary && <span style={{ fontSize:'10px', color:'var(--muted-foreground)' }}>{summary}</span>}
+                      {!showContBlock && inc.contHoraActivacion && (() => {
+                        const fin = inc.contHoraDesactivacion ?? (isClosed ? inc.horaFin : null)
+                        const mins = fin
+                          ? Math.round((new Date(fin).getTime() - new Date(inc.contHoraActivacion).getTime()) / 60000)
+                          : Math.round((Date.now() - new Date(inc.contHoraActivacion).getTime()) / 60000)
+                        return <span style={{ fontSize:'10px', color: fin ? 'var(--muted-foreground)' : '#d97706', fontFamily:'monospace' }}>· {minToHM(mins)}{!fin ? ' ⏱' : ''}</span>
+                      })()}
                     </div>
                     <span style={{ fontSize:'10px', color:'var(--muted-foreground)' }}>{showContBlock ? '▲' : '▼'}</span>
                   </button>
@@ -735,6 +745,22 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                           </div>
                         </div>
                       )}
+                      {/* Externo toggle */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', padding: '8px 12px', background: editForm.contEsExterno ? 'rgba(234,88,12,0.07)' : 'rgba(0,0,0,0.03)', borderRadius: '8px', border: `1px solid ${editForm.contEsExterno ? 'rgba(234,88,12,0.3)' : 'var(--border)'}` }}>
+                        <button type="button" disabled={!canEditB} onClick={() => setEdit('contEsExterno', !editForm.contEsExterno)}
+                          style={{ width:'36px', height:'20px', borderRadius:'10px', border:'none', cursor: canEditB ? 'pointer' : 'default', background: editForm.contEsExterno ? '#ea580c' : '#d1d5db', position:'relative', flexShrink:0, transition:'background 0.2s' }}>
+                          <span style={{ position:'absolute', top:'2px', left: editForm.contEsExterno ? '18px' : '2px', width:'16px', height:'16px', borderRadius:'50%', background:'white', transition:'left 0.2s' }} />
+                        </button>
+                        <div>
+                          <div style={{ fontSize:'11px', fontWeight: editForm.contEsExterno ? 700 : 400, color: editForm.contEsExterno ? '#c2410c' : 'var(--foreground)' }}>
+                            📦 Router externo (llevado a tienda)
+                          </div>
+                          <div style={{ fontSize:'10px', color:'var(--muted-foreground)' }}>
+                            {editForm.contEsExterno ? 'La tienda no tenía contingencia propia — se llevó equipo externo' : 'La tienda usó su contingencia propia'}
+                          </div>
+                        </div>
+                      </div>
+
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '10px' }}>
                         <div>
                           <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Activado por</label>
@@ -771,6 +797,26 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                           onChange={e => setEdit('contObservacion', e.target.value)}
                           placeholder={(!inc?.tiendaTieneContingencia && editForm.contActivadoPor) ? 'Ej: Router TP-Link portátil con chip Entel, instalado por técnico el 23/05...' : 'Describe el comportamiento de la contingencia...'} />
                       </div>
+                      {/* Duración de la contingencia */}
+                      {inc.contHoraActivacion && (
+                        <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'var(--card)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>⏱ Duración contingencia</span>
+                          {(() => {
+                            const fin = inc.contHoraDesactivacion ?? (isClosed ? inc.horaFin : null)
+                            const mins = fin
+                              ? Math.round((new Date(fin).getTime() - new Date(inc.contHoraActivacion).getTime()) / 60000)
+                              : Math.round((Date.now() - new Date(inc.contHoraActivacion).getTime()) / 60000)
+                            return (
+                              <span style={{ fontSize: '13px', fontWeight: 700, fontFamily: 'monospace', color: fin ? 'var(--foreground)' : '#d97706' }}>
+                                {minToHM(mins)}{!fin ? ' ⏱' : ''}
+                              </span>
+                            )
+                          })()}
+                          {!inc.contHoraDesactivacion && !isClosed && (
+                            <span style={{ fontSize: '9px', color: 'var(--muted-foreground)', marginLeft: 'auto' }}>Se cierra al desactivar desde operativo</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

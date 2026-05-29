@@ -484,27 +484,42 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
             {(contingenciasActivas ?? []).map((c: any) => {
               const confirmando  = confirmarCont === c.tienda_id
               const desactivando = desactivandoCont === c.tienda_id
-              const horaAct = c.cont_hora_activacion
-                ? new Date(c.cont_hora_activacion).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Lima' })
+              const esExterno    = !!c.cont_es_externo
+              const mins = c.cont_hora_activacion
+                ? Math.round((nowMs - new Date(c.cont_hora_activacion).getTime()) / 60000)
                 : null
+              const durStr = mins != null
+                ? (mins >= 60 ? `${Math.floor(mins/60)}h ${mins%60}m` : `${mins}m`)
+                : null
+              const borderColor = esExterno ? '#ea580c' : '#f59e0b'
+              const bgColor     = esExterno ? '#fff7ed' : 'white'
+              const textColor   = esExterno ? '#7c2d12' : '#78350f'
               return (
-                <div key={c.tienda_id} style={{ flex: '0 0 auto', background: 'white', border: '1px solid #f59e0b', borderRadius: '7px', padding: '5px 10px', minWidth: '160px', maxWidth: '240px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#78350f', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.tienda_codigo} — {c.tienda_nombre}</div>
-                  <div style={{ fontSize: '9px', color: '#92400e', display: 'flex', gap: '5px', marginTop: '2px' }}>
+                <div key={c.tienda_id} style={{ flex: '0 0 auto', background: bgColor, border: `1.5px solid ${borderColor}`, borderRadius: '7px', padding: '5px 10px', minWidth: '170px', maxWidth: '240px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: textColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+                      {esExterno && <span style={{ marginRight: '4px' }}>📦</span>}
+                      {c.tienda_codigo} — {c.tienda_nombre}
+                    </div>
+                    {durStr && (
+                      <span style={{ fontSize: '10px', fontFamily: 'monospace', fontWeight: 700, color: borderColor, flexShrink: 0, marginLeft: '6px' }}>{durStr}</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '9px', color: textColor, display: 'flex', gap: '5px', marginTop: '2px', opacity: 0.8 }}>
                     {c.tienda_distrito && <span>{c.tienda_distrito}</span>}
                     {c.proveedor_nombre && <span>· {c.proveedor_nombre}</span>}
-                    {horaAct && <span>· {horaAct}</span>}
+                    {esExterno && <span style={{ fontWeight: 700 }}>· EXTERNO</span>}
                   </div>
                   <div style={{ marginTop: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    {c.incidente_codigo ? <span onClick={() => router.push(`/incidentes/${c.incidente_id}`)} style={{ fontSize: '9px', color: '#92400e', textDecoration: 'underline', cursor: 'pointer', fontFamily: 'monospace' }}>{c.incidente_codigo}</span> : <span />}
+                    {c.incidente_codigo ? <span onClick={() => router.push(`/incidentes/${c.incidente_id}`)} style={{ fontSize: '9px', color: textColor, textDecoration: 'underline', cursor: 'pointer', fontFamily: 'monospace' }}>{c.incidente_codigo}</span> : <span />}
                     {confirmando ? (
                       <div style={{ display: 'flex', gap: '3px', fontSize: '9px', alignItems: 'center' }}>
-                        <span style={{ color: '#78350f' }}>¿Confirmar?</span>
+                        <span style={{ color: textColor }}>¿Confirmar?</span>
                         <button disabled={desactivando} onClick={() => c.incidente_id ? desactivarContingencia(c.incidente_id, c.tienda_id) : undefined} style={{ padding: '1px 5px', fontSize: '9px', fontWeight: 700, background: '#b45309', color: 'white', border: 'none', borderRadius: '3px', cursor: desactivando ? 'default' : 'pointer', opacity: desactivando ? 0.6 : 1 }}>{desactivando ? '…' : 'Sí'}</button>
                         <button disabled={desactivando} onClick={() => setConfirmarCont(null)} style={{ padding: '1px 5px', fontSize: '9px', background: '#fef3c7', color: '#78350f', border: '1px solid #fcd34d', borderRadius: '3px', cursor: 'pointer' }}>No</button>
                       </div>
                     ) : (
-                      <button onClick={() => setConfirmarCont(c.tienda_id)} style={{ padding: '1px 7px', fontSize: '9px', fontWeight: 600, background: '#fef3c7', color: '#78350f', border: '1px solid #f59e0b', borderRadius: '3px', cursor: 'pointer' }}>Desactivar</button>
+                      <button onClick={() => setConfirmarCont(c.tienda_id)} style={{ padding: '1px 7px', fontSize: '9px', fontWeight: 600, background: esExterno ? '#fed7aa' : '#fef3c7', color: textColor, border: `1px solid ${borderColor}`, borderRadius: '3px', cursor: 'pointer' }}>Desactivar</button>
                     )}
                   </div>
                 </div>

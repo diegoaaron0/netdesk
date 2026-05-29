@@ -104,6 +104,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
   const [tienda, setTienda] = useState<any>(null)
   const [historial, setHistorial] = useState<any[]>([])
   const [proveedores, setProveedores] = useState<{ id: string; nombre: string }[]>([])
+  const [contStats, setContStats] = useState<any>(null)
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<any>({})
   const [saving, setSaving] = useState(false)
@@ -119,6 +120,9 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
     })
     fetch('/api/proveedores').then(r => r.json()).then(d => {
       setProveedores(Array.isArray(d) ? d : [])
+    })
+    fetch(`/api/tiendas/${id}/contingencia-stats`).then(r => r.json()).then(d => {
+      setContStats(d)
     })
   }, [id])
 
@@ -463,6 +467,43 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               )}
             </div>
           </div>
+
+          {/* Uso de contingencia */}
+          {contStats && (contStats.cnt_router_propio > 0 || contStats.cnt_router_externo > 0 || contStats.cnt_datos_moviles > 0) && (() => {
+            function mhm(m: number) {
+              if (!m) return '0m'
+              if (m < 60) return `${m}m`
+              return `${Math.floor(m / 60)}h ${m % 60}m`
+            }
+            const rows = [
+              { label: 'Router propio', icon: '📶', min: contStats.min_router_propio, cnt: contStats.cnt_router_propio, active: contStats.activo_cont && !contStats.activo_ext, color: '#d97706', bg: '#fffbeb' },
+              { label: 'Router externo', icon: '📦', min: contStats.min_router_externo, cnt: contStats.cnt_router_externo, active: false, color: '#ea580c', bg: '#fff7ed' },
+              { label: 'Datos móviles', icon: '📱', min: contStats.min_datos_moviles, cnt: contStats.cnt_datos_moviles, active: contStats.activo_mov, color: '#2563eb', bg: '#eff6ff' },
+            ].filter(r => r.cnt > 0)
+            return (
+              <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+                <SectionTitle>Uso de contingencia</SectionTitle>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {rows.map(r => (
+                    <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', background: r.bg, borderRadius: '7px', border: `0.5px solid ${r.color}33` }}>
+                      <span style={{ fontSize: '13px' }}>{r.icon}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '10px', fontWeight: 600, color: r.color, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          {r.label}
+                          {r.active && <span style={{ fontSize: '8px', background: r.color, color: 'white', padding: '0 4px', borderRadius: '3px', fontWeight: 700 }}>ACTIVO</span>}
+                        </div>
+                        <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', marginTop: '1px' }}>{r.cnt} {r.cnt === 1 ? 'incidente' : 'incidentes'}</div>
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: r.color, fontFamily: 'monospace' }}>{mhm(r.min)}</div>
+                        <div style={{ fontSize: '8px', color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>total</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
 
           {/* Historial */}
           <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
