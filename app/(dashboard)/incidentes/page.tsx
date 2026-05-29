@@ -404,8 +404,13 @@ export default function IncidentesPage() {
 
                   {/* ID / Hora */}
                   <td style={{ padding: '9px 12px' }}>
-                    <div style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 700, color: textColor }}>
-                      {inc.codigo}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 700, color: textColor }}>
+                        {inc.codigo}
+                      </span>
+                      {isOverdue && ['ESCALADO_N1','ESCALADO_N2','ESCALADO_N3'].includes(inc.estado) && (
+                        <span className="nd-pulse" title="SLA vencido" style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+                      )}
                     </div>
                     {inc.ticketInvgate && (
                       <div style={{ fontSize: '10px', color: mutedColor, marginTop: '1px' }}>#{inc.ticketInvgate}</div>

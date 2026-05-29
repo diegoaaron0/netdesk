@@ -389,6 +389,15 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               <span style={{ fontFamily: 'monospace', fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>{inc.codigo}</span>
               <Badge variant={impactoToVariant(inc.nivelImpacto)} />
               <Badge variant={estadoToVariant(inc.estado)} />
+              {!isClosed && (inc.escalamientos ?? []).some((e: any) =>
+                e.horaEnvioCorreo && !e.horaRespuesta && !e.noHuboRespuesta &&
+                Date.now() - new Date(e.horaEnvioCorreo).getTime() > 60 * 60000
+              ) && (
+                <span title="SLA de respuesta excedido" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '10px', color: '#fca5a5', fontWeight: 600 }}>
+                  <span className="nd-pulse" style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+                  SLA vencido
+                </span>
+              )}
               {inc.estado === 'RESUELTO' && inc.resueltoPor && (
                 <span style={{ fontSize: '10px', background: inc.resueltoPor === 'AGENTE' ? 'rgba(59,130,246,0.25)' : 'rgba(34,197,94,0.25)', color: inc.resueltoPor === 'AGENTE' ? '#93c5fd' : '#86efac', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
                   {inc.resueltoPor === 'AGENTE' ? 'Resuelto por Agente' : 'Resuelto por Proveedor'}

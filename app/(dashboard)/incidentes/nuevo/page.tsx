@@ -12,6 +12,8 @@ const TIPO_LABELS: Record<string, string> = {
   CORTE_ELECTRICO: 'Corte eléctrico',
 }
 
+const OPEN_ESTADOS = ['ABIERTO', 'EN_SEGUIMIENTO', 'ESCALADO_N1', 'ESCALADO_N2', 'ESCALADO_N3']
+
 const ALCANCE_LABELS: Record<string, string> = {
   SOLO_TIENDA:  'Solo la tienda',
   MALL:         'El mall',
@@ -240,6 +242,31 @@ export default function NuevoIncidentePage() {
                   </div>
                 )}
               </div>
+
+              {/* Advertencia incidente abierto */}
+              {tienda && historial.some(h => OPEN_ESTADOS.includes(h.estado)) && (
+                <div style={{ background: '#fffbeb', border: '1.5px solid #f59e0b', borderRadius: '10px', padding: '12px 16px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#92400e', marginBottom: '8px' }}>
+                    ⚠ Ya existe un incidente abierto para esta tienda
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                    {historial.filter(h => OPEN_ESTADOS.includes(h.estado)).map(h => (
+                      <div key={h.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px' }}>
+                        <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#92400e' }}>{h.codigo}</span>
+                        <Badge variant={estadoToVariant(h.estado)} />
+                        <span style={{ color: 'var(--muted-foreground)' }}>{TIPO_LABELS[h.tipo] ?? h.tipo}</span>
+                        <button type="button" onClick={() => router.push(`/incidentes/${h.id}`)}
+                          style={{ marginLeft: 'auto', fontSize: '11px', color: 'hsl(221,83%,50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
+                          Ver →
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: '10px', color: '#78350f', marginTop: '8px' }}>
+                    Puedes registrar igualmente si es un problema diferente.
+                  </div>
+                </div>
+              )}
 
               {/* Readonly row: CID | Proveedor | Tipo conexión | Cluster + Contingencia */}
               {tienda && (

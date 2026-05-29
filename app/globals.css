@@ -64,3 +64,9 @@
   50% { opacity: 0.4; }
 }
 .nd-blink { animation: nd-blink 1s ease-in-out infinite; }
+
+@keyframes nd-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.8); opacity: 0.5; }
+}
+.nd-pulse { animation: nd-pulse 1.4s ease-in-out infinite; }
