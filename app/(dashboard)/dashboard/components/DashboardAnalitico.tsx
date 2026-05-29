@@ -300,13 +300,16 @@ export default function DashboardAnalitico() {
             <IconShield />
           </div>
           {loading ? <Sk w="50%" h={22} /> : (
-            <div style={{ fontSize: '26px', fontWeight: 700, color: slaColor(cards?.cumplimientoSLA.scoreEficiencia ?? cards?.cumplimientoSLA.porcentaje ?? 0), lineHeight: 1 }}>
-              {cards?.cumplimientoSLA.scoreEficiencia ?? cards?.cumplimientoSLA.porcentaje ?? 0}%
+            <div style={{ fontSize: '26px', fontWeight: 700, color: slaColor(cards?.cumplimientoSLA.porcentaje ?? 0), lineHeight: 1 }}>
+              {cards?.cumplimientoSLA.porcentaje ?? 0}%
             </div>
           )}
-          {!loading && cards && <ProgressBar value={cards.cumplimientoSLA.scoreEficiencia ?? cards.cumplimientoSLA.porcentaje ?? 0} color={slaColor(cards.cumplimientoSLA.scoreEficiencia ?? cards.cumplimientoSLA.porcentaje ?? 0)} />}
+          {!loading && cards && <ProgressBar value={cards.cumplimientoSLA.porcentaje ?? 0} color={slaColor(cards.cumplimientoSLA.porcentaje ?? 0)} />}
           {!loading && cards?.cumplimientoSLA.slaRespuestaPct != null && (
             <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Resp. {Math.round(cards.cumplimientoSLA.slaRespuestaPct)}%</span>
+          )}
+          {!loading && cards?.cumplimientoSLA.slaResolucionPct != null && (
+            <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Resol. {Math.round(cards.cumplimientoSLA.slaResolucionPct)}%</span>
           )}
         </div>
 

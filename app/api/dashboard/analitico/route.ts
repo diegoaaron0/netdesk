@@ -350,6 +350,7 @@ async function buildCards(
 
   let slaCumplidos = 0
   let slaRespuestaOk = 0
+  let slaResolucionOk = 0
   let slaEvaluablesCount = 0
   const evaluables: SlaEvaluableItem[] = []
   for (const i of incs) {
@@ -371,6 +372,7 @@ async function buildCards(
     const cumplido = slaRes.slaGeneral
     if (cumplido) slaCumplidos++
     if (slaRes.slaRespuesta) slaRespuestaOk++
+    if (slaRes.slaResolucion) slaResolucionOk++
 
     const prov = i.prov_nombre ?? '—'
     const eficiencia = calcEficienciaSLA({
@@ -428,8 +430,9 @@ async function buildCards(
       cumplido,
     })
   }
-  const slaPct          = slaEvaluablesCount > 0 ? Math.round(slaCumplidos    / slaEvaluablesCount * 100) : 0
-  const slaRespuestaPct = slaEvaluablesCount > 0 ? Math.round(slaRespuestaOk / slaEvaluablesCount * 100) : 0
+  const slaPct           = slaEvaluablesCount > 0 ? Math.round(slaCumplidos     / slaEvaluablesCount * 100) : 0
+  const slaRespuestaPct  = slaEvaluablesCount > 0 ? Math.round(slaRespuestaOk  / slaEvaluablesCount * 100) : 0
+  const slaResolucionPct = slaEvaluablesCount > 0 ? Math.round(slaResolucionOk / slaEvaluablesCount * 100) : 0
 
   let prevSlaOk = 0
   let prevSlaRespuestaOk = 0
@@ -724,6 +727,7 @@ async function buildCards(
         return scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null
       })(),
       slaRespuestaPct,
+      slaResolucionPct,
       deltaRespuestaPct: dSlaRespuesta,
       deltaVsAnterior: dSla,
       porProveedor: slaPorProveedor,

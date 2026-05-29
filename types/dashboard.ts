@@ -125,6 +125,7 @@ export interface MttrPromedioCard {
 export interface CumplimientoSLACard {
   porcentaje: number
   slaRespuestaPct: number
+  slaResolucionPct: number
   deltaRespuestaPct: number | null
   scoreEficiencia: number | null
   deltaVsAnterior: number | null
