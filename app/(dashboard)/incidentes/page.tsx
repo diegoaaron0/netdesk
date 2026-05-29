@@ -71,7 +71,7 @@ export default function IncidentesPage() {
   const [estado, setEstado]                   = useState('')
   const [agente, setAgente]                   = useState('')
   const [filtroProveedor, setFiltroProveedor] = useState('')
-  const [filtroResolucion, setFiltroResolucion] = useState<'todos'|'agente'|'proveedor'>('todos')
+  const [filtroResolucion, setFiltroResolucion] = useState<'todos'|'agente'|'proveedor'|'infraestructura'>('todos')
   const [filtroTipo, setFiltroTipo]             = useState('')
   const [misRegistros, setMisRegistros]         = useState(false)
   const [q, setQ]                               = useState('')
@@ -162,7 +162,7 @@ export default function IncidentesPage() {
     if (filtroProveedor && inc.proveedorNombre !== filtroProveedor) return false
     if (filtroTipo && inc.tipo !== filtroTipo) return false
     if (filtroResolucion !== 'todos') {
-      const expected = filtroResolucion === 'agente' ? 'AGENTE' : 'PROVEEDOR'
+      const expected = filtroResolucion === 'agente' ? 'AGENTE' : filtroResolucion === 'infraestructura' ? 'INFRAESTRUCTURA' : 'PROVEEDOR'
       if (inc.resueltoPor !== expected) return false
     }
     return true
@@ -304,7 +304,7 @@ export default function IncidentesPage() {
           <select
             value={filtroResolucion}
             onChange={e => {
-              const val = e.target.value as 'todos'|'agente'|'proveedor'
+              const val = e.target.value as 'todos'|'agente'|'proveedor'|'infraestructura'
               setFiltroResolucion(val)
               if (val !== 'todos' && estado !== 'RESUELTO') setEstado('RESUELTO')
               setPage(1)
@@ -313,6 +313,7 @@ export default function IncidentesPage() {
             <option value="todos">Resolución</option>
             <option value="agente">Por agente</option>
             <option value="proveedor">Por proveedor</option>
+            <option value="infraestructura">Por infraestructura</option>
           </select>
 
           <select value={filtroProveedor} onChange={e => { setFiltroProveedor(e.target.value); setPage(1) }} style={selStyle}>
@@ -472,8 +473,11 @@ export default function IncidentesPage() {
                   <td style={{ padding: '9px 12px' }}>
                     <Badge variant={estadoToVariant(inc.estado)} />
                     {inc.estado === 'RESUELTO' && inc.resueltoPor && (
-                      <span style={{ display: 'block', marginTop: '2px', fontSize: '10px', padding: '1px 6px', borderRadius: '999px', fontWeight: 600, background: inc.resueltoPor === 'AGENTE' ? '#EFF6FF' : '#F0FDF4', color: inc.resueltoPor === 'AGENTE' ? '#1D4ED8' : '#15803D' }}>
-                        {inc.resueltoPor === 'AGENTE' ? '↩ Agente' : '↩ Proveedor'}
+                      <span style={{ display: 'block', marginTop: '2px', fontSize: '10px', padding: '1px 6px', borderRadius: '999px', fontWeight: 600,
+                        background: inc.resueltoPor === 'AGENTE' ? '#EFF6FF' : inc.resueltoPor === 'INFRAESTRUCTURA' ? '#EEF2FF' : '#F0FDF4',
+                        color:      inc.resueltoPor === 'AGENTE' ? '#1D4ED8' : inc.resueltoPor === 'INFRAESTRUCTURA' ? '#4338CA' : '#15803D',
+                      }}>
+                        {inc.resueltoPor === 'AGENTE' ? '↩ Agente' : inc.resueltoPor === 'INFRAESTRUCTURA' ? '↩ Infraestructura' : '↩ Proveedor'}
                       </span>
                     )}
                     {inc.contActivadoPor && (

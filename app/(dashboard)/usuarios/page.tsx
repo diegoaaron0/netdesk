@@ -376,7 +376,7 @@ export default function UsuariosPage() {
                   </thead>
                   <tbody>
                     {(historialTab === 'resueltos'
-                      ? historial.items.filter((inc: any) => inc.resueltoPor === 'AGENTE')
+                      ? historial.items.filter((inc: any) => inc.resueltoPor === 'AGENTE' || inc.resueltoPor === 'INFRAESTRUCTURA')
                       : historial.items
                     ).map((inc: any) => (
                       <tr key={inc.id} style={{ borderTop: '0.5px solid var(--border)' }}>
@@ -393,6 +393,9 @@ export default function UsuariosPage() {
                         <td style={{ padding: '7px 10px' }}>
                           {inc.resueltoPor === 'AGENTE' && (
                             <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '999px', background: '#EFF6FF', color: '#1D4ED8' }}>↩ Agente</span>
+                          )}
+                          {inc.resueltoPor === 'INFRAESTRUCTURA' && (
+                            <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '999px', background: '#EEF2FF', color: '#4338CA' }}>↩ Infraestructura</span>
                           )}
                           {inc.resueltoPor === 'PROVEEDOR' && (
                             <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '999px', background: '#F0FDF4', color: '#15803D' }}>↩ Proveedor</span>

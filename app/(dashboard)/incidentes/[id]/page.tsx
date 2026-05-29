@@ -323,9 +323,9 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   async function doResolver(modo: 'PROVEEDOR' | 'AGENTE' | 'INFRAESTRUCTURA') {
     setShowResolverModal(false); setResolverMode(null)
     const body = modo === 'AGENTE'
-      ? { resueltoPor: 'AGENTE', atribucionFinal: 'Gestión interna Service Desk', evaluableProveedor: false }
+      ? { resueltoPor: 'AGENTE',           atribucionFinal: 'Gestión interna Service Desk',    evaluableProveedor: false }
       : modo === 'INFRAESTRUCTURA'
-      ? { resueltoPor: 'AGENTE', atribucionFinal: 'Gestión Infraestructura interna', evaluableProveedor: false }
+      ? { resueltoPor: 'INFRAESTRUCTURA',  atribucionFinal: 'Gestión Infraestructura interna', evaluableProveedor: false }
       : { resueltoPor: 'PROVEEDOR' }
     const res = await fetch(`/api/incidentes/${id}/resolver`, {
       method: 'POST',
@@ -440,8 +440,13 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 </span>
               )}
               {inc.estado === 'RESUELTO' && inc.resueltoPor && (
-                <span style={{ fontSize: '10px', background: inc.resueltoPor === 'AGENTE' ? 'rgba(59,130,246,0.25)' : 'rgba(34,197,94,0.25)', color: inc.resueltoPor === 'AGENTE' ? '#93c5fd' : '#86efac', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
-                  {inc.resueltoPor === 'AGENTE' ? 'Resuelto por Agente' : 'Resuelto por Proveedor'}
+                <span style={{
+                  fontSize: '10px',
+                  background: inc.resueltoPor === 'AGENTE' ? 'rgba(59,130,246,0.25)' : inc.resueltoPor === 'INFRAESTRUCTURA' ? 'rgba(99,102,241,0.25)' : 'rgba(34,197,94,0.25)',
+                  color:      inc.resueltoPor === 'AGENTE' ? '#93c5fd'               : inc.resueltoPor === 'INFRAESTRUCTURA' ? '#a5b4fc'               : '#86efac',
+                  padding: '2px 8px', borderRadius: '4px', fontWeight: 600,
+                }}>
+                  {inc.resueltoPor === 'AGENTE' ? 'Resuelto por Agente' : inc.resueltoPor === 'INFRAESTRUCTURA' ? 'Resuelto por Infraestructura' : 'Resuelto por Proveedor'}
                 </span>
               )}
               <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.55)', padding: '2px 8px', borderRadius: '4px' }}>
