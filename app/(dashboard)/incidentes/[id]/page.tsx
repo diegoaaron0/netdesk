@@ -716,10 +716,10 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               return (
                 <div style={{ border: '1px solid var(--border)', borderRadius: '10px', marginBottom: '14px', overflow: 'hidden' }}>
                   <button type="button" onClick={() => setShowContBlock(v => !v)}
-                    style={{ width:'100%', display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', background: editForm.contEsExterno ? 'rgba(234,88,12,0.08)' : 'var(--muted)', border:'none', cursor:'pointer', textAlign:'left' }}>
+                    style={{ width:'100%', display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', background: 'var(--muted)', border:'none', cursor:'pointer', textAlign:'left' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
-                      <span style={{ fontSize:'12px', fontWeight:600, color: editForm.contEsExterno ? '#c2410c' : 'var(--foreground)' }}>
-                        {editForm.contEsExterno ? '📦 Contingencia externa' : 'Contingencia'}
+                      <span style={{ fontSize:'12px', fontWeight:600, color: 'var(--foreground)' }}>
+                        {editForm.contEsExterno ? 'Contingencia externa' : 'Contingencia'}
                       </span>
                       {!showContBlock && summary && <span style={{ fontSize:'10px', color:'var(--muted-foreground)' }}>{summary}</span>}
                       {!showContBlock && inc.contHoraActivacion && (() => {
@@ -746,14 +746,14 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                         </div>
                       )}
                       {/* Externo toggle */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', padding: '8px 12px', background: editForm.contEsExterno ? 'rgba(234,88,12,0.07)' : 'rgba(0,0,0,0.03)', borderRadius: '8px', border: `1px solid ${editForm.contEsExterno ? 'rgba(234,88,12,0.3)' : 'var(--border)'}` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', padding: '8px 12px', background: 'rgba(0,0,0,0.03)', borderRadius: '8px', border: '1px solid var(--border)' }}>
                         <button type="button" disabled={!canEditB} onClick={() => setEdit('contEsExterno', !editForm.contEsExterno)}
-                          style={{ width:'36px', height:'20px', borderRadius:'10px', border:'none', cursor: canEditB ? 'pointer' : 'default', background: editForm.contEsExterno ? '#ea580c' : '#d1d5db', position:'relative', flexShrink:0, transition:'background 0.2s' }}>
+                          style={{ width:'36px', height:'20px', borderRadius:'10px', border:'none', cursor: canEditB ? 'pointer' : 'default', background: editForm.contEsExterno ? 'hsl(221,83%,23%)' : '#d1d5db', position:'relative', flexShrink:0, transition:'background 0.2s' }}>
                           <span style={{ position:'absolute', top:'2px', left: editForm.contEsExterno ? '18px' : '2px', width:'16px', height:'16px', borderRadius:'50%', background:'white', transition:'left 0.2s' }} />
                         </button>
                         <div>
-                          <div style={{ fontSize:'11px', fontWeight: editForm.contEsExterno ? 700 : 400, color: editForm.contEsExterno ? '#c2410c' : 'var(--foreground)' }}>
-                            📦 Router externo (llevado a tienda)
+                          <div style={{ fontSize:'11px', fontWeight: editForm.contEsExterno ? 700 : 400, color: 'var(--foreground)' }}>
+                            Router externo (llevado a tienda)
                           </div>
                           <div style={{ fontSize:'10px', color:'var(--muted-foreground)' }}>
                             {editForm.contEsExterno ? 'La tienda no tenía contingencia propia — se llevó equipo externo' : 'La tienda usó su contingencia propia'}
