@@ -8,6 +8,7 @@ import { CronometroEscalamiento } from '@/components/incidentes/CronometroEscala
 import { GuiaEscalamiento } from '@/components/incidentes/GuiaEscalamiento'
 import { AdjuntosZona, compressImage } from '@/components/incidentes/AdjuntosZona'
 import { can } from '@/lib/permisos'
+import { parseEtaMin } from '@/lib/sla-core'
 
 const TIPO_LABELS: Record<string, string> = {
   CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia',
@@ -167,7 +168,9 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   const [reopenMotivo, setReopenMotivo] = useState('')
   const [reopening, setReopening]   = useState(false)
   const [showGuia, setShowGuia]       = useState(false)
-  const [showSolucionado, setShowSolucionado] = useState(false)
+  const [showResolverModal, setShowResolverModal] = useState(false)
+  const [resolverMode, setResolverMode] = useState<'PROVEEDOR' | 'AGENTE' | null>(null)
+  const [skipConfirm, setSkipConfirm] = useState<{ nivel: number; saltar: number } | null>(null)
 
   // Escalamiento
   const [showNivelMenu, setShowNivelMenu] = useState(false)
@@ -175,6 +178,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   // Bloques operación (colapsables)
   const [showContBlock, setShowContBlock] = useState(false)
   const [showMovBlock,  setShowMovBlock]  = useState(false)
+  const [showBoletaBlock, setShowBoletaBlock] = useState(false)
 
   const fetchInc = useCallback(async () => {
     const res  = await fetch(`/api/incidentes/${id}`)
@@ -249,9 +253,11 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
 
   function handleEstadoOperacion(val: string) {
     const clears: any = {}
+    if (val !== 'CONTINGENCIA' && val !== 'BOLETA_MANUAL') {
+      clears.contHoraActivacion = ''; clears.contRendimiento = ''
+    }
     if (val !== 'CONTINGENCIA') {
-      clears.contActivadoPor = ''; clears.contHoraActivacion = ''
-      clears.contRendimiento = ''; clears.contObservacion = ''
+      clears.contActivadoPor = ''; clears.contObservacion = ''
     }
     if (val !== 'DATOS_MOVILES') {
       clears.movActivadoPor = ''; clears.movHoraActivacion = ''
@@ -260,6 +266,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
     setEditForm((f: any) => ({ ...f, estadoOperacion: val, ...clears }))
     setShowContBlock(val === 'CONTINGENCIA')
     setShowMovBlock(val === 'DATOS_MOVILES')
+    setShowBoletaBlock(val === 'BOLETA_MANUAL')
   }
 
   async function handleSave() {
@@ -274,15 +281,21 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
     }
     if ('contHoraActivacion' in body) body.contHoraActivacion = body.contHoraActivacion ? fromDatetimeLocal(body.contHoraActivacion) : null
     if ('movHoraActivacion'  in body) body.movHoraActivacion  = body.movHoraActivacion  ? fromDatetimeLocal(body.movHoraActivacion)  : null
-    // Factor operativo automático por tier de rendimiento
-    const rfCont: Record<string, string> = { TOTAL: '0.90', PARCIAL: '0.50', FALLIDA: '0.00' }
-    const rfMov:  Record<string, string> = { EFECTIVA: '0.75', PARCIAL: '0.50', LIMITADA: '0.25', NO_FUNCIONO: '0.00' }
+    // Factor operativo: EFECTIVO=100%, PARCIAL=75%, NULO=0% (más legacy)
+    const rfUnif: Record<string, string> = {
+      EFECTIVO: '1.00', PARCIAL: '0.75', NULO: '0.00',
+      TOTAL: '1.00',                                     // boleta manual
+      EFECTIVA: '0.75', LIMITADA: '0.25', FALLIDA: '0.00', NO_FUNCIONO: '0.00', // legacy
+    }
     if (body.estadoOperacion === 'BOLETA_MANUAL') {
-      body.factorOperativo = '0.40'; body.operacionManual = true; body.tipoOperacionManual = 'BOLETA_MANUAL'
+      body.factorOperativo = rfUnif[body.contRendimiento] ?? '1.00'
+      body.operacionManual = true; body.tipoOperacionManual = 'BOLETA_MANUAL'
     } else if (body.estadoOperacion === 'CONTINGENCIA') {
-      body.factorOperativo = rfCont[body.contRendimiento] ?? null; body.operacionManual = false; body.tipoOperacionManual = null
+      body.factorOperativo = rfUnif[body.contRendimiento] ?? null
+      body.operacionManual = false; body.tipoOperacionManual = null
     } else if (body.estadoOperacion === 'DATOS_MOVILES') {
-      body.factorOperativo = rfMov[body.movRendimiento] ?? null; body.operacionManual = false; body.tipoOperacionManual = null
+      body.factorOperativo = rfUnif[body.movRendimiento] ?? null
+      body.operacionManual = false; body.tipoOperacionManual = null
     } else {
       body.factorOperativo = null; body.operacionManual = false; body.tipoOperacionManual = null
     }
@@ -298,22 +311,14 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
     fetchInc()
   }
 
-  async function handleSolucionado() {
-    setShowSolucionado(false)
-    await fetch(`/api/incidentes/${id}/resolver`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ resueltoPor: 'AGENTE', atribucionFinal: 'Gestión interna Service Desk', evaluableProveedor: false }),
-    })
-    fetchInc()
-  }
-
-  async function handleResolver() {
-    if (!confirm('¿Marcar como resuelto? Se registrará la hora actual como fin del incidente.')) return
+  async function doResolver(modo: 'PROVEEDOR' | 'AGENTE') {
+    setShowResolverModal(false); setResolverMode(null)
     const res = await fetch(`/api/incidentes/${id}/resolver`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ resueltoPor: 'PROVEEDOR' }),
+      body: JSON.stringify(modo === 'AGENTE'
+        ? { resueltoPor: 'AGENTE', atribucionFinal: 'Gestión interna Service Desk', evaluableProveedor: false }
+        : { resueltoPor: 'PROVEEDOR' }),
     })
     const data = await res.json().catch(() => ({}))
     if (data.contingenciaMantieneActiva) setContNotice(true)
@@ -333,8 +338,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
     fetchInc()
   }
 
-  async function handleEscalarNivel(nivel: number) {
-    setShowNivelMenu(false)
+  async function doEscalar(nivel: number) {
     const nivelData = inc.nivelesProveedor?.find((n: any) => n.nivel === nivel)
     const prevEscs = [...(inc.escalamientos ?? [])].sort((a: any, b: any) => a.nivel - b.nivel).filter((e: any) => e.nivel < nivel)
     const cuerpoCorreo = buildCorreo(inc, nivelData, nivel, prevEscs)
@@ -353,6 +357,23 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
     })
     fetchInc()
     setTimeout(() => escRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200)
+  }
+
+  function handleEscalarNivel(nivel: number) {
+    setShowNivelMenu(false)
+    const sortedEscs = [...(inc.escalamientos ?? [])].sort((a: any, b: any) => a.nivel - b.nivel)
+    const lastEsc = sortedEscs[sortedEscs.length - 1]
+    if (lastEsc && !lastEsc.horaRespuesta && !lastEsc.noHuboRespuesta) {
+      alert(`Estás esperando aún la respuesta del nivel ${lastEsc.nivel}. Dale un estado para poder continuar con el escalamiento.`)
+      return
+    }
+    const existingNiveles = (inc.escalamientos ?? []).map((e: any) => e.nivel as number)
+    const expectedNivel = existingNiveles.length > 0 ? Math.max(...existingNiveles) + 1 : 1
+    if (nivel > expectedNivel) {
+      setSkipConfirm({ nivel, saltar: expectedNivel })
+      return
+    }
+    doEscalar(nivel)
   }
 
   const btn: React.CSSProperties = { padding: '8px 16px', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }
@@ -476,17 +497,69 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
         </div>
       )}
 
-      {/* ── Solucionado modal ── */}
-      {showSolucionado && (
+      {/* ── Skip nivel confirm modal ── */}
+      {skipConfirm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '380px', margin: '16px' }}>
-            <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>¿Confirmas que fue solucionado por el agente?</div>
-            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '20px' }}>Se registrará: resuelto por agente, no evaluable al proveedor.</div>
+            <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>¿Estás seguro de saltar el N{skipConfirm.saltar}?</div>
+            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '20px' }}>Se registrará un escalamiento de Nivel {skipConfirm.nivel} sin pasar por el N{skipConfirm.saltar}.</div>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={() => setShowSolucionado(false)}
+              <button onClick={() => setSkipConfirm(null)}
                 style={{ flex: 1, padding: '8px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>Cancelar</button>
-              <button onClick={handleSolucionado}
-                style={{ flex: 1, padding: '8px', background: '#14532d', color: '#86efac', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>Sí, solucionado por agente</button>
+              <button onClick={() => { doEscalar(skipConfirm.nivel); setSkipConfirm(null) }}
+                style={{ flex: 1, padding: '8px', background: 'hsl(221,83%,45%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+                Sí, saltar N{skipConfirm.saltar}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Resolver modal — paso 1: elegir modo ── */}
+      {showResolverModal && !resolverMode && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '360px', margin: '16px' }}>
+            <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '16px' }}>¿Cómo se resolvió?</div>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
+              <button onClick={() => setResolverMode('PROVEEDOR')}
+                style={{ flex: 1, padding: '16px 8px', border: '1px solid var(--border)', borderRadius: '10px', background: 'var(--muted)', cursor: 'pointer', textAlign: 'center' }}>
+                <div style={{ fontSize: '22px', marginBottom: '4px' }}>🌐</div>
+                <div style={{ fontSize: '12px', fontWeight: 600 }}>Proveedor</div>
+              </button>
+              <button onClick={() => setResolverMode('AGENTE')}
+                style={{ flex: 1, padding: '16px 8px', border: '1px solid var(--border)', borderRadius: '10px', background: 'var(--muted)', cursor: 'pointer', textAlign: 'center' }}>
+                <div style={{ fontSize: '22px', marginBottom: '4px' }}>👤</div>
+                <div style={{ fontSize: '12px', fontWeight: 600 }}>Agente</div>
+              </button>
+            </div>
+            <button onClick={() => setShowResolverModal(false)}
+              style={{ width: '100%', padding: '8px', background: 'none', border: 'none', color: 'var(--muted-foreground)', fontSize: '12px', cursor: 'pointer' }}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Resolver modal — paso 2: confirmar ── */}
+      {showResolverModal && resolverMode && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '360px', margin: '16px' }}>
+            <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>
+              ¿Confirmas resolución por {resolverMode === 'PROVEEDOR' ? 'Proveedor' : 'Agente'}?
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '20px' }}>
+              Se registrará la hora actual como fin del incidente.
+              {resolverMode === 'AGENTE' && ' No evaluable al proveedor.'}
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => setResolverMode(null)}
+                style={{ flex: 1, padding: '8px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>
+                ← Volver
+              </button>
+              <button onClick={() => doResolver(resolverMode)}
+                style={{ flex: 1, padding: '8px', background: '#14532d', color: '#86efac', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+                Sí, resuelto
+              </button>
             </div>
           </div>
         </div>
@@ -527,7 +600,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
             {/* Bloque Contingencia — colapsable */}
             {editForm.estadoOperacion === 'CONTINGENCIA' && (() => {
               const rend = editForm.contRendimiento
-              const rendLabel: Record<string,string> = { TOTAL:'Cubrió total', PARCIAL:'Con limitaciones', FALLIDA:'No funcionó' }
+              const rendLabel: Record<string,string> = { EFECTIVO:'Efectivo', PARCIAL:'Parcial', NULO:'Sin cobertura', TOTAL:'Cubrió total', FALLIDA:'No funcionó' }
               const summary = [editForm.contActivadoPor && `Por: ${editForm.contActivadoPor}`, rend && rendLabel[rend]].filter(Boolean).join(' · ')
               return (
                 <div style={{ border: '1px solid var(--border)', borderRadius: '10px', marginBottom: '14px', overflow: 'hidden' }}>
@@ -572,7 +645,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                       <div style={{ marginBottom: '10px' }}>
                         <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Rendimiento</label>
                         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                          {[{v:'TOTAL',l:'Cubrió completamente',bg:'#dcfce7',c:'#15803d'},{v:'PARCIAL',l:'Con limitaciones',bg:'#fef9c3',c:'#a16207'},{v:'FALLIDA',l:'No funcionó',bg:'#fee2e2',c:'#b91c1c'}].map(({v,l,bg,c}) => {
+                          {[{v:'EFECTIVO',l:'Efectivo 100%',bg:'#dcfce7',c:'#15803d'},{v:'PARCIAL',l:'Parcial 75%',bg:'#fef9c3',c:'#a16207'},{v:'NULO',l:'Nulo 0%',bg:'#fee2e2',c:'#b91c1c'}].map(({v,l,bg,c}) => {
                             const sel = editForm.contRendimiento === v
                             return <button key={v} type="button" disabled={!canEditB} onClick={() => setEdit('contRendimiento', v)} style={{ padding:'4px 10px',fontSize:'11px',borderRadius:'6px',border:`1px solid ${sel?c:'var(--border)'}`,cursor:!canEditB?'default':'pointer',background:sel?bg:'var(--card)',color:sel?c:'var(--muted-foreground)',fontWeight:sel?600:400 }}>{l}</button>
                           })}
@@ -597,7 +670,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
             {/* Bloque Datos Móviles — colapsable */}
             {editForm.estadoOperacion === 'DATOS_MOVILES' && (() => {
               const rend = editForm.movRendimiento
-              const rendLabel: Record<string,string> = { EFECTIVA:'Efectiva 75%', PARCIAL:'Parcial 50%', LIMITADA:'Limitada 25%', NO_FUNCIONO:'No funcionó 0%' }
+              const rendLabel: Record<string,string> = { EFECTIVO:'Efectivo', PARCIAL:'Parcial', NULO:'Sin cobertura', EFECTIVA:'Efectiva', LIMITADA:'Limitada', NO_FUNCIONO:'No funcionó' }
               const summary = [editForm.movActivadoPor && `Por: ${editForm.movActivadoPor}`, rend && rendLabel[rend]].filter(Boolean).join(' · ')
               return (
                 <div style={{ border: '1px solid var(--border)', borderRadius: '10px', marginBottom: '14px', overflow: 'hidden' }}>
@@ -631,7 +704,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                       <div style={{ marginBottom: '10px' }}>
                         <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Rendimiento</label>
                         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                          {[{v:'EFECTIVA',l:'Efectiva 75%',bg:'#dcfce7',c:'#15803d'},{v:'PARCIAL',l:'Parcial 50%',bg:'#fef9c3',c:'#a16207'},{v:'LIMITADA',l:'Limitada 25%',bg:'#fed7aa',c:'#c2410c'},{v:'NO_FUNCIONO',l:'No funcionó 0%',bg:'#fee2e2',c:'#b91c1c'}].map(({v,l,bg,c}) => {
+                          {[{v:'EFECTIVO',l:'Efectivo 100%',bg:'#dcfce7',c:'#15803d'},{v:'PARCIAL',l:'Parcial 75%',bg:'#fef9c3',c:'#a16207'},{v:'NULO',l:'Nulo 0%',bg:'#fee2e2',c:'#b91c1c'}].map(({v,l,bg,c}) => {
                             const sel = editForm.movRendimiento === v
                             return <button key={v} type="button" disabled={!canEditB} onClick={() => setEdit('movRendimiento', v)} style={{ padding:'4px 10px',fontSize:'11px',borderRadius:'6px',border:`1px solid ${sel?c:'var(--border)'}`,cursor:!canEditB?'default':'pointer',background:sel?bg:'var(--card)',color:sel?c:'var(--muted-foreground)',fontWeight:sel?600:400 }}>{l}</button>
                           })}
@@ -640,6 +713,42 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                       <div>
                         <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Observación</label>
                         <textarea disabled={!canEditB} style={taStyle(!canEditB)} value={editForm.movObservacion ?? ''} onChange={e => setEdit('movObservacion', e.target.value)} placeholder="Describe el comportamiento de los datos móviles..." />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* Bloque Boleta Manual — colapsable */}
+            {editForm.estadoOperacion === 'BOLETA_MANUAL' && (() => {
+              const rend = editForm.contRendimiento
+              const rendLabel: Record<string,string> = { TOTAL:'Total', PARCIAL:'Parcial', NULO:'Nulo' }
+              const summary = [editForm.contHoraActivacion && 'Hora registrada', rend && rendLabel[rend]].filter(Boolean).join(' · ')
+              return (
+                <div style={{ border: '1px solid var(--border)', borderRadius: '10px', marginBottom: '14px', overflow: 'hidden' }}>
+                  <button type="button" onClick={() => setShowBoletaBlock(v => !v)}
+                    style={{ width:'100%', display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', background:'var(--muted)', border:'none', cursor:'pointer', textAlign:'left' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+                      <span style={{ fontSize:'12px', fontWeight:600, color:'var(--foreground)' }}>Boleta manual</span>
+                      {!showBoletaBlock && summary && <span style={{ fontSize:'10px', color:'var(--muted-foreground)' }}>{summary}</span>}
+                    </div>
+                    <span style={{ fontSize:'10px', color:'var(--muted-foreground)' }}>{showBoletaBlock ? '▲' : '▼'}</span>
+                  </button>
+                  {showBoletaBlock && (
+                    <div style={{ padding:'14px', background:'var(--muted)' }}>
+                      <div style={{ marginBottom: '12px' }}>
+                        <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Hora de activación manual</label>
+                        <input type="datetime-local" disabled={!canEditB} style={iStyle(!canEditB)} value={editForm.contHoraActivacion ?? ''} onChange={e => setEdit('contHoraActivacion', e.target.value)} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Rendimiento</label>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          {[{v:'TOTAL',l:'Total 100%',bg:'#dcfce7',c:'#15803d'},{v:'PARCIAL',l:'Parcial 75%',bg:'#fef9c3',c:'#a16207'},{v:'NULO',l:'Nulo 0%',bg:'#fee2e2',c:'#b91c1c'}].map(({v,l,bg,c}) => {
+                            const sel = editForm.contRendimiento === v
+                            return <button key={v} type="button" disabled={!canEditB} onClick={() => setEdit('contRendimiento', v)} style={{ padding:'4px 10px',fontSize:'11px',borderRadius:'6px',border:`1px solid ${sel?c:'var(--border)'}`,cursor:!canEditB?'default':'pointer',background:sel?bg:'var(--card)',color:sel?c:'var(--muted-foreground)',fontWeight:sel?600:400 }}>{l}</button>
+                          })}
+                        </div>
                       </div>
                     </div>
                   )}
@@ -740,41 +849,26 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                             : <div style={{ fontSize:'11px',color:'var(--muted-foreground)',fontStyle:'italic' }}>Sin acciones registradas aún</div>
                         })()}
                       </div>
+                      {/* Cajas afectadas — debajo de acciones */}
+                      <div style={{ marginTop:'10px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px' }}>
+                        <div>
+                          <label style={{ display:'block', fontSize:'10px', fontWeight:600, color:'var(--muted-foreground)', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:'4px' }}>Cajas afectadas</label>
+                          <input type="number" min="0" disabled={!canEditB} style={iStyle(!canEditB)}
+                            value={editForm.cajasAfectadas ?? ''}
+                            onChange={e => setEdit('cajasAfectadas', e.target.value === '' ? null : Number(e.target.value))}
+                            placeholder="Ej: 2" />
+                        </div>
+                        <div>
+                          <label style={{ display:'block', fontSize:'10px', fontWeight:600, color:'var(--muted-foreground)', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:'4px' }}>Cajas totales</label>
+                          <div style={{ ...iStyle(true), color:'var(--muted-foreground)' }}>
+                            {inc.tiendaCajasTotales ?? inc.cajasTotales ?? '—'}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </>
               )}
-              {/* Condiciones de venta (IEI) */}
-              <div style={{ marginTop:'12px', background:'var(--muted)', border:'1px solid var(--border)', borderRadius:'10px', padding:'12px' }}>
-                <div style={{ fontSize:'11px', fontWeight:600, color:'var(--foreground)', marginBottom:'10px' }}>Condiciones de venta</div>
-                <div style={{ display:'flex', flexWrap:'wrap', gap:'8px 24px', marginBottom:'10px' }}>
-                  {([{ key:'boletaManual', label:'¿Se usó boleta manual?' }, { key:'ventaParcial', label:'¿Hubo venta parcial?' }] as const).map(({ key, label }) => (
-                    <label key={key} style={{ display:'flex', alignItems:'center', gap:'7px', fontSize:'11px', cursor:!canEditB?'default':'pointer', color:'var(--foreground)' }}>
-                      <input type="checkbox" disabled={!canEditB}
-                        checked={!!editForm[key]}
-                        onChange={e => setEdit(key, e.target.checked ? true : null)}
-                        style={{ cursor:!canEditB?'default':'pointer', accentColor:'hsl(221,83%,45%)', width:'13px', height:'13px' }} />
-                      {label}
-                    </label>
-                  ))}
-                </div>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px' }}>
-                  <div>
-                    <label style={{ display:'block', fontSize:'10px', fontWeight:600, color:'var(--muted-foreground)', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:'4px' }}>Cajas afectadas</label>
-                    <input type="number" min="0" disabled={!canEditB} style={iStyle(!canEditB)}
-                      value={editForm.cajasAfectadas ?? ''}
-                      onChange={e => setEdit('cajasAfectadas', e.target.value === '' ? null : Number(e.target.value))}
-                      placeholder="Ej: 2" />
-                  </div>
-                  <div>
-                    <label style={{ display:'block', fontSize:'10px', fontWeight:600, color:'var(--muted-foreground)', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:'4px' }}>Cajas totales</label>
-                    <input type="number" min="1" disabled={!canEditB} style={iStyle(!canEditB)}
-                      value={editForm.cajasTotales ?? ''}
-                      onChange={e => setEdit('cajasTotales', e.target.value === '' ? null : Number(e.target.value))}
-                      placeholder="Ej: 4" />
-                  </div>
-                </div>
-              </div>
 
             {/* Comentarios */}
               <div
@@ -798,15 +892,6 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               </div>
             )}
 
-            {/* Botón Solucionado */}
-            {!isClosed && (
-              <div style={{ display:'flex',justifyContent:'flex-end',borderTop:'1px solid var(--border)',paddingTop:'12px' }}>
-                <button type="button" onClick={() => setShowSolucionado(true)}
-                  style={{ padding:'7px 20px',background:'#14532d',color:'#86efac',border:'none',borderRadius:'8px',fontSize:'12px',fontWeight:600,cursor:'pointer' }}>
-                  ✓ Solucionado
-                </button>
-              </div>
-            )}
 
           </div>
         </div>
@@ -930,13 +1015,16 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   if (inc.estadoOperacion !== 'CONTINGENCIA') return <span style={{ color: '#15803d', fontWeight: 500 }}>Sí</span>
                   const rend = inc.contRendimiento
                   const rendLabelMap: Record<string,{l:string;c:string}> = {
-                    TOTAL:      { l: 'Cubrió completamente', c: '#15803d' },
-                    EFECTIVA:   { l: 'Cubrió completamente', c: '#15803d' },
-                    PARCIAL:    { l: 'Con limitaciones',     c: '#a16207' },
-                    LIMITADA:   { l: 'Con limitaciones',     c: '#a16207' },
-                    FALLIDA:    { l: 'No funcionó',          c: '#b91c1c' },
-                    NO_FUNCIONO:{ l: 'No funcionó',          c: '#b91c1c' },
-                    INOPERATIVA:{ l: 'No funcionó',          c: '#b91c1c' },
+                    EFECTIVO:   { l: 'Efectivo 100%',        c: '#15803d' },
+                    TOTAL:      { l: 'Total 100%',           c: '#15803d' },
+                    PARCIAL:    { l: 'Parcial 75%',          c: '#a16207' },
+                    NULO:       { l: 'Nulo 0%',              c: '#b91c1c' },
+                    // legacy
+                    EFECTIVA:   { l: 'Efectivo 100%',        c: '#15803d' },
+                    LIMITADA:   { l: 'Parcial',              c: '#a16207' },
+                    FALLIDA:    { l: 'Nulo 0%',              c: '#b91c1c' },
+                    NO_FUNCIONO:{ l: 'Nulo 0%',              c: '#b91c1c' },
+                    INOPERATIVA:{ l: 'Nulo 0%',              c: '#b91c1c' },
                   }
                   const rendInfo = rend ? rendLabelMap[rend] : null
                   if (rendInfo?.c === '#b91c1c') {
@@ -955,20 +1043,37 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   const enviado = esc.horaEnvioCorreo
                     ? new Date(esc.horaEnvioCorreo).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
                     : '—'
-                  let respVal = '—', respColor: string | undefined
-                  if (esc.noHuboRespuesta) {
-                    respVal = 'No hubo respuesta'; respColor = '#b91c1c'
-                  } else if (esc.tiempoRespuestaMin != null) {
-                    respVal = minToHM(esc.tiempoRespuestaMin)
-                  } else if (esc.horaEnvioCorreo && esc.estadoCronometro === 'VENCIDO') {
-                    const exc = Math.round((Date.now() - new Date(esc.horaEnvioCorreo).getTime()) / 60000) - 60
-                    respVal = exc > 0 ? `Excedido ${minToHM(exc)}` : 'Vencido'; respColor = '#d97706'
-                  }
+                  const horaRespStr = esc.horaRespuesta
+                    ? new Date(esc.horaRespuesta).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+                    : null
+                  let respColor: string | undefined
+                  if (esc.noHuboRespuesta) respColor = '#b91c1c'
+                  else if (esc.horaEnvioCorreo && esc.estadoCronometro === 'VENCIDO' && !esc.horaRespuesta) respColor = '#d97706'
                   return (
                     <div key={esc.id}>
                       <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '6px 0 4px', borderTop: '1px solid var(--border)', paddingTop: '6px' }}>Nivel {esc.nivel}</div>
                       <TimeRow label={`Enviado N${esc.nivel}`} value={enviado} />
-                      <TimeRow label={`Respuesta N${esc.nivel}`} value={respVal} color={respColor} />
+                      {esc.noHuboRespuesta ? (
+                        <TimeRow label={`Respuesta N${esc.nivel}`} value="No hubo respuesta" color="#b91c1c" />
+                      ) : horaRespStr ? (
+                        <div style={{ marginBottom: '5px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                            <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{`Respuesta N${esc.nivel}`}</span>
+                            <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 500 }}>{horaRespStr}</span>
+                          </div>
+                          {esc.tiempoRespuestaMin != null && (
+                            <div style={{ textAlign: 'right', fontSize: '10px', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>
+                              {minToHM(esc.tiempoRespuestaMin)}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <TimeRow label={`Respuesta N${esc.nivel}`} value={
+                          esc.horaEnvioCorreo && esc.estadoCronometro === 'VENCIDO'
+                            ? `Excedido ${minToHM(Math.max(0, Math.round((Date.now() - new Date(esc.horaEnvioCorreo).getTime()) / 60000) - 60))}`
+                            : '—'
+                        } color={respColor} />
+                      )}
                     </div>
                   )
                 })}
@@ -1079,7 +1184,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 style={{ ...btn, background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)', fontWeight: 400 }}>
                 Cancelar incidente
               </button>
-              <button onClick={handleResolver}
+              <button onClick={() => { setResolverMode(null); setShowResolverModal(true) }}
                 style={{ ...btn, background: '#14532d', color: '#86efac' }}>
                 Marcar como resuelto
               </button>
@@ -1190,7 +1295,10 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
   const [showTemplate, setShowTemplate] = useState(false)
   const [copied, setCopied]             = useState(false)
   const [respuestaText, setRespuestaText] = useState(esc.respuestaTexto ?? '')
-  const [tiempoEstText, setTiempoEstText] = useState(esc.tiempoEstimadoSolucion ?? '')
+  const [showRespText, setShowRespText] = useState(false)
+  const etaMinsInit = parseEtaMin(esc.tiempoEstimadoSolucion ?? '') ?? 0
+  const [etaH, setEtaH] = useState(Math.floor(etaMinsInit / 60))
+  const [etaM, setEtaM] = useState(etaMinsInit % 60)
   const [horaRespManual, setHoraRespManual] = useState('')
   const [editTiempos, setEditTiempos] = useState(false)
   const [horaEnvioEdit, setHoraEnvioEdit] = useState(toDatetimeLocal(esc.horaEnvioCorreo) ?? '')
@@ -1240,12 +1348,14 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
 
   async function handleRespuesta() {
     setSaving(true)
+    const totalMin = etaH * 60 + etaM
+    const tiempoEstFinal = totalMin > 0 ? String(totalMin) : ''
     await fetch(`/api/escalamientos/${esc.id}/respuesta`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         respuestaTexto: respuestaText,
-        tiempoEstimadoSolucion: tiempoEstText,
+        tiempoEstimadoSolucion: tiempoEstFinal,
         horaRespuesta: fromDatetimeLocal(horaRespManual) ?? undefined,
       }),
     })
@@ -1431,16 +1541,30 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
           <div>
             <CronometroEscalamiento horaEnvio={esc.horaEnvioCorreo} horaRespuesta={esc.horaRespuesta} />
             <div style={{ marginTop: '10px' }}>
-              <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Respuesta del proveedor</label>
-              <textarea value={respuestaText} onChange={e => setRespuestaText(e.target.value)}
-                placeholder="Documenta aquí la respuesta recibida..."
-                style={{ width: '100%', padding: '7px 10px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', resize: 'vertical', minHeight: '60px', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              <button type="button" onClick={() => setShowRespText(v => !v)}
+                style={{ fontSize: '10px', fontWeight: 600, color: 'var(--foreground)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                Respuesta del proveedor {showRespText ? '▲' : '▼'}
+              </button>
+              {showRespText && (
+                <textarea value={respuestaText} onChange={e => setRespuestaText(e.target.value)}
+                  placeholder="Documenta aquí la respuesta recibida..."
+                  style={{ width: '100%', padding: '7px 10px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', resize: 'vertical', minHeight: '60px', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              )}
             </div>
             <div style={{ marginTop: '8px' }}>
               <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Tiempo estimado de solución</label>
-              <input value={tiempoEstText} onChange={e => setTiempoEstText(e.target.value)}
-                placeholder="Ej: 2 horas, antes de las 3pm"
-                style={{ width: '100%', padding: '7px 10px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }} />
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <input type="number" min="0" max="99" value={etaH} onChange={e => setEtaH(Math.max(0, parseInt(e.target.value) || 0))}
+                    style={{ width: '56px', padding: '7px 8px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', textAlign: 'center' }} />
+                  <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>h</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <input type="number" min="0" max="59" value={etaM} onChange={e => setEtaM(Math.min(59, Math.max(0, parseInt(e.target.value) || 0)))}
+                    style={{ width: '56px', padding: '7px 8px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', textAlign: 'center' }} />
+                  <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>min</span>
+                </div>
+              </div>
             </div>
             <div style={{ marginTop: '10px' }}>
               <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Adjuntos respuesta</div>
@@ -1481,8 +1605,21 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
               <div style={{ fontSize: '11px', fontWeight: 600, color: '#15803d' }}>
                 ✓ Respondido en {minToHM(esc.tiempoRespuestaMin)} · {new Date(esc.horaRespuesta).toLocaleString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit' })}
               </div>
-              {esc.tiempoEstimadoSolucion && <div style={{ fontSize: '10px', color: '#15803d', marginTop: '3px' }}>Estimado proveedor: {esc.tiempoEstimadoSolucion}</div>}
-              {esc.respuestaTexto && <div style={{ fontSize: '11px', color: 'var(--foreground)', marginTop: '6px', whiteSpace: 'pre-wrap' }}>{esc.respuestaTexto}</div>}
+              {esc.tiempoEstimadoSolucion && (() => {
+                const m = parseEtaMin(esc.tiempoEstimadoSolucion)
+                return <div style={{ fontSize: '10px', color: '#15803d', marginTop: '3px' }}>ETA proveedor: {m != null ? minToHM(m) : esc.tiempoEstimadoSolucion}</div>
+              })()}
+              {esc.respuestaTexto && (
+                <div style={{ marginTop: '6px' }}>
+                  <button type="button" onClick={() => setShowRespText(v => !v)}
+                    style={{ fontSize: '10px', color: '#15803d', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}>
+                    {showRespText ? '▲ Ocultar respuesta' : '▼ Ver respuesta'}
+                  </button>
+                  {showRespText && (
+                    <div style={{ fontSize: '11px', color: 'var(--foreground)', marginTop: '4px', whiteSpace: 'pre-wrap' }}>{esc.respuestaTexto}</div>
+                  )}
+                </div>
+              )}
             </div>
             {editTiempos && (
               <div style={{ marginTop: '8px', padding: '10px 12px', background: '#eff6ff', borderRadius: '8px', border: '1px solid #93c5fd', display: 'flex', flexDirection: 'column', gap: '8px' }}>
