@@ -1639,9 +1639,8 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
               )}
             </div>
           )}
-        </div>
-
       </div>
+
     </div>
   )
 }
