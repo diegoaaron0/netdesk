@@ -169,11 +169,20 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   const [reopening, setReopening]   = useState(false)
   const [showGuia, setShowGuia]       = useState(false)
   const [showResolverModal, setShowResolverModal] = useState(false)
-  const [resolverMode, setResolverMode] = useState<'PROVEEDOR' | 'AGENTE' | null>(null)
+  const [resolverMode, setResolverMode] = useState<'PROVEEDOR' | 'AGENTE' | 'INFRAESTRUCTURA' | null>(null)
   const [skipConfirm, setSkipConfirm] = useState<{ nivel: number; saltar: number } | null>(null)
 
   // Escalamiento
   const [showNivelMenu, setShowNivelMenu] = useState(false)
+
+  // Escalamiento a Infraestructura
+  const [showInfraModal, setShowInfraModal]       = useState(false)
+  const [infraAgentes, setInfraAgentes]           = useState<any[]>([])
+  const [infraLoadingAg, setInfraLoadingAg]       = useState(false)
+  const [infraSelectedId, setInfraSelectedId]     = useState('')
+  const [infraNota, setInfraNota]                 = useState('')
+  const [infraSaving, setInfraSaving]             = useState(false)
+  const [infraError, setInfraError]               = useState('')
 
   // Bloques operación (colapsables)
   const [showContBlock, setShowContBlock] = useState(false)
@@ -311,18 +320,45 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
     fetchInc()
   }
 
-  async function doResolver(modo: 'PROVEEDOR' | 'AGENTE') {
+  async function doResolver(modo: 'PROVEEDOR' | 'AGENTE' | 'INFRAESTRUCTURA') {
     setShowResolverModal(false); setResolverMode(null)
+    const body = modo === 'AGENTE'
+      ? { resueltoPor: 'AGENTE', atribucionFinal: 'Gestión interna Service Desk', evaluableProveedor: false }
+      : modo === 'INFRAESTRUCTURA'
+      ? { resueltoPor: 'AGENTE', atribucionFinal: 'Gestión Infraestructura interna', evaluableProveedor: false }
+      : { resueltoPor: 'PROVEEDOR' }
     const res = await fetch(`/api/incidentes/${id}/resolver`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(modo === 'AGENTE'
-        ? { resueltoPor: 'AGENTE', atribucionFinal: 'Gestión interna Service Desk', evaluableProveedor: false }
-        : { resueltoPor: 'PROVEEDOR' }),
+      body: JSON.stringify(body),
     })
     const data = await res.json().catch(() => ({}))
     if (data.contingenciaMantieneActiva) setContNotice(true)
     fetchInc()
+  }
+
+  async function openInfraModal() {
+    setShowNivelMenu(false)
+    setInfraSelectedId(''); setInfraNota(''); setInfraError('')
+    setShowInfraModal(true)
+    if (infraAgentes.length === 0) {
+      setInfraLoadingAg(true)
+      const r = await fetch('/api/usuarios/infra')
+      const d = await r.json()
+      setInfraAgentes(Array.isArray(d) ? d : [])
+      setInfraLoadingAg(false)
+    }
+  }
+
+  async function handleEscalarInfra() {
+    if (!infraSelectedId) { setInfraError('Selecciona un agente de infraestructura'); return }
+    setInfraSaving(true)
+    await fetch(`/api/incidentes/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ escaladoInfraId: infraSelectedId, horaEscaladoInfra: new Date().toISOString(), notaEscaladoInfra: infraNota || null }),
+    })
+    setInfraSaving(false); setShowInfraModal(false); fetchInc()
   }
 
   async function handleCancelar() {
@@ -398,6 +434,11 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   SLA vencido
                 </span>
               )}
+              {inc.escaladoInfraId && !isClosed && (
+                <span style={{ fontSize: '10px', background: 'rgba(99,102,241,0.25)', color: '#a5b4fc', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, letterSpacing: '0.04em' }}>
+                  🔧 INFRAESTRUCTURA
+                </span>
+              )}
               {inc.estado === 'RESUELTO' && inc.resueltoPor && (
                 <span style={{ fontSize: '10px', background: inc.resueltoPor === 'AGENTE' ? 'rgba(59,130,246,0.25)' : 'rgba(34,197,94,0.25)', color: inc.resueltoPor === 'AGENTE' ? '#93c5fd' : '#86efac', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
                   {inc.resueltoPor === 'AGENTE' ? 'Resuelto por Agente' : 'Resuelto por Proveedor'}
@@ -411,7 +452,11 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               {inc.tiendaCodigo} — {inc.tiendaNombre}
             </div>
             <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.38)' }}>
-              {inc.tipo === 'CORTE_ELECTRICO' ? '⚡ Energía Eléctrica' : (inc.proveedorNombre ?? '—')} · {inc.tiendaDistrito} · Agente: {inc.agenteNombre}
+              {inc.tipo === 'CORTE_ELECTRICO' ? '⚡ Energía Eléctrica' : (inc.proveedorNombre ?? '—')} · {inc.tiendaDistrito}
+              {inc.escaladoInfraId
+                ? <> · <span style={{ color: '#a5b4fc' }}>Infra: {[inc.infraNombre, inc.infraApellido].filter(Boolean).join(' ')}</span> · Escalado por: {inc.agenteNombre}</>
+                : <> · Agente: {inc.agenteNombre}</>
+              }
             </div>
             {inc.actualizadoEn && (
               <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.18)', marginTop: '5px' }}>
@@ -535,11 +580,19 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 <div style={{ fontSize: '22px', marginBottom: '4px' }}>🌐</div>
                 <div style={{ fontSize: '12px', fontWeight: 600 }}>Proveedor</div>
               </button>
-              <button onClick={() => setResolverMode('AGENTE')}
-                style={{ flex: 1, padding: '16px 8px', border: '1px solid var(--border)', borderRadius: '10px', background: 'var(--muted)', cursor: 'pointer', textAlign: 'center' }}>
-                <div style={{ fontSize: '22px', marginBottom: '4px' }}>👤</div>
-                <div style={{ fontSize: '12px', fontWeight: 600 }}>Agente</div>
-              </button>
+              {inc.escaladoInfraId ? (
+                <button onClick={() => setResolverMode('INFRAESTRUCTURA')}
+                  style={{ flex: 1, padding: '16px 8px', border: '1.5px solid rgba(99,102,241,.4)', borderRadius: '10px', background: 'rgba(99,102,241,.07)', cursor: 'pointer', textAlign: 'center' }}>
+                  <div style={{ fontSize: '22px', marginBottom: '4px' }}>🔧</div>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: '#4f46e5' }}>Infraestructura</div>
+                </button>
+              ) : (
+                <button onClick={() => setResolverMode('AGENTE')}
+                  style={{ flex: 1, padding: '16px 8px', border: '1px solid var(--border)', borderRadius: '10px', background: 'var(--muted)', cursor: 'pointer', textAlign: 'center' }}>
+                  <div style={{ fontSize: '22px', marginBottom: '4px' }}>👤</div>
+                  <div style={{ fontSize: '12px', fontWeight: 600 }}>Agente</div>
+                </button>
+              )}
             </div>
             <button onClick={() => setShowResolverModal(false)}
               style={{ width: '100%', padding: '8px', background: 'none', border: 'none', color: 'var(--muted-foreground)', fontSize: '12px', cursor: 'pointer' }}>
@@ -554,11 +607,11 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '360px', margin: '16px' }}>
             <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>
-              ¿Confirmas resolución por {resolverMode === 'PROVEEDOR' ? 'Proveedor' : 'Agente'}?
+              ¿Confirmas resolución por {resolverMode === 'PROVEEDOR' ? 'Proveedor' : resolverMode === 'INFRAESTRUCTURA' ? 'Infraestructura' : 'Agente'}?
             </div>
             <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '20px' }}>
               Se registrará la hora actual como fin del incidente.
-              {resolverMode === 'AGENTE' && ' No evaluable al proveedor.'}
+              {(resolverMode === 'AGENTE' || resolverMode === 'INFRAESTRUCTURA') && ' No evaluable al proveedor.'}
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={() => setResolverMode(null)}
@@ -568,6 +621,49 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               <button onClick={() => doResolver(resolverMode)}
                 style={{ flex: 1, padding: '8px', background: '#14532d', color: '#86efac', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
                 Sí, resuelto
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Escalar a Infraestructura ── */}
+      {showInfraModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '22px 24px', width: '400px', maxWidth: '90vw', boxShadow: '0 8px 32px rgba(0,0,0,.25)' }}>
+            <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '4px' }}>🔧 Escalar a Infraestructura</div>
+            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '14px' }}>Selecciona el agente que tomará el caso. El incidente quedará asignado a él.</div>
+            {infraLoadingAg ? (
+              <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', padding: '12px 0' }}>Cargando agentes...</div>
+            ) : infraAgentes.length === 0 ? (
+              <div style={{ fontSize: '11px', color: '#b91c1c', padding: '12px 0' }}>No hay agentes de infraestructura registrados.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
+                {infraAgentes.map(ag => (
+                  <button key={ag.id} onClick={() => setInfraSelectedId(ag.id)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: infraSelectedId === ag.id ? 'rgba(99,102,241,.1)' : 'var(--muted)', border: `1.5px solid ${infraSelectedId === ag.id ? '#818cf8' : 'var(--border)'}`, borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(99,102,241,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: '#4f46e5', flexShrink: 0 }}>
+                      {ag.nombre?.[0]?.toUpperCase() ?? '?'}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--foreground)' }}>{[ag.nombre, ag.apellido].filter(Boolean).join(' ')}</div>
+                      <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{ag.email}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+            <div style={{ marginBottom: '12px' }}>
+              <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '4px' }}>Nota (opcional)</div>
+              <textarea value={infraNota} onChange={e => setInfraNota(e.target.value)} placeholder="Motivo del escalamiento, contexto..."
+                style={{ ...taStyle(), fontSize: '11px', minHeight: '60px' }} />
+            </div>
+            {infraError && <div style={{ fontSize: '11px', color: '#b91c1c', marginBottom: '8px' }}>{infraError}</div>}
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowInfraModal(false)} style={{ padding: '7px 14px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={handleEscalarInfra} disabled={infraSaving || !infraSelectedId}
+                style={{ padding: '7px 14px', background: infraSaving || !infraSelectedId ? '#c7d2fe' : '#4f46e5', color: 'white', border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: 600, cursor: infraSaving || !infraSelectedId ? 'not-allowed' : 'pointer' }}>
+                {infraSaving ? 'Escalando...' : 'Confirmar'}
               </button>
             </div>
           </div>
@@ -1205,13 +1301,22 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   Escalar incidente <IcoArrow />
                 </button>
                 {showNivelMenu && (
-                  <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: '6px', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '6px', display: 'flex', flexDirection: 'column', gap: '4px', zIndex: 50, minWidth: '150px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)' }}>
+                  <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: '6px', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '6px', display: 'flex', flexDirection: 'column', gap: '4px', zIndex: 50, minWidth: '160px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)' }}>
                     {[1,2,3,4].map(n => (
                       <button key={n} onClick={() => handleEscalarNivel(n)}
                         style={{ padding: '7px 12px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', textAlign: 'left', color: 'var(--foreground)' }}>
                         Escalar N{n}
                       </button>
                     ))}
+                    {!inc.escaladoInfraId && (
+                      <>
+                        <div style={{ borderTop: '1px solid var(--border)', margin: '2px 0' }} />
+                        <button onClick={openInfraModal}
+                          style={{ padding: '7px 12px', background: 'rgba(99,102,241,.07)', border: '1px solid rgba(99,102,241,.35)', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', textAlign: 'left', color: '#818cf8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          🔧 Infraestructura
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -1475,37 +1580,9 @@ function GrupoMasivoPanel({ inc, onRefresh }: { inc: any; onRefresh: () => void 
 
 // ── InfraEscalamientoPanel ────────────────────────────────────────────────────
 function InfraEscalamientoPanel({ inc, isClosed, onRefresh }: { inc: any; isClosed: boolean; onRefresh: () => void }) {
-  const [showModal, setShowModal]     = useState(false)
-  const [agentes, setAgentes]         = useState<any[]>([])
-  const [loadingAg, setLoadingAg]     = useState(false)
-  const [selectedId, setSelectedId]   = useState('')
-  const [nota, setNota]               = useState('')
-  const [saving, setSaving]           = useState(false)
-  const [error, setError]             = useState('')
+  if (!inc.escaladoInfraId) return null
 
-  const hasInfra = !!inc.escaladoInfraId
-
-  async function openModal() {
-    setShowModal(true); setSelectedId(''); setNota(''); setError('')
-    if (agentes.length === 0) {
-      setLoadingAg(true)
-      const r = await fetch('/api/usuarios/infra')
-      const d = await r.json()
-      setAgentes(Array.isArray(d) ? d : [])
-      setLoadingAg(false)
-    }
-  }
-
-  async function handleEscalar() {
-    if (!selectedId) { setError('Selecciona un agente de infraestructura'); return }
-    setSaving(true)
-    await fetch(`/api/incidentes/${inc.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ escaladoInfraId: selectedId, horaEscaladoInfra: new Date().toISOString(), notaEscaladoInfra: nota || null }),
-    })
-    setSaving(false); setShowModal(false); onRefresh()
-  }
+  const fmtH = (iso: string) => new Date(iso).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 
   async function handleLiberar() {
     await fetch(`/api/incidentes/${inc.id}`, {
@@ -1516,93 +1593,38 @@ function InfraEscalamientoPanel({ inc, isClosed, onRefresh }: { inc: any; isClos
     onRefresh()
   }
 
-  const fmtH = (iso: string) => new Date(iso).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-
   return (
-    <>
-      {hasInfra && (
-        <div style={{ background: 'linear-gradient(135deg,rgba(99,102,241,.07) 0%,rgba(139,92,246,.04) 100%)', border: '1.5px solid rgba(99,102,241,.3)', borderRadius: '10px', padding: '14px 16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '13px' }}>🔧</span>
-              <span style={{ fontSize: '12px', fontWeight: 700, color: '#4f46e5' }}>Escalado a Infraestructura</span>
-            </div>
-            {!isClosed && (
-              <button onClick={handleLiberar}
-                style={{ fontSize: '10px', padding: '2px 8px', background: 'transparent', border: '1px solid rgba(99,102,241,.4)', borderRadius: '4px', color: '#6366f1', cursor: 'pointer' }}>
-                Liberar
-              </button>
-            )}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '11px' }}>
-            <div>
-              <div style={{ color: 'var(--muted-foreground)', fontSize: '10px', marginBottom: '2px' }}>Agente asignado</div>
-              <div style={{ fontWeight: 600 }}>{[inc.infraNombre, inc.infraApellido].filter(Boolean).join(' ')}</div>
-              {inc.infraEmail   && <div style={{ color: 'var(--muted-foreground)' }}>{inc.infraEmail}</div>}
-              {inc.infraCelular && <div style={{ color: 'var(--muted-foreground)' }}>{inc.infraCelular}</div>}
-            </div>
-            <div>
-              <div style={{ color: 'var(--muted-foreground)', fontSize: '10px', marginBottom: '2px' }}>Hora escalado</div>
-              <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>{inc.horaEscaladoInfra ? fmtH(inc.horaEscaladoInfra) : '—'}</div>
-            </div>
-          </div>
-          {inc.notaEscaladoInfra && (
-            <div style={{ marginTop: '8px', fontSize: '11px', background: 'rgba(99,102,241,.07)', borderRadius: '6px', padding: '6px 10px' }}>
-              {inc.notaEscaladoInfra}
-            </div>
-          )}
+    <div style={{ background: 'linear-gradient(135deg,rgba(99,102,241,.07) 0%,rgba(139,92,246,.04) 100%)', border: '1.5px solid rgba(99,102,241,.3)', borderRadius: '10px', padding: '14px 16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '13px' }}>🔧</span>
+          <span style={{ fontSize: '12px', fontWeight: 700, color: '#4f46e5' }}>Escalado a Infraestructura</span>
+        </div>
+        {!isClosed && (
+          <button onClick={handleLiberar}
+            style={{ fontSize: '10px', padding: '2px 8px', background: 'transparent', border: '1px solid rgba(99,102,241,.4)', borderRadius: '4px', color: '#6366f1', cursor: 'pointer' }}>
+            Liberar
+          </button>
+        )}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '11px' }}>
+        <div>
+          <div style={{ color: 'var(--muted-foreground)', fontSize: '10px', marginBottom: '2px' }}>Agente asignado</div>
+          <div style={{ fontWeight: 600 }}>{[inc.infraNombre, inc.infraApellido].filter(Boolean).join(' ')}</div>
+          {inc.infraEmail   && <div style={{ color: 'var(--muted-foreground)' }}>{inc.infraEmail}</div>}
+          {inc.infraCelular && <div style={{ color: 'var(--muted-foreground)' }}>{inc.infraCelular}</div>}
+        </div>
+        <div>
+          <div style={{ color: 'var(--muted-foreground)', fontSize: '10px', marginBottom: '2px' }}>Hora escalado</div>
+          <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>{inc.horaEscaladoInfra ? fmtH(inc.horaEscaladoInfra) : '—'}</div>
+        </div>
+      </div>
+      {inc.notaEscaladoInfra && (
+        <div style={{ marginTop: '8px', fontSize: '11px', background: 'rgba(99,102,241,.07)', borderRadius: '6px', padding: '6px 10px' }}>
+          {inc.notaEscaladoInfra}
         </div>
       )}
-
-      {!hasInfra && !isClosed && (
-        <button onClick={openModal}
-          style={{ width: '100%', padding: '8px', background: 'transparent', border: '1.5px dashed rgba(99,102,241,.4)', borderRadius: '8px', color: '#6366f1', fontSize: '11px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-          🔧 Escalar a Infraestructura
-        </button>
-      )}
-
-      {showModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '22px 24px', width: '400px', maxWidth: '90vw', boxShadow: '0 8px 32px rgba(0,0,0,.25)' }}>
-            <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '4px' }}>🔧 Escalar a Infraestructura</div>
-            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '14px' }}>Selecciona el agente que tomará el caso.</div>
-            {loadingAg ? (
-              <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', padding: '12px 0' }}>Cargando agentes...</div>
-            ) : agentes.length === 0 ? (
-              <div style={{ fontSize: '11px', color: '#b91c1c', padding: '12px 0' }}>No hay agentes de infraestructura registrados.</div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
-                {agentes.map(ag => (
-                  <button key={ag.id} onClick={() => setSelectedId(ag.id)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: selectedId === ag.id ? 'rgba(99,102,241,.1)' : 'var(--muted)', border: `1.5px solid ${selectedId === ag.id ? '#818cf8' : 'var(--border)'}`, borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(99,102,241,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: '#4f46e5', flexShrink: 0 }}>
-                      {ag.nombre?.[0]?.toUpperCase() ?? '?'}
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--foreground)' }}>{[ag.nombre, ag.apellido].filter(Boolean).join(' ')}</div>
-                      <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{ag.email}</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-            <div style={{ marginBottom: '12px' }}>
-              <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '4px' }}>Nota (opcional)</div>
-              <textarea value={nota} onChange={e => setNota(e.target.value)} placeholder="Motivo del escalamiento, contexto..."
-                style={{ ...taStyle(), fontSize: '11px', minHeight: '60px' }} />
-            </div>
-            {error && <div style={{ fontSize: '11px', color: '#b91c1c', marginBottom: '8px' }}>{error}</div>}
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowModal(false)} style={{ padding: '7px 14px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}>Cancelar</button>
-              <button onClick={handleEscalar} disabled={saving || !selectedId}
-                style={{ padding: '7px 14px', background: saving || !selectedId ? '#c7d2fe' : '#4f46e5', color: 'white', border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: 600, cursor: saving || !selectedId ? 'not-allowed' : 'pointer' }}>
-                {saving ? 'Escalando...' : 'Confirmar'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
+    </div>
   )
 }
 
