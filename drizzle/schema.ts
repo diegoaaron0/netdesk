@@ -215,6 +215,17 @@ export const incidentes = pgTable('incidentes', {
   // Corte eléctrico
   alcanceCorte:          alcanceCorteEnum('alcance_corte'),
   tuvoUps:               boolean('tuvo_ups'),
+  // Incidente masivo
+  grupoMasivoId:         uuid('grupo_masivo_id'),
+})
+
+export const gruposMasivos = pgTable('grupos_masivos', {
+  id:          uuid('id').primaryKey().defaultRandom(),
+  codigo:      text('codigo').unique().notNull(),
+  razon:       text('razon').notNull(),
+  motivo:      text('motivo'),
+  creadoPorId: uuid('creado_por_id').references(() => usuarios.id, { onDelete: 'set null' }),
+  creadoEn:    timestamp('creado_en').defaultNow().notNull(),
 })
 
 export const escalamientos = pgTable('escalamientos', {
@@ -326,10 +337,16 @@ export const contratosProveedorRelations = relations(contratosProveedor, ({ one 
   tienda:    one(tiendas,     { fields: [contratosProveedor.tiendaId],    references: [tiendas.id] }),
 }))
 
+export const gruposMasivosRelations = relations(gruposMasivos, ({ one, many }) => ({
+  creadoPor:  one(usuarios,    { fields: [gruposMasivos.creadoPorId], references: [usuarios.id] }),
+  incidentes: many(incidentes),
+}))
+
 export const incidentesRelations = relations(incidentes, ({ one, many }) => ({
-  tienda:        one(tiendas,     { fields: [incidentes.tiendaId],        references: [tiendas.id] }),
-  registradoPor: one(usuarios,    { fields: [incidentes.registradoPorId], references: [usuarios.id] }),
-  proveedor:     one(proveedores, { fields: [incidentes.proveedorId],     references: [proveedores.id] }),
+  tienda:        one(tiendas,       { fields: [incidentes.tiendaId],       references: [tiendas.id] }),
+  registradoPor: one(usuarios,      { fields: [incidentes.registradoPorId], references: [usuarios.id] }),
+  proveedor:     one(proveedores,   { fields: [incidentes.proveedorId],    references: [proveedores.id] }),
+  grupoMasivo:   one(gruposMasivos, { fields: [incidentes.grupoMasivoId],  references: [gruposMasivos.id] }),
   escalamientos: many(escalamientos),
   adjuntos:      many(adjuntos),
 }))

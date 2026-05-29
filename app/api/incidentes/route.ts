@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { incidentes, tiendas, usuarios, proveedores } from '@/drizzle/schema'
+import { incidentes, tiendas, usuarios, proveedores, gruposMasivos } from '@/drizzle/schema'
 import { eq, desc, and, gte, lt, sql, inArray, ilike, or } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
@@ -51,6 +51,9 @@ const COLS = {
   tipoPersonalizado: incidentes.tipoPersonalizado,
   alcanceCorte:      incidentes.alcanceCorte,
   tuvoUps:           incidentes.tuvoUps,
+  grupoMasivoId:     incidentes.grupoMasivoId,
+  grupoMasivoCodigo: gruposMasivos.codigo,
+  grupoMasivoRazon:  gruposMasivos.razon,
 }
 
 export async function GET(req: NextRequest) {
@@ -67,10 +70,11 @@ export async function GET(req: NextRequest) {
 
   // Join con dos aliases de proveedores para el COALESCE histórico
   const joins = (q: any) => q
-    .leftJoin(tiendas,  eq(incidentes.tiendaId,        tiendas.id))
-    .leftJoin(provInc,  eq(incidentes.proveedorId,     provInc.id))  // histórico del incidente
-    .leftJoin(provTda,  eq(tiendas.proveedorId,        provTda.id))  // actual de la tienda (fallback)
-    .leftJoin(usuarios, eq(incidentes.registradoPorId, usuarios.id))
+    .leftJoin(tiendas,        eq(incidentes.tiendaId,        tiendas.id))
+    .leftJoin(provInc,        eq(incidentes.proveedorId,     provInc.id))
+    .leftJoin(provTda,        eq(tiendas.proveedorId,        provTda.id))
+    .leftJoin(usuarios,       eq(incidentes.registradoPorId, usuarios.id))
+    .leftJoin(gruposMasivos,  eq(incidentes.grupoMasivoId,   gruposMasivos.id))
 
   // Búsqueda por texto: ignora fechas, busca en toda la BD
   if (q) {

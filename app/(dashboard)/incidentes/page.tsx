@@ -394,10 +394,11 @@ export default function IncidentesPage() {
                 <tr key={inc.id}
                   onClick={() => router.push(`/incidentes/${inc.id}`)}
                   style={{
-                    borderTop:  idx > 0 ? '1px solid var(--border)' : 'none',
-                    borderLeft: leftBorder,
-                    background: rowBg,
-                    cursor:     'pointer',
+                    borderTop:    idx > 0 ? '1px solid var(--border)' : 'none',
+                    borderLeft:   leftBorder,
+                    borderBottom: inc.grupoMasivoId ? '2px solid #f59e0b' : undefined,
+                    background:   rowBg,
+                    cursor:       'pointer',
                   }}
                   onMouseEnter={e => (e.currentTarget.style.background = rowBgHover)}
                   onMouseLeave={e => (e.currentTarget.style.background = rowBg)}>
@@ -412,6 +413,13 @@ export default function IncidentesPage() {
                         <span className="nd-pulse" title="SLA vencido" style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
                       )}
                     </div>
+                    {inc.grupoMasivoCodigo && (
+                      <div style={{ marginTop: '2px' }}>
+                        <span title={inc.grupoMasivoRazon ?? ''} style={{ fontSize: '9px', fontFamily: 'monospace', fontWeight: 700, background: 'rgba(245,158,11,0.15)', color: '#92400e', border: '1px solid rgba(245,158,11,0.4)', borderRadius: '3px', padding: '1px 5px', letterSpacing: '0.03em' }}>
+                          ⛓ {inc.grupoMasivoCodigo}
+                        </span>
+                      </div>
+                    )}
                     {inc.ticketInvgate && (
                       <div style={{ fontSize: '10px', color: mutedColor, marginTop: '1px' }}>#{inc.ticketInvgate}</div>
                     )}

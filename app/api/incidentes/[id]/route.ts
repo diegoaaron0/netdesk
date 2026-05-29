@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { incidentes, tiendas, proveedores, usuarios, escalamientos, nivelesEscalamiento, adjuntos, atcLlamadas, tiendasHistorial } from '@/drizzle/schema'
+import { incidentes, tiendas, proveedores, usuarios, escalamientos, nivelesEscalamiento, adjuntos, atcLlamadas, tiendasHistorial, gruposMasivos } from '@/drizzle/schema'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
@@ -76,6 +76,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     cajasTotales:        incidentes.cajasTotales,
     alcanceCorte:        incidentes.alcanceCorte,
     tuvoUps:             incidentes.tuvoUps,
+    grupoMasivoId:       incidentes.grupoMasivoId,
     // Proveedor → via incidentes.proveedorId (registro histórico del momento del incidente)
     // Esto garantiza que si la tienda cambia de proveedor en el futuro, el incidente
     // sigue mostrando quién era el proveedor responsable cuando ocurrió.
@@ -123,10 +124,32 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       .where(eq(nivelesEscalamiento.proveedorId, inc.proveedorId))
   }
 
+  // Grupo masivo: fetch group info + other linked incidents if present
+  let grupoMasivo: any = null
+  if (inc.grupoMasivoId) {
+    const [gm] = await db.select().from(gruposMasivos).where(eq(gruposMasivos.id, inc.grupoMasivoId))
+    if (gm) {
+      const linked = await db.select({
+        id:           incidentes.id,
+        codigo:       incidentes.codigo,
+        estado:       incidentes.estado,
+        tipo:         incidentes.tipo,
+        horaRegistro: incidentes.horaRegistro,
+        tiendaCodigo: tiendas.codigo,
+        tiendaNombre: tiendas.nombreCc,
+      })
+        .from(incidentes)
+        .leftJoin(tiendas, eq(incidentes.tiendaId, tiendas.id))
+        .where(eq(incidentes.grupoMasivoId, inc.grupoMasivoId))
+      grupoMasivo = { ...gm, incidentes: linked }
+    }
+  }
+
   return NextResponse.json({
     ...inc,
     escalamientos: escs.map((e: any) => ({ ...e, atcLlamadas: atcMap[e.id] ?? [] })),
     nivelesProveedor,
+    grupoMasivo,
   })
 }
 
