@@ -1000,14 +1000,6 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   </span>
                 </ResumenRow>
               )}
-              {inc.factorOperativo != null && (
-                <ResumenRow icon={<IcoImpact />} label="Factor operativo">
-                  {parseFloat(inc.factorOperativo) === 0
-                    ? <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#b91c1c' }}>Inoperativa</span>
-                    : <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{(parseFloat(inc.factorOperativo) * 100).toFixed(0)}%</span>
-                  }
-                </ResumenRow>
-              )}
               <ResumenRow icon={<IcoShield />} label="Contingencia">
                 {(() => {
                   const tiene = inc.tiendaTieneContingencia
@@ -1414,185 +1406,158 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
     onRefresh()
   }
 
-  return (
-    <div style={{ background: 'var(--muted)', borderRadius: '12px', border: '1px solid var(--border)', overflow: 'hidden' }}>
+  const pasteHandler = (contexto: 'envio' | 'respuesta') => !isClosed ? async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile(); if (!file) continue
+        const reader = new FileReader()
+        const dataUrl = await new Promise<string>(res => { reader.onload = ev => res(ev.target!.result as string); reader.readAsDataURL(file) })
+        const compressed = await compressImage(dataUrl)
+        await fetch('/api/adjuntos', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url: compressed, nombre:`captura-${Date.now()}.jpg`, tipo:'image/jpeg', tamanoBytes: Math.round(compressed.length*0.75), escalamientoId: esc.id, contexto }) })
+        setEscAdjKey(k => k + 1)
+      }
+    }
+  } : undefined
 
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 14px', borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.03)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '13px', fontWeight: 700 }}>Nivel {esc.nivel}</span>
-          <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{esc.contactoEscalado}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {isRespondido && <span style={{ fontSize: '10px', padding: '2px 8px', background: '#dcfce7', color: '#15803d', borderRadius: '20px', fontWeight: 600 }}>Respondido</span>}
-          {isSinRespuesta && <span style={{ fontSize: '10px', padding: '2px 8px', background: '#fee2e2', color: '#b91c1c', borderRadius: '20px', fontWeight: 600 }}>Sin respuesta</span>}
-          <span style={{ fontSize: '9px', color: 'var(--muted-foreground)' }}>{horaCreado}</span>
-          {!isClosed && isRespondido && (
-            <button onClick={() => setEditTiempos(v => !v)} title="Editar tiempos"
-              style={{ width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: editTiempos ? '#dbeafe' : 'rgba(0,0,0,0.06)', border: `1px solid ${editTiempos ? '#93c5fd' : 'var(--border)'}`, borderRadius: '5px', color: editTiempos ? '#1d4ed8' : 'var(--muted-foreground)', cursor: 'pointer', fontSize: '11px' }}>
-              ✎
-            </button>
-          )}
-          {!isClosed && (
-            <button onClick={handleDelete} title="Eliminar escalamiento"
-              style={{ width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '5px', color: '#dc2626', cursor: 'pointer' }}>
-              <IcoTrashEsc />
-            </button>
-          )}
+  return (
+    <div style={{ background: 'var(--muted)', borderRadius: '12px', border: `1px solid ${isRespondido ? '#86efac' : isSinRespuesta ? 'rgba(220,38,38,0.3)' : 'var(--border)'}`, overflow: 'hidden' }}>
+
+      {/* ── Header compacto ── */}
+      <div style={{ padding: '9px 12px', borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.03)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '12px', fontWeight: 700 }}>N{esc.nivel}</span>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--foreground)' }}>{esc.contactoEscalado}</span>
+              {isRespondido  && <span style={{ fontSize: '10px', padding: '1px 7px', background: '#dcfce7', color: '#15803d', borderRadius: '20px', fontWeight: 600 }}>Respondido</span>}
+              {isSinRespuesta && <span style={{ fontSize: '10px', padding: '1px 7px', background: '#fee2e2', color: '#b91c1c', borderRadius: '20px', fontWeight: 600 }}>Sin respuesta</span>}
+            </div>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '2px', flexWrap: 'wrap' }}>
+              {esc.emailContacto    && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>✉ {esc.emailContacto}</span>}
+              {esc.telefonoContacto && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>📱 {esc.telefonoContacto}</span>}
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0, marginLeft: '8px' }}>
+            <span style={{ fontSize: '9px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>{horaCreado}</span>
+            {!isClosed && isRespondido && (
+              <button onClick={() => setEditTiempos(v => !v)} title="Editar tiempos"
+                style={{ width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: editTiempos ? '#dbeafe' : 'rgba(0,0,0,0.06)', border: `1px solid ${editTiempos ? '#93c5fd' : 'var(--border)'}`, borderRadius: '4px', color: editTiempos ? '#1d4ed8' : 'var(--muted-foreground)', cursor: 'pointer', fontSize: '11px' }}>✎</button>
+            )}
+            {!isClosed && (
+              <button onClick={handleDelete} title="Eliminar"
+                style={{ width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '4px', color: '#dc2626', cursor: 'pointer' }}>
+                <IcoTrashEsc />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      <div style={{ padding: '14px' }}>
+      <div style={{ padding: '10px 12px' }} onPaste={pasteHandler('envio')}>
 
-        {/* Sección envío: paste aquí guarda con contexto='envio' */}
-        <div onPaste={!isClosed ? async (e) => {
-          const items = e.clipboardData?.items
-          if (!items) return
-          for (const item of Array.from(items)) {
-            if (item.type.startsWith('image/')) {
-              const file = item.getAsFile()
-              if (!file) continue
-              const reader = new FileReader()
-              const dataUrl = await new Promise<string>(res => { reader.onload = ev => res(ev.target!.result as string); reader.readAsDataURL(file) })
-              const compressed = await compressImage(dataUrl)
-              await fetch('/api/adjuntos', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url: compressed, nombre:`captura-${Date.now()}.jpg`, tipo:'image/jpeg', tamanoBytes: Math.round(compressed.length*0.75), escalamientoId: esc.id, contexto: 'envio' }) })
-              setEscAdjKey(k => k + 1)
-            }
-          }
-        } : undefined}>
-
-        {/* 1. Contacto */}
-        <div style={{ marginBottom: '12px', padding: '10px 12px', background: 'var(--card)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-          <div style={{ fontSize: '11px', fontWeight: 600, marginBottom: '4px' }}>{esc.contactoEscalado}</div>
-          {esc.emailContacto && <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>✉ {esc.emailContacto}</div>}
-          {esc.telefonoContacto && <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '3px' }}>📱 {esc.telefonoContacto}</div>}
-        </div>
-
-        {/* 2. Plantilla */}
-        <div style={{ marginBottom: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+        {/* Plantilla */}
+        <div style={{ marginBottom: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
             <button onClick={() => setShowTemplate(v => !v)}
               style={{ fontSize: '11px', fontWeight: 600, color: 'var(--foreground)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>
               📄 Plantilla de correo {showTemplate ? '▲' : '▼'}
             </button>
             <div style={{ display: 'flex', gap: '4px' }}>
               <button onClick={copyTemplate}
-                style={{ fontSize: '10px', padding: '2px 9px', background: copied ? '#14532d' : 'transparent', color: copied ? '#86efac' : 'var(--muted-foreground)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer' }}>
+                style={{ fontSize: '10px', padding: '2px 8px', background: copied ? '#14532d' : 'transparent', color: copied ? '#86efac' : 'var(--muted-foreground)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer' }}>
                 {copied ? '✓ Copiado' : '📋 Copiar'}
               </button>
-              {!isClosed && (
-                <button onClick={() => setTemplateBody(buildCorreo(inc, nivelData, esc.nivel, prevEscs))}
-                  style={{ fontSize: '10px', padding: '2px 9px', background: 'transparent', color: 'var(--muted-foreground)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer' }}>
-                  🔄 Actualizar
-                </button>
-              )}
+              {!isClosed && <button onClick={() => setTemplateBody(buildCorreo(inc, nivelData, esc.nivel, prevEscs))}
+                style={{ fontSize: '10px', padding: '2px 8px', background: 'transparent', color: 'var(--muted-foreground)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer' }}>🔄 Actualizar</button>}
               {showTemplate && !isClosed && (
                 <button onClick={saveTemplate} disabled={savingTemplate}
-                  style={{ fontSize: '10px', padding: '2px 9px', background: savingTemplate ? 'var(--muted)' : 'hsl(221,83%,45%)', color: savingTemplate ? 'var(--muted-foreground)' : 'white', border: 'none', borderRadius: '4px', cursor: savingTemplate ? 'wait' : 'pointer' }}>
-                  {savingTemplate ? 'Guardando...' : '💾 Guardar'}
+                  style={{ fontSize: '10px', padding: '2px 8px', background: savingTemplate ? 'var(--muted)' : 'hsl(221,83%,45%)', color: savingTemplate ? 'var(--muted-foreground)' : 'white', border: 'none', borderRadius: '4px', cursor: savingTemplate ? 'wait' : 'pointer' }}>
+                  {savingTemplate ? '...' : '💾 Guardar'}
                 </button>
               )}
             </div>
           </div>
           {showTemplate && (
-            <textarea
-              value={templateBody}
-              onChange={e => setTemplateBody(e.target.value)}
-              disabled={isClosed}
-              style={{ width: '100%', fontSize: '9px', whiteSpace: 'pre-wrap', background: 'var(--card)', padding: '10px 12px', borderRadius: '8px', color: 'var(--foreground)', lineHeight: 1.55, border: '1px solid var(--border)', fontFamily: 'monospace', resize: 'vertical', minHeight: '220px', outline: 'none', boxSizing: 'border-box' }}
-            />
+            <textarea value={templateBody} onChange={e => setTemplateBody(e.target.value)} disabled={isClosed}
+              style={{ width: '100%', fontSize: '9px', background: 'var(--card)', padding: '8px 10px', borderRadius: '8px', color: 'var(--foreground)', lineHeight: 1.5, border: '1px solid var(--border)', fontFamily: 'monospace', resize: 'vertical', minHeight: '200px', outline: 'none', boxSizing: 'border-box' }} />
           )}
         </div>
 
-        {/* 3. Adjuntos */}
-        <div style={{ marginBottom: '12px' }}>
+        {/* Adjuntos envío */}
+        <div style={{ marginBottom: '8px' }}>
           <AdjuntosZona key={`${escAdjKey}-1`} escalamientoId={esc.id} contexto="envio" disabled={isClosed} />
         </div>
 
-        {/* 4. Correo enviado */}
+        {/* Botón correo enviado */}
         {!esc.horaEnvioCorreo && !isClosed && !isSinRespuesta && (
           <button onClick={handleEnvio}
-            style={{ width: '100%', padding: '10px', background: 'hsl(221,83%,45%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', marginBottom: '8px' }}>
+            style={{ width: '100%', padding: '9px', background: 'hsl(221,83%,45%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', marginBottom: '6px' }}>
             ✉ Correo enviado → Iniciar cronómetro
           </button>
         )}
+      </div>
 
-        </div>{/* /sección envío */}
+      {/* ── Sección respuesta ── */}
+      <div onPaste={pasteHandler('respuesta')}>
 
-        {/* Sección respuesta: paste aquí guarda con contexto='respuesta' */}
-        <div onPaste={!isClosed ? async (e) => {
-          const items = e.clipboardData?.items
-          if (!items) return
-          for (const item of Array.from(items)) {
-            if (item.type.startsWith('image/')) {
-              const file = item.getAsFile()
-              if (!file) continue
-              const reader = new FileReader()
-              const dataUrl = await new Promise<string>(res => { reader.onload = ev => res(ev.target!.result as string); reader.readAsDataURL(file) })
-              const compressed = await compressImage(dataUrl)
-              await fetch('/api/adjuntos', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url: compressed, nombre:`captura-${Date.now()}.jpg`, tipo:'image/jpeg', tamanoBytes: Math.round(compressed.length*0.75), escalamientoId: esc.id, contexto: 'respuesta' }) })
-              setEscAdjKey(k => k + 1)
-            }
-          }
-        } : undefined}>
-
-        {/* 5. Cronómetro + respuesta */}
         {isCorriendo && (
-          <div>
-            <CronometroEscalamiento horaEnvio={esc.horaEnvioCorreo} horaRespuesta={esc.horaRespuesta} />
-            <div style={{ marginTop: '10px' }}>
-              <button type="button" onClick={() => setShowRespText(v => !v)}
-                style={{ fontSize: '10px', fontWeight: 600, color: 'var(--foreground)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                Respuesta del proveedor {showRespText ? '▲' : '▼'}
-              </button>
-              {showRespText && (
-                <textarea value={respuestaText} onChange={e => setRespuestaText(e.target.value)}
-                  placeholder="Documenta aquí la respuesta recibida..."
-                  style={{ width: '100%', padding: '7px 10px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', resize: 'vertical', minHeight: '60px', fontFamily: 'inherit', boxSizing: 'border-box' }} />
-              )}
+          <div style={{ padding: '0 12px 12px' }}>
+            {/* Cronómetro + formulario en 2 columnas */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '10px', alignItems: 'start', marginBottom: '8px' }}>
+              <CronometroEscalamiento horaEnvio={esc.horaEnvioCorreo} horaRespuesta={esc.horaRespuesta} />
+              <div>
+                <button type="button" onClick={() => setShowRespText(v => !v)}
+                  style={{ fontSize: '10px', fontWeight: 600, color: 'var(--foreground)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  Respuesta del proveedor {showRespText ? '▲' : '▼'}
+                </button>
+                {showRespText && (
+                  <textarea value={respuestaText} onChange={e => setRespuestaText(e.target.value)}
+                    placeholder="Documenta la respuesta recibida..."
+                    style={{ width: '100%', padding: '6px 8px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', resize: 'vertical', minHeight: '52px', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                )}
+              </div>
             </div>
-            <div style={{ marginTop: '8px' }}>
-              <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Tiempo estimado de solución</label>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+
+            {/* ETA + Hora de respuesta en grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>ETA proveedor</label>
+                <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
                   <input type="number" min="0" max="99" value={etaH} onChange={e => setEtaH(Math.max(0, parseInt(e.target.value) || 0))}
-                    style={{ width: '56px', padding: '7px 8px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', textAlign: 'center' }} />
+                    style={{ width: '48px', padding: '5px 6px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', textAlign: 'center' }} />
                   <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>h</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <input type="number" min="0" max="59" value={etaM} onChange={e => setEtaM(Math.min(59, Math.max(0, parseInt(e.target.value) || 0)))}
-                    style={{ width: '56px', padding: '7px 8px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', textAlign: 'center' }} />
+                    style={{ width: '48px', padding: '5px 6px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', textAlign: 'center' }} />
                   <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>min</span>
                 </div>
               </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>
+                  Hora respuesta <span style={{ fontWeight: 400, textTransform: 'none' }}>(vacío = ahora)</span>
+                </label>
+                <input type="datetime-local" value={horaRespManual} onChange={e => setHoraRespManual(e.target.value)}
+                  style={{ width: '100%', padding: '5px 7px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', boxSizing: 'border-box' }} />
+              </div>
             </div>
-            <div style={{ marginTop: '10px' }}>
-              <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Adjuntos respuesta</div>
+
+            {/* Adjuntos respuesta */}
+            <div style={{ marginBottom: '8px' }}>
               <AdjuntosZona key={`${escAdjKey}-2`} escalamientoId={esc.id} contexto="respuesta" disabled={isClosed} />
             </div>
+
+            {/* Botones acción */}
             {!isClosed && (
-              <div style={{ marginTop: '10px' }}>
-                <div style={{ marginBottom: '6px' }}>
-                  <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '3px' }}>
-                    Hora de respuesta <span style={{ fontWeight: 400, textTransform: 'none' }}>(dejar vacío = ahora)</span>
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={horaRespManual}
-                    onChange={e => setHoraRespManual(e.target.value)}
-                    style={{ padding: '5px 8px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}
-                  />
-                </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button onClick={handleRespuesta} disabled={saving}
-                    style={{ flex: 1, padding: '8px', background: '#14532d', color: '#86efac', border: 'none', borderRadius: '8px', fontSize: '11px', fontWeight: 600, cursor: saving ? 'wait' : 'pointer' }}>
-                    {saving ? 'Guardando...' : '✓ Registrar respuesta recibida'}
-                  </button>
-                  <button onClick={handleSinRespuesta}
-                    style={{ flex: 1, padding: '8px', background: 'var(--muted)', color: 'var(--muted-foreground)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '8px', fontSize: '11px', cursor: 'pointer' }}>
-                    ✗ No hubo respuesta
-                  </button>
-                </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={handleRespuesta} disabled={saving}
+                  style={{ flex: 1, padding: '8px', background: '#14532d', color: '#86efac', border: 'none', borderRadius: '8px', fontSize: '11px', fontWeight: 600, cursor: saving ? 'wait' : 'pointer' }}>
+                  {saving ? 'Guardando...' : '✓ Registrar respuesta'}
+                </button>
+                <button onClick={handleSinRespuesta}
+                  style={{ flex: 1, padding: '8px', background: 'var(--muted)', color: 'var(--muted-foreground)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '8px', fontSize: '11px', cursor: 'pointer' }}>
+                  ✗ No hubo respuesta
+                </button>
               </div>
             )}
           </div>
@@ -1600,44 +1565,42 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
 
         {/* Respondido */}
         {isRespondido && (
-          <div style={{ marginBottom: '8px' }}>
-            <div style={{ padding: '10px 12px', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #86efac' }}>
+          <div style={{ margin: '0 12px 10px' }}>
+            <div style={{ padding: '8px 12px', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #86efac' }}>
               <div style={{ fontSize: '11px', fontWeight: 600, color: '#15803d' }}>
-                ✓ Respondido en {minToHM(esc.tiempoRespuestaMin)} · {new Date(esc.horaRespuesta).toLocaleString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit' })}
+                ✓ {minToHM(esc.tiempoRespuestaMin)} · {new Date(esc.horaRespuesta).toLocaleString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit' })}
+                {esc.tiempoEstimadoSolucion && (() => {
+                  const m = parseEtaMin(esc.tiempoEstimadoSolucion)
+                  return <span style={{ fontWeight: 400, marginLeft: '8px' }}>· ETA: {m != null ? minToHM(m) : esc.tiempoEstimadoSolucion}</span>
+                })()}
               </div>
-              {esc.tiempoEstimadoSolucion && (() => {
-                const m = parseEtaMin(esc.tiempoEstimadoSolucion)
-                return <div style={{ fontSize: '10px', color: '#15803d', marginTop: '3px' }}>ETA proveedor: {m != null ? minToHM(m) : esc.tiempoEstimadoSolucion}</div>
-              })()}
               {esc.respuestaTexto && (
-                <div style={{ marginTop: '6px' }}>
+                <div style={{ marginTop: '4px' }}>
                   <button type="button" onClick={() => setShowRespText(v => !v)}
                     style={{ fontSize: '10px', color: '#15803d', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}>
-                    {showRespText ? '▲ Ocultar respuesta' : '▼ Ver respuesta'}
+                    {showRespText ? '▲ Ocultar' : '▼ Ver respuesta'}
                   </button>
-                  {showRespText && (
-                    <div style={{ fontSize: '11px', color: 'var(--foreground)', marginTop: '4px', whiteSpace: 'pre-wrap' }}>{esc.respuestaTexto}</div>
-                  )}
+                  {showRespText && <div style={{ fontSize: '11px', color: 'var(--foreground)', marginTop: '4px', whiteSpace: 'pre-wrap' }}>{esc.respuestaTexto}</div>}
                 </div>
               )}
             </div>
             {editTiempos && (
-              <div style={{ marginTop: '8px', padding: '10px 12px', background: '#eff6ff', borderRadius: '8px', border: '1px solid #93c5fd', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ marginTop: '6px', padding: '8px 12px', background: '#eff6ff', borderRadius: '8px', border: '1px solid #93c5fd', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <div style={{ fontSize: '10px', fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Corregir tiempos</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                   <div>
-                    <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '3px' }}>Hora envío N{esc.nivel}</div>
+                    <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '3px' }}>Envío N{esc.nivel}</div>
                     <input type="datetime-local" value={horaEnvioEdit} onChange={e => setHoraEnvioEdit(e.target.value)}
-                      style={{ width: '100%', padding: '5px 7px', fontSize: '11px', border: '1px solid #93c5fd', borderRadius: '6px', background: 'white', outline: 'none', boxSizing: 'border-box' }} />
+                      style={{ width: '100%', padding: '4px 6px', fontSize: '11px', border: '1px solid #93c5fd', borderRadius: '6px', background: 'white', outline: 'none', boxSizing: 'border-box' }} />
                   </div>
                   <div>
-                    <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '3px' }}>Hora respuesta</div>
+                    <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '3px' }}>Respuesta</div>
                     <input type="datetime-local" value={horaRespEdit} onChange={e => setHoraRespEdit(e.target.value)}
-                      style={{ width: '100%', padding: '5px 7px', fontSize: '11px', border: '1px solid #93c5fd', borderRadius: '6px', background: 'white', outline: 'none', boxSizing: 'border-box' }} />
+                      style={{ width: '100%', padding: '4px 6px', fontSize: '11px', border: '1px solid #93c5fd', borderRadius: '6px', background: 'white', outline: 'none', boxSizing: 'border-box' }} />
                   </div>
                 </div>
                 <button onClick={handleGuardarTiempos} disabled={savingTiempos}
-                  style={{ padding: '6px', background: '#1d4ed8', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: savingTiempos ? 'wait' : 'pointer' }}>
+                  style={{ padding: '5px', background: '#1d4ed8', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: savingTiempos ? 'wait' : 'pointer' }}>
                   {savingTiempos ? 'Guardando...' : 'Guardar tiempos'}
                 </button>
               </div>
@@ -1647,19 +1610,18 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
 
         {/* Sin respuesta */}
         {isSinRespuesta && !isRespondido && (
-          <div style={{ padding: '8px 12px', background: '#fef2f2', borderRadius: '8px', border: '1px solid rgba(220,38,38,0.3)', marginBottom: '8px' }}>
+          <div style={{ margin: '0 12px 10px', padding: '7px 12px', background: '#fef2f2', borderRadius: '8px', border: '1px solid rgba(220,38,38,0.3)' }}>
             <div style={{ fontSize: '11px', fontWeight: 600, color: '#b91c1c' }}>✗ No hubo respuesta del proveedor</div>
           </div>
         )}
+      </div>
 
-        </div>{/* /sección respuesta */}
-
-        {/* ATC */}
-        <div style={{ marginTop: '12px', borderTop: '1px solid var(--border)', paddingTop: '10px' }}>
-          <button onClick={() => setShowAtc(v => !v)}
-            style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <IcoPhone /> Llamadas ATC {(esc.atcLlamadas?.length ?? 0) > 0 ? `(${esc.atcLlamadas.length})` : ''} {showAtc ? '▲' : '▼'}
-          </button>
+      {/* ATC */}
+      <div style={{ padding: '8px 12px', borderTop: '1px solid var(--border)' }}>
+        <button onClick={() => setShowAtc(v => !v)}
+          style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <IcoPhone /> Llamadas ATC {(esc.atcLlamadas?.length ?? 0) > 0 ? `(${esc.atcLlamadas.length})` : ''} {showAtc ? '▲' : '▼'}
+        </button>
           {showAtc && (
             <div style={{ marginTop: '10px' }}>
               {(esc.atcLlamadas ?? []).map((atc: any) => (
