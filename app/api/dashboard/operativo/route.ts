@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   const [y, m, d]  = fechaLima.split('-').map(Number)
   const siguienteIso = new Date(Date.UTC(y, m - 1, d + 1, 5, 0, 0, 0)).toISOString()
 
-  const [activosRows, resueltoRows, agentesRows, incCreadosRows, escRows, respRows, resolRows, contRows, creadosHoyRows] = await Promise.all([
+  const [activosRows, resueltoRows, agentesRows, incCreadosRows, escRows, respRows, resolRows, contRows, creadosHoyRows, contStandaloneRows] = await Promise.all([
     db.execute(sql`
       SELECT
         i.id,
@@ -193,12 +193,42 @@ export async function GET(req: NextRequest) {
       FROM incidentes
       WHERE hora_registro >= ${diaIso}::timestamptz
     `),
+
+    db.execute(sql`
+      SELECT
+        c.id            AS contingencia_id,
+        c.tipo,
+        c.activado_por,
+        c.hora_activacion,
+        c.justificacion,
+        t.id            AS tienda_id,
+        t.codigo        AS tienda_codigo,
+        t.nombre_cc     AS tienda_nombre,
+        t.distrito      AS tienda_distrito,
+        COALESCE(pt.nombre) AS proveedor_nombre
+      FROM contingencias c
+      JOIN tiendas t ON c.tienda_id = t.id
+      LEFT JOIN proveedores pt ON t.proveedor_id = pt.id
+      WHERE c.hora_desactivacion IS NULL
+      ORDER BY c.hora_activacion ASC
+    `),
   ])
 
-  const activos               = activosRows as any[]
-  const resueltos             = resueltoRows as any[]
-  const agentes               = agentesRows as any[]
-  const contingenciasActivas  = contRows as any[]
+  const activos  = activosRows as any[]
+  const resueltos = resueltoRows as any[]
+  const agentes   = agentesRows as any[]
+
+  const contInc = (contRows as any[]).map((c: any) => ({ ...c, fuente: 'INCIDENTE' }))
+  const contStd = (contStandaloneRows as any[]).map((c: any) => ({
+    ...c,
+    cont_hora_activacion: c.hora_activacion,
+    cont_es_externo: c.tipo === 'ROUTER_EXTERNO',
+    incidente_id: null,
+    incidente_codigo: null,
+    fuente: 'STANDALONE',
+  }))
+  const contingenciasActivas = [...contInc, ...contStd]
+    .sort((a: any, b: any) => new Date(a.cont_hora_activacion ?? a.hora_activacion).getTime() - new Date(b.cont_hora_activacion ?? b.hora_activacion).getTime())
 
   const activosConEstado = activos.map((inc: any) => {
     const d = getEstadoOp(inc.tipo, inc.hora_registro, inc.pendiente_proveedor, inc.estado, nowMs)

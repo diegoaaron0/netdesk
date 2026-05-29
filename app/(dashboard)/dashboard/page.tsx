@@ -358,14 +358,16 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
   const [desactivandoCont, setDesactivandoCont] = useState<string | null>(null)
   const [agenteFilter,    setAgenteFilter]    = useState<string | null>(null)
 
-  async function desactivarContingencia(incidenteId: string, tiendaId: string) {
+  async function desactivarContingencia(id: string, tiendaId: string, fuente: 'INCIDENTE' | 'STANDALONE') {
     setDesactivandoCont(tiendaId)
     try {
-      const res = await fetch(`/api/incidentes/${incidenteId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contActivadoPor: null }),
-      })
+      const res = fuente === 'STANDALONE'
+        ? await fetch(`/api/contingencias/${id}`, { method: 'PATCH' })
+        : await fetch(`/api/incidentes/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contActivadoPor: null }),
+          })
       if (res.ok) { setConfirmarCont(null); onRefresh() }
     } finally {
       setDesactivandoCont(null)
@@ -510,12 +512,26 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                     {c.proveedor_nombre && <span>· {c.proveedor_nombre}</span>}
                     {esExterno && <span style={{ fontWeight: 700 }}>· EXTERNO</span>}
                   </div>
+                  {c.fuente === 'STANDALONE' && c.justificacion && (
+                    <div style={{ fontSize: '9px', color: textColor, opacity: 0.75, marginTop: '2px', lineHeight: 1.3, fontStyle: 'italic' }}>{c.justificacion}</div>
+                  )}
                   <div style={{ marginTop: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    {c.incidente_codigo ? <span onClick={() => router.push(`/incidentes/${c.incidente_id}`)} style={{ fontSize: '9px', color: textColor, textDecoration: 'underline', cursor: 'pointer', fontFamily: 'monospace' }}>{c.incidente_codigo}</span> : <span />}
+                    {c.incidente_codigo
+                      ? <span onClick={() => router.push(`/incidentes/${c.incidente_id}`)} style={{ fontSize: '9px', color: textColor, textDecoration: 'underline', cursor: 'pointer', fontFamily: 'monospace' }}>{c.incidente_codigo}</span>
+                      : <span style={{ fontSize: '8px', color: textColor, opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>sin incidente</span>
+                    }
                     {confirmando ? (
                       <div style={{ display: 'flex', gap: '3px', fontSize: '9px', alignItems: 'center' }}>
                         <span style={{ color: textColor }}>¿Confirmar?</span>
-                        <button disabled={desactivando} onClick={() => c.incidente_id ? desactivarContingencia(c.incidente_id, c.tienda_id) : undefined} style={{ padding: '1px 5px', fontSize: '9px', fontWeight: 700, background: '#b45309', color: 'white', border: 'none', borderRadius: '3px', cursor: desactivando ? 'default' : 'pointer', opacity: desactivando ? 0.6 : 1 }}>{desactivando ? '…' : 'Sí'}</button>
+                        <button disabled={desactivando}
+                          onClick={() => desactivarContingencia(
+                            c.fuente === 'STANDALONE' ? c.contingencia_id : c.incidente_id,
+                            c.tienda_id,
+                            c.fuente ?? 'INCIDENTE',
+                          )}
+                          style={{ padding: '1px 5px', fontSize: '9px', fontWeight: 700, background: '#b45309', color: 'white', border: 'none', borderRadius: '3px', cursor: desactivando ? 'default' : 'pointer', opacity: desactivando ? 0.6 : 1 }}>
+                          {desactivando ? '…' : 'Sí'}
+                        </button>
                         <button disabled={desactivando} onClick={() => setConfirmarCont(null)} style={{ padding: '1px 5px', fontSize: '9px', background: '#fef3c7', color: '#78350f', border: '1px solid #fcd34d', borderRadius: '3px', cursor: 'pointer' }}>No</button>
                       </div>
                     ) : (

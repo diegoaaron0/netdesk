@@ -105,10 +105,14 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
   const [historial, setHistorial] = useState<any[]>([])
   const [proveedores, setProveedores] = useState<{ id: string; nombre: string }[]>([])
   const [contStats, setContStats] = useState<any>(null)
+  const [contList, setContList] = useState<any[]>([])
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<any>({})
   const [saving, setSaving] = useState(false)
-  const [contingenciaMsg, setContingenciaMsg] = useState(false)
+  const [showContForm, setShowContForm] = useState(false)
+  const [contForm, setContForm] = useState({ tipo: '', activadoPor: '', justificacion: '' })
+  const [contFormSaving, setContFormSaving] = useState(false)
+  const [desactivandoContId, setDesactivandoContId] = useState<string | null>(null)
 
   const loadData = useCallback(() => {
     if (!id) return
@@ -123,6 +127,9 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
     })
     fetch(`/api/tiendas/${id}/contingencia-stats`).then(r => r.json()).then(d => {
       setContStats(d)
+    })
+    fetch(`/api/tiendas/${id}/contingencias`).then(r => r.json()).then(d => {
+      setContList(Array.isArray(d) ? d : [])
     })
   }, [id])
 
@@ -158,9 +165,33 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
     setEditing(false)
   }
 
-  function showContingenciaWarning() {
-    setContingenciaMsg(true)
-    setTimeout(() => setContingenciaMsg(false), 4000)
+  async function handleActivarCont() {
+    if (!contForm.tipo || !contForm.activadoPor || !contForm.justificacion.trim()) return
+    setContFormSaving(true)
+    try {
+      const res = await fetch('/api/contingencias', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tiendaId: id, ...contForm }),
+      })
+      if (res.ok) {
+        setShowContForm(false)
+        setContForm({ tipo: '', activadoPor: '', justificacion: '' })
+        loadData()
+      }
+    } finally {
+      setContFormSaving(false)
+    }
+  }
+
+  async function handleDesactivarCont(contId: string) {
+    setDesactivandoContId(contId)
+    try {
+      const res = await fetch(`/api/contingencias/${contId}`, { method: 'PATCH' })
+      if (res.ok) loadData()
+    } finally {
+      setDesactivandoContId(null)
+    }
   }
 
   if (!tienda) {
@@ -446,15 +477,52 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Crear incidente
               </a>
-              <button onClick={showContingenciaWarning}
-                style={{ padding: '9px 12px', background: 'rgba(245,158,11,0.08)', border: '0.5px solid rgba(245,158,11,0.5)', borderRadius: '7px', fontSize: '12px', fontWeight: 500, color: '#92400e', cursor: 'pointer', textAlign: 'center' }}>
-                Activar contingencia
-              </button>
-              {contingenciaMsg && (
-                <div style={{ padding: '7px 10px', background: 'rgba(245,158,11,0.1)', border: '0.5px solid rgba(245,158,11,0.3)', borderRadius: '6px', fontSize: '10px', color: '#92400e', lineHeight: 1.4 }}>
-                  Para proceder tienes que justificar con un incidente
-                </div>
-              )}
+              {!showContForm ? (
+                <button onClick={() => setShowContForm(true)}
+                  style={{ padding: '9px 12px', background: 'rgba(245,158,11,0.08)', border: '0.5px solid rgba(245,158,11,0.5)', borderRadius: '7px', fontSize: '12px', fontWeight: 500, color: '#92400e', cursor: 'pointer', textAlign: 'center' }}>
+                  Activar contingencia
+                </button>
+              ) : (() => {
+                const tipos = tienda.tieneContingencia
+                  ? [{ v: 'ROUTER_PROPIO', l: '📶 Router propio' }, { v: 'DATOS_MOVILES', l: '📱 Datos móviles' }, { v: 'ROUTER_EXTERNO', l: '📦 Router externo' }]
+                  : [{ v: 'ROUTER_EXTERNO', l: '📦 Router externo' }]
+                return (
+                  <div style={{ background: '#fffbeb', border: '0.5px solid #f59e0b', borderRadius: '8px', padding: '10px' }}>
+                    <div style={{ fontSize: '10px', fontWeight: 700, color: '#92400e', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Activar contingencia</div>
+                    <div style={{ marginBottom: '6px' }}>
+                      <div style={{ fontSize: '9px', fontWeight: 600, color: '#92400e', marginBottom: '4px', textTransform: 'uppercase' }}>Tipo</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        {tipos.map(t => (
+                          <button key={t.v} type="button" onClick={() => setContForm(f => ({ ...f, tipo: t.v }))}
+                            style={{ padding: '4px 8px', fontSize: '11px', textAlign: 'left', borderRadius: '5px', cursor: 'pointer', border: contForm.tipo === t.v ? '1.5px solid #b45309' : '0.5px solid #fcd34d', background: contForm.tipo === t.v ? '#b45309' : '#fef3c7', color: contForm.tipo === t.v ? 'white' : '#78350f', outline: 'none' }}>
+                            {t.l}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: '6px' }}>
+                      <div style={{ fontSize: '9px', fontWeight: 600, color: '#92400e', marginBottom: '3px', textTransform: 'uppercase' }}>Activado por</div>
+                      <input value={contForm.activadoPor} onChange={e => setContForm(f => ({ ...f, activadoPor: e.target.value }))} placeholder="Nombre o cargo"
+                        style={{ width: '100%', padding: '5px 8px', fontSize: '11px', border: '0.5px solid #fcd34d', borderRadius: '5px', background: 'white', outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                    <div style={{ marginBottom: '8px' }}>
+                      <div style={{ fontSize: '9px', fontWeight: 600, color: '#92400e', marginBottom: '3px', textTransform: 'uppercase' }}>Justificación <span style={{ color: '#dc2626' }}>*</span></div>
+                      <textarea value={contForm.justificacion} onChange={e => setContForm(f => ({ ...f, justificacion: e.target.value }))} placeholder="Motivo de la activación…"
+                        style={{ width: '100%', padding: '5px 8px', fontSize: '11px', border: '0.5px solid #fcd34d', borderRadius: '5px', background: 'white', outline: 'none', boxSizing: 'border-box', minHeight: '54px', resize: 'vertical' }} />
+                    </div>
+                    <div style={{ display: 'flex', gap: '5px' }}>
+                      <button onClick={handleActivarCont} disabled={contFormSaving || !contForm.tipo || !contForm.activadoPor || !contForm.justificacion.trim()}
+                        style={{ flex: 1, padding: '6px', fontSize: '11px', fontWeight: 600, border: 'none', borderRadius: '5px', background: '#b45309', color: 'white', cursor: 'pointer', opacity: (contFormSaving || !contForm.tipo || !contForm.activadoPor || !contForm.justificacion.trim()) ? 0.5 : 1 }}>
+                        {contFormSaving ? 'Activando…' : 'Activar'}
+                      </button>
+                      <button onClick={() => { setShowContForm(false); setContForm({ tipo: '', activadoPor: '', justificacion: '' }) }}
+                        style={{ padding: '6px 10px', fontSize: '11px', border: '0.5px solid #fcd34d', borderRadius: '5px', background: '#fef3c7', color: '#78350f', cursor: 'pointer' }}>
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )
+              })()}
               <a href={`/incidentes?tiendaId=${tienda.id}`}
                 style={{ display: 'block', padding: '9px 12px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '7px', fontSize: '12px', color: 'var(--foreground)', textDecoration: 'none', textAlign: 'center' }}>
                 Ver incidentes
@@ -467,6 +535,40 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               )}
             </div>
           </div>
+
+          {/* Contingencias autónomas activas */}
+          {contList.filter((c: any) => !c.horaDesactivacion).length > 0 && (() => {
+            const activas = contList.filter((c: any) => !c.horaDesactivacion)
+            const TIPO_LABEL: Record<string, string> = { ROUTER_PROPIO: '📶 Router propio', ROUTER_EXTERNO: '📦 Router externo', DATOS_MOVILES: '📱 Datos móviles' }
+            return (
+              <div style={{ background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: '10px', padding: '12px 14px' }}>
+                <SectionTitle>Contingencias activas</SectionTitle>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {activas.map((c: any) => {
+                    const mins = Math.round((Date.now() - new Date(c.horaActivacion).getTime()) / 60000)
+                    const dur = mins >= 60 ? `${Math.floor(mins/60)}h ${mins%60}m` : `${mins}m`
+                    const deactivating = desactivandoContId === c.id
+                    return (
+                      <div key={c.id} style={{ background: 'white', border: '0.5px solid #fcd34d', borderRadius: '7px', padding: '7px 9px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 600, color: '#92400e' }}>{TIPO_LABEL[c.tipo] ?? c.tipo}</span>
+                          <span style={{ fontSize: '11px', fontFamily: 'monospace', fontWeight: 700, color: '#d97706' }}>{dur} ⏱</span>
+                        </div>
+                        <div style={{ fontSize: '9px', color: '#78350f', marginBottom: '5px', lineHeight: 1.4 }}>{c.justificacion}</div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '9px', color: '#92400e', opacity: 0.7 }}>Por: {c.activadoPor}</span>
+                          <button onClick={() => handleDesactivarCont(c.id)} disabled={deactivating}
+                            style={{ padding: '2px 8px', fontSize: '9px', fontWeight: 600, border: '0.5px solid #f59e0b', borderRadius: '4px', background: '#fef3c7', color: '#78350f', cursor: 'pointer', opacity: deactivating ? 0.5 : 1 }}>
+                            {deactivating ? '…' : 'Desactivar'}
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
 
           {/* Uso de contingencia */}
           {contStats && (contStats.cnt_router_propio > 0 || contStats.cnt_router_externo > 0 || contStats.cnt_datos_moviles > 0) && (() => {

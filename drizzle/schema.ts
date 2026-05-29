@@ -312,6 +312,18 @@ export const decisiones = pgTable('decisiones', {
   actualizadoEn:    timestamp('actualizado_en').defaultNow(),
 })
 
+export const contingencias = pgTable('contingencias', {
+  id:                uuid('id').primaryKey().defaultRandom(),
+  tiendaId:          uuid('tienda_id').references(() => tiendas.id).notNull(),
+  tipo:              text('tipo').notNull(), // ROUTER_PROPIO | ROUTER_EXTERNO | DATOS_MOVILES
+  activadoPor:       text('activado_por').notNull(),
+  usuarioId:         uuid('usuario_id').references(() => usuarios.id),
+  horaActivacion:    timestamp('hora_activacion', { withTimezone: true }).defaultNow().notNull(),
+  horaDesactivacion: timestamp('hora_desactivacion', { withTimezone: true }),
+  justificacion:     text('justificacion').notNull(),
+  creadoEn:          timestamp('creado_en').defaultNow(),
+})
+
 // ── Relations ─────────────────────────────────────────────────────────────────
 
 export const usuariosRelations = relations(usuarios, ({ many }) => ({
