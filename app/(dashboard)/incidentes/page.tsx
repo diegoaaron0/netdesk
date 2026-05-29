@@ -158,7 +158,7 @@ export default function IncidentesPage() {
 
   // Filter + sort (text search is handled server-side when q is set)
   const filtered = sortIncidentes(data).filter(inc => {
-    if (misRegistros && myId && inc.agenteId !== myId) return false
+    if (misRegistros && myId && inc.agenteId !== myId && inc.escaladoInfraId !== myId) return false
     if (filtroProveedor && inc.proveedorNombre !== filtroProveedor) return false
     if (filtroTipo && inc.tipo !== filtroTipo) return false
     if (filtroResolucion !== 'todos') {
@@ -454,8 +454,19 @@ export default function IncidentesPage() {
                   </td>
 
                   {/* Usuario */}
-                  <td style={{ padding: '9px 12px', fontSize: '11px', color: mutedColor, whiteSpace: 'nowrap' }}>
-                    {inc.agenteName ?? '—'}
+                  <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>
+                    {inc.escaladoInfraId ? (
+                      <>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#6366f1', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          🔧 {[inc.infraNombre, inc.infraApellido].filter(Boolean).join(' ')}
+                        </div>
+                        <div style={{ fontSize: '10px', color: mutedColor, marginTop: '1px' }}>
+                          ↑ {inc.agenteName ?? '—'}
+                        </div>
+                      </>
+                    ) : (
+                      <span style={{ fontSize: '11px', color: mutedColor }}>{inc.agenteName ?? '—'}</span>
+                    )}
                   </td>
 
                   {/* Tipo */}

@@ -6,11 +6,10 @@ import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 
-// ─── Aliases para dos joins a la misma tabla proveedores ─────────────────────
-// provInc → proveedor registrado en el incidente (histórico, inmutable)
-// provTda → proveedor actual de la tienda (fallback si el incidente es muy antiguo)
-const provInc = alias(proveedores, 'pi')
-const provTda = alias(proveedores, 'pt')
+// ─── Aliases ─────────────────────────────────────────────────────────────────
+const provInc   = alias(proveedores, 'pi')   // proveedor histórico del incidente
+const provTda   = alias(proveedores, 'pt')   // proveedor actual de la tienda (fallback)
+const infraUser = alias(usuarios,    'iu')   // agente de infraestructura asignado
 
 const OPEN_ESTADOS = ['ABIERTO', 'EN_SEGUIMIENTO', 'ESCALADO_N1', 'ESCALADO_N2', 'ESCALADO_N3']
 
@@ -54,6 +53,9 @@ const COLS = {
   grupoMasivoId:     incidentes.grupoMasivoId,
   grupoMasivoCodigo: gruposMasivos.codigo,
   grupoMasivoRazon:  gruposMasivos.razon,
+  escaladoInfraId:   incidentes.escaladoInfraId,
+  infraNombre:       infraUser.nombre,
+  infraApellido:     infraUser.apellido,
 }
 
 export async function GET(req: NextRequest) {
@@ -74,6 +76,7 @@ export async function GET(req: NextRequest) {
     .leftJoin(provInc,        eq(incidentes.proveedorId,     provInc.id))
     .leftJoin(provTda,        eq(tiendas.proveedorId,        provTda.id))
     .leftJoin(usuarios,       eq(incidentes.registradoPorId, usuarios.id))
+    .leftJoin(infraUser,      eq(incidentes.escaladoInfraId, infraUser.id))
     .leftJoin(gruposMasivos,  eq(incidentes.grupoMasivoId,   gruposMasivos.id))
 
   // Búsqueda por texto: ignora fechas, busca en toda la BD
@@ -97,15 +100,16 @@ export async function GET(req: NextRequest) {
   // Condiciones para incidentes del rango de fechas
   const rangeConds: any[] = [gte(incidentes.horaRegistro, start), lt(incidentes.horaRegistro, end)]
   if (estado)   rangeConds.push(eq(incidentes.estado, estado as any))
-  if (agenteId) rangeConds.push(eq(incidentes.registradoPorId, agenteId))
-  if (tiendaId) rangeConds.push(eq(incidentes.tiendaId, tiendaId))   // → filtro server-side
+  if (agenteId) rangeConds.push(or(eq(incidentes.registradoPorId, agenteId), eq(incidentes.escaladoInfraId, agenteId)) as any)
+  if (tiendaId) rangeConds.push(eq(incidentes.tiendaId, tiendaId))
 
   // Condiciones para incidentes vencidos (abiertos de días anteriores)
   const overdueConds: any[] = [
     lt(incidentes.horaRegistro, start),
     inArray(incidentes.estado, OPEN_ESTADOS as any),
   ]
-  if (tiendaId) overdueConds.push(eq(incidentes.tiendaId, tiendaId)) // → también en overdue
+  if (agenteId) overdueConds.push(or(eq(incidentes.registradoPorId, agenteId), eq(incidentes.escaladoInfraId, agenteId)) as any)
+  if (tiendaId) overdueConds.push(eq(incidentes.tiendaId, tiendaId))
 
   const [regular, overdue] = await Promise.all([
     joins(db.select(COLS).from(incidentes)).where(and(...rangeConds)).orderBy(desc(incidentes.horaRegistro)),
