@@ -745,21 +745,30 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                           </div>
                         </div>
                       )}
-                      {/* Externo toggle */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', padding: '8px 12px', background: 'rgba(0,0,0,0.03)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                        <button type="button" disabled={!canEditB} onClick={() => setEdit('contEsExterno', !editForm.contEsExterno)}
-                          style={{ width:'36px', height:'20px', borderRadius:'10px', border:'none', cursor: canEditB ? 'pointer' : 'default', background: editForm.contEsExterno ? 'hsl(221,83%,23%)' : '#d1d5db', position:'relative', flexShrink:0, transition:'background 0.2s' }}>
-                          <span style={{ position:'absolute', top:'2px', left: editForm.contEsExterno ? '18px' : '2px', width:'16px', height:'16px', borderRadius:'50%', background:'white', transition:'left 0.2s' }} />
-                        </button>
-                        <div>
-                          <div style={{ fontSize:'11px', fontWeight: editForm.contEsExterno ? 700 : 400, color: 'var(--foreground)' }}>
-                            Router externo (llevado a tienda)
-                          </div>
-                          <div style={{ fontSize:'10px', color:'var(--muted-foreground)' }}>
-                            {editForm.contEsExterno ? 'La tienda no tenía contingencia propia — se llevó equipo externo' : 'La tienda usó su contingencia propia'}
+                      {/* Tipo: badge fijo si ya activado, toggle si aún no */}
+                      {editForm.contActivadoPor ? (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '6px', marginBottom: '12px' }}>
+                          <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tipo</span>
+                          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--foreground)' }}>
+                            {editForm.contEsExterno ? 'Router externo' : 'Router propio'}
+                          </span>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', padding: '8px 12px', background: 'rgba(0,0,0,0.03)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                          <button type="button" disabled={!canEditB} onClick={() => setEdit('contEsExterno', !editForm.contEsExterno)}
+                            style={{ width:'36px', height:'20px', borderRadius:'10px', border:'none', cursor: canEditB ? 'pointer' : 'default', background: editForm.contEsExterno ? 'hsl(221,83%,23%)' : '#d1d5db', position:'relative', flexShrink:0, transition:'background 0.2s' }}>
+                            <span style={{ position:'absolute', top:'2px', left: editForm.contEsExterno ? '18px' : '2px', width:'16px', height:'16px', borderRadius:'50%', background:'white', transition:'left 0.2s' }} />
+                          </button>
+                          <div>
+                            <div style={{ fontSize:'11px', fontWeight: editForm.contEsExterno ? 700 : 400, color: 'var(--foreground)' }}>
+                              Router externo (llevado a tienda)
+                            </div>
+                            <div style={{ fontSize:'10px', color:'var(--muted-foreground)' }}>
+                              {editForm.contEsExterno ? 'Se llevó equipo externo a esta tienda' : 'La tienda usó su contingencia propia'}
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      )}
 
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '10px' }}>
                         <div>
