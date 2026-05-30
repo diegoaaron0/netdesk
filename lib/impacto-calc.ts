@@ -9,14 +9,16 @@
  * factor_afectacion_real depende de: tipo, tipo de contingencia (propia/externa/móvil),
  * rendimiento de cada contingencia, boleta_manual, venta_parcial, cajas.
  *
- * Prioridades de mitigación (menor factor = mejor cobertura):
- *   1. Router propio (TOTAL → 0.00, PARCIAL → 0.15, FALLIDA → 1.00)
- *   2. Router externo (TOTAL → 0.00, PARCIAL → 0.25, FALLIDA → 1.00)
- *   3. Datos móviles  (TOTAL → 0.10, PARCIAL → 0.40, FALLIDA → 1.00)
- *   4. Boleta manual  (cubre 0.80 → factor 0.20)
- *   5. Sin backup: venta parcial → 0.50, ninguna → 1.00
+ * Factores de backup — IGUALES para router propio, externo y datos móviles:
+ *   CAIDA_TOTAL:   TOTAL 0.00 / PARCIAL 0.25 / FALLIDA 1.00 / sin rend 0.25
+ *   INTERMITENCIA: TOTAL 0.00 / PARCIAL 0.20 / FALLIDA 0.75 / sin rend 0.20
+ *   LENTITUD:      TOTAL 0.00 / PARCIAL 0.10 / FALLIDA 0.30 / sin rend 0.10
+ *   POS:           TOTAL 0.00 / PARCIAL 0.15 / FALLIDA 0.40 / sin rend 0.20
  *
- * Si varios backups activos simultáneamente: se toma el de menor factor.
+ *   Boleta manual (sin backup): cubre 80% → factor 0.20
+ *   Sin ninguna mitigación: venta_parcial → 0.50, ninguna → 1.00
+ *
+ * Si varios backups activos: se toma el de menor factor (mejor cobertura).
  */
 
 import { DASHBOARD_CONFIG } from './dashboard-config'
@@ -77,54 +79,31 @@ function resolveVentaHora(row: ImpactoInputRow): number | null {
   return null
 }
 
-// ─── Factor de contingencia por tipo y rendimiento ───────────────────────────
+// ─── Factor de backup por rendimiento (igual para propio, externo y datos móviles) ──
 
-// Normaliza cont_rendimiento a tier canónico
+// Normaliza rendimiento a tier canónico
 function normRend(r: string | null | undefined): 'TOTAL' | 'PARCIAL' | 'FALLIDA' | null {
   if (!r) return null
-  if (r === 'TOTAL'   || r === 'EFECTIVA')                         return 'TOTAL'
-  if (r === 'PARCIAL' || r === 'LIMITADA')                         return 'PARCIAL'
+  if (r === 'TOTAL'   || r === 'EFECTIVA')                           return 'TOTAL'
+  if (r === 'PARCIAL' || r === 'LIMITADA')                           return 'PARCIAL'
   if (r === 'FALLIDA' || r === 'NO_FUNCIONO' || r === 'INOPERATIVA') return 'FALLIDA'
   return null
 }
 
 /**
- * Retorna el factor de impacto para una contingencia específica según tipo y tipo de incidente.
+ * Factor por rendimiento del backup — mismo valor para router propio, externo y datos móviles.
  * Factor = fracción del impacto que QUEDA después de la mitigación.
  */
-function factorContingencia(
-  tipo: string,
-  backupType: 'ROUTER_PROPIO' | 'ROUTER_EXTERNO' | 'DATOS_MOVILES',
-  rend: 'TOTAL' | 'PARCIAL' | 'FALLIDA' | null,
-): number {
-  // Factores por [tipo_incidente][backup_type][rendimiento]
-  const tabla: Record<string, Record<string, Record<string, number>>> = {
-    CAIDA_TOTAL: {
-      ROUTER_PROPIO:  { TOTAL: 0.00, PARCIAL: 0.15, FALLIDA: 1.00, unknown: 0.20 },
-      ROUTER_EXTERNO: { TOTAL: 0.00, PARCIAL: 0.25, FALLIDA: 1.00, unknown: 0.30 },
-      DATOS_MOVILES:  { TOTAL: 0.10, PARCIAL: 0.40, FALLIDA: 1.00, unknown: 0.40 },
-    },
-    INTERMITENCIA: {
-      ROUTER_PROPIO:  { TOTAL: 0.00, PARCIAL: 0.10, FALLIDA: 0.75, unknown: 0.15 },
-      ROUTER_EXTERNO: { TOTAL: 0.00, PARCIAL: 0.15, FALLIDA: 0.75, unknown: 0.20 },
-      DATOS_MOVILES:  { TOTAL: 0.05, PARCIAL: 0.25, FALLIDA: 0.75, unknown: 0.30 },
-    },
-    LENTITUD: {
-      ROUTER_PROPIO:  { TOTAL: 0.00, PARCIAL: 0.05, FALLIDA: 0.30, unknown: 0.10 },
-      ROUTER_EXTERNO: { TOTAL: 0.00, PARCIAL: 0.10, FALLIDA: 0.30, unknown: 0.15 },
-      DATOS_MOVILES:  { TOTAL: 0.00, PARCIAL: 0.10, FALLIDA: 0.30, unknown: 0.15 },
-    },
-    POS: {
-      ROUTER_PROPIO:  { TOTAL: 0.00, PARCIAL: 0.10, FALLIDA: 0.40, unknown: 0.15 },
-      ROUTER_EXTERNO: { TOTAL: 0.00, PARCIAL: 0.15, FALLIDA: 0.40, unknown: 0.20 },
-      DATOS_MOVILES:  { TOTAL: 0.05, PARCIAL: 0.20, FALLIDA: 0.40, unknown: 0.25 },
-    },
+function factorBackup(tipo: string, rend: 'TOTAL' | 'PARCIAL' | 'FALLIDA' | null): number {
+  const tabla: Record<string, Record<string, number>> = {
+    CAIDA_TOTAL:    { TOTAL: 0.00, PARCIAL: 0.25, FALLIDA: 1.00, unknown: 0.25 },
+    INTERMITENCIA:  { TOTAL: 0.00, PARCIAL: 0.20, FALLIDA: 0.75, unknown: 0.20 },
+    LENTITUD:       { TOTAL: 0.00, PARCIAL: 0.10, FALLIDA: 0.30, unknown: 0.10 },
+    POS:            { TOTAL: 0.00, PARCIAL: 0.15, FALLIDA: 0.40, unknown: 0.20 },
+    CORTE_ELECTRICO:{ TOTAL: 0.00, PARCIAL: 0.25, FALLIDA: 1.00, unknown: 0.25 },
   }
-
-  const tipoKey = tabla[tipo] ?? tabla['CAIDA_TOTAL']
-  const backupRow = tipoKey[backupType] ?? tipoKey['ROUTER_PROPIO']
-  const rendKey = rend ?? 'unknown'
-  return backupRow[rendKey] ?? backupRow['unknown']
+  const row = tabla[tipo] ?? tabla['CAIDA_TOTAL']
+  return row[rend ?? 'unknown'] ?? row['unknown']
 }
 
 // ─── Factor de afectación real ────────────────────────────────────────────────
@@ -147,27 +126,20 @@ function calcFactorAfectacion(
 ): { factor: number; motivo: string } {
 
   const rendRouter = normRend(cont_rendimiento)
-  const rendMovil  = normRend(mov_rendimiento ?? cont_rendimiento) // fallback a cont si no viene separado
+  const rendMovil  = normRend(mov_rendimiento)
 
-  // Determinar tipo de router contingencia
-  const backupRouterType: 'ROUTER_PROPIO' | 'ROUTER_EXTERNO' = cont_es_externo
-    ? 'ROUTER_EXTERNO'
-    : 'ROUTER_PROPIO'
-
-  // Calcular factor de cada backup activo
+  // Calcular factor de cada backup activo (misma tabla para los 3 tipos)
   const factores: { f: number; desc: string }[] = []
 
   if (contingencia_activa) {
-    const f = factorContingencia(tipo, backupRouterType, rendRouter)
-    const label = backupRouterType === 'ROUTER_EXTERNO' ? 'router externo' : 'router propio'
-    const rendLabel = rendRouter ? rendRouter.toLowerCase() : 'rendimiento sin registrar'
-    factores.push({ f, desc: `${label} (${rendLabel})` })
+    const label = cont_es_externo ? 'router externo' : 'router propio'
+    const f = factorBackup(tipo, rendRouter)
+    factores.push({ f, desc: `${label} (${rendRouter?.toLowerCase() ?? 'sin rendimiento'})` })
   }
 
   if (hubo_movil) {
-    const f = factorContingencia(tipo, 'DATOS_MOVILES', rendMovil)
-    const rendLabel = rendMovil ? rendMovil.toLowerCase() : 'rendimiento sin registrar'
-    factores.push({ f, desc: `datos móviles (${rendLabel})` })
+    const f = factorBackup(tipo, rendMovil)
+    factores.push({ f, desc: `datos móviles (${rendMovil?.toLowerCase() ?? 'sin rendimiento'})` })
   }
 
   // Si algún backup estuvo activo → tomar el de mejor cobertura (menor factor)
