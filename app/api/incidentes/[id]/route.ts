@@ -264,6 +264,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       SELECT COUNT(*)::int AS cnt FROM incidentes
       WHERE tienda_id = ${updated.tiendaId}
         AND cont_activado_por IS NOT NULL
+        AND cont_hora_desactivacion IS NULL
         AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
         AND id != ${id}
     `)
@@ -330,6 +331,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         SELECT COUNT(*)::int AS cnt FROM incidentes
         WHERE tienda_id = ${updated.tiendaId}
           AND cont_activado_por IS NOT NULL
+          AND cont_hora_desactivacion IS NULL
           AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
       `)
       if (Number((rows[0] as any)?.cnt ?? 0) === 0) {

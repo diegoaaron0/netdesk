@@ -358,17 +358,26 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
   const [desactivandoCont, setDesactivandoCont] = useState<string | null>(null)
   const [agenteFilter,    setAgenteFilter]    = useState<string | null>(null)
 
-  async function desactivarContingencia(id: string, tiendaId: string, fuente: 'INCIDENTE' | 'STANDALONE') {
+  async function desactivarContingencia(id: string, tiendaId: string, fuente: 'INCIDENTE' | 'STANDALONE', tipoCont?: string) {
     if (!id) { alert('Error: ID no disponible'); return }
     setDesactivandoCont(tiendaId)
     try {
-      const res = fuente === 'STANDALONE'
-        ? await fetch(`/api/contingencias/${id}`, { method: 'PATCH' })
-        : await fetch(`/api/incidentes/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contActivadoPor: null }),
-          })
+      let res: Response
+      if (fuente === 'STANDALONE') {
+        res = await fetch(`/api/contingencias/${id}`, { method: 'PATCH' })
+      } else if (tipoCont === 'DATOS_MOVILES') {
+        res = await fetch(`/api/incidentes/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ movHoraDesactivacion: new Date().toISOString() }),
+        })
+      } else {
+        res = await fetch(`/api/incidentes/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contHoraDesactivacion: new Date().toISOString() }),
+        })
+      }
       if (res.ok) { setConfirmarCont(null); onRefresh() }
       else { const e = await res.json().catch(() => ({})); alert(`Error ${res.status}: ${e.error ?? 'desconocido'}`) }
     } catch (err) {
@@ -483,25 +492,28 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '5px' }}>
             <span>⚠</span>
             <span style={{ fontSize: '11px', fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              {(contingenciasActivas ?? []).length} tienda{(contingenciasActivas ?? []).length > 1 ? 's' : ''} en contingencia activa
+              {(contingenciasActivas ?? []).length} alerta{(contingenciasActivas ?? []).length > 1 ? 's' : ''} de contingencia activa
             </span>
           </div>
           <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
-            {(contingenciasActivas ?? []).map((c: any) => {
-              const confirmando  = confirmarCont === c.tienda_id
-              const desactivando = desactivandoCont === c.tienda_id
-              const esExterno    = !!c.cont_es_externo
+            {(contingenciasActivas ?? []).map((c: any, ci: number) => {
+              const confirmando  = confirmarCont === (c.tienda_id + '_' + ci)
+              const desactivando = desactivandoCont === (c.tienda_id + '_' + ci)
+              const tipo = c.tipo_contingencia ?? (c.cont_es_externo ? 'ROUTER_EXTERNO' : 'ROUTER_PROPIO')
+              const esDatos    = tipo === 'DATOS_MOVILES'
+              const esExterno  = tipo === 'ROUTER_EXTERNO'
+              const borderColor = esDatos ? '#3b82f6' : esExterno ? '#ea580c' : '#f59e0b'
+              const bgColor     = esDatos ? '#eff6ff' : esExterno ? '#fff7ed' : 'white'
+              const textColor   = esDatos ? '#1e3a8a' : esExterno ? '#7c2d12' : '#78350f'
+              const tipoLabel   = esDatos ? '📱 Datos móviles' : esExterno ? '📦 Router ext.' : '📶 Router'
               const mins = c.cont_hora_activacion
                 ? Math.round((nowMs - tsMs(c.cont_hora_activacion)) / 60000)
                 : null
               const durStr = mins != null && mins >= 0
                 ? (mins >= 60 ? `${Math.floor(mins/60)}h ${mins%60}m` : `${mins}m`)
                 : null
-              const borderColor = esExterno ? '#ea580c' : '#f59e0b'
-              const bgColor     = esExterno ? '#fff7ed' : 'white'
-              const textColor   = esExterno ? '#7c2d12' : '#78350f'
               return (
-                <div key={c.tienda_id} style={{ flex: '0 0 auto', background: bgColor, border: `1.5px solid ${borderColor}`, borderRadius: '7px', padding: '5px 10px', minWidth: '170px', maxWidth: '240px' }}>
+                <div key={`${c.tienda_id}_${ci}`} style={{ flex: '0 0 auto', background: bgColor, border: `1.5px solid ${borderColor}`, borderRadius: '7px', padding: '5px 10px', minWidth: '170px', maxWidth: '240px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ fontSize: '11px', fontWeight: 700, color: textColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
                       {c.tienda_codigo} — {c.tienda_nombre}
@@ -510,10 +522,10 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                       <span style={{ fontSize: '10px', fontFamily: 'monospace', fontWeight: 700, color: borderColor, flexShrink: 0, marginLeft: '6px' }}>{durStr}</span>
                     )}
                   </div>
-                  <div style={{ fontSize: '9px', color: textColor, display: 'flex', gap: '5px', marginTop: '2px', opacity: 0.8 }}>
+                  <div style={{ fontSize: '9px', fontWeight: 700, color: borderColor, marginTop: '2px' }}>{tipoLabel}</div>
+                  <div style={{ fontSize: '9px', color: textColor, display: 'flex', gap: '5px', marginTop: '1px', opacity: 0.8 }}>
                     {c.tienda_distrito && <span>{c.tienda_distrito}</span>}
                     {c.proveedor_nombre && <span>· {c.proveedor_nombre}</span>}
-                    {esExterno && <span style={{ fontWeight: 700 }}>· EXTERNO</span>}
                   </div>
                   {c.fuente === 'STANDALONE' && c.justificacion && (
                     <div style={{ fontSize: '9px', color: textColor, opacity: 0.75, marginTop: '2px', lineHeight: 1.3, fontStyle: 'italic' }}>{c.justificacion}</div>
@@ -529,16 +541,17 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                         <button disabled={desactivando}
                           onClick={() => desactivarContingencia(
                             c.fuente === 'STANDALONE' ? c.contingencia_id : c.incidente_id,
-                            c.tienda_id,
+                            c.tienda_id + '_' + ci,
                             c.fuente ?? 'INCIDENTE',
+                            tipo,
                           )}
-                          style={{ padding: '1px 5px', fontSize: '9px', fontWeight: 700, background: '#b45309', color: 'white', border: 'none', borderRadius: '3px', cursor: desactivando ? 'default' : 'pointer', opacity: desactivando ? 0.6 : 1 }}>
+                          style={{ padding: '1px 5px', fontSize: '9px', fontWeight: 700, background: borderColor, color: 'white', border: 'none', borderRadius: '3px', cursor: desactivando ? 'default' : 'pointer', opacity: desactivando ? 0.6 : 1 }}>
                           {desactivando ? '…' : 'Sí'}
                         </button>
-                        <button disabled={desactivando} onClick={() => setConfirmarCont(null)} style={{ padding: '1px 5px', fontSize: '9px', background: '#fef3c7', color: '#78350f', border: '1px solid #fcd34d', borderRadius: '3px', cursor: 'pointer' }}>No</button>
+                        <button disabled={desactivando} onClick={() => setConfirmarCont(null)} style={{ padding: '1px 5px', fontSize: '9px', background: bgColor, color: textColor, border: `1px solid ${borderColor}`, borderRadius: '3px', cursor: 'pointer' }}>No</button>
                       </div>
                     ) : (
-                      <button onClick={() => setConfirmarCont(c.tienda_id)} style={{ padding: '1px 7px', fontSize: '9px', fontWeight: 600, background: esExterno ? '#fed7aa' : '#fef3c7', color: textColor, border: `1px solid ${borderColor}`, borderRadius: '3px', cursor: 'pointer' }}>Desactivar</button>
+                      <button onClick={() => setConfirmarCont(c.tienda_id + '_' + ci)} style={{ padding: '1px 7px', fontSize: '9px', fontWeight: 600, background: bgColor, color: textColor, border: `1px solid ${borderColor}`, borderRadius: '3px', cursor: 'pointer' }}>Desactivar</button>
                     )}
                   </div>
                 </div>

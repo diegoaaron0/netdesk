@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { tiendas, proveedores, incidentes, tiendasHistorial } from '@/drizzle/schema'
-import { eq, count, and, isNotNull, sql } from 'drizzle-orm'
+import { eq, count, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -55,12 +55,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .from(incidentes)
     .where(eq(incidentes.tiendaId, id))
 
-  const [{ movCount }] = await db.select({ movCount: count() })
-    .from(incidentes)
-    .where(and(
-      eq(incidentes.tiendaId, id),
-      isNotNull(incidentes.movActivadoPor),
-    ))
+  const movActiveRows = await db.execute<{ cnt: string }>(sql`
+    SELECT COUNT(*)::int AS cnt FROM incidentes
+    WHERE tienda_id = ${id}
+      AND mov_activado_por IS NOT NULL
+      AND mov_hora_desactivacion IS NULL
+      AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
+  `)
+  const movCount = Number((movActiveRows[0] as any)?.cnt ?? 0)
 
   // Columnas nuevas (pueden no existir en producción hasta aplicar migración)
   let extended: Record<string, string | null> = {

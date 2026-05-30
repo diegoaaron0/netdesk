@@ -57,6 +57,8 @@ const COLS = {
   escaladoInfraId:   incidentes.escaladoInfraId,
   infraNombre:       infraUser.nombre,
   infraApellido:     infraUser.apellido,
+  movActivadoPor:       incidentes.movActivadoPor,
+  movHoraDesactivacion: incidentes.movHoraDesactivacion,
 }
 
 export async function GET(req: NextRequest) {

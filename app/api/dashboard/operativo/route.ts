@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   const [y, m, d]  = fechaLima.split('-').map(Number)
   const siguienteIso = new Date(Date.UTC(y, m - 1, d + 1, 5, 0, 0, 0)).toISOString()
 
-  const [activosRows, resueltoRows, agentesRows, incCreadosRows, escRows, respRows, resolRows, contRows, creadosHoyRows, contStandaloneRows] = await Promise.all([
+  const [activosRows, resueltoRows, agentesRows, incCreadosRows, escRows, respRows, resolRows, contRows, creadosHoyRows, contStandaloneRows, movRows] = await Promise.all([
     db.execute(sql`
       SELECT
         i.id,
@@ -213,22 +213,53 @@ export async function GET(req: NextRequest) {
       WHERE c.hora_desactivacion IS NULL
       ORDER BY c.hora_activacion ASC
     `),
+
+    db.execute(sql`
+      SELECT
+        i.id                           AS incidente_id,
+        i.codigo                       AS incidente_codigo,
+        i.mov_hora_activacion          AS cont_hora_activacion,
+        t.id                           AS tienda_id,
+        t.codigo                       AS tienda_codigo,
+        t.nombre_cc                    AS tienda_nombre,
+        t.distrito                     AS tienda_distrito,
+        COALESCE(pi.nombre, pt.nombre) AS proveedor_nombre
+      FROM incidentes i
+      JOIN tiendas t ON t.id = i.tienda_id
+      LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
+      LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
+      WHERE i.mov_activado_por IS NOT NULL
+        AND i.mov_hora_desactivacion IS NULL
+        AND i.estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
+      ORDER BY i.mov_hora_activacion ASC
+    `),
   ])
 
   const activos  = activosRows as any[]
   const resueltos = resueltoRows as any[]
   const agentes   = agentesRows as any[]
 
-  const contInc = (contRows as any[]).map((c: any) => ({ ...c, fuente: 'INCIDENTE' }))
+  const contInc = (contRows as any[]).map((c: any) => ({
+    ...c,
+    fuente: 'INCIDENTE',
+    tipo_contingencia: c.cont_es_externo ? 'ROUTER_EXTERNO' : 'ROUTER_PROPIO',
+  }))
+  const contMov = (movRows as any[]).map((c: any) => ({
+    ...c,
+    fuente: 'INCIDENTE',
+    tipo_contingencia: 'DATOS_MOVILES',
+    cont_es_externo: false,
+  }))
   const contStd = (contStandaloneRows as any[]).map((c: any) => ({
     ...c,
     cont_hora_activacion: c.hora_activacion,
     cont_es_externo: c.tipo === 'ROUTER_EXTERNO',
+    tipo_contingencia: c.tipo,
     incidente_id: null,
     incidente_codigo: null,
     fuente: 'STANDALONE',
   }))
-  const contingenciasActivas = [...contInc, ...contStd]
+  const contingenciasActivas = [...contInc, ...contMov, ...contStd]
     .sort((a: any, b: any) => new Date(a.cont_hora_activacion ?? a.hora_activacion).getTime() - new Date(b.cont_hora_activacion ?? b.hora_activacion).getTime())
 
   const activosConEstado = activos.map((inc: any) => {
