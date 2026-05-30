@@ -491,7 +491,7 @@ export default function IncidentesPage() {
                         {inc.resueltoPor === 'AGENTE' ? '↩ Agente' : inc.resueltoPor === 'INFRAESTRUCTURA' ? '↩ Infraestructura' : '↩ Proveedor'}
                       </span>
                     )}
-                    {inc.contActivadoPor && (
+                    {inc.contActivadoPor && !inc.contHoraDesactivacion && (
                       <span style={{ display: 'inline-block', marginTop: '3px', fontSize: '10px', padding: '1px 6px', borderRadius: '999px', fontWeight: 600, background: isOpen ? 'rgba(251,191,36,0.15)' : '#FEF9C3', color: '#92400E', border: '1px solid #FDE68A' }}>
                         ⚡ Cont.
                       </span>
