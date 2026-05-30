@@ -727,7 +727,8 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                         const mins = fin
                           ? Math.round((new Date(fin).getTime() - new Date(inc.contHoraActivacion).getTime()) / 60000)
                           : Math.round((Date.now() - new Date(inc.contHoraActivacion).getTime()) / 60000)
-                        return <span style={{ fontSize:'10px', color: fin ? 'var(--muted-foreground)' : '#d97706', fontFamily:'monospace' }}>· {minToHM(mins)}{!fin ? ' ⏱' : ''}</span>
+                        const horaStr = toDatetimeLocal(inc.contHoraActivacion).slice(11, 16)
+                        return <span style={{ fontSize:'10px', color: fin ? 'var(--muted-foreground)' : '#d97706', fontFamily:'monospace' }}>· {horaStr} · {minToHM(mins)}{!fin ? ' ⏱' : ''}</span>
                       })()}
                     </div>
                     <span style={{ fontSize:'10px', color:'var(--muted-foreground)' }}>{showContBlock ? '▲' : '▼'}</span>
@@ -844,6 +845,14 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                     <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
                       <span style={{ fontSize:'12px', fontWeight:600, color:'var(--foreground)' }}>Datos móviles</span>
                       {!showMovBlock && summary && <span style={{ fontSize:'10px', color:'var(--muted-foreground)' }}>{summary}</span>}
+                      {!showMovBlock && inc.movHoraActivacion && (() => {
+                        const fin = inc.movHoraDesactivacion ?? (isClosed ? inc.horaFin : null)
+                        const mins = fin
+                          ? Math.round((new Date(fin).getTime() - new Date(inc.movHoraActivacion).getTime()) / 60000)
+                          : Math.round((Date.now() - new Date(inc.movHoraActivacion).getTime()) / 60000)
+                        const horaStr = toDatetimeLocal(inc.movHoraActivacion).slice(11, 16)
+                        return <span style={{ fontSize:'10px', color: fin ? 'var(--muted-foreground)' : '#2563eb', fontFamily:'monospace' }}>· {horaStr} · {minToHM(mins)}{!fin ? ' ⏱' : ''}</span>
+                      })()}
                     </div>
                     <span style={{ fontSize:'10px', color:'var(--muted-foreground)' }}>{showMovBlock ? '▲' : '▼'}</span>
                   </button>

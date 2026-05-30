@@ -246,15 +246,20 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     `)
   }
 
-  // Al cerrar/cancelar un incidente con contingencia activa → auto-desactivar igual que si se limpiara contActivadoPor
+  // Al cerrar/cancelar un incidente con contingencia activa → auto-desactivar timestamps
   const estadoCierra = ['RESUELTO', 'CANCELADO', 'CERRADO'].includes(body.estado ?? '')
+  if (estadoCierra && updated.tiendaId) {
+    const now = new Date()
+    const patch: Record<string, any> = { actualizadoEn: now }
+    if (updated.contActivadoPor && !updated.contHoraDesactivacion) patch.contHoraDesactivacion = now
+    if (updated.movActivadoPor  && !updated.movHoraDesactivacion)  patch.movHoraDesactivacion  = now
+    if (Object.keys(patch).length > 1) {
+      await db.update(incidentes).set(patch).where(eq(incidentes.id, id))
+    }
+  }
+
   if (estadoCierra && updated.tiendaId && updated.contActivadoPor) {
     const userId = (session.user as any)?.id ?? null
-    if (!updated.contHoraDesactivacion) {
-      await db.update(incidentes)
-        .set({ contHoraDesactivacion: new Date(), actualizadoEn: new Date() })
-        .where(eq(incidentes.id, id))
-    }
     const rows = await db.execute(sql`
       SELECT COUNT(*)::int AS cnt FROM incidentes
       WHERE tienda_id = ${updated.tiendaId}
