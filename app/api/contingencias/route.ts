@@ -24,9 +24,12 @@ export async function POST(req: NextRequest) {
     justificacion,
   }).returning()
 
-  await db.update(tiendas)
-    .set({ contingenciaActiva: true, contingenciaActivadaPor: activadoPor })
-    .where(eq(tiendas.id, tiendaId))
+  // Solo los tipos router activan el flag de tienda (datos móviles no usa este flag)
+  if (tipo !== 'DATOS_MOVILES') {
+    await db.update(tiendas)
+      .set({ contingenciaActiva: true, contingenciaActivadaPor: activadoPor })
+      .where(eq(tiendas.id, tiendaId))
+  }
 
   return NextResponse.json(created)
 }

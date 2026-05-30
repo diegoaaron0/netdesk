@@ -21,6 +21,7 @@ export async function PATCH(_req: NextRequest, { params }: { params: Promise<{ i
     SELECT COUNT(*)::int AS cnt FROM incidentes
     WHERE tienda_id = ${updated.tiendaId}
       AND cont_activado_por IS NOT NULL
+      AND cont_hora_desactivacion IS NULL
       AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
   `)
   const [contRows] = await db.execute<{ cnt: number }>(sql`
