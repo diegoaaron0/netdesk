@@ -505,7 +505,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
               const borderColor = esDatos ? '#3b82f6' : esExterno ? '#ea580c' : '#f59e0b'
               const bgColor     = esDatos ? '#eff6ff' : esExterno ? '#fff7ed' : 'white'
               const textColor   = esDatos ? '#1e3a8a' : esExterno ? '#7c2d12' : '#78350f'
-              const tipoLabel   = esDatos ? '📱 Datos móviles' : esExterno ? '📦 Router ext.' : '📶 Router'
+              const tipoLabel   = esDatos ? 'Datos móviles' : esExterno ? '📦 Router ext.' : '📶 Router'
               const mins = c.cont_hora_activacion
                 ? Math.round((nowMs - tsMs(c.cont_hora_activacion)) / 60000)
                 : null

@@ -484,7 +484,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                 </button>
               ) : (() => {
                 const tipos = tienda.tieneContingencia
-                  ? [{ v: 'ROUTER_PROPIO', l: '📶 Router propio' }, { v: 'DATOS_MOVILES', l: '📱 Datos móviles' }, { v: 'ROUTER_EXTERNO', l: '📦 Router externo' }]
+                  ? [{ v: 'ROUTER_PROPIO', l: '📶 Router propio' }, { v: 'DATOS_MOVILES', l: 'Datos móviles' }, { v: 'ROUTER_EXTERNO', l: '📦 Router externo' }]
                   : [{ v: 'ROUTER_EXTERNO', l: '📦 Router externo' }]
                 return (
                   <div style={{ background: '#fffbeb', border: '0.5px solid #f59e0b', borderRadius: '8px', padding: '10px' }}>
@@ -539,7 +539,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
           {/* Contingencias autónomas activas */}
           {contList.filter((c: any) => !c.horaDesactivacion).length > 0 && (() => {
             const activas = contList.filter((c: any) => !c.horaDesactivacion)
-            const TIPO_LABEL: Record<string, string> = { ROUTER_PROPIO: '📶 Router propio', ROUTER_EXTERNO: '📦 Router externo', DATOS_MOVILES: '📱 Datos móviles' }
+            const TIPO_LABEL: Record<string, string> = { ROUTER_PROPIO: '📶 Router propio', ROUTER_EXTERNO: '📦 Router externo', DATOS_MOVILES: 'Datos móviles' }
             return (
               <div style={{ background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: '10px', padding: '12px 14px' }}>
                 <SectionTitle>Contingencias activas</SectionTitle>

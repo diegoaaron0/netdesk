@@ -498,7 +498,7 @@ export default function IncidentesPage() {
                     )}
                     {inc.movActivadoPor && !inc.movHoraDesactivacion && (
                       <span style={{ display: 'inline-block', marginTop: '3px', fontSize: '10px', padding: '1px 6px', borderRadius: '999px', fontWeight: 600, background: isOpen ? 'rgba(59,130,246,0.15)' : '#DBEAFE', color: '#1E40AF', border: '1px solid #93C5FD' }}>
-                        📱 Datos
+                        Datos
                       </span>
                     )}
                   </td>
