@@ -4,7 +4,7 @@ import {
 } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
 
-export const rolEnum = pgEnum('rol', ['AGENTE', 'SUPERVISOR', 'GERENCIA', 'INFRAESTRUCTURA'])
+export const rolEnum = pgEnum('rol', ['AGENTE', 'SUPERVISOR', 'GERENCIA', 'INFRAESTRUCTURA', 'DEMO'])
 export const nivelImpactoEnum = pgEnum('nivel_impacto', ['ALTO', 'MEDIO', 'BAJO'])
 export const tipoIncidenteEnum = pgEnum('tipo_incidente', [
   'CAIDA_TOTAL', 'INTERMITENCIA', 'LENTITUD', 'POS', 'OTROS', 'CORTE_ELECTRICO',

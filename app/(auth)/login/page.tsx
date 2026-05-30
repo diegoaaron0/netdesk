@@ -8,6 +8,7 @@ const ROL_LABEL: Record<string, string> = {
   SUPERVISOR: 'Supervisor',
   GERENCIA: 'Gerencia',
   INFRAESTRUCTURA: 'Infraestructura',
+  DEMO: 'Demo',
 }
 
 function initials(name: string) {

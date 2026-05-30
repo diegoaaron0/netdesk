@@ -1,28 +1,44 @@
+const TODOS_LOS_PERMISOS = [
+  'incidentes.ver', 'incidentes.crear', 'incidentes.reabrir', 'incidentes.editar', 'incidentes.eliminar', 'incidentes.cancelar',
+  'escalamientos.crear', 'escalamientos.envio', 'escalamientos.respuesta',
+  'mantenimiento.ver', 'mantenimiento.editar', 'mantenimiento.agregar',
+  'proveedores.ver', 'proveedores.editar',
+  'dashboard.ver', 'reportes.ver', 'reportes.exportar',
+  'decisiones.ver', 'decisiones.crear',
+  'usuarios.ver', 'usuarios.editar', 'usuarios.crear',
+  'contingencias.gestionar',
+  'grupos.gestionar',
+]
+
 export const PERMISOS_POR_ROL: Record<string, string[]> = {
   AGENTE: [
-    'incidentes.ver', 'incidentes.crear', 'incidentes.reabrir',
+    'incidentes.ver', 'incidentes.crear', 'incidentes.reabrir', 'incidentes.cancelar',
     'escalamientos.crear', 'escalamientos.envio', 'escalamientos.respuesta',
     'dashboard.ver',
     'mantenimiento.ver',
     'proveedores.ver',
+    'contingencias.gestionar',
   ],
   INFRAESTRUCTURA: [
-    'incidentes.ver', 'incidentes.crear', 'incidentes.reabrir',
+    'incidentes.ver', 'incidentes.crear', 'incidentes.reabrir', 'incidentes.cancelar',
     'escalamientos.crear', 'escalamientos.envio', 'escalamientos.respuesta',
     'mantenimiento.ver', 'mantenimiento.editar', 'mantenimiento.agregar',
     'dashboard.ver', 'reportes.ver', 'reportes.exportar',
     'proveedores.ver', 'proveedores.editar',
     'decisiones.ver', 'decisiones.crear',
+    'usuarios.ver',
+    'contingencias.gestionar', 'grupos.gestionar',
   ],
   SUPERVISOR: [
     'incidentes.ver', 'incidentes.crear', 'incidentes.reabrir',
-    'incidentes.editar', 'incidentes.eliminar',
+    'incidentes.editar', 'incidentes.eliminar', 'incidentes.cancelar',
     'escalamientos.crear', 'escalamientos.envio', 'escalamientos.respuesta',
     'mantenimiento.ver', 'mantenimiento.editar', 'mantenimiento.agregar',
     'dashboard.ver', 'reportes.ver', 'reportes.exportar',
     'usuarios.ver', 'usuarios.editar', 'usuarios.crear',
     'proveedores.ver', 'proveedores.editar',
     'decisiones.ver', 'decisiones.crear',
+    'contingencias.gestionar', 'grupos.gestionar',
   ],
   GERENCIA: [
     'incidentes.ver',
@@ -32,4 +48,5 @@ export const PERMISOS_POR_ROL: Record<string, string[]> = {
     'usuarios.ver',
     'decisiones.ver', 'decisiones.crear',
   ],
+  DEMO: TODOS_LOS_PERMISOS,
 }

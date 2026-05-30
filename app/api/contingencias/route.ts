@@ -3,10 +3,12 @@ import { db } from '@/lib/db'
 import { contingencias, tiendas } from '@/drizzle/schema'
 import { eq, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
+import { can } from '@/lib/permisos'
 
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  if (!can(session, 'contingencias.gestionar')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const body = await req.json()
   const { tiendaId, tipo, activadoPor, justificacion } = body

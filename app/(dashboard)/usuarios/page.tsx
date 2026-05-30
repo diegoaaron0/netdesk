@@ -8,6 +8,7 @@ const ROL_META: Record<string, { label: string; bg: string; color: string; desc:
   SUPERVISOR:      { label: 'Supervisor',      bg: '#dbeafe', color: '#1e40af', desc: 'Gestión completa del sistema' },
   GERENCIA:        { label: 'Gerencia',         bg: '#dcfce7', color: '#15803d', desc: 'Visibilidad total, solo lectura' },
   INFRAESTRUCTURA: { label: 'Infraestructura', bg: '#ede9fe', color: '#7c3aed', desc: 'Operación + configuración + reportes' },
+  DEMO:            { label: 'Demo',             bg: '#fff7ed', color: '#c2410c', desc: 'Acceso total — solo para pruebas' },
 }
 
 const PERMISOS_GRUPOS = [
@@ -65,6 +66,14 @@ const PERMISOS_GRUPOS = [
       { key: 'usuarios.ver',    label: 'Ver módulo usuarios' },
       { key: 'usuarios.editar', label: 'Editar datos de usuarios' },
       { key: 'usuarios.crear',  label: 'Crear nuevos usuarios' },
+    ],
+  },
+  {
+    key: 'OPERACIONES',
+    items: [
+      { key: 'incidentes.cancelar',     label: 'Cancelar incidentes' },
+      { key: 'contingencias.gestionar', label: 'Gestionar contingencias standalone' },
+      { key: 'grupos.gestionar',        label: 'Gestionar grupos masivos' },
     ],
   },
 ]
