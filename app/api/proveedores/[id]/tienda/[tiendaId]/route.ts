@@ -77,19 +77,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     contrato = c ?? null
   } catch { /* table not migrated yet */ }
 
-  // Métricas históricas
+  // Métricas históricas — solo incidentes explícitamente atribuidos a este proveedor
+  const incStrictWhere = and(eq(incidentes.tiendaId, tiendaId), eq(incidentes.proveedorId, id))
   let historicData = { total: 0, mttrAvg: null as number | null, mttrTotal: 0 }
   try {
     const [r] = await db.select({
       total:     sql<number>`count(*)::int`,
       mttrAvg:   sql<number>`round(avg(${incidentes.mttrMinutos}))::int`,
       mttrTotal: sql<number>`coalesce(sum(${incidentes.mttrMinutos}), 0)::int`,
-    }).from(incidentes)
-      .leftJoin(tiendas, eq(incidentes.tiendaId, tiendas.id))
-      .where(and(
-        eq(incidentes.tiendaId, tiendaId),
-        sql`(${incidentes.proveedorId} = ${id}::uuid OR (${incidentes.proveedorId} IS NULL AND ${tiendas.proveedorId} = ${id}::uuid))`,
-      ))
+    }).from(incidentes).where(incStrictWhere)
     if (r) historicData = { total: r.total, mttrAvg: r.mttrAvg, mttrTotal: r.mttrTotal }
   } catch { /* skip */ }
 
@@ -106,26 +102,55 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (r) inc30d = r.total
   } catch { /* skip */ }
 
-  // SLA
-  let slaTienda: number | null = null
+  // SLA Respuesta + Resolución para esta tienda con este proveedor (últimos 30d)
+  let slaTienda:          number | null = null
+  let slaRespuestaTienda:  number | null = null
+  let slaResolucionTienda: number | null = null
   try {
     const slaRows = await db.execute(sql`
       SELECT
-        count(*) filter (where e.estado_cronometro in ('RESPONDIDO','VENCIDO')) as total_closed,
-        count(*) filter (where e.estado_cronometro = 'RESPONDIDO')              as respondidos
-      FROM escalamientos e
-      JOIN incidentes i ON e.incidente_id = i.id
+        count(*) filter (where n1.hora_correo_n1 IS NOT NULL) AS total_escalados,
+        count(*) filter (
+          where n1.hora_correo_n1 IS NOT NULL AND resp.hora_primera_resp IS NOT NULL
+            AND EXTRACT(epoch FROM (resp.hora_primera_resp - n1.hora_correo_n1)) <= 3600
+        ) AS resp_ok,
+        count(*) filter (
+          where n1.hora_correo_n1 IS NOT NULL AND resp.hora_primera_resp IS NOT NULL AND i.hora_fin IS NOT NULL
+        ) AS total_resolvibles,
+        count(*) filter (
+          where n1.hora_correo_n1 IS NOT NULL AND resp.hora_primera_resp IS NOT NULL AND i.hora_fin IS NOT NULL
+            AND EXTRACT(epoch FROM (i.hora_fin - resp.hora_primera_resp)) <= 3600
+        ) AS resol_ok
+      FROM incidentes i
+      LEFT JOIN LATERAL (
+        SELECT hora_envio_correo AS hora_correo_n1
+        FROM   escalamientos
+        WHERE  incidente_id = i.id AND nivel = 1 AND hora_envio_correo IS NOT NULL
+        ORDER  BY creado_en LIMIT 1
+      ) n1 ON true
+      LEFT JOIN LATERAL (
+        SELECT hora_respuesta AS hora_primera_resp
+        FROM   escalamientos
+        WHERE  incidente_id = i.id AND hora_respuesta IS NOT NULL
+        ORDER  BY hora_respuesta LIMIT 1
+      ) resp ON true
       WHERE i.tienda_id    = ${tiendaId}
         AND i.proveedor_id = ${id}
-        AND e.hora_envio_correo >= ${thirtyDaysAgoStr}::timestamptz
+        AND i.hora_registro >= ${thirtyDaysAgoStr}::timestamptz
+        AND i.estado = 'RESUELTO'
     `)
-    const slaRow = (slaRows as any[])[0]
-    const tc = Number(slaRow?.total_closed ?? 0)
-    if (tc > 0) slaTienda = Math.round((Number(slaRow.respondidos) / tc) * 100)
+    const sr = (slaRows as any[])[0]
+    const te = Number(sr?.total_escalados ?? 0)
+    const tr = Number(sr?.total_resolvibles ?? 0)
+    if (te > 0) {
+      slaRespuestaTienda = Math.round((Number(sr.resp_ok)  / te) * 100)
+      slaTienda          = slaRespuestaTienda
+    }
+    if (tr > 0) slaResolucionTienda = Math.round((Number(sr.resol_ok) / tr) * 100)
   } catch { /* skip */ }
 
   // Último incidente + historial
-  const incWhere = and(eq(incidentes.tiendaId, tiendaId), eq(incidentes.proveedorId, id))
+  const incWhere = incStrictWhere
   const incSel   = {
     id: incidentes.id, codigo: incidentes.codigo, tipo: incidentes.tipo,
     estado: incidentes.estado, horaRegistro: incidentes.horaRegistro, mttrMinutos: incidentes.mttrMinutos,
@@ -189,14 +214,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     tienda,
     contrato,
     metricas: {
-      incidentesHistoricos: historicData.total,
-      incidentes30d:        inc30d,
-      mttrPromedio:         historicData.mttrAvg,
-      mttrPromFmt:          fmtMttr(historicData.mttrAvg),
-      tiempoCaidoTotal:     mttrTotal,
-      tiempoCaidoFmt:       fmtMttr(mttrTotal),
+      incidentesHistoricos:  historicData.total,
+      incidentes30d:         inc30d,
+      mttrPromedio:          historicData.mttrAvg,
+      mttrPromFmt:           fmtMttr(historicData.mttrAvg),
+      tiempoCaidoTotal:      mttrTotal,
+      tiempoCaidoFmt:        fmtMttr(mttrTotal),
       slaTienda,
-      impactoEstimado:      impacto,
+      slaRespuestaTienda,
+      slaResolucionTienda,
+      impactoEstimado:       impacto,
     },
     lastIncidente: lastInc ?? null,
     historial,

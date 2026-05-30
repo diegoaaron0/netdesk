@@ -102,8 +102,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   } catch { /* skip */ }
 
   // SLA
-  let slaPromedio: number | null = null
-  let scoreEficiencia: number | null = null
+  let slaPromedio:          number | null = null
+  let slaRespuestaPromedio: number | null = null
+  let slaResolucionPromedio: number | null = null
+  let scoreEficiencia:      number | null = null
   try {
     const { getSlaContrato } = await import('@/lib/sla-contrato')
     const slaContrato = await getSlaContrato(id)
@@ -141,11 +143,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     `)
 
     const { calcSLARow, calcEficienciaSLA } = await import('@/lib/sla-core')
-    let ok = 0, total = 0, scoreSum = 0, scoreCount = 0
+    let okGen = 0, okResp = 0, okResol = 0
+    let totalEsc = 0, totalResol = 0
+    let scoreSum = 0, scoreCount = 0
     for (const row of slaRows as any[]) {
       if (!row.hora_correo_n1) continue
       const slaResolucionMin = slaContrato.resolucionMin
-      total++
+      totalEsc++
       const res = calcSLARow({
         tipo: row.tipo,
         hora_correo_n1: row.hora_correo_n1,
@@ -155,7 +159,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         slaRespuestaOverride: slaContrato.respuestaMin,
         slaResolucionOverride: slaResolucionMin,
       })
-      if (res.slaGeneral) ok++
+      if (res.slaGeneral)   okGen++
+      if (res.slaRespuesta) okResp++
+      if (res.tResolucionMin != null) {
+        totalResol++
+        if (res.slaResolucion) okResol++
+      }
       const ef = calcEficienciaSLA({
         tRespuestaMin: res.tPrimeraRespuestaMin,
         tResolucionMin: res.tResolucionMin,
@@ -164,7 +173,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       })
       if (ef.scoreSLA != null) { scoreSum += ef.scoreSLA; scoreCount++ }
     }
-    if (total > 0) slaPromedio = Math.round((ok / total) * 100)
+    if (totalEsc  > 0) slaPromedio          = Math.round((okGen  / totalEsc)  * 100)
+    if (totalEsc  > 0) slaRespuestaPromedio  = Math.round((okResp  / totalEsc)  * 100)
+    if (totalResol > 0) slaResolucionPromedio = Math.round((okResol / totalResol) * 100)
     scoreEficiencia = scoreCount > 0 ? Math.round(scoreSum / scoreCount) : null
   } catch { /* skip */ }
 
@@ -221,9 +232,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     niveles,
     contratos,
     metricas: {
-      totalTiendas:    tiendasData.count,
-      costoTotal:      tiendasData.costoTotal,
+      totalTiendas:         tiendasData.count,
+      costoTotal:           tiendasData.costoTotal,
       slaPromedio,
+      slaRespuestaPromedio,
+      slaResolucionPromedio,
       scoreEficiencia,
       mttrPromedio:    mttrData.avg,
       mttrTotal:       mttrData.total,

@@ -86,12 +86,12 @@ export default function ProveedoresPage() {
   const totalTiendas     = lista.reduce((s, p) => s + (p.totalTiendas ?? 0), 0)
   const costoTotal       = lista.reduce((s, p) => s + Number(p.costoTotal ?? 0), 0)
   const totalInc30d      = lista.reduce((s, p) => s + (p.incidentes30d ?? 0), 0)
-  const slaValidos       = lista.filter(p => p.slaPromedio != null)
+  const slaValidos       = lista.filter(p => p.slaRespuesta != null)
   const slaPromGlobal    = slaValidos.length > 0
-    ? Math.round(slaValidos.reduce((s, p) => s + p.slaPromedio, 0) / slaValidos.length)
+    ? Math.round(slaValidos.reduce((s, p) => s + p.slaRespuesta, 0) / slaValidos.length)
     : null
   const peorProveedor    = slaValidos.length > 0
-    ? slaValidos.reduce((prev, cur) => cur.slaPromedio < prev.slaPromedio ? cur : prev)
+    ? slaValidos.reduce((prev, cur) => (cur.slaRespuesta ?? 100) < (prev.slaRespuesta ?? 100) ? cur : prev)
     : null
 
   function setF(k: string, v: any) { setFiltros(f => ({ ...f, [k]: v })) }
@@ -148,7 +148,7 @@ export default function ProveedoresPage() {
           <div style={{ fontSize: '22px', fontWeight: 700, color: slaColor(slaPromGlobal) }}>{slaPromGlobal != null ? `${slaPromGlobal}%` : '—'}</div>
           <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>SLA promedio 30d</div>
           {peorProveedor && slaPromGlobal != null && slaPromGlobal < 80 && (
-            <div style={{ fontSize: '9px', color: '#dc2626', marginTop: '3px' }}>Peor: {peorProveedor.nombre} ({peorProveedor.slaPromedio}%)</div>
+            <div style={{ fontSize: '9px', color: '#dc2626', marginTop: '3px' }}>Peor resp.: {peorProveedor.nombre} ({peorProveedor.slaRespuesta}%)</div>
           )}
         </div>
         <div style={{ background: totalInc30d > 0 ? '#fef2f2' : 'var(--card)', border: `0.5px solid ${totalInc30d > 0 ? '#fecaca' : 'var(--border)'}`, borderRadius: '10px', padding: '12px 14px' }}>
@@ -199,22 +199,25 @@ export default function ProveedoresPage() {
               <th style={{ ...thStyle, textAlign: 'center' }}>Tiendas</th>
               <th style={{ ...thStyle, textAlign: 'center' }}>Inc. 30d</th>
               <th style={thStyle}>Costo/mes</th>
-              <th style={{ ...thStyle, textAlign: 'center' }}>SLA 30d</th>
+              <th style={{ ...thStyle, textAlign: 'center' }}>SLA Resp. 30d</th>
+              <th style={{ ...thStyle, textAlign: 'center' }}>SLA Resol. 30d</th>
               <th style={thStyle}>Contrato</th>
               <th style={thStyle}>Soporte</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
-              <tr><td colSpan={7} style={{ padding: '28px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Cargando...</td></tr>
+              <tr><td colSpan={8} style={{ padding: '28px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Cargando...</td></tr>
             )}
             {!loading && lista.length === 0 && (
-              <tr><td colSpan={7} style={{ padding: '28px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Sin resultados</td></tr>
+              <tr><td colSpan={8} style={{ padding: '28px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Sin resultados</td></tr>
             )}
             {!loading && lista.map((p, i) => {
               const est    = estadoBadge(p.estadoContratoCalc)
-              const sColor = slaColor(p.slaPromedio)
-              const sBg    = slaBg(p.slaPromedio)
+              const sColor = slaColor(p.slaRespuesta)
+              const sBg    = slaBg(p.slaRespuesta)
+              const sColorR = slaColor(p.slaResolucion)
+              const sBgR    = slaBg(p.slaResolucion)
               const isHov  = hoveredRow === p.id
               const incAlta = (p.incidentes30d ?? 0) > 10
               const incMedia = (p.incidentes30d ?? 0) > 3
@@ -280,11 +283,22 @@ export default function ProveedoresPage() {
                     )}
                   </td>
 
-                  {/* SLA */}
+                  {/* SLA Respuesta */}
                   <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                    {p.slaPromedio != null ? (
+                    {p.slaRespuesta != null ? (
                       <span style={{ fontWeight: 700, fontSize: '12px', color: sColor, background: sBg, padding: '2px 7px', borderRadius: '5px' }}>
-                        {p.slaPromedio}%
+                        {p.slaRespuesta}%
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--muted-foreground)', fontSize: '11px' }}>—</span>
+                    )}
+                  </td>
+
+                  {/* SLA Resolución */}
+                  <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                    {p.slaResolucion != null ? (
+                      <span style={{ fontWeight: 700, fontSize: '12px', color: sColorR, background: sBgR, padding: '2px 7px', borderRadius: '5px' }}>
+                        {p.slaResolucion}%
                       </span>
                     ) : (
                       <span style={{ color: 'var(--muted-foreground)', fontSize: '11px' }}>—</span>

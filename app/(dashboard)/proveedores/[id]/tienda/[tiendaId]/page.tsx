@@ -198,12 +198,13 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
           <SectionTitle>Rendimiento del proveedor en esta tienda</SectionTitle>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
             {[
-              { label: 'Incidentes históricos',   value: String(metricas?.incidentesHistoricos ?? 0) },
-              { label: 'Incidentes últimos 30d',  value: String(metricas?.incidentes30d ?? 0) },
-              { label: 'MTTR promedio',            value: metricas?.mttrPromFmt ?? '—' },
-              { label: 'SLA cumplimiento (30d)',   value: metricas?.slaTienda != null ? `${metricas.slaTienda}%` : '—', color: slaColor(metricas?.slaTienda) },
-              { label: 'Tiempo caído acumulado',  value: metricas?.tiempoCaidoFmt ?? '—' },
-              { label: 'Impacto estimado',         value: metricas?.impactoEstimado != null ? fmtSoles(metricas.impactoEstimado) : '—' },
+              { label: 'Incidentes históricos',       value: String(metricas?.incidentesHistoricos ?? 0) },
+              { label: 'Incidentes últimos 30d',      value: String(metricas?.incidentes30d ?? 0) },
+              { label: 'MTTR promedio',               value: metricas?.mttrPromFmt ?? '—' },
+              { label: 'SLA Respuesta (30d)',         value: metricas?.slaRespuestaTienda  != null ? `${metricas.slaRespuestaTienda}%`  : '—', color: slaColor(metricas?.slaRespuestaTienda  ?? null) },
+              { label: 'SLA Resolución (30d)',        value: metricas?.slaResolucionTienda != null ? `${metricas.slaResolucionTienda}%` : '—', color: slaColor(metricas?.slaResolucionTienda ?? null) },
+              { label: 'Tiempo caído total (hist.)',  value: metricas?.tiempoCaidoFmt ?? '—' },
+              { label: 'Impacto estimado',            value: metricas?.impactoEstimado != null ? fmtSoles(metricas.impactoEstimado) : '—' },
             ].map(r => (
               <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '0.5px solid var(--border)' }}>
                 <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{r.label}</span>

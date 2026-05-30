@@ -79,22 +79,61 @@ export async function GET(req: NextRequest) {
     for (const i of iAgg) if (i.proveedorId) iMap[i.proveedorId] = i.total
   } catch { /* skip */ }
 
-  // ── 5. SLA aggregate per provider ──────────────────────────────────────────
-  let slaMap: Record<string, number> = {}
+  // ── 5. SLA Respuesta + SLA Resolución por proveedor (últimos 30d) ──────────
+  // Límites default: respuesta 60min, resolución 60min (sla-core defaults)
+  const SLA_RESP_SEG  = 60 * 60   // 3600 segundos
+  const SLA_RESOL_SEG = 60 * 60   // 3600 segundos
+  let slaMap: Record<string, { respuesta: number | null; resolucion: number | null }> = {}
   try {
     const slaRows = await db.execute(sql`
-      SELECT i.proveedor_id,
-        count(*) filter (where e.estado_cronometro in ('RESPONDIDO','VENCIDO')) as total_closed,
-        count(*) filter (where e.estado_cronometro = 'RESPONDIDO')              as respondidos
-      FROM escalamientos e
-      JOIN incidentes i ON e.incidente_id = i.id
-      WHERE e.hora_envio_correo >= ${thirtyDaysAgoStr}::timestamptz
+      SELECT
+        i.proveedor_id,
+        count(*) filter (
+          where n1.hora_correo_n1 IS NOT NULL
+        ) AS total_escalados,
+        count(*) filter (
+          where n1.hora_correo_n1 IS NOT NULL
+            AND resp.hora_primera_resp IS NOT NULL
+            AND EXTRACT(epoch FROM (resp.hora_primera_resp - n1.hora_correo_n1)) <= ${SLA_RESP_SEG}
+        ) AS resp_ok,
+        count(*) filter (
+          where n1.hora_correo_n1 IS NOT NULL
+            AND resp.hora_primera_resp IS NOT NULL
+            AND i.hora_fin IS NOT NULL
+        ) AS total_resolvibles,
+        count(*) filter (
+          where n1.hora_correo_n1 IS NOT NULL
+            AND resp.hora_primera_resp IS NOT NULL
+            AND i.hora_fin IS NOT NULL
+            AND EXTRACT(epoch FROM (i.hora_fin - resp.hora_primera_resp)) <= ${SLA_RESOL_SEG}
+        ) AS resol_ok
+      FROM incidentes i
+      LEFT JOIN LATERAL (
+        SELECT hora_envio_correo AS hora_correo_n1
+        FROM   escalamientos
+        WHERE  incidente_id = i.id AND nivel = 1 AND hora_envio_correo IS NOT NULL
+        ORDER  BY creado_en LIMIT 1
+      ) n1 ON true
+      LEFT JOIN LATERAL (
+        SELECT hora_respuesta AS hora_primera_resp
+        FROM   escalamientos
+        WHERE  incidente_id = i.id AND hora_respuesta IS NOT NULL
+        ORDER  BY hora_respuesta LIMIT 1
+      ) resp ON true
+      WHERE i.hora_registro >= ${thirtyDaysAgoStr}::timestamptz
+        AND i.estado = 'RESUELTO'
         AND i.proveedor_id IS NOT NULL
+        AND i.evaluable_proveedor IS NOT FALSE
       GROUP BY i.proveedor_id
     `)
     for (const r of slaRows as any[]) {
-      const tc = Number(r.total_closed), resp = Number(r.respondidos)
-      if (tc > 0 && r.proveedor_id) slaMap[r.proveedor_id] = Math.round((resp / tc) * 100)
+      if (!r.proveedor_id) continue
+      const te = Number(r.total_escalados), ro = Number(r.resp_ok)
+      const tr = Number(r.total_resolvibles), resOk = Number(r.resol_ok)
+      slaMap[r.proveedor_id] = {
+        respuesta:  te > 0 ? Math.round((ro   / te) * 100) : null,
+        resolucion: tr > 0 ? Math.round((resOk / tr) * 100) : null,
+      }
     }
   } catch { /* skip */ }
 
@@ -122,8 +161,9 @@ export async function GET(req: NextRequest) {
     ...(extMap[p.id] ?? { tipoServicio: null, planPrincipal: null, canalAtencion: null, observaciones: null, estadoContrato: null }),
     totalTiendas:       tMap[p.id]?.total     ?? 0,
     costoTotal:         tMap[p.id]?.costoTotal ?? '0',
-    incidentes30d:      iMap[p.id]            ?? 0,
-    slaPromedio:        slaMap[p.id]          ?? null as number | null,
+    incidentes30d:      iMap[p.id]                       ?? 0,
+    slaRespuesta:       slaMap[p.id]?.respuesta          ?? null as number | null,
+    slaResolucion:      slaMap[p.id]?.resolucion         ?? null as number | null,
     estadoContratoCalc: cMap[p.id]?.estado    ?? 'VIGENTE',
     planContrato:       cMap[p.id]?.plan      ?? null as string | null,
   }))
