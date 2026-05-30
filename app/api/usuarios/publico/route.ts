@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { usuarios } from '@/drizzle/schema'
-import { eq } from 'drizzle-orm'
+import { eq, isNull, and } from 'drizzle-orm'
 
 export async function GET() {
   const data = await db.select({
@@ -9,7 +9,7 @@ export async function GET() {
     nombre: usuarios.nombre,
     email:  usuarios.email,
     rol:    usuarios.rol,
-  }).from(usuarios).where(eq(usuarios.activo, true)).orderBy(usuarios.nombre)
+  }).from(usuarios).where(and(eq(usuarios.activo, true), isNull(usuarios.eliminadoEn))).orderBy(usuarios.nombre)
 
   return NextResponse.json(data)
 }

@@ -92,7 +92,6 @@ function inputStyle(): React.CSSProperties {
 
 export default function UsuariosPage() {
   const { data: session } = useSession()
-  const myRol = (session?.user as any)?.rol ?? 'AGENTE'
   const canEdit = can(session, 'usuarios.editar')
   const canCreate = can(session, 'usuarios.crear')
 
@@ -174,13 +173,14 @@ export default function UsuariosPage() {
   }
 
   async function handleDelete(u: any) {
-    if (u.activo) {
-      alert('Desactiva primero al usuario antes de eliminarlo.')
+    if (!confirm(`¿Eliminar a "${u.nombre}" permanentemente? Sus incidentes quedarán intactos pero no podrá acceder al sistema.`)) return
+    const res = await fetch(`/api/usuarios/${u.id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      alert(data?.error ?? 'Error al eliminar el usuario')
       return
     }
-    if (!confirm(`¿Eliminar permanentemente a "${u.nombre}"? Sus tickets quedarán intactos pero el usuario no podrá acceder.`)) return
-    await fetch(`/api/usuarios/${u.id}`, { method: 'DELETE' })
-    fetchUsuarios()
+    await fetchUsuarios()
   }
 
   async function toggleActivo(u: any) {
