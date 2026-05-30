@@ -49,6 +49,7 @@ export async function GET(req: NextRequest) {
         t.codigo                      AS tienda_codigo,
         t.nombre_cc                   AS tienda_nombre,
         t.distrito                    AS tienda_distrito,
+        t.cluster                     AS tienda_cluster,
         COALESCE(pi.nombre, pt.nombre) AS proveedor_nombre,
         EXISTS (
           SELECT 1 FROM escalamientos e2

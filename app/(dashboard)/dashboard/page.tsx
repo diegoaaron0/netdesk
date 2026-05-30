@@ -66,23 +66,78 @@ function fmtHoraEvento(d: string | Date | null): { text: string; isOld: boolean 
   }
   return { text: tStr, isOld: false }
 }
+function csvFecha(d: string | Date | null): string {
+  if (!d) return ''
+  const raw = typeof d === 'string' && !d.includes('Z') && !d.includes('+') ? d + 'Z' : d
+  return new Date(raw).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Lima' })
+}
+function csvHora(d: string | Date | null): string {
+  if (!d) return ''
+  const raw = typeof d === 'string' && !d.includes('Z') && !d.includes('+') ? d + 'Z' : d
+  return new Date(raw).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Lima' })
+}
+
 function downloadCSV(activos: any[], resoluciones: any[], fecha?: string) {
   const BOM = '﻿'
-  const headers = ['Código','Tienda','Distrito','Cluster','Proveedor','Tipo','Impacto','Estado','Agente','Hora Registro','Hora Fin','MTTR (min)','Resuelto Por']
-  const toRow = (r: any, estado: string) => [
-    r.codigo ?? '', r.tienda_nombre ?? r.tienda_codigo ?? '', r.tienda_distrito ?? '',
-    r.tienda_cluster ?? '', r.proveedor_nombre ?? '', TIPO_LABELS[r.tipo] ?? r.tipo ?? '',
-    r.nivel_impacto ?? '', estado, r.agente_nombre ?? '',
-    fmtFechaHora(r.hora_registro), fmtFechaHora(r.hora_fin ?? null),
-    r.mttr_minutos ?? '', r.resuelto_por ?? '',
+  const headers = [
+    'Código Incidente', 'Código Tienda', 'Nombre CC', 'Distrito', 'Cluster',
+    'Proveedor', 'Tipo', 'Impacto', 'Estado', 'Estado Operativo',
+    'Agente', 'Contingencia Activa',
+    'Fecha Registro', 'Hora Registro', 'Fecha Fin', 'Hora Fin',
+    'MTTR (min)', 'Resuelto Por',
   ]
+
+  const nowMs = Date.now()
+
+  const toRowActivo = (i: any) => {
+    const { estadoOp } = getEstadoOpClient(i, nowMs)
+    return [
+      i.codigo ?? '',
+      i.tienda_codigo ?? '',
+      i.tienda_nombre ?? '',
+      i.tienda_distrito ?? '',
+      i.tienda_cluster ?? '',
+      i.proveedor_nombre ?? '',
+      TIPO_LABELS[i.tipo] ?? i.tipo ?? '',
+      i.nivel_impacto ?? '',
+      i.estado ?? '',
+      estadoOp,
+      i.agente_nombre ?? '',
+      i.cont_activado_por ? 'Sí' : 'No',
+      csvFecha(i.hora_registro), csvHora(i.hora_registro),
+      '', '',  // sin hora_fin ni MTTR para activos
+      '', '',
+    ]
+  }
+
+  const toRowResuelto = (r: any) => [
+    r.codigo ?? '',
+    r.tienda_codigo ?? '',
+    r.tienda_nombre ?? '',
+    r.tienda_distrito ?? '',
+    r.tienda_cluster ?? '',
+    r.proveedor_nombre ?? '',
+    TIPO_LABELS[r.tipo] ?? r.tipo ?? '',
+    r.nivel_impacto ?? '',
+    'RESUELTO',
+    'RESUELTO',
+    r.agente_nombre ?? '',
+    '',
+    csvFecha(r.hora_registro), csvHora(r.hora_registro),
+    csvFecha(r.hora_fin),       csvHora(r.hora_fin),
+    r.mttr_minutos ?? '',
+    r.resuelto_por ?? '',
+  ]
+
   const rows = [
-    ...resoluciones.map((r: any) => toRow(r, 'RESUELTO')),
-    ...activos.map((i: any) => toRow(i, i.estado)),
+    ...resoluciones.map(toRowResuelto),
+    ...activos.map(toRowActivo),
   ]
+
   const csv = BOM + [headers, ...rows]
     .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-    .join('\n')
+    .join('\r\n')
+
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
   const url  = URL.createObjectURL(blob)
   const a    = document.createElement('a')
