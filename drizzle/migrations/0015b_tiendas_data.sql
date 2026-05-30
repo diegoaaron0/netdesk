@@ -22,7 +22,7 @@ WITH upd AS (
     costo_mensual        = NULLIF(v.costo, '')::numeric,
     gabinete             = v.gabinete,
     extras               = NULLIF(v.observacion, ''),
-    cluster              = NULLIF(v.cluster, '')::cluster,
+    cluster              = NULLIF(v.cluster, ''),
     supervisor_nombre    = NULLIF(v.supervisor, ''),
     vigencia_contrato    = NULLIF(v.vigencia, '')
   FROM (VALUES
