@@ -291,7 +291,7 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
         <div>
           <h1 style={{ fontSize: '20px', fontWeight: 700, margin: 0 }}>
             {tab === 'operativo' ? 'Dashboard operativo' : 'Dashboard analítico'}
@@ -456,14 +456,14 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
   return (
     <>
       {/* Toolbar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
         {!isToday ? (
-          <div style={{ padding: '4px 12px', background: '#FFF3E0', border: '1px solid #FDBA74', borderRadius: '7px', fontSize: '11px', color: '#C84B00', fontWeight: 600 }}>
+          <div style={{ padding: '3px 10px', background: '#FFF3E0', border: '1px solid #FDBA74', borderRadius: '7px', fontSize: '11px', color: '#C84B00', fontWeight: 600 }}>
             ⏪ Vista histórica — {fecha} · Solo lectura
           </div>
         ) : <div />}
         <button onClick={() => downloadCSV(activos ?? [], resoluciones ?? [], fecha)}
-          style={{ padding: '4px 12px', fontSize: '11px', fontWeight: 600, background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '7px', cursor: 'pointer', color: 'var(--foreground)' }}>
+          style={{ padding: '3px 10px', fontSize: '11px', fontWeight: 600, background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '7px', cursor: 'pointer', color: 'var(--foreground)' }}>
           ⬇ CSV
         </button>
       </div>
