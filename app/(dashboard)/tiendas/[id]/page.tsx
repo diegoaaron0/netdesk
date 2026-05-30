@@ -613,8 +613,8 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
             {historial.length === 0 ? (
               <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', textAlign: 'center', padding: '12px 0' }}>Sin cambios registrados</div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {historial.slice(0, 20).map(h => (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '340px', overflowY: 'auto' }}>
+                {historial.map(h => (
                   <div key={h.id} style={{ borderBottom: '0.5px solid var(--border)', paddingBottom: '6px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1px' }}>
                       <span style={{ fontWeight: 500, color: 'var(--foreground)', fontSize: '10px' }}>{CAMPO_LABELS[h.campoEditado] ?? h.campoEditado}</span>
