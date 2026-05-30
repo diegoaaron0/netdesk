@@ -177,6 +177,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const allowedFields: Record<string, any> = {}
   const editable = [
     'estado','nivelImpacto','usuariosAfectados','tipo','tipoPersonalizado','otrosClasificacion',
+    'registradoPorId',
     'descripcionInicial','ticketInvgate','ticketProveedor','descartesRealizados','solucionAplicada',
     'horaInicioSeguimiento','observaciones','horaRegistro','horaFin','mttrMinutos',
     'estadoOperacion','operacionManual','tipoOperacionManual','factorOperativo',

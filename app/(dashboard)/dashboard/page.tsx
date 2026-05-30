@@ -113,17 +113,17 @@ function getEstadoOpClient(inc: any, nowMs: number) {
   return { estadoOp, pctSla: Math.round(pct * 100), minutosTranscurridos: Math.round(minutos), slaLimite }
 }
 function buildAlertas(activos: any[], equipo: any[], provsPend: any[], nowMs: number) {
-  const alertas: { tipo: string; texto: string; accion: string; filterKey?: string; provFilter?: string }[] = []
+  const alertas: { tipo: string; texto: string; accion: string; filterKey?: string; provFilter?: string; agenteId?: string }[] = []
   const venc  = activos.filter(i => getEstadoOpClient(i, nowMs).estadoOp === 'SLA_VENCIDO')
   const riesg = activos.filter(i => getEstadoOpClient(i, nowMs).estadoOp === 'EN_RIESGO_SLA')
   if (venc.length > 0)  alertas.push({ tipo: 'vencido',  texto: `${venc.length} incidente${venc.length > 1 ? 's' : ''} con SLA vencido`,    accion: 'Ver casos',    filterKey: 'enRiesgo' })
   if (riesg.length > 0) alertas.push({ tipo: 'riesgo',   texto: `${riesg.length} incidente${riesg.length > 1 ? 's' : ''} en riesgo SLA`,     accion: 'Ver casos',    filterKey: 'enRiesgo' })
   for (const p of provsPend) {
     alertas.push({ tipo: 'pendiente', texto: `${p.count} pendiente${p.count > 1 ? 's' : ''} proveedor ${p.nombre}`, accion: 'Ver pendientes', filterKey: 'pendientes', provFilter: p.nombre })
-    if (p.masAntiguoMin >= 240) alertas.push({ tipo: 'sin_resp', texto: `Sin respuesta de ${p.nombre} hace ${fmtMin(p.masAntiguoMin)}`, accion: 'Revisar' })
+    if (p.masAntiguoMin >= 240) alertas.push({ tipo: 'sin_resp', texto: `Sin respuesta de ${p.nombre} hace ${fmtMin(p.masAntiguoMin)}`, accion: 'Ver pendientes', filterKey: 'pendientes', provFilter: p.nombre })
   }
   for (const ag of equipo) {
-    if (ag.casosActivos > 3) alertas.push({ tipo: 'sobrecarga', texto: `${ag.nombre} tiene ${ag.casosActivos} casos activos`, accion: 'Reasignar' })
+    if (ag.casosActivos > 3) alertas.push({ tipo: 'sobrecarga', texto: `${ag.nombre} tiene ${ag.casosActivos} casos activos`, accion: 'Ver carga', agenteId: ag.id })
   }
   return alertas
 }
@@ -210,7 +210,7 @@ function AsignarModal({ activos, equipo, onClose, onRefresh }: { activos: any[];
                 style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--background)' }}>
                 <option value=''>— Seleccionar —</option>
                 {activos.map((i: any) => (
-                  <option key={i.id} value={i.id}>{i.codigo} — {i.tienda_nombre ?? i.tienda_codigo}</option>
+                  <option key={i.id} value={i.id}>{i.tienda_codigo} — {i.codigo}</option>
                 ))}
               </select>
             </div>
@@ -450,7 +450,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
 
   // KPI card definitions
   const kpiCards: Array<{ icon: string; label: string; value: any; sub?: string; filterKey: string | null; colorIcon: string; bg: string; link?: string }> = [
-    { icon: '📋', label: 'Incidentes abiertos',  value: kpis.abiertos,            sub: undefined,                                filterKey: 'abiertos',  colorIcon: '#185FA5', bg: '#E6F1FB' },
+    { icon: '📋', label: 'Incidentes abiertos',  value: kpis.abiertos,            sub: undefined,                                filterKey: null,        colorIcon: '#185FA5', bg: '#E6F1FB' },
     { icon: '⚠',  label: 'En riesgo SLA',         value: kpis.enRiesgoSla,          sub: kpis.vencidoSla > 0 ? `${kpis.vencidoSla} vencidos` : undefined, filterKey: 'enRiesgo',  colorIcon: '#C84B00', bg: '#FFF3E0' },
     { icon: '↑',  label: 'Escalados',              value: kpis.escalados,            sub: undefined,                                filterKey: 'escalados', colorIcon: '#A32D2D', bg: '#FCEBEB' },
     { icon: '🏢', label: 'Pendientes proveedor',   value: kpis.pendientesProveedor,  sub: undefined,                                filterKey: 'pendientes', colorIcon: '#5B21B6', bg: '#EEE8FF' },
@@ -914,7 +914,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 8px', background: cfg.bg, border: `0.5px solid ${cfg.border}`, borderRadius: '7px' }}>
                       <span style={{ fontSize: '11px', flexShrink: 0 }}>{cfg.icon}</span>
                       <span style={{ flex: 1, color: cfg.color, fontSize: '10px' }}>{a.texto}</span>
-                      <button onClick={() => { if (a.filterKey) setCardFiltro(a.filterKey); if (a.provFilter) setProvFiltro(a.provFilter) }}
+                      <button onClick={() => { if (a.filterKey) setCardFiltro(a.filterKey); if (a.provFilter) setProvFiltro(a.provFilter); if (a.agenteId) setAgenteFilter(a.agenteId) }}
                         style={{ fontSize: '9px', fontWeight: 600, background: 'none', border: 'none', color: cfg.color, cursor: 'pointer', whiteSpace: 'nowrap' }}>{a.accion} →</button>
                     </div>
                   )
