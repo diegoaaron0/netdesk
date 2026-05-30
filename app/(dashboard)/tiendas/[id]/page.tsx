@@ -30,8 +30,9 @@ function provColor(n: string | null) {
 const CAMPO_LABELS: Record<string, string> = {
   celularTienda: 'Celular tienda',
   nombreCc: 'Nombre CC', direccion: 'Dirección', distrito: 'Distrito',
-  provincia: 'Provincia', cluster: 'Cluster', supervisorNombre: 'Supervisor',
-  supervisorCelular: 'Celular supervisor', perfilSupervisor: 'Clasificación',
+  provincia: 'Provincia', ubicacion: 'Ubicación', cluster: 'Cluster',
+  supervisorNombre: 'Supervisor', supervisorCelular: 'Celular supervisor',
+  perfilSupervisor: 'Clasificación',
   tipoConexion: 'Tipo conexión', tipoServicio: 'Tipo servicio',
   cidServicio: 'CID', tieneContingencia: 'Tiene contingencia', contingenciaActiva: 'Contingencia activa',
   contingenciaDescripcion: 'Desc. contingencia', contingenciaChip: 'Chip contingencia',
@@ -40,6 +41,9 @@ const CAMPO_LABELS: Record<string, string> = {
   administradorNombre: 'Admin nombre', administradorEmail: 'Email',
   administradorCelular: 'Admin celular', proveedorId: 'Proveedor',
   ventaHoraSoles: 'Venta/hora S/.', formato: 'Formato', extras: 'Extras',
+  observacion: 'Observación', velocidad: 'Velocidad',
+  planAplicado: 'Plan aplicado', fechaAltaServicio: 'Fecha alta servicio',
+  estadoServicio: 'Estado servicio',
 }
 
 const CLASIFICACION_COLORS: Record<string, string> = {
@@ -76,7 +80,7 @@ function Field({ label, value, editing, onChange, type = 'text' }: {
         type === 'textarea'
           ? <textarea value={value ?? ''} onChange={e => onChange(e.target.value)}
               style={{ width: '100%', padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', boxSizing: 'border-box', minHeight: '54px', resize: 'vertical' }} />
-          : <input value={value ?? ''} onChange={e => onChange(e.target.value)}
+          : <input type={type} value={value ?? ''} onChange={e => onChange(e.target.value)}
               style={{ width: '100%', padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', boxSizing: 'border-box' }} />
       ) : (
         <div style={{ fontSize: '11px', color: value ? 'var(--foreground)' : 'var(--muted-foreground)', minHeight: '18px' }}>
@@ -316,8 +320,9 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               <Field label="Formato"    value={form.formato   ?? ''} editing={editing} onChange={v => setF('formato', v)} />
               <Field label="Dirección"  value={form.direccion ?? ''} editing={editing} onChange={v => setF('direccion', v)} />
               <Field label="Distrito"   value={form.distrito  ?? ''} editing={editing} onChange={v => setF('distrito', v)} />
-              <Field label="Provincia"  value={form.provincia ?? ''} editing={editing} onChange={v => setF('provincia', v)} />
+              <Field label="Provincia"  value={form.provincia  ?? ''} editing={editing} onChange={v => setF('provincia', v)} />
               <Field label="Referencia" value={form.referencia ?? ''} editing={editing} onChange={v => setF('referencia', v)} />
+              <Field label="Ubicación"  value={form.ubicacion  ?? ''} editing={editing} onChange={v => setF('ubicacion', v)} />
             </div>
 
             <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '8px', marginTop: '2px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
@@ -352,6 +357,8 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
               <Field label="Tipo conexión"     value={form.tipoConexion  ?? ''} editing={editing} onChange={v => setF('tipoConexion', v)} />
               <Field label="CID / Servicio"    value={form.cidServicio   ?? ''} editing={editing} onChange={v => setF('cidServicio', v)} />
+              <Field label="Tipo servicio"     value={form.tipoServicio  ?? ''} editing={editing} onChange={v => setF('tipoServicio', v)} />
+              <Field label="Velocidad"         value={form.velocidad     ?? ''} editing={editing} onChange={v => setF('velocidad', v)} />
               <Field label="Costo mensual (S/.)" value={form.costoMensual ?? ''} editing={editing} onChange={v => setF('costoMensual', v)} />
               <Field label="Venta / hora (S/.)" value={form.ventaHoraSoles ?? ''} editing={editing} onChange={v => setF('ventaHoraSoles', v)} />
             </div>
@@ -372,6 +379,28 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                   </div>
                 ) : (
                   <div style={{ fontSize: '11px', color: 'var(--foreground)' }}>{form.gabinete ? 'Sí' : 'No'}</div>
+                )}
+              </div>
+            </div>
+            <Field label="Observación" value={form.observacion ?? ''} editing={editing} onChange={v => setF('observacion', v)} type="textarea" />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
+              <Field label="Plan aplicado"       value={form.planAplicado      ?? ''} editing={editing} onChange={v => setF('planAplicado', v)} />
+              <Field label="Fecha alta servicio" value={form.fechaAltaServicio ?? ''} editing={editing} onChange={v => setF('fechaAltaServicio', v)} type="date" />
+              {/* Estado servicio */}
+              <div style={{ marginBottom: '8px' }}>
+                <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Estado servicio</div>
+                {editing ? (
+                  <select value={form.estadoServicio ?? 'ACTIVO'} onChange={e => setF('estadoServicio', e.target.value)}
+                    style={{ width: '100%', padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
+                    <option value="ACTIVO">Activo</option>
+                    <option value="INACTIVO">Inactivo</option>
+                    <option value="SUSPENDIDO">Suspendido</option>
+                    <option value="BAJA">Baja</option>
+                  </select>
+                ) : (
+                  <div style={{ fontSize: '11px', color: form.estadoServicio && form.estadoServicio !== 'ACTIVO' ? '#b91c1c' : 'var(--foreground)' }}>
+                    {form.estadoServicio || 'ACTIVO'}
+                  </div>
                 )}
               </div>
             </div>

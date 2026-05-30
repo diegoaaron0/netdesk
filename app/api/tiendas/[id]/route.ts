@@ -71,6 +71,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     contingenciaChip: null, contingenciaPaquete: null,
     extras: null, gabinete: false,
     vigenciaContrato: null, descripcionServicio: null,
+    observacion: null, fechaAltaServicio: null,
+    estadoServicio: 'ACTIVO', velocidad: null, planAplicado: null,
   }
   try {
     const [ext] = await db.select({
@@ -82,6 +84,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       gabinete:            tiendas.gabinete,
       vigenciaContrato:    tiendas.vigenciaContrato,
       descripcionServicio: tiendas.descripcionServicio,
+      observacion:         tiendas.observacion,
+      fechaAltaServicio:   tiendas.fechaAltaServicio,
+      estadoServicio:      tiendas.estadoServicio,
+      velocidad:           tiendas.velocidad,
+      planAplicado:        tiendas.planAplicado,
     }).from(tiendas).where(eq(tiendas.id, id))
     if (ext) extended = ext as any
   } catch {
@@ -100,6 +107,7 @@ const TRACKED_FIELDS = [
   'costoMensual', 'instruccionReporte', 'contactoSoporte', 'administradorNombre',
   'administradorEmail', 'administradorCelular', 'proveedorId', 'ventaHoraSoles', 'extras',
   'gabinete', 'vigenciaContrato', 'descripcionServicio',
+  'observacion', 'fechaAltaServicio', 'estadoServicio', 'velocidad', 'planAplicado',
 ] as const
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -134,6 +142,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     gabinete:            tiendas.gabinete,
     vigenciaContrato:    tiendas.vigenciaContrato,
     descripcionServicio: tiendas.descripcionServicio,
+    observacion:         tiendas.observacion,
+    fechaAltaServicio:   tiendas.fechaAltaServicio,
+    estadoServicio:      tiendas.estadoServicio,
+    velocidad:           tiendas.velocidad,
+    planAplicado:        tiendas.planAplicado,
   }).from(tiendas).where(eq(tiendas.id, id))
   if (!current) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
@@ -180,6 +193,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       gabinete:            'gabinete'            in body ? !!body.gabinete                    : current.gabinete,
       vigenciaContrato:    'vigenciaContrato'    in body ? (body.vigenciaContrato    ?? null) : current.vigenciaContrato,
       descripcionServicio: 'descripcionServicio' in body ? (body.descripcionServicio ?? null) : current.descripcionServicio,
+      observacion:         'observacion'         in body ? (body.observacion         ?? null) : current.observacion,
+      fechaAltaServicio:   'fechaAltaServicio'   in body ? (body.fechaAltaServicio   ?? null) : current.fechaAltaServicio,
+      estadoServicio:      'estadoServicio'      in body ? (body.estadoServicio      ?? null) : current.estadoServicio,
+      velocidad:           'velocidad'           in body ? (body.velocidad           ?? null) : current.velocidad,
+      planAplicado:        'planAplicado'        in body ? (body.planAplicado        ?? null) : current.planAplicado,
     }
     const [r] = await db.update(tiendas).set(fullValues).where(eq(tiendas.id, id)).returning()
     updated = r

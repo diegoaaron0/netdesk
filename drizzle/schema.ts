@@ -121,6 +121,7 @@ export const tiendas = pgTable('tiendas', {
   estadoServicio:                text('estado_servicio').default('ACTIVO'),
   velocidad:                     text('velocidad'),
   planAplicado:                  text('plan_aplicado'),
+  observacion:                   text('observacion'),
   creadoEn:                      timestamp('creado_en').defaultNow(),
 })
 
