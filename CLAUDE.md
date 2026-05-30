@@ -176,7 +176,7 @@ cajasAfectadas / cajasTotales / ventaParcial / boletaManual   → para cálculo 
 ### Seguridad
 - Todo API route debe verificar sesión con `auth()` y permiso con `can()`
 - La ruta `/tiendas` requiere permiso `'mantenimiento.ver'`
-- Contraseña default de nuevos usuarios: `S0p0rt3@!#`
+- Contraseña default de nuevos usuarios: `S0p0rt3!?@#`
 - Sesión JWT expira a las 8h (`session.maxAge = 8 * 60 * 60` en auth.config.ts)
 
 ---

@@ -71,7 +71,7 @@ const PERMISOS_GRUPOS = [
 
 const BLANK = {
   nombre: '', apellido: '', email: '', celular: '',
-  password: 'S0p0rt3@!#', rol: 'AGENTE', cluster: '', activo: true,
+  password: 'S0p0rt3!?@#', rol: 'AGENTE', cluster: '', activo: true,
   permisos: PERMISOS_POR_ROL['AGENTE'] as string[],
 }
 
@@ -102,6 +102,7 @@ export default function UsuariosPage() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [showPass, setShowPass] = useState(false)
+  const [passwordModified, setPasswordModified] = useState(false)
   const [historial, setHistorial] = useState<{ open: boolean; usuario: any; items: any[]; loading: boolean }>({ open: false, usuario: null, items: [], loading: false })
   const [historialTab, setHistorialTab] = useState<'todos' | 'resueltos'>('todos')
 
@@ -115,11 +116,12 @@ export default function UsuariosPage() {
   function openEdit(u: any) {
     setShowPass(false)
     setSaveError('')
+    setPasswordModified(false)
     setModal({
       open: true, isNew: false,
       data: {
         ...u,
-        password: u.password ?? 'S0p0rt3@!#',
+        password: '',
         cluster: u.cluster ?? '',
         permisos: u.permisos ?? PERMISOS_POR_ROL[u.rol] ?? [],
       },
@@ -128,6 +130,7 @@ export default function UsuariosPage() {
   function openNew() {
     setShowPass(false)
     setSaveError('')
+    setPasswordModified(true)
     setModal({ open: true, isNew: true, data: { ...BLANK, permisos: [...PERMISOS_POR_ROL['AGENTE']] } })
   }
 
@@ -140,11 +143,12 @@ export default function UsuariosPage() {
       defaultPerms.length === currentPerms.length &&
       defaultPerms.every(p => currentPerms.includes(p)) &&
       currentPerms.every(p => defaultPerms.includes(p))
-    const body = {
+    const body: any = {
       ...modal.data,
       cluster: modal.data.cluster || null,
       permisos: esDefault ? null : currentPerms,
     }
+    if (!modal.isNew && !passwordModified) delete body.password
     try {
       const res = modal.isNew
         ? await fetch('/api/usuarios', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
@@ -442,7 +446,7 @@ export default function UsuariosPage() {
               <div style={{ marginBottom: '10px' }}>
                 <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '3px' }}>Contraseña</label>
                 <div style={{ display: 'flex', gap: '6px' }}>
-                  <input type={showPass ? 'text' : 'password'} value={modal.data.password ?? ''} onChange={e => setField('password', e.target.value)} style={{ ...inp, flex: 1 }} />
+                  <input type={showPass ? 'text' : 'password'} value={modal.data.password ?? ''} onChange={e => { setField('password', e.target.value); setPasswordModified(true) }} placeholder={modal.isNew ? '' : '(sin cambios)'} style={{ ...inp, flex: 1 }} />
                   <button type="button" onClick={() => setShowPass(v => !v)}
                     style={{ padding: '7px 10px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--muted)', cursor: 'pointer', fontSize: '11px', color: 'var(--muted-foreground)' }}>
                     {showPass ? 'Ocultar' : 'Ver'}

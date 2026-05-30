@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     apellido: body.apellido ?? null,
     email:    body.email,
     celular:  body.celular ?? null,
-    password: body.password ?? 'S0p0rt3@!#',
+    password: body.password ?? 'S0p0rt3!?@#',
     rol:      body.rol ?? 'AGENTE',
     cluster:  body.cluster ?? null,
     permisos: body.permisos ?? null,
