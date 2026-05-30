@@ -143,6 +143,8 @@ export default function UsuariosPage() {
   }
 
   async function handleSave() {
+    if (!modal.data.nombre?.trim()) { setSaveError('El nombre es obligatorio'); return }
+    if (!modal.data.email?.trim()) { setSaveError('El correo es obligatorio'); return }
     setSaving(true)
     setSaveError('')
     const defaultPerms = PERMISOS_POR_ROL[modal.data.rol] ?? []

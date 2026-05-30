@@ -29,6 +29,8 @@ export async function POST(req: NextRequest) {
   if (!can(session, 'usuarios.crear')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const body = await req.json()
+  if (!body.nombre?.trim()) return NextResponse.json({ error: 'El nombre es obligatorio' }, { status: 400 })
+  if (!body.email?.trim()) return NextResponse.json({ error: 'El correo es obligatorio' }, { status: 400 })
   const [user] = await db.insert(usuarios).values({
     nombre:   body.nombre,
     apellido: body.apellido ?? null,
