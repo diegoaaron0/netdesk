@@ -29,7 +29,7 @@ function provColor(n: string | null) {
 
 const CAMPO_LABELS: Record<string, string> = {
   celularTienda: 'Celular tienda',
-  nombreCc: 'Nombre CC', direccion: 'Dirección', distrito: 'Distrito',
+  nombreCc: 'Referencia', referencia: 'Grupo', direccion: 'Dirección', distrito: 'Distrito',
   provincia: 'Provincia', ubicacion: 'Ubicación', cluster: 'Cluster',
   supervisorNombre: 'Supervisor', supervisorCelular: 'Celular supervisor',
   perfilSupervisor: 'Clasificación',
@@ -316,12 +316,12 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
-              <Field label="Nombre CC"  value={form.nombreCc  ?? ''} editing={editing} onChange={v => setF('nombreCc', v)} />
+              <Field label="Referencia" value={form.nombreCc  ?? ''} editing={editing} onChange={v => setF('nombreCc', v)} />
               <Field label="Formato"    value={form.formato   ?? ''} editing={editing} onChange={v => setF('formato', v)} />
               <Field label="Dirección"  value={form.direccion ?? ''} editing={editing} onChange={v => setF('direccion', v)} />
               <Field label="Distrito"   value={form.distrito  ?? ''} editing={editing} onChange={v => setF('distrito', v)} />
               <Field label="Provincia"  value={form.provincia  ?? ''} editing={editing} onChange={v => setF('provincia', v)} />
-              <Field label="Referencia" value={form.referencia ?? ''} editing={editing} onChange={v => setF('referencia', v)} />
+              <Field label="Grupo"      value={form.referencia ?? ''} editing={editing} onChange={v => setF('referencia', v)} />
               <Field label="Ubicación"  value={form.ubicacion  ?? ''} editing={editing} onChange={v => setF('ubicacion', v)} />
             </div>
 
