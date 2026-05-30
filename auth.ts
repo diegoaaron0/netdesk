@@ -18,7 +18,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!credentials?.email) return null
         const [user] = await db.select().from(usuarios).where(eq(usuarios.email, credentials.email as string))
         if (!user || !user.activo || user.eliminadoEn) return null
-        const stored = user.password ?? 'soporte123'
+        const stored = user.password ?? 'S0p0rt3@!#'
         if (stored !== credentials.password) return null
         return { id: user.id, name: user.nombre, email: user.email, rol: user.rol, permisos: user.permisos ?? null }
       },

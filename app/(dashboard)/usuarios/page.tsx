@@ -71,7 +71,7 @@ const PERMISOS_GRUPOS = [
 
 const BLANK = {
   nombre: '', apellido: '', email: '', celular: '',
-  password: 'soporte123', rol: 'AGENTE', cluster: '', activo: true,
+  password: 'S0p0rt3@!#', rol: 'AGENTE', cluster: '', activo: true,
   permisos: PERMISOS_POR_ROL['AGENTE'] as string[],
 }
 
@@ -119,7 +119,7 @@ export default function UsuariosPage() {
       open: true, isNew: false,
       data: {
         ...u,
-        password: u.password ?? 'soporte123',
+        password: u.password ?? 'S0p0rt3@!#',
         cluster: u.cluster ?? '',
         permisos: u.permisos ?? PERMISOS_POR_ROL[u.rol] ?? [],
       },

@@ -644,12 +644,19 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                     const nowM = Date.now()
                     const { minutosTranscurridos } = getEstadoOpClient(inc, nowM)
                     const isCritical = inc.estadoOp === 'SLA_VENCIDO'
+                    const esInfra = !!inc.escalado_infra_id
+                    const leftBorder = inc.estadoOp === 'SLA_VENCIDO' ? '3px solid #DC2626'
+                      : inc.estadoOp === 'EN_RIESGO_SLA' ? '3px solid #F59E0B'
+                      : esInfra ? '3px solid #7C3AED'
+                      : inc.estadoOp === 'ESCALADO' ? '3px solid #B45309'
+                      : inc.estadoOp === 'PENDIENTE_PROVEEDOR' ? '3px solid #7C3AED'
+                      : '3px solid transparent'
+                    const rowBg = inc.estadoOp === 'SLA_VENCIDO' ? '#FEF2F2'
+                      : inc.estadoOp === 'EN_RIESGO_SLA' ? '#FFFBEB'
+                      : esInfra ? '#F5F3FF'
+                      : 'transparent'
                     return (
-                      <tr key={inc.id} style={{
-                        borderTop: idx > 0 ? '0.5px solid var(--border)' : 'none',
-                        borderLeft: inc.estadoOp === 'SLA_VENCIDO' ? '3px solid #DC2626' : inc.estadoOp === 'EN_RIESGO_SLA' ? '3px solid #F59E0B' : inc.estadoOp === 'ESCALADO' ? '3px solid #B45309' : inc.estadoOp === 'PENDIENTE_PROVEEDOR' ? '3px solid #7C3AED' : '3px solid transparent',
-                        backgroundColor: inc.estadoOp === 'SLA_VENCIDO' ? '#FEF2F2' : inc.estadoOp === 'EN_RIESGO_SLA' ? '#FFFBEB' : 'transparent',
-                      }}>
+                      <tr key={inc.id} style={{ borderTop: idx > 0 ? '0.5px solid var(--border)' : 'none', borderLeft: leftBorder, backgroundColor: rowBg }}>
                         <td style={{ padding: '6px 8px', fontFamily: 'monospace', fontSize: '10px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>{inc.codigo}</td>
                         <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
                           <div style={{ fontWeight: 600, fontSize: '11px' }}>{inc.tienda_codigo}</div>
@@ -667,6 +674,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                         </td>
                         <td style={{ padding: '6px 8px' }}>
                           <SLABadge inc={inc} nowMs={nowM} />
+                          {esInfra && <span style={{ display: 'block', marginTop: '2px', fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: '#EDE9FE', color: '#5B21B6', fontWeight: 600 }}>Infra{inc.infra_nombre ? `: ${inc.infra_nombre.split(' ')[0]}` : ''}</span>}
                           {inc.sinMovimiento && <span style={{ display: 'block', marginTop: '2px', fontSize: '9px', padding: '1px 4px', borderRadius: '999px', background: '#F1F5F9', color: '#475569' }}>⏸ {fmtMin(inc.sinMovimientoMin)}</span>}
                         </td>
                         <td style={{ padding: '6px 8px', whiteSpace: 'nowrap', fontSize: '10px' }}>{inc.agente_nombre ?? '—'}</td>
@@ -768,6 +776,62 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
               })}
             </div>
           </div>
+
+          {/* Equipo Infraestructura — solo aparece si hay incidentes escalados a infra */}
+          {(() => {
+            const infraMap = new Map<string, { id: string; nombre: string; casos: any[] }>()
+            for (const inc of (activos ?? [])) {
+              if (!inc.escalado_infra_id) continue
+              if (!infraMap.has(inc.escalado_infra_id)) {
+                infraMap.set(inc.escalado_infra_id, { id: inc.escalado_infra_id, nombre: inc.infra_nombre ?? 'Infra', casos: [] })
+              }
+              infraMap.get(inc.escalado_infra_id)!.casos.push(inc)
+            }
+            if (infraMap.size === 0) return null
+            const infraList = [...infraMap.values()]
+            return (
+              <div style={{ background: 'var(--card)', border: '1px solid #C4B5FD', borderRadius: '12px', padding: '14px', borderLeft: '4px solid #7C3AED' }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '10px', color: '#5B21B6' }}>Equipo Infraestructura</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {infraList.map((inf: any, idx: number) => {
+                    const escaladosProv = inf.casos.filter((i: any) => i.pendiente_proveedor).length
+                    return (
+                      <div key={inf.id} style={{ flex: '1 1 160px', padding: '10px 12px', background: '#F5F3FF', borderRadius: '10px', border: '1px solid #C4B5FD' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                          <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
+                            {initials(inf.nombre)}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '12px', fontWeight: 600, lineHeight: 1.2 }}>{inf.nombre.split(' ').slice(0,2).join(' ')}</div>
+                            <div style={{ fontSize: '9px', color: '#7C3AED', marginTop: '1px' }}>INFRAESTRUCTURA</div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0' }}>
+                          <div style={{ flex: 1, textAlign: 'center', borderRight: '0.5px solid #C4B5FD' }}>
+                            <div style={{ fontSize: '14px', fontWeight: 700, color: '#5B21B6', lineHeight: 1 }}>{inf.casos.length}</div>
+                            <div style={{ fontSize: '8px', color: 'var(--muted-foreground)', marginTop: '2px' }}>ACT.</div>
+                          </div>
+                          <div style={{ flex: 1, textAlign: 'center' }}>
+                            <div style={{ fontSize: '14px', fontWeight: 700, color: escaladosProv > 0 ? '#C84B00' : 'var(--muted-foreground)', lineHeight: 1 }}>{escaladosProv}</div>
+                            <div style={{ fontSize: '8px', color: 'var(--muted-foreground)', marginTop: '2px' }}>PEND. PROV.</div>
+                          </div>
+                        </div>
+                        <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          {inf.casos.slice(0,3).map((i: any) => (
+                            <div key={i.id} onClick={() => router.push(`/incidentes/${i.id}`)}
+                              style={{ fontSize: '9px', fontFamily: 'monospace', color: '#5B21B6', cursor: 'pointer', textDecoration: 'underline' }}>
+                              {i.codigo} — {i.tienda_codigo}
+                            </div>
+                          ))}
+                          {inf.casos.length > 3 && <div style={{ fontSize: '8px', color: 'var(--muted-foreground)' }}>+{inf.casos.length - 3} más</div>}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
         </div>
 
         {/* ── SIDEBAR ── */}

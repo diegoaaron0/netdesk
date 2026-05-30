@@ -4,6 +4,7 @@ export default {
   secret: process.env.NEXTAUTH_SECRET,
   trustHost: true,
   providers: [],
+  session: { maxAge: 8 * 60 * 60 },
   callbacks: {
     async session({ session, token }) {
       if (session.user) {

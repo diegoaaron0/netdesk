@@ -59,10 +59,14 @@ export async function GET(req: NextRequest) {
         i.cont_activado_por,
         i.cont_hora_activacion,
         i.cont_rendimiento,
+        i.escalado_infra_id,
+        i.hora_escalado_infra,
+        infra_u.nombre AS infra_nombre,
         mov.ultimo_movimiento
       FROM incidentes i
       JOIN tiendas   t ON i.tienda_id           = t.id
       JOIN usuarios  u ON i.registrado_por_id   = u.id
+      LEFT JOIN usuarios infra_u ON i.escalado_infra_id = infra_u.id
       LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
       LEFT JOIN proveedores pt ON t.proveedor_id = pt.id
       LEFT JOIN LATERAL (
