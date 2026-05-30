@@ -492,9 +492,9 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
               const desactivando = desactivandoCont === c.tienda_id
               const esExterno    = !!c.cont_es_externo
               const mins = c.cont_hora_activacion
-                ? Math.round((nowMs - new Date(c.cont_hora_activacion).getTime()) / 60000)
+                ? Math.round((nowMs - tsMs(c.cont_hora_activacion)) / 60000)
                 : null
-              const durStr = mins != null
+              const durStr = mins != null && mins >= 0
                 ? (mins >= 60 ? `${Math.floor(mins/60)}h ${mins%60}m` : `${mins}m`)
                 : null
               const borderColor = esExterno ? '#ea580c' : '#f59e0b'
@@ -504,7 +504,6 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                 <div key={c.tienda_id} style={{ flex: '0 0 auto', background: bgColor, border: `1.5px solid ${borderColor}`, borderRadius: '7px', padding: '5px 10px', minWidth: '170px', maxWidth: '240px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ fontSize: '11px', fontWeight: 700, color: textColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
-                      {esExterno && <span style={{ marginRight: '4px' }}>📦</span>}
                       {c.tienda_codigo} — {c.tienda_nombre}
                     </div>
                     {durStr && (
