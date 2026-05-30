@@ -180,8 +180,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     'descripcionInicial','ticketInvgate','ticketProveedor','descartesRealizados','solucionAplicada',
     'horaInicioSeguimiento','observaciones','horaRegistro','horaFin','mttrMinutos',
     'estadoOperacion','operacionManual','tipoOperacionManual','factorOperativo',
-    'contActivadoPor','contHoraActivacion','contRendimiento','contObservacion','contEsExterno',
-    'movActivadoPor','movHoraActivacion','movRendimiento','movObservacion',
+    'contActivadoPor','contHoraActivacion','contHoraDesactivacion','contRendimiento','contObservacion','contEsExterno',
+    'movActivadoPor','movHoraActivacion','movHoraDesactivacion','movRendimiento','movObservacion',
     'descEnergia','descRouter','descDns',
     'checkIpconfig','checkPingGw','checkPingInternet','checkTracert','checkDns','checkRenovarIp',
     'descartesDetallado','resueltoPor','atribucionFinal','evaluableProveedor',
@@ -189,7 +189,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     'alcanceCorte','tuvoUps',
     'escaladoInfraId','horaEscaladoInfra','notaEscaladoInfra',
   ]
-  const dateFields = new Set(['horaRegistro','horaFin','horaInicioSeguimiento','contHoraActivacion','movHoraActivacion','horaEscaladoInfra'])
+  const dateFields = new Set(['horaRegistro','horaFin','horaInicioSeguimiento','contHoraActivacion','contHoraDesactivacion','movHoraActivacion','movHoraDesactivacion','horaEscaladoInfra'])
   const intFields  = new Set(['cajasAfectadas','cajasTotales','mttrMinutos'])
   for (const k of editable) {
     if (k in body) {
