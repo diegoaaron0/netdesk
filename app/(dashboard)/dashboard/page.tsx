@@ -308,6 +308,12 @@ export default function DashboardPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {tab === 'operativo' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {op && (
+                <button onClick={() => downloadCSV((op as any).activos ?? [], (op as any).resoluciones ?? [], fecha)}
+                  style={{ padding: '5px 10px', fontSize: '11px', fontWeight: 600, background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '7px', cursor: 'pointer', color: 'var(--foreground)' }}>
+                  ⬇ CSV
+                </button>
+              )}
               <input
                 type="date"
                 value={fecha}
@@ -455,19 +461,6 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
 
   return (
     <>
-      {/* Toolbar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-        {!isToday ? (
-          <div style={{ padding: '3px 10px', background: '#FFF3E0', border: '1px solid #FDBA74', borderRadius: '7px', fontSize: '11px', color: '#C84B00', fontWeight: 600 }}>
-            ⏪ Vista histórica — {fecha} · Solo lectura
-          </div>
-        ) : <div />}
-        <button onClick={() => downloadCSV(activos ?? [], resoluciones ?? [], fecha)}
-          style={{ padding: '3px 10px', fontSize: '11px', fontWeight: 600, background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '7px', cursor: 'pointer', color: 'var(--foreground)' }}>
-          ⬇ CSV
-        </button>
-      </div>
-
       {/* KPI Cards row — compact */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '6px', marginBottom: '10px' }}>
         {kpiCards.map((card) => (
