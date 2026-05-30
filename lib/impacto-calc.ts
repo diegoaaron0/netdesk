@@ -6,11 +6,17 @@
  *   impactoEconomicoBruto = ventaEsperadaAfectada × margen_bruto
  *   impactoEconomicoEstimado = impactoEconomicoBruto × factor_afectacion_real
  *
- * factor_afectacion_real depende de: tipo, contingencia_activa, boleta_manual,
- * venta_parcial, cajas_afectadas/totales, otros_clasificacion.
+ * factor_afectacion_real depende de: tipo, tipo de contingencia (propia/externa/móvil),
+ * rendimiento de cada contingencia, boleta_manual, venta_parcial, cajas.
  *
- * Si venta_hora no puede resolverse: faltaInformacion = true, montos = null.
- * NO usar fallback fijo inventado (ej. S/500).
+ * Prioridades de mitigación (menor factor = mejor cobertura):
+ *   1. Router propio (TOTAL → 0.00, PARCIAL → 0.15, FALLIDA → 1.00)
+ *   2. Router externo (TOTAL → 0.00, PARCIAL → 0.25, FALLIDA → 1.00)
+ *   3. Datos móviles  (TOTAL → 0.10, PARCIAL → 0.40, FALLIDA → 1.00)
+ *   4. Boleta manual  (cubre 0.80 → factor 0.20)
+ *   5. Sin backup: venta parcial → 0.50, ninguna → 1.00
+ *
+ * Si varios backups activos simultáneamente: se toma el de menor factor.
  */
 
 import { DASHBOARD_CONFIG } from './dashboard-config'
@@ -26,17 +32,16 @@ export interface ImpactoInputRow {
   // Venta hora del incidente
   venta_hora_soles?: number | null
   cluster?: string | null
-  // Si el llamador ya resolvió la venta hora (ej. con ventasDiarias), la pasa aquí.
-  // undefined = no proporcionado, usar venta_hora_soles / cluster.
-  // null = el llamador confirmó que no hay dato → faltaInformacion.
+  // Si el llamador ya resolvió la venta hora, la pasa aquí.
   ventaHoraResolvida?: number | null
-  // Condiciones del incidente — opcionales; no rompen si están ausentes
+  // Contingencia router (propio o externo)
   contingencia_activa?: boolean | null
+  cont_es_externo?: boolean | null        // true = ROUTER_EXTERNO, false/null = ROUTER_PROPIO
+  cont_rendimiento?: string | null        // TOTAL | PARCIAL | FALLIDA
+  // Datos móviles
   hubo_movil?: boolean | null
-  // TOTAL = cubrió completamente, PARCIAL = con limitaciones, FALLIDA = no funcionó
-  // También acepta valores legacy: EFECTIVA→TOTAL, LIMITADA→PARCIAL, NO_FUNCIONO/INOPERATIVA→FALLIDA
-  // Aplica tanto para contingencia como para datos móviles
-  cont_rendimiento?: string | null
+  mov_rendimiento?: string | null         // TOTAL | PARCIAL | FALLIDA
+  // Otras condiciones
   boleta_manual?: boolean | null
   venta_parcial?: boolean | null
   cajas_afectadas?: number | null
@@ -72,167 +77,155 @@ function resolveVentaHora(row: ImpactoInputRow): number | null {
   return null
 }
 
+// ─── Factor de contingencia por tipo y rendimiento ───────────────────────────
+
+// Normaliza cont_rendimiento a tier canónico
+function normRend(r: string | null | undefined): 'TOTAL' | 'PARCIAL' | 'FALLIDA' | null {
+  if (!r) return null
+  if (r === 'TOTAL'   || r === 'EFECTIVA')                         return 'TOTAL'
+  if (r === 'PARCIAL' || r === 'LIMITADA')                         return 'PARCIAL'
+  if (r === 'FALLIDA' || r === 'NO_FUNCIONO' || r === 'INOPERATIVA') return 'FALLIDA'
+  return null
+}
+
+/**
+ * Retorna el factor de impacto para una contingencia específica según tipo y tipo de incidente.
+ * Factor = fracción del impacto que QUEDA después de la mitigación.
+ */
+function factorContingencia(
+  tipo: string,
+  backupType: 'ROUTER_PROPIO' | 'ROUTER_EXTERNO' | 'DATOS_MOVILES',
+  rend: 'TOTAL' | 'PARCIAL' | 'FALLIDA' | null,
+): number {
+  // Factores por [tipo_incidente][backup_type][rendimiento]
+  const tabla: Record<string, Record<string, Record<string, number>>> = {
+    CAIDA_TOTAL: {
+      ROUTER_PROPIO:  { TOTAL: 0.00, PARCIAL: 0.15, FALLIDA: 1.00, unknown: 0.20 },
+      ROUTER_EXTERNO: { TOTAL: 0.00, PARCIAL: 0.25, FALLIDA: 1.00, unknown: 0.30 },
+      DATOS_MOVILES:  { TOTAL: 0.10, PARCIAL: 0.40, FALLIDA: 1.00, unknown: 0.40 },
+    },
+    INTERMITENCIA: {
+      ROUTER_PROPIO:  { TOTAL: 0.00, PARCIAL: 0.10, FALLIDA: 0.75, unknown: 0.15 },
+      ROUTER_EXTERNO: { TOTAL: 0.00, PARCIAL: 0.15, FALLIDA: 0.75, unknown: 0.20 },
+      DATOS_MOVILES:  { TOTAL: 0.05, PARCIAL: 0.25, FALLIDA: 0.75, unknown: 0.30 },
+    },
+    LENTITUD: {
+      ROUTER_PROPIO:  { TOTAL: 0.00, PARCIAL: 0.05, FALLIDA: 0.30, unknown: 0.10 },
+      ROUTER_EXTERNO: { TOTAL: 0.00, PARCIAL: 0.10, FALLIDA: 0.30, unknown: 0.15 },
+      DATOS_MOVILES:  { TOTAL: 0.00, PARCIAL: 0.10, FALLIDA: 0.30, unknown: 0.15 },
+    },
+    POS: {
+      ROUTER_PROPIO:  { TOTAL: 0.00, PARCIAL: 0.10, FALLIDA: 0.40, unknown: 0.15 },
+      ROUTER_EXTERNO: { TOTAL: 0.00, PARCIAL: 0.15, FALLIDA: 0.40, unknown: 0.20 },
+      DATOS_MOVILES:  { TOTAL: 0.05, PARCIAL: 0.20, FALLIDA: 0.40, unknown: 0.25 },
+    },
+  }
+
+  const tipoKey = tabla[tipo] ?? tabla['CAIDA_TOTAL']
+  const backupRow = tipoKey[backupType] ?? tipoKey['ROUTER_PROPIO']
+  const rendKey = rend ?? 'unknown'
+  return backupRow[rendKey] ?? backupRow['unknown']
+}
+
 // ─── Factor de afectación real ────────────────────────────────────────────────
 
 const RE_NO_AFECTA_VENTA = /biom[eé]trico|asistencia|rrhh|control.*personal|no afecta|clima|limpieza|seguridad/i
 const RE_AFECTA_VENTA    = /pos|sistema.*venta|venta|caja|red|conectividad|internet|lector|escaner/i
 
-// Normaliza cont_rendimiento a tier canónico: 'TOTAL' | 'PARCIAL' | 'FALLIDA' | null
-function normRendimiento(r: string | null | undefined): 'TOTAL' | 'PARCIAL' | 'FALLIDA' | null {
-  if (!r) return null
-  if (r === 'TOTAL' || r === 'EFECTIVA')                    return 'TOTAL'
-  if (r === 'PARCIAL' || r === 'LIMITADA')                  return 'PARCIAL'
-  if (r === 'FALLIDA' || r === 'NO_FUNCIONO' || r === 'INOPERATIVA') return 'FALLIDA'
-  return null
-}
-
 function calcFactorAfectacion(
   tipo: string,
   contingencia_activa: boolean | null | undefined,
-  hubo_movil: boolean | null | undefined,
+  cont_es_externo: boolean | null | undefined,
   cont_rendimiento: string | null | undefined,
+  hubo_movil: boolean | null | undefined,
+  mov_rendimiento: string | null | undefined,
   boleta_manual: boolean | null | undefined,
   venta_parcial: boolean | null | undefined,
   cajas_afectadas: number | null | undefined,
   cajas_totales: number | null | undefined,
   otros_clasificacion: string | null | undefined,
 ): { factor: number; motivo: string } {
-  let factor: number
-  let motivo: string
 
-  const rend = normRendimiento(cont_rendimiento)
-  // Datos móviles o contingencia activa = tiene operación alternativa
-  const tieneBackup = !!(contingencia_activa || hubo_movil)
-  const backupLabel = contingencia_activa && hubo_movil ? 'contingencia + datos móviles'
-    : hubo_movil ? 'datos móviles' : 'contingencia'
+  const rendRouter = normRend(cont_rendimiento)
+  const rendMovil  = normRend(mov_rendimiento ?? cont_rendimiento) // fallback a cont si no viene separado
 
-  switch (tipo) {
-    case 'CAIDA_TOTAL':
-      if (boleta_manual) {
-        factor = 0.40
-        motivo = 'Caída total con boleta manual: recuperación parcial de ventas estimada.'
-      } else if (tieneBackup) {
-        if (rend === 'TOTAL') {
-          factor = 0.00
-          motivo = `Caída total · ${backupLabel} cubrió al 100%: sin pérdida de ventas.`
-        } else if (rend === 'PARCIAL') {
-          factor = 0.30
-          motivo = `Caída total · ${backupLabel} parcial: operación limitada.`
-        } else if (rend === 'FALLIDA') {
-          factor = 1.00
-          motivo = `Caída total · ${backupLabel} fallido: sin operación alternativa efectiva.`
-        } else {
-          factor = 0.25
-          motivo = `Caída total con ${backupLabel} activo: operación alternativa reduce el impacto.`
-        }
-      } else if (venta_parcial) {
-        factor = 0.50
-        motivo = 'Caída total con venta parcial reportada.'
-      } else {
-        factor = 1.00
-        motivo = 'Caída total sin operación alternativa: impacto total estimado.'
-      }
-      break
+  // Determinar tipo de router contingencia
+  const backupRouterType: 'ROUTER_PROPIO' | 'ROUTER_EXTERNO' = cont_es_externo
+    ? 'ROUTER_EXTERNO'
+    : 'ROUTER_PROPIO'
 
-    case 'INTERMITENCIA':
-      if (tieneBackup) {
-        if (rend === 'TOTAL') {
-          factor = 0.00
-          motivo = `Intermitencia · ${backupLabel} cubrió al 100%: sin pérdida de ventas.`
-        } else if (rend === 'PARCIAL') {
-          factor = 0.25
-          motivo = `Intermitencia · ${backupLabel} parcial: impacto moderado.`
-        } else if (rend === 'FALLIDA') {
-          factor = 0.75
-          motivo = `Intermitencia · ${backupLabel} fallido: impacto sin mitigación.`
-        } else {
-          factor = 0.25
-          motivo = `Intermitencia con ${backupLabel} activo: impacto reducido.`
-        }
-      } else if (venta_parcial) {
-        factor = 0.35
-        motivo = 'Intermitencia con venta parcial reportada.'
-      } else {
-        factor = 0.75
-        motivo = 'Intermitencia sin operación alternativa: impacto significativo estimado.'
-      }
-      break
+  // Calcular factor de cada backup activo
+  const factores: { f: number; desc: string }[] = []
 
-    case 'LENTITUD':
-      if (tieneBackup) {
-        if (rend === 'TOTAL') {
-          factor = 0.00
-          motivo = `Lentitud · ${backupLabel} cubrió al 100%: sin pérdida de ventas.`
-        } else if (rend === 'PARCIAL') {
-          factor = 0.20
-          motivo = `Lentitud · ${backupLabel} parcial: impacto leve.`
-        } else if (rend === 'FALLIDA') {
-          factor = 0.30
-          motivo = `Lentitud · ${backupLabel} fallido: impacto normal sin mitigación.`
-        } else {
-          factor = 0.20
-          motivo = `Lentitud con ${backupLabel} activo: impacto mínimo.`
-        }
-      } else if (venta_parcial) {
-        factor = 0.25
-        motivo = 'Lentitud con venta parcial reportada.'
-      } else {
-        factor = 0.30
-        motivo = 'Lentitud: impacto reducido (servicio operativo con degradación).'
-      }
-      break
+  if (contingencia_activa) {
+    const f = factorContingencia(tipo, backupRouterType, rendRouter)
+    const label = backupRouterType === 'ROUTER_EXTERNO' ? 'router externo' : 'router propio'
+    const rendLabel = rendRouter ? rendRouter.toLowerCase() : 'rendimiento sin registrar'
+    factores.push({ f, desc: `${label} (${rendLabel})` })
+  }
 
-    case 'POS':
-      if (tieneBackup) {
-        if (rend === 'TOTAL') {
-          factor = 0.00
-          motivo = `Falla POS · ${backupLabel} cubrió al 100%: sin pérdida de ventas.`
-        } else if (rend === 'PARCIAL') {
-          factor = 0.20
-          motivo = `Falla POS · ${backupLabel} parcial: transacciones alternativas limitadas.`
-        } else if (rend === 'FALLIDA') {
-          factor = 0.40
-          motivo = `Falla POS · ${backupLabel} fallido: impacto total en transacciones.`
-        } else {
-          factor = 0.20
-          motivo = `Falla POS con ${backupLabel} activo: transacciones alternativas disponibles.`
-        }
-      } else {
-        factor = 0.40
-        motivo = 'Falla de terminal POS: impacto parcial en transacciones de caja.'
-      }
-      break
+  if (hubo_movil) {
+    const f = factorContingencia(tipo, 'DATOS_MOVILES', rendMovil)
+    const rendLabel = rendMovil ? rendMovil.toLowerCase() : 'rendimiento sin registrar'
+    factores.push({ f, desc: `datos móviles (${rendLabel})` })
+  }
 
-    default: { // OTROS y tipos desconocidos
-      const clas = otros_clasificacion?.trim() ?? ''
-      if (clas && RE_NO_AFECTA_VENTA.test(clas)) {
-        factor = 0.00
-        motivo = `Incidente tipo Otros (${clas}): no afecta directamente las ventas.`
-      } else if (clas && RE_AFECTA_VENTA.test(clas)) {
-        factor = 0.40
-        motivo = `Incidente tipo Otros (${clas}): afecta sistema de ventas o conectividad.`
-      } else {
-        factor = 0.30
-        motivo = clas
-          ? `Incidente tipo Otros (${clas}): impacto moderado estimado.`
-          : 'Incidente tipo Otros sin clasificación: impacto moderado estimado.'
-      }
-      break
+  // Si algún backup estuvo activo → tomar el de mejor cobertura (menor factor)
+  if (factores.length > 0) {
+    const best = factores.reduce((a, b) => a.f <= b.f ? a : b)
+
+    // boleta manual puede complementar si backup fue fallido
+    if (boleta_manual && best.f >= 1.0) {
+      return { factor: 0.20, motivo: `${best.desc} fallida; boleta manual como respaldo (cubre 80%).` }
+    }
+
+    const backupsDesc = factores.map(x => x.desc).join(' + ')
+    return {
+      factor: best.f,
+      motivo: best.f === 0
+        ? `${backupsDesc} cubrió al 100%: sin pérdida estimada.`
+        : `${backupsDesc}: impacto parcial según rendimiento.`,
     }
   }
 
-  // Factor parcial por cajas afectadas
-  if (
-    cajas_afectadas != null &&
-    cajas_totales != null &&
-    cajas_totales > 0 &&
-    cajas_afectadas < cajas_totales
-  ) {
-    const factorCajas = cajas_afectadas / cajas_totales
-    factor = Math.round(factor * factorCajas * 1000) / 1000
-    motivo += ` (${cajas_afectadas}/${cajas_totales} cajas afectadas)`
+  // Sin ningún backup — fallback a boleta manual o venta parcial
+  if (boleta_manual) {
+    // boleta manual cubre 80% de las operaciones → factor 0.20
+    const baseFactores: Record<string, number> = {
+      CAIDA_TOTAL:  0.20,
+      INTERMITENCIA: 0.20,
+      LENTITUD:      0.10,
+      POS:           0.20,
+    }
+    const f = baseFactores[tipo] ?? 0.20
+    return { factor: f, motivo: 'Boleta manual activa: recuperó ~80% de operaciones.' }
   }
 
+  if (tipo === 'OTROS') {
+    const clas = otros_clasificacion?.trim() ?? ''
+    if (clas && RE_NO_AFECTA_VENTA.test(clas)) {
+      return { factor: 0.00, motivo: `Tipo Otros (${clas}): no afecta directamente ventas.` }
+    }
+    if (clas && RE_AFECTA_VENTA.test(clas)) {
+      return { factor: venta_parcial ? 0.25 : 0.40, motivo: `Tipo Otros (${clas}): afecta sistema de ventas.` }
+    }
+    return {
+      factor: venta_parcial ? 0.25 : 0.30,
+      motivo: clas ? `Tipo Otros (${clas}): impacto moderado estimado.` : 'Tipo Otros: impacto moderado estimado.',
+    }
+  }
+
+  const basesSinBackup: Record<string, number> = {
+    CAIDA_TOTAL:   venta_parcial ? 0.50 : 1.00,
+    INTERMITENCIA: venta_parcial ? 0.35 : 0.75,
+    LENTITUD:      venta_parcial ? 0.20 : 0.30,
+    POS:           0.40,
+    CORTE_ELECTRICO: 1.00,
+  }
+  const factor = basesSinBackup[tipo] ?? 0.30
+  const motivo = venta_parcial
+    ? `${tipo}: venta parcial reportada, impacto reducido.`
+    : `${tipo}: sin backup ni mitigación, impacto completo estimado.`
   return { factor, motivo }
 }
 
@@ -244,14 +237,28 @@ export function calcImpactoRow(row: ImpactoInputRow): ImpactoResult {
   const { factor, motivo } = calcFactorAfectacion(
     row.tipo,
     row.contingencia_activa,
-    row.hubo_movil,
+    row.cont_es_externo,
     row.cont_rendimiento,
+    row.hubo_movil,
+    row.mov_rendimiento,
     row.boleta_manual,
     row.venta_parcial,
     row.cajas_afectadas,
     row.cajas_totales,
     row.otros_clasificacion,
   )
+
+  // Factor por cajas afectadas (prorratea si no todas las cajas estuvieron caídas)
+  let factorFinal = factor
+  if (
+    row.cajas_afectadas != null &&
+    row.cajas_totales   != null &&
+    row.cajas_totales > 0 &&
+    row.cajas_afectadas < row.cajas_totales
+  ) {
+    const factorCajas = row.cajas_afectadas / row.cajas_totales
+    factorFinal = Math.round(factorFinal * factorCajas * 1000) / 1000
+  }
 
   const mttrRaw = row.estado === 'RESUELTO'
     ? calcMTTRMin(row.hora_registro, row.hora_fin)
@@ -268,16 +275,16 @@ export function calcImpactoRow(row: ImpactoInputRow): ImpactoResult {
       ventaEsperadaAfectada: null,
       margenUsado,
       impactoEconomicoBruto: null,
-      factorAplicado: factor,
+      factorAplicado: factorFinal,
       motivoFactor: motivo,
       impactoEconomicoEstimado: null,
       impactoEstimado: 0,
     }
   }
 
-  const ventaEsperadaAfectada  = Math.round(ventaHora * (mttrMin / 60))
-  const impactoEconomicoBruto  = Math.round(ventaEsperadaAfectada * margenUsado)
-  const impactoEconomicoEstimado = Math.round(impactoEconomicoBruto * factor)
+  const ventaEsperadaAfectada   = Math.round(ventaHora * (mttrMin / 60))
+  const impactoEconomicoBruto   = Math.round(ventaEsperadaAfectada * margenUsado)
+  const impactoEconomicoEstimado = Math.round(impactoEconomicoBruto * factorFinal)
 
   return {
     faltaInformacion: false,
@@ -286,7 +293,7 @@ export function calcImpactoRow(row: ImpactoInputRow): ImpactoResult {
     ventaEsperadaAfectada,
     margenUsado,
     impactoEconomicoBruto,
-    factorAplicado: factor,
+    factorAplicado: factorFinal,
     motivoFactor: motivo,
     impactoEconomicoEstimado,
     impactoEstimado: impactoEconomicoEstimado,
