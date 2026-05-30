@@ -181,6 +181,7 @@ export async function GET(req: NextRequest) {
       FROM tiendas t
       LEFT JOIN incidentes i ON i.tienda_id = t.id
         AND i.cont_activado_por IS NOT NULL
+        AND i.cont_hora_desactivacion IS NULL
         AND i.estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
       LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
       LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id

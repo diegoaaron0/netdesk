@@ -286,6 +286,27 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
   }
 
+  // Cuando contHoraDesactivacion se sella explícitamente → verificar si la tienda ya no tiene contingencias activas
+  if ('contHoraDesactivacion' in allowedFields && allowedFields.contHoraDesactivacion && updated.tiendaId && updated.contActivadoPor) {
+    const [incCheck] = await db.execute<{ cnt: number }>(sql`
+      SELECT COUNT(*)::int AS cnt FROM incidentes
+      WHERE tienda_id = ${updated.tiendaId}
+        AND cont_activado_por IS NOT NULL
+        AND cont_hora_desactivacion IS NULL
+        AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
+    `)
+    const [contCheck] = await db.execute<{ cnt: number }>(sql`
+      SELECT COUNT(*)::int AS cnt FROM contingencias
+      WHERE tienda_id = ${updated.tiendaId} AND hora_desactivacion IS NULL
+    `)
+    const stillActive = Number((incCheck as any)?.cnt ?? 0) + Number((contCheck as any)?.cnt ?? 0)
+    if (stillActive === 0) {
+      await db.update(tiendas)
+        .set({ contingenciaActiva: false, contingenciaActivadaPor: null })
+        .where(eq(tiendas.id, updated.tiendaId))
+    }
+  }
+
   // Auto-sync tiendas.contingencia_activa desde el estado de contingencia del incidente.
   // Cuando contActivadoPor se establece → la tienda pasa a contingencia activa.
   // Cuando se limpia → solo se desactiva si ningún otro incidente abierto de esa tienda tiene contingencia.

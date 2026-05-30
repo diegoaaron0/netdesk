@@ -794,60 +794,76 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                         </div>
                       )}
 
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '10px' }}>
-                        <div>
-                          <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Activado por</label>
-                          <div style={{ display: 'flex', gap: '6px' }}>
-                            {(['TIENDA','AGENTE','INFRAESTRUCTURA'] as const).map(opt => (
-                              <button key={opt} type="button" disabled={contDis} onClick={() => setEdit('contActivadoPor', opt)}
-                                style={{ padding: '5px 11px', fontSize: '11px', borderRadius: '6px', border: '1px solid var(--border)', cursor: contDis ? 'default' : 'pointer', fontWeight: editForm.contActivadoPor === opt ? 600 : 400, background: editForm.contActivadoPor === opt ? 'hsl(221,83%,45%)' : 'var(--card)', color: editForm.contActivadoPor === opt ? 'white' : 'var(--foreground)' }}>
-                                {opt.charAt(0) + opt.slice(1).toLowerCase()}
-                              </button>
-                            ))}
+                      {contSellada ? (
+                        /* Compact read-only after deactivation */
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '11px' }}>
+                            <span><span style={{ color: 'var(--muted-foreground)' }}>Por: </span><strong>{editForm.contActivadoPor}</strong></span>
+                            {inc.contHoraActivacion && (
+                              <span style={{ fontFamily: 'monospace' }}>
+                                {toDatetimeLocal(inc.contHoraActivacion).slice(11,16)}
+                                {' → '}
+                                {inc.contHoraDesactivacion ? toDatetimeLocal(inc.contHoraDesactivacion).slice(11,16) : '—'}
+                              </span>
+                            )}
+                            {editForm.contRendimiento && (
+                              <span><span style={{ color: 'var(--muted-foreground)' }}>Rend: </span><strong>{({ EFECTIVO:'Efectivo 100%', PARCIAL:'Parcial 75%', NULO:'Nulo 0%' } as Record<string,string>)[editForm.contRendimiento] ?? editForm.contRendimiento}</strong></span>
+                            )}
                           </div>
+                          {editForm.contObservacion && (
+                            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>{editForm.contObservacion}</div>
+                          )}
                         </div>
-                        <div>
-                          <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Hora de activación</label>
-                          <input type="datetime-local" disabled={contDis} style={iStyle(contDis)} value={editForm.contHoraActivacion ?? ''} onChange={e => setEdit('contHoraActivacion', e.target.value)} />
-                        </div>
-                      </div>
-
-                      {/* Desactivar button */}
-                      {canEditB && editForm.contActivadoPor && !contSellada && (
-                        <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <button type="button" onClick={handleDesactivarCont}
-                            style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 600, borderRadius: '7px', border: '1px solid #dc2626', background: 'rgba(220,38,38,0.07)', color: '#dc2626', cursor: 'pointer' }}>
-                            Desactivar
-                          </button>
-                          <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Sella la hora de fin y bloquea la edición del bloque.</span>
-                        </div>
+                      ) : (
+                        /* Editable form */
+                        <>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '10px' }}>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Activado por</label>
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                {(['TIENDA','AGENTE','INFRAESTRUCTURA'] as const).map(opt => (
+                                  <button key={opt} type="button" disabled={contDis} onClick={() => setEdit('contActivadoPor', opt)}
+                                    style={{ padding: '5px 11px', fontSize: '11px', borderRadius: '6px', border: '1px solid var(--border)', cursor: contDis ? 'default' : 'pointer', fontWeight: editForm.contActivadoPor === opt ? 600 : 400, background: editForm.contActivadoPor === opt ? 'hsl(221,83%,45%)' : 'var(--card)', color: editForm.contActivadoPor === opt ? 'white' : 'var(--foreground)' }}>
+                                    {opt.charAt(0) + opt.slice(1).toLowerCase()}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Hora de activación</label>
+                              <input type="datetime-local" disabled={contDis} style={iStyle(contDis)} value={editForm.contHoraActivacion ?? ''} onChange={e => setEdit('contHoraActivacion', e.target.value)} />
+                            </div>
+                          </div>
+                          {canEditB && editForm.contActivadoPor && (
+                            <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <button type="button" onClick={handleDesactivarCont}
+                                style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 600, borderRadius: '7px', border: '1px solid #dc2626', background: 'rgba(220,38,38,0.07)', color: '#dc2626', cursor: 'pointer' }}>
+                                Desactivar
+                              </button>
+                              <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Sella la hora de fin y bloquea la edición.</span>
+                            </div>
+                          )}
+                          <div style={{ marginBottom: '10px' }}>
+                            <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Rendimiento</label>
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                              {[{v:'EFECTIVO',l:'Efectivo 100%',bg:'#dcfce7',c:'#15803d'},{v:'PARCIAL',l:'Parcial 75%',bg:'#fef9c3',c:'#a16207'},{v:'NULO',l:'Nulo 0%',bg:'#fee2e2',c:'#b91c1c'}].map(({v,l,bg,c}) => {
+                                const sel = editForm.contRendimiento === v
+                                return <button key={v} type="button" disabled={contDis} onClick={() => setEdit('contRendimiento', v)} style={{ padding:'4px 10px',fontSize:'11px',borderRadius:'6px',border:`1px solid ${sel?c:'var(--border)'}`,cursor:contDis?'default':'pointer',background:sel?bg:'var(--card)',color:sel?c:'var(--muted-foreground)',fontWeight:sel?600:400 }}>{l}</button>
+                              })}
+                            </div>
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px', color: (!inc?.tiendaTieneContingencia && editForm.contActivadoPor) ? '#92400e' : 'var(--muted-foreground)' }}>
+                              {(!inc?.tiendaTieneContingencia && editForm.contActivadoPor) ? 'Descripción de contingencia temporal *' : 'Observación'}
+                            </label>
+                            <textarea disabled={!isSupervisor}
+                              style={{ ...taStyle(!isSupervisor), border: (!inc?.tiendaTieneContingencia && editForm.contActivadoPor && !editForm.contObservacion) ? '1.5px solid #f59e0b' : undefined }}
+                              value={editForm.contObservacion ?? ''}
+                              onChange={e => setEdit('contObservacion', e.target.value)}
+                              placeholder={(!inc?.tiendaTieneContingencia && editForm.contActivadoPor) ? 'Ej: Router TP-Link portátil con chip Entel, instalado por técnico el 23/05...' : 'Describe el comportamiento de la contingencia...'} />
+                          </div>
+                        </>
                       )}
-                      {contSellada && inc.contHoraDesactivacion && (
-                        <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', background: 'rgba(100,116,139,0.08)', borderRadius: '7px', border: '1px solid rgba(100,116,139,0.2)' }}>
-                          <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Desactivada a las</span>
-                          <span style={{ fontSize: '11px', fontFamily: 'monospace', fontWeight: 600, color: 'var(--foreground)' }}>{toDatetimeLocal(inc.contHoraDesactivacion).slice(11,16)}</span>
-                        </div>
-                      )}
-
-                      <div style={{ marginBottom: '10px' }}>
-                        <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Rendimiento</label>
-                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                          {[{v:'EFECTIVO',l:'Efectivo 100%',bg:'#dcfce7',c:'#15803d'},{v:'PARCIAL',l:'Parcial 75%',bg:'#fef9c3',c:'#a16207'},{v:'NULO',l:'Nulo 0%',bg:'#fee2e2',c:'#b91c1c'}].map(({v,l,bg,c}) => {
-                            const sel = editForm.contRendimiento === v
-                            return <button key={v} type="button" disabled={contDis} onClick={() => setEdit('contRendimiento', v)} style={{ padding:'4px 10px',fontSize:'11px',borderRadius:'6px',border:`1px solid ${sel?c:'var(--border)'}`,cursor:contDis?'default':'pointer',background:sel?bg:'var(--card)',color:sel?c:'var(--muted-foreground)',fontWeight:sel?600:400 }}>{l}</button>
-                          })}
-                        </div>
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px', color: (!inc?.tiendaTieneContingencia && editForm.contActivadoPor) ? '#92400e' : 'var(--muted-foreground)' }}>
-                          {(!inc?.tiendaTieneContingencia && editForm.contActivadoPor) ? 'Descripción de contingencia temporal *' : 'Observación'}
-                        </label>
-                        <textarea disabled={!isSupervisor || contSellada}
-                          style={{ ...taStyle(!isSupervisor || contSellada), border: (!inc?.tiendaTieneContingencia && editForm.contActivadoPor && !editForm.contObservacion) ? '1.5px solid #f59e0b' : undefined }}
-                          value={editForm.contObservacion ?? ''}
-                          onChange={e => setEdit('contObservacion', e.target.value)}
-                          placeholder={(!inc?.tiendaTieneContingencia && editForm.contActivadoPor) ? 'Ej: Router TP-Link portátil con chip Entel, instalado por técnico el 23/05...' : 'Describe el comportamiento de la contingencia...'} />
-                      </div>
                     </div>
                   )}
                 </div>
@@ -881,54 +897,70 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   </button>
                   {showMovBlock && (
                     <div style={{ padding:'14px', background:'var(--muted)' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '10px' }}>
-                        <div>
-                          <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Activado por</label>
-                          <div style={{ display: 'flex', gap: '6px' }}>
-                            {(['TIENDA','AGENTE','INFRAESTRUCTURA'] as const).map(opt => (
-                              <button key={opt} type="button" disabled={movDis} onClick={() => setEdit('movActivadoPor', opt)}
-                                style={{ padding:'5px 11px',fontSize:'11px',borderRadius:'6px',border:'1px solid var(--border)',cursor:movDis?'default':'pointer',fontWeight:editForm.movActivadoPor===opt?600:400,background:editForm.movActivadoPor===opt?'hsl(221,83%,45%)':'var(--card)',color:editForm.movActivadoPor===opt?'white':'var(--foreground)' }}>
-                                {opt.charAt(0) + opt.slice(1).toLowerCase()}
-                              </button>
-                            ))}
+                      {movSellada ? (
+                        /* Compact read-only after deactivation */
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '11px' }}>
+                            <span><span style={{ color: 'var(--muted-foreground)' }}>Por: </span><strong>{editForm.movActivadoPor}</strong></span>
+                            {inc.movHoraActivacion && (
+                              <span style={{ fontFamily: 'monospace' }}>
+                                {toDatetimeLocal(inc.movHoraActivacion).slice(11,16)}
+                                {' → '}
+                                {inc.movHoraDesactivacion ? toDatetimeLocal(inc.movHoraDesactivacion).slice(11,16) : '—'}
+                              </span>
+                            )}
+                            {editForm.movRendimiento && (
+                              <span><span style={{ color: 'var(--muted-foreground)' }}>Rend: </span><strong>{({ EFECTIVO:'Efectivo 100%', PARCIAL:'Parcial 75%', NULO:'Nulo 0%' } as Record<string,string>)[editForm.movRendimiento] ?? editForm.movRendimiento}</strong></span>
+                            )}
                           </div>
+                          {editForm.movObservacion && (
+                            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>{editForm.movObservacion}</div>
+                          )}
                         </div>
-                        <div>
-                          <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Hora de activación</label>
-                          <input type="datetime-local" disabled={movDis} style={iStyle(movDis)} value={editForm.movHoraActivacion ?? ''} onChange={e => setEdit('movHoraActivacion', e.target.value)} />
-                        </div>
-                      </div>
-
-                      {/* Desactivar button */}
-                      {canEditB && editForm.movActivadoPor && !movSellada && (
-                        <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <button type="button" onClick={handleDesactivarMov}
-                            style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 600, borderRadius: '7px', border: '1px solid #2563eb', background: 'rgba(37,99,235,0.07)', color: '#2563eb', cursor: 'pointer' }}>
-                            Desactivar
-                          </button>
-                          <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Sella la hora de fin y bloquea la edición del bloque.</span>
-                        </div>
+                      ) : (
+                        /* Editable form */
+                        <>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '10px' }}>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Activado por</label>
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                {(['TIENDA','AGENTE','INFRAESTRUCTURA'] as const).map(opt => (
+                                  <button key={opt} type="button" disabled={movDis} onClick={() => setEdit('movActivadoPor', opt)}
+                                    style={{ padding:'5px 11px',fontSize:'11px',borderRadius:'6px',border:'1px solid var(--border)',cursor:movDis?'default':'pointer',fontWeight:editForm.movActivadoPor===opt?600:400,background:editForm.movActivadoPor===opt?'hsl(221,83%,45%)':'var(--card)',color:editForm.movActivadoPor===opt?'white':'var(--foreground)' }}>
+                                    {opt.charAt(0) + opt.slice(1).toLowerCase()}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Hora de activación</label>
+                              <input type="datetime-local" disabled={movDis} style={iStyle(movDis)} value={editForm.movHoraActivacion ?? ''} onChange={e => setEdit('movHoraActivacion', e.target.value)} />
+                            </div>
+                          </div>
+                          {canEditB && editForm.movActivadoPor && (
+                            <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <button type="button" onClick={handleDesactivarMov}
+                                style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 600, borderRadius: '7px', border: '1px solid #2563eb', background: 'rgba(37,99,235,0.07)', color: '#2563eb', cursor: 'pointer' }}>
+                                Desactivar
+                              </button>
+                              <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Sella la hora de fin y bloquea la edición.</span>
+                            </div>
+                          )}
+                          <div style={{ marginBottom: '10px' }}>
+                            <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Rendimiento</label>
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                              {[{v:'EFECTIVO',l:'Efectivo 100%',bg:'#dcfce7',c:'#15803d'},{v:'PARCIAL',l:'Parcial 75%',bg:'#fef9c3',c:'#a16207'},{v:'NULO',l:'Nulo 0%',bg:'#fee2e2',c:'#b91c1c'}].map(({v,l,bg,c}) => {
+                                const sel = editForm.movRendimiento === v
+                                return <button key={v} type="button" disabled={movDis} onClick={() => setEdit('movRendimiento', v)} style={{ padding:'4px 10px',fontSize:'11px',borderRadius:'6px',border:`1px solid ${sel?c:'var(--border)'}`,cursor:movDis?'default':'pointer',background:sel?bg:'var(--card)',color:sel?c:'var(--muted-foreground)',fontWeight:sel?600:400 }}>{l}</button>
+                              })}
+                            </div>
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Observación</label>
+                            <textarea disabled={movDis} style={taStyle(movDis)} value={editForm.movObservacion ?? ''} onChange={e => setEdit('movObservacion', e.target.value)} placeholder="Describe el comportamiento de los datos móviles..." />
+                          </div>
+                        </>
                       )}
-                      {movSellada && inc.movHoraDesactivacion && (
-                        <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', background: 'rgba(100,116,139,0.08)', borderRadius: '7px', border: '1px solid rgba(100,116,139,0.2)' }}>
-                          <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Desactivada a las</span>
-                          <span style={{ fontSize: '11px', fontFamily: 'monospace', fontWeight: 600, color: 'var(--foreground)' }}>{toDatetimeLocal(inc.movHoraDesactivacion).slice(11,16)}</span>
-                        </div>
-                      )}
-
-                      <div style={{ marginBottom: '10px' }}>
-                        <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Rendimiento</label>
-                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                          {[{v:'EFECTIVO',l:'Efectivo 100%',bg:'#dcfce7',c:'#15803d'},{v:'PARCIAL',l:'Parcial 75%',bg:'#fef9c3',c:'#a16207'},{v:'NULO',l:'Nulo 0%',bg:'#fee2e2',c:'#b91c1c'}].map(({v,l,bg,c}) => {
-                            const sel = editForm.movRendimiento === v
-                            return <button key={v} type="button" disabled={movDis} onClick={() => setEdit('movRendimiento', v)} style={{ padding:'4px 10px',fontSize:'11px',borderRadius:'6px',border:`1px solid ${sel?c:'var(--border)'}`,cursor:movDis?'default':'pointer',background:sel?bg:'var(--card)',color:sel?c:'var(--muted-foreground)',fontWeight:sel?600:400 }}>{l}</button>
-                          })}
-                        </div>
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Observación</label>
-                        <textarea disabled={movDis} style={taStyle(movDis)} value={editForm.movObservacion ?? ''} onChange={e => setEdit('movObservacion', e.target.value)} placeholder="Describe el comportamiento de los datos móviles..." />
-                      </div>
                     </div>
                   )}
                 </div>
@@ -967,56 +999,6 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                       </div>
                     </div>
                   )}
-                </div>
-              )
-            })()}
-
-            {/* Historial de contingencias */}
-            {(inc.contActivadoPor || inc.movActivadoPor) && (() => {
-              type ContEntry = { tipo: string; inicio: string | null; fin: string | null; mins: number; activo: boolean }
-              const entries: ContEntry[] = []
-              if (inc.contActivadoPor) {
-                const fin = inc.contHoraDesactivacion ?? (isClosed ? inc.horaFin : null)
-                const mins = inc.contHoraActivacion
-                  ? (fin
-                      ? Math.round((new Date(fin).getTime() - new Date(inc.contHoraActivacion).getTime()) / 60000)
-                      : Math.round((Date.now() - new Date(inc.contHoraActivacion).getTime()) / 60000))
-                  : 0
-                entries.push({ tipo: inc.contEsExterno ? 'Router externo' : 'Router propio', inicio: inc.contHoraActivacion, fin: inc.contHoraDesactivacion, mins, activo: !inc.contHoraDesactivacion && !isClosed })
-              }
-              if (inc.movActivadoPor) {
-                const fin = inc.movHoraDesactivacion ?? (isClosed ? inc.horaFin : null)
-                const mins = inc.movHoraActivacion
-                  ? (fin
-                      ? Math.round((new Date(fin).getTime() - new Date(inc.movHoraActivacion).getTime()) / 60000)
-                      : Math.round((Date.now() - new Date(inc.movHoraActivacion).getTime()) / 60000))
-                  : 0
-                entries.push({ tipo: 'Datos móviles', inicio: inc.movHoraActivacion, fin: inc.movHoraDesactivacion, mins, activo: !inc.movHoraDesactivacion && !isClosed })
-              }
-              return (
-                <div style={{ marginBottom: '14px', paddingTop: '14px', borderTop: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--foreground)', marginBottom: '8px' }}>Historial de contingencias</div>
-                  <div style={{ borderRadius: '8px', border: '1px solid var(--border)', overflow: 'hidden' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '140px 70px 70px 70px 1fr', padding: '5px 12px', background: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
-                      {['Tipo','Inicio','Fin','Duración','Estado'].map(h => (
-                        <span key={h} style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</span>
-                      ))}
-                    </div>
-                    {entries.map((e, i) => (
-                      <div key={i} style={{ display: 'grid', gridTemplateColumns: '140px 70px 70px 70px 1fr', padding: '8px 12px', borderBottom: i < entries.length - 1 ? '1px solid var(--border)' : 'none', alignItems: 'center' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--foreground)' }}>{e.tipo}</span>
-                        <span style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--foreground)' }}>{e.inicio ? toDatetimeLocal(e.inicio).slice(11,16) : '—'}</span>
-                        <span style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--foreground)' }}>{e.fin ? toDatetimeLocal(e.fin).slice(11,16) : (e.activo ? '—' : '—')}</span>
-                        <span style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--foreground)' }}>{minToHM(e.mins)}</span>
-                        <span>
-                          {e.activo
-                            ? <span style={{ fontSize: '10px', fontWeight: 600, color: '#d97706' }}>⏱ Activo</span>
-                            : <span style={{ fontSize: '10px', fontWeight: 600, color: '#15803d' }}>✓ Finalizado</span>
-                          }
-                        </span>
-                      </div>
-                    ))}
-                  </div>
                 </div>
               )
             })()}
@@ -1370,6 +1352,53 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   </>
                 )}
               </div>
+
+              {/* Historial de contingencias — debajo de tiempos */}
+              {(inc.contActivadoPor || inc.movActivadoPor) && (() => {
+                type CEntry = { tipo: string; inicio: string | null; fin: string | null; mins: number; activo: boolean }
+                const entries: CEntry[] = []
+                if (inc.contActivadoPor) {
+                  const fin = inc.contHoraDesactivacion ?? (isClosed ? inc.horaFin : null)
+                  const mins = inc.contHoraActivacion
+                    ? (fin ? Math.round((new Date(fin).getTime() - new Date(inc.contHoraActivacion).getTime()) / 60000)
+                           : Math.round((Date.now() - new Date(inc.contHoraActivacion).getTime()) / 60000))
+                    : 0
+                  entries.push({ tipo: inc.contEsExterno ? 'Router ext.' : 'Router propio', inicio: inc.contHoraActivacion, fin: inc.contHoraDesactivacion, mins, activo: !inc.contHoraDesactivacion && !isClosed })
+                }
+                if (inc.movActivadoPor) {
+                  const fin = inc.movHoraDesactivacion ?? (isClosed ? inc.horaFin : null)
+                  const mins = inc.movHoraActivacion
+                    ? (fin ? Math.round((new Date(fin).getTime() - new Date(inc.movHoraActivacion).getTime()) / 60000)
+                           : Math.round((Date.now() - new Date(inc.movHoraActivacion).getTime()) / 60000))
+                    : 0
+                  entries.push({ tipo: 'Datos móviles', inicio: inc.movHoraActivacion, fin: inc.movHoraDesactivacion, mins, activo: !inc.movHoraDesactivacion && !isClosed })
+                }
+                return (
+                  <div style={{ marginTop: '10px', padding: '10px 12px', background: 'var(--muted)', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '8px' }}>Contingencias</div>
+                    {entries.map((e, i) => (
+                      <div key={i} style={{ marginBottom: i < entries.length - 1 ? '8px' : 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '2px' }}>
+                          <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{e.tipo}</span>
+                          <span style={{ fontSize: '10px', fontWeight: 600, color: e.activo ? '#d97706' : '#15803d' }}>
+                            {e.activo ? '⏱ Activo' : '✓ Fin'}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                          <span style={{ fontFamily: 'monospace', fontSize: '10px', color: 'var(--muted-foreground)' }}>
+                            {e.inicio ? toDatetimeLocal(e.inicio).slice(11,16) : '—'}
+                            {' → '}
+                            {e.fin ? toDatetimeLocal(e.fin).slice(11,16) : (e.activo ? 'ahora' : '—')}
+                          </span>
+                          <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 500, color: e.activo ? '#d97706' : 'var(--foreground)' }}>
+                            {minToHM(e.mins)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
             </div>
           </div>
 
