@@ -246,6 +246,41 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     `)
   }
 
+  // Al cerrar/cancelar un incidente con contingencia activa → auto-desactivar igual que si se limpiara contActivadoPor
+  const estadoCierra = ['RESUELTO', 'CANCELADO', 'CERRADO'].includes(body.estado ?? '')
+  if (estadoCierra && updated.tiendaId && updated.contActivadoPor) {
+    const userId = (session.user as any)?.id ?? null
+    if (!updated.contHoraDesactivacion) {
+      await db.update(incidentes)
+        .set({ contHoraDesactivacion: new Date(), actualizadoEn: new Date() })
+        .where(eq(incidentes.id, id))
+    }
+    const rows = await db.execute(sql`
+      SELECT COUNT(*)::int AS cnt FROM incidentes
+      WHERE tienda_id = ${updated.tiendaId}
+        AND cont_activado_por IS NOT NULL
+        AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
+        AND id != ${id}
+    `)
+    const contStdRows = await db.execute(sql`
+      SELECT COUNT(*)::int AS cnt FROM contingencias
+      WHERE tienda_id = ${updated.tiendaId} AND hora_desactivacion IS NULL
+    `)
+    const stillActive = Number((rows[0] as any)?.cnt ?? 0) + Number((contStdRows[0] as any)?.cnt ?? 0)
+    if (stillActive === 0) {
+      await db.update(tiendas)
+        .set({ contingenciaActiva: false, contingenciaActivadaPor: null })
+        .where(eq(tiendas.id, updated.tiendaId))
+      await db.insert(tiendasHistorial).values({
+        tiendaId:      updated.tiendaId,
+        usuarioId:     userId,
+        campoEditado:  'contingenciaActiva',
+        valorAnterior: 'true',
+        valorNuevo:    `false — cierre automático vía ${body.estado} incidente ${updated.codigo ?? id}`,
+      })
+    }
+  }
+
   // Auto-sync tiendas.contingencia_activa desde el estado de contingencia del incidente.
   // Cuando contActivadoPor se establece → la tienda pasa a contingencia activa.
   // Cuando se limpia → solo se desactiva si ningún otro incidente abierto de esa tienda tiene contingencia.
