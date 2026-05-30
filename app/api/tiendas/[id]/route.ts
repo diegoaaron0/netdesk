@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { tiendas, proveedores, incidentes, tiendasHistorial } from '@/drizzle/schema'
 import { eq, count, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
+import { can } from '@/lib/permisos'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -65,20 +66,22 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const movCount = Number((movActiveRows[0] as any)?.cnt ?? 0)
 
   // Columnas nuevas (pueden no existir en producción hasta aplicar migración)
-  let extended: Record<string, string | null> = {
-    celularTienda: null,
-    supervisorCelular: null,
-    contingenciaChip: null,
-    contingenciaPaquete: null,
-    extras: null,
+  let extended: Record<string, any> = {
+    celularTienda: null, supervisorCelular: null,
+    contingenciaChip: null, contingenciaPaquete: null,
+    extras: null, gabinete: false,
+    vigenciaContrato: null, descripcionServicio: null,
   }
   try {
     const [ext] = await db.select({
-      celularTienda: tiendas.celularTienda,
-      supervisorCelular: tiendas.supervisorCelular,
-      contingenciaChip: tiendas.contingenciaChip,
+      celularTienda:       tiendas.celularTienda,
+      supervisorCelular:   tiendas.supervisorCelular,
+      contingenciaChip:    tiendas.contingenciaChip,
       contingenciaPaquete: tiendas.contingenciaPaquete,
-      extras: tiendas.extras,
+      extras:              tiendas.extras,
+      gabinete:            tiendas.gabinete,
+      vigenciaContrato:    tiendas.vigenciaContrato,
+      descripcionServicio: tiendas.descripcionServicio,
     }).from(tiendas).where(eq(tiendas.id, id))
     if (ext) extended = ext as any
   } catch {
@@ -96,14 +99,14 @@ const TRACKED_FIELDS = [
   'contingenciaActiva', 'contingenciaDescripcion', 'contingenciaChip', 'contingenciaPaquete',
   'costoMensual', 'instruccionReporte', 'contactoSoporte', 'administradorNombre',
   'administradorEmail', 'administradorCelular', 'proveedorId', 'ventaHoraSoles', 'extras',
+  'gabinete', 'vigenciaContrato', 'descripcionServicio',
 ] as const
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  const rol = (session.user as any)?.rol
-  if (!['SUPERVISOR', 'INFRAESTRUCTURA'].includes(rol)) {
+  if (!can(session, 'mantenimiento.editar')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -123,11 +126,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     contactoSoporte: tiendas.contactoSoporte, administradorNombre: tiendas.administradorNombre,
     administradorEmail: tiendas.administradorEmail, administradorCelular: tiendas.administradorCelular,
     ventaHoraSoles: tiendas.ventaHoraSoles,
-    celularTienda: tiendas.celularTienda,
-    supervisorCelular: tiendas.supervisorCelular,
-    contingenciaChip: tiendas.contingenciaChip,
+    celularTienda:       tiendas.celularTienda,
+    supervisorCelular:   tiendas.supervisorCelular,
+    contingenciaChip:    tiendas.contingenciaChip,
     contingenciaPaquete: tiendas.contingenciaPaquete,
-    extras: tiendas.extras,
+    extras:              tiendas.extras,
+    gabinete:            tiendas.gabinete,
+    vigenciaContrato:    tiendas.vigenciaContrato,
+    descripcionServicio: tiendas.descripcionServicio,
   }).from(tiendas).where(eq(tiendas.id, id))
   if (!current) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
@@ -171,6 +177,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       contingenciaChip:    'contingenciaChip'    in body ? (body.contingenciaChip    ?? null) : current.contingenciaChip,
       contingenciaPaquete: 'contingenciaPaquete' in body ? (body.contingenciaPaquete ?? null) : current.contingenciaPaquete,
       extras:              'extras'              in body ? (body.extras              ?? null) : current.extras,
+      gabinete:            'gabinete'            in body ? !!body.gabinete                    : current.gabinete,
+      vigenciaContrato:    'vigenciaContrato'    in body ? (body.vigenciaContrato    ?? null) : current.vigenciaContrato,
+      descripcionServicio: 'descripcionServicio' in body ? (body.descripcionServicio ?? null) : current.descripcionServicio,
     }
     const [r] = await db.update(tiendas).set(fullValues).where(eq(tiendas.id, id)).returning()
     updated = r

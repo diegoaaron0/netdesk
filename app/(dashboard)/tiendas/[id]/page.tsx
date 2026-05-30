@@ -2,6 +2,7 @@
 import { useEffect, useState, use, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { can } from '@/lib/permisos'
 
 const PROVEEDOR_COLORS: Record<string, { bg: string; color: string }> = {
   BITEL:             { bg: '#dbeafe', color: '#1e40af' },
@@ -98,8 +99,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
   const router = useRouter()
   const { data: session } = useSession()
 
-  const userRol = (session?.user as any)?.rol ?? 'AGENTE'
-  const canEdit = ['SUPERVISOR', 'INFRAESTRUCTURA'].includes(userRol)
+  const canEdit = can(session, 'mantenimiento.editar')
 
   const [tienda, setTienda] = useState<any>(null)
   const [historial, setHistorial] = useState<any[]>([])
@@ -354,6 +354,26 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               <Field label="CID / Servicio"    value={form.cidServicio   ?? ''} editing={editing} onChange={v => setF('cidServicio', v)} />
               <Field label="Costo mensual (S/.)" value={form.costoMensual ?? ''} editing={editing} onChange={v => setF('costoMensual', v)} />
               <Field label="Venta / hora (S/.)" value={form.ventaHoraSoles ?? ''} editing={editing} onChange={v => setF('ventaHoraSoles', v)} />
+            </div>
+            <Field label="Descripción servicio" value={form.descripcionServicio ?? ''} editing={editing} onChange={v => setF('descripcionServicio', v)} type="textarea" />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
+              <Field label="Vigencia contrato" value={form.vigenciaContrato ?? ''} editing={editing} onChange={v => setF('vigenciaContrato', v)} />
+              {/* Gabinete */}
+              <div style={{ marginBottom: '8px' }}>
+                <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Gabinete</div>
+                {editing ? (
+                  <div style={{ display: 'flex', gap: '5px' }}>
+                    {[{ v: true, l: 'Sí' }, { v: false, l: 'No' }].map(({ v, l }) => (
+                      <button key={l} type="button" onClick={() => setF('gabinete', v)}
+                        style={{ padding: '3px 8px', fontSize: '11px', borderRadius: '5px', cursor: 'pointer', border: form.gabinete === v ? '1.5px solid hsl(221,83%,23%)' : '0.5px solid var(--border)', background: form.gabinete === v ? 'hsl(221,83%,23%)' : 'var(--muted)', color: form.gabinete === v ? 'white' : 'var(--foreground)', outline: 'none' }}>
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '11px', color: 'var(--foreground)' }}>{form.gabinete ? 'Sí' : 'No'}</div>
+                )}
+              </div>
             </div>
             <Field label="Contacto soporte" value={form.contactoSoporte ?? ''} editing={editing} onChange={v => setF('contactoSoporte', v)} />
             <Field label="Coordenadas"      value={form.coordenadas     ?? ''} editing={editing} onChange={v => setF('coordenadas', v)} />
