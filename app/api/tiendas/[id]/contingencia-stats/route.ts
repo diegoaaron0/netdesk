@@ -54,7 +54,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         COUNT(CASE WHEN cont_activado_por IS NOT NULL AND cont_es_externo IS TRUE THEN 1 END)::int AS cnt_router_externo,
         COUNT(CASE WHEN mov_activado_por IS NOT NULL THEN 1 END)::int AS cnt_datos_moviles,
 
-        BOOL_OR(cont_activado_por IS NOT NULL AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')) AS activo_cont,
+        BOOL_OR(cont_activado_por IS NOT NULL AND (cont_es_externo IS FALSE OR cont_es_externo IS NULL) AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')) AS activo_propio,
+        BOOL_OR(cont_activado_por IS NOT NULL AND cont_es_externo IS TRUE AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')) AS activo_externo,
         BOOL_OR(mov_activado_por  IS NOT NULL AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')) AS activo_mov
 
       FROM incidentes
@@ -81,7 +82,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
           ELSE 0 END)::int AS min_datos_moviles,
         COUNT(CASE WHEN tipo = 'ROUTER_PROPIO'  THEN 1 END)::int AS cnt_router_propio,
         COUNT(CASE WHEN tipo = 'ROUTER_EXTERNO' THEN 1 END)::int AS cnt_router_externo,
-        COUNT(CASE WHEN tipo = 'DATOS_MOVILES'  THEN 1 END)::int AS cnt_datos_moviles
+        COUNT(CASE WHEN tipo = 'DATOS_MOVILES'  THEN 1 END)::int AS cnt_datos_moviles,
+        BOOL_OR(tipo = 'ROUTER_PROPIO'  AND hora_desactivacion IS NULL) AS activo_propio,
+        BOOL_OR(tipo = 'ROUTER_EXTERNO' AND hora_desactivacion IS NULL) AS activo_externo,
+        BOOL_OR(tipo = 'DATOS_MOVILES'  AND hora_desactivacion IS NULL) AS activo_mov_std
       FROM contingencias
       WHERE tienda_id = ${id}
     `),
@@ -97,7 +101,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     cnt_router_propio:  (inc.cnt_router_propio  ?? 0) + (std.cnt_router_propio  ?? 0),
     cnt_router_externo: (inc.cnt_router_externo ?? 0) + (std.cnt_router_externo ?? 0),
     cnt_datos_moviles:  (inc.cnt_datos_moviles  ?? 0) + (std.cnt_datos_moviles  ?? 0),
-    activo_cont: inc.activo_cont ?? false,
-    activo_mov:  inc.activo_mov  ?? false,
+    activo_propio:  (inc.activo_propio  ?? false) || (std.activo_propio  ?? false),
+    activo_externo: (inc.activo_externo ?? false) || (std.activo_externo ?? false),
+    activo_mov:     (inc.activo_mov     ?? false) || (std.activo_mov_std ?? false),
   })
 }

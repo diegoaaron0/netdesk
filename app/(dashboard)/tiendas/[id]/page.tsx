@@ -578,9 +578,9 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               return `${Math.floor(m / 60)}h ${m % 60}m`
             }
             const rows = [
-              { label: 'Router propio', icon: '📶', min: contStats.min_router_propio, cnt: contStats.cnt_router_propio, active: contStats.activo_cont && !contStats.activo_ext, color: '#d97706', bg: '#fffbeb' },
-              { label: 'Router externo', icon: '📦', min: contStats.min_router_externo, cnt: contStats.cnt_router_externo, active: false, color: '#ea580c', bg: '#fff7ed' },
-              { label: 'Datos móviles', icon: '📱', min: contStats.min_datos_moviles, cnt: contStats.cnt_datos_moviles, active: contStats.activo_mov, color: '#2563eb', bg: '#eff6ff' },
+              { label: 'Router propio', icon: '📶', min: contStats.min_router_propio, cnt: contStats.cnt_router_propio, active: !!contStats.activo_propio, color: '#d97706', bg: '#fffbeb' },
+              { label: 'Router externo', icon: '📦', min: contStats.min_router_externo, cnt: contStats.cnt_router_externo, active: !!contStats.activo_externo, color: '#ea580c', bg: '#fff7ed' },
+              { label: 'Datos móviles', icon: '📱', min: contStats.min_datos_moviles, cnt: contStats.cnt_datos_moviles, active: !!contStats.activo_mov, color: '#2563eb', bg: '#eff6ff' },
             ].filter(r => r.cnt > 0)
             return (
               <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
