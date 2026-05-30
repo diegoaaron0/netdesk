@@ -4,7 +4,6 @@ import { tiendas, proveedores, incidentes, contratosProveedor } from '@/drizzle/
 import { eq, gte, sql, and, isNotNull, desc, count } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
-import { DASHBOARD_CONFIG } from '@/lib/dashboard-config'
 
 function fmtMttr(mins: number | null): string {
   if (!mins) return '—'
@@ -158,12 +157,60 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const [lastInc]  = await db.select(incSel).from(incidentes).where(incWhere).orderBy(desc(incidentes.horaRegistro)).limit(1).catch(() => [])
   const historial  = await db.select(incSel).from(incidentes).where(incWhere).orderBy(desc(incidentes.horaRegistro)).limit(10).catch(() => [])
 
-  // Impacto estimado
-  const ventaHora = Number(tienda.ventaHoraSoles ?? 0)
-  const mttrTotal = historicData.mttrTotal
-  const impacto   = ventaHora > 0 && mttrTotal > 0
-    ? Math.round((mttrTotal / 60) * ventaHora * DASHBOARD_CONFIG.MARGEN_BRUTO * 100) / 100
-    : null
+  // Impacto estimado — suma calcImpactoRow por cada incidente resuelto
+  let impacto: number | null = null
+  try {
+    const { calcImpactoRow } = await import('@/lib/impacto-calc')
+    const impRows = await db.select({
+      horaRegistro:         incidentes.horaRegistro,
+      horaFin:              incidentes.horaFin,
+      estado:               incidentes.estado,
+      tipo:                 incidentes.tipo,
+      contActivadoPor:      incidentes.contActivadoPor,
+      contHoraDesactivacion: incidentes.contHoraDesactivacion,
+      contRendimiento:      incidentes.contRendimiento,
+      movActivadoPor:       incidentes.movActivadoPor,
+      movRendimiento:       incidentes.movRendimiento,
+      boletaManual:         incidentes.boletaManual,
+      ventaParcial:         incidentes.ventaParcial,
+      cajasAfectadas:       incidentes.cajasAfectadas,
+      cajasTotales:         incidentes.cajasTotales,
+      otrosClasificacion:   incidentes.otrosClasificacion,
+    }).from(incidentes)
+      .where(and(
+        eq(incidentes.tiendaId, tiendaId),
+        eq(incidentes.proveedorId, id),
+        sql`${incidentes.estado} = 'RESUELTO'`,
+        isNotNull(incidentes.horaFin),
+      ))
+
+    const ventaHoraSoles = tienda.ventaHoraSoles ? Number(tienda.ventaHoraSoles) : null
+    const cluster = tienda.cluster ?? null
+    let suma = 0, tieneAlguno = false
+    for (const inc of impRows) {
+      const r = calcImpactoRow({
+        hora_registro:       inc.horaRegistro,
+        hora_fin:            inc.horaFin,
+        estado:              inc.estado,
+        tipo:                inc.tipo,
+        venta_hora_soles:    ventaHoraSoles,
+        cluster,
+        contingencia_activa: !!inc.contActivadoPor,
+        hubo_movil:          !!inc.movActivadoPor,
+        cont_rendimiento:    inc.contRendimiento ?? inc.movRendimiento,
+        boleta_manual:       inc.boletaManual ?? false,
+        venta_parcial:       inc.ventaParcial ?? false,
+        cajas_afectadas:     inc.cajasAfectadas,
+        cajas_totales:       inc.cajasTotales,
+        otros_clasificacion: inc.otrosClasificacion,
+      })
+      if (r.impactoEconomicoEstimado != null) {
+        suma += r.impactoEconomicoEstimado
+        tieneAlguno = true
+      }
+    }
+    if (tieneAlguno) impacto = suma
+  } catch { /* skip */ }
 
   // Proveedores anteriores: distintos a id que tienen incidentes en esta tienda
   let proveedoresAnteriores: any[] = []
