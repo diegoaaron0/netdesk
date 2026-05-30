@@ -112,6 +112,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       SELECT
         i.tipo,
         i.evaluable_proveedor,
+        i.hora_fin,
         n1.hora_correo_n1,
         resp.hora_primera_resp,
         max_n.max_nivel
@@ -149,7 +150,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         tipo: row.tipo,
         hora_correo_n1: row.hora_correo_n1,
         hora_primera_resp: row.hora_primera_resp,
-        hora_fin: null,
+        hora_fin: row.hora_fin ?? null,
         max_nivel: row.max_nivel ?? 1,
         slaRespuestaOverride: slaContrato.respuestaMin,
         slaResolucionOverride: slaResolucionMin,

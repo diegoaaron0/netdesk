@@ -16,6 +16,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     id:                tiendas.id,
     codigo:            tiendas.codigo,
     nombreCc:          tiendas.nombreCc,
+    referencia:        tiendas.referencia,
     distrito:          tiendas.distrito,
     provincia:         tiendas.provincia,
     cidServicio:       tiendas.cidServicio,
@@ -25,6 +26,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     costoMensual:      tiendas.costoMensual,
     tieneContingencia: tiendas.tieneContingencia,
     contingenciaActiva: tiendas.contingenciaActiva,
+    descripcionServicio: tiendas.descripcionServicio,
   }).from(tiendas)
     .where(eq(tiendas.proveedorId, id))
     .orderBy(tiendas.codigo)

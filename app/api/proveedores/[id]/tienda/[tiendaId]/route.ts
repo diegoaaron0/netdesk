@@ -22,12 +22,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     id:                tiendas.id,
     codigo:            tiendas.codigo,
     nombreCc:          tiendas.nombreCc,
+    referencia:        tiendas.referencia,
+    formato:           tiendas.formato,
     direccion:         tiendas.direccion,
     distrito:          tiendas.distrito,
     provincia:         tiendas.provincia,
     cidServicio:       tiendas.cidServicio,
     tipoConexion:      tiendas.tipoConexion,
     tipoServicio:      tiendas.tipoServicio,
+    descripcionServicio: tiendas.descripcionServicio,
     costoMensual:      tiendas.costoMensual,
     tieneContingencia: tiendas.tieneContingencia,
     contingenciaActiva: tiendas.contingenciaActiva,
@@ -35,6 +38,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     cluster:           tiendas.cluster,
     proveedorId:       tiendas.proveedorId,
     proveedorNombre:   proveedores.nombre,
+    supervisorNombre:  tiendas.supervisorNombre,
+    supervisorCelular: tiendas.supervisorCelular,
+    contactoSoporte:   tiendas.contactoSoporte,
+    vigenciaContrato:  tiendas.vigenciaContrato,
+    gabinete:          tiendas.gabinete,
+    observacion:       tiendas.observacion,
   }).from(tiendas)
     .leftJoin(proveedores, eq(tiendas.proveedorId, proveedores.id))
     .where(eq(tiendas.id, tiendaId))

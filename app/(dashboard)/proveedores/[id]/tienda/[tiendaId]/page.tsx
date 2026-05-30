@@ -155,6 +155,7 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
             <div><Label>Tipo servicio</Label><Val v={tienda.tipoServicio} /></div>
             <div><Label>Plan aplicado</Label><Val v={tienda.planAplicado} /></div>
             <div><Label>Velocidad</Label><Val v={tienda.velocidad} /></div>
+            <div><Label>Vigencia contrato</Label><Val v={tienda.vigenciaContrato} /></div>
             <div><Label>Costo mensual</Label><Val v={fmtSoles(tienda.costoMensual)} /></div>
             <div><Label>SLA comprometido</Label><Val v={contrato?.slaComprometido ?? '—'} /></div>
             <div><Label>Fecha alta servicio</Label><Val v={fmtDate(tienda.fechaAltaServicio)} /></div>
@@ -164,11 +165,30 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
                 {(() => { const b = estadoBadge(tienda.estadoServicio ?? 'ACTIVO'); return <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '5px', background: b.bg, color: b.color }}>{tienda.estadoServicio ?? 'ACTIVO'}</span> })()}
               </div>
             </div>
+            <div><Label>Gabinete</Label><Val v={tienda.gabinete ? 'Sí' : tienda.gabinete === false ? 'No' : '—'} /></div>
           </div>
+          {tienda.descripcionServicio && (
+            <div>
+              <Label>Descripción servicio</Label>
+              <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '10px' }}>{tienda.descripcionServicio}</div>
+            </div>
+          )}
+          {tienda.observacion && (
+            <div>
+              <Label>Observación</Label>
+              <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '10px' }}>{tienda.observacion}</div>
+            </div>
+          )}
           {tienda.direccion && (
             <div>
               <Label>Dirección</Label>
-              <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '10px' }}>{tienda.direccion}{tienda.distrito ? `, ${tienda.distrito}` : ''}</div>
+              <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '10px' }}>{tienda.direccion}{tienda.distrito ? `, ${tienda.distrito}` : ''}{tienda.provincia ? ` — ${tienda.provincia}` : ''}</div>
+            </div>
+          )}
+          {(tienda.supervisorNombre || tienda.contactoSoporte) && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 20px', borderTop: '0.5px solid var(--border)', paddingTop: '10px', marginTop: '2px' }}>
+              {tienda.supervisorNombre && <div><Label>Supervisor</Label><Val v={`${tienda.supervisorNombre}${tienda.supervisorCelular ? ` · ${tienda.supervisorCelular}` : ''}`} /></div>}
+              {tienda.contactoSoporte  && <div><Label>Contacto soporte</Label><Val v={tienda.contactoSoporte} /></div>}
             </div>
           )}
         </div>
