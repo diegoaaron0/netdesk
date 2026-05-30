@@ -24,8 +24,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const horaFin = new Date()
   const mttrMinutos = Math.round((horaFin.getTime() - new Date(inc.horaRegistro).getTime()) / 60000)
 
+  const resueltoPorUsuarioId = (session.user as any)?.id ?? null
   const [updated] = await db.update(incidentes)
-    .set({ estado: 'RESUELTO', horaFin, mttrMinutos, actualizadoEn: new Date(), resueltoPor, atribucionFinal, evaluableProveedor })
+    .set({ estado: 'RESUELTO', horaFin, mttrMinutos, actualizadoEn: new Date(), resueltoPor, atribucionFinal, evaluableProveedor, resueltoPorUsuarioId })
     .where(eq(incidentes.id, id))
     .returning()
 

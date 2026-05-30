@@ -204,6 +204,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
   }
 
+  // Auditoría: cuando se cierra, guardar quién cerró y auto-sellar hora_fin
+  if (body.estado === 'CERRADO') {
+    allowedFields.cerradoPorId = (session.user as any)?.id ?? null
+    if (!('horaFin' in allowedFields)) allowedFields.horaFin = new Date()
+  }
+
   // Auto-set contHoraActivacion cuando contActivadoPor se escribe y no se proporcionó hora
   if (allowedFields.contActivadoPor && !allowedFields.contHoraActivacion) {
     const [prev] = await db.select({ contHoraActivacion: incidentes.contHoraActivacion })

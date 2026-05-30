@@ -5,7 +5,19 @@
       "Bash(npx next *)",
       "PowerShell(cd \"c:\\\\Users\\\\diego\\\\Downloads\\\\Ciclo5\\\\2026\\\\NetDesk\\\\netdesk\"; npx tsc --noEmit 2>&1; echo \"Exit: $LASTEXITCODE\")",
       "Bash(Get-ChildItem -Path . -Filter middleware.ts -Recurse -ErrorAction SilentlyContinue)",
-      "Bash(Select-Object FullName)"
+      "Bash(Select-Object FullName)",
+      "Bash(git -C \"c:\\\\Users\\\\diego\\\\Downloads\\\\Ciclo5\\\\2026\\\\Proyecto_NetDesk\\\\NetDesk\" add \"drizzle/migrations/0015b_tiendas_data.sql\")",
+      "Bash(git -C \"c:\\\\Users\\\\diego\\\\Downloads\\\\Ciclo5\\\\2026\\\\Proyecto_NetDesk\\\\NetDesk\" commit -m \"fix: quitar cast ::cluster en SQL de tiendas — Railway no lo resuelve en VALUES\")",
+      "Bash(node -e ' *)",
+      "Bash(ls \"c:\\\\Users\\\\diego\\\\Downloads\\\\\" | grep -i inventario 2>/dev/null || echo \"no encontrado\")",
+      "Read(//c/Users/diego/Downloads\" | grep -i inventario 2>/dev/**)",
+      "PowerShell($bytes = [System.IO.File]::ReadAllBytes\\(\"C:\\\\Users\\\\diego\\\\Downloads\\\\inventario_servicios_internet.csv\"\\); $bytes[0..10] | ForEach-Object { \"0x{0:X2}\" -f $_ })",
+      "PowerShell($content = [System.IO.File]::ReadAllText\\(\"c:\\\\Users\\\\diego\\\\Downloads\\\\Ciclo5\\\\2026\\\\Proyecto_NetDesk\\\\NetDesk\\\\scripts\\\\tiendas-update.sql\", [System.Text.Encoding]::UTF8\\); $content.Substring\\(0, 2000\\))",
+      "PowerShell($content = [System.IO.File]::ReadAllText\\(\"c:\\\\Users\\\\diego\\\\Downloads\\\\Ciclo5\\\\2026\\\\Proyecto_NetDesk\\\\NetDesk\\\\scripts\\\\tiendas-update.sql\", [System.Text.Encoding]::UTF8\\); $content.Substring\\($content.Length - 700\\))",
+      "PowerShell(railway --version 2>&1)",
+      "PowerShell(npx railway --version 2>&1)",
+      "PowerShell(psql --version 2>&1)",
+      "PowerShell(node -e \"require\\('postgres'\\)\" 2>&1)"
     ]
   }
 }

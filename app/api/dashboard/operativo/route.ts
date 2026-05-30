@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   const [y, m, d]  = fechaLima.split('-').map(Number)
   const siguienteIso = new Date(Date.UTC(y, m - 1, d + 1, 5, 0, 0, 0)).toISOString()
 
-  const [activosRows, resueltoRows, agentesRows, incCreadosRows, escRows, respRows, resolRows, contRows, creadosHoyRows, contStandaloneRows, movRows] = await Promise.all([
+  const [activosRows, resueltoRows, agentesRows, incCreadosRows, escRows, respRows, resolRows, canceladosRows, cerradosRows, contRows, creadosHoyRows, contStandaloneRows, movRows] = await Promise.all([
     db.execute(sql`
       SELECT
         i.id,
@@ -129,12 +129,14 @@ export async function GET(req: NextRequest) {
 
     db.execute(sql`
       SELECT 'ESCALADO' AS tipo_evento, i.id, i.codigo,
-             e.hora_envio_correo AS hora, u.nombre AS actor,
+             e.hora_envio_correo AS hora,
+             COALESCE(ue.nombre, u.nombre) AS actor,
              COALESCE(pi.nombre, pt.nombre) AS proveedor_nombre, e.nivel
       FROM escalamientos e
-      JOIN incidentes i ON e.incidente_id   = i.id
-      JOIN tiendas    t ON i.tienda_id      = t.id
+      JOIN incidentes i ON e.incidente_id      = i.id
+      JOIN tiendas    t ON i.tienda_id         = t.id
       JOIN usuarios   u ON i.registrado_por_id = u.id
+      LEFT JOIN usuarios ue ON e.creado_por_id = ue.id
       LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
       LEFT JOIN proveedores pt ON t.proveedor_id = pt.id
       WHERE e.hora_envio_correo IS NOT NULL
@@ -159,12 +161,44 @@ export async function GET(req: NextRequest) {
 
     db.execute(sql`
       SELECT 'RESUELTO' AS tipo_evento, i.id, i.codigo,
-             i.hora_fin AS hora, u.nombre AS actor, NULL::text AS proveedor_nombre, NULL::int AS nivel
-      FROM incidentes i JOIN usuarios u ON i.registrado_por_id = u.id
+             i.hora_fin AS hora,
+             COALESCE(ur.nombre, u.nombre) AS actor,
+             NULL::text AS proveedor_nombre, NULL::int AS nivel
+      FROM incidentes i
+      JOIN usuarios u ON i.registrado_por_id = u.id
+      LEFT JOIN usuarios ur ON i.resuelto_por_usuario_id = ur.id
       WHERE i.estado = 'RESUELTO'
         AND i.hora_fin IS NOT NULL
         AND i.hora_fin >= NOW() - INTERVAL '24 hours'
       ORDER BY i.hora_fin DESC LIMIT 15
+    `),
+
+    db.execute(sql`
+      SELECT 'CANCELADO' AS tipo_evento, i.id, i.codigo,
+             i.hora_fin AS hora,
+             COALESCE(uc.nombre, u.nombre) AS actor,
+             NULL::text AS proveedor_nombre, NULL::int AS nivel
+      FROM incidentes i
+      JOIN usuarios u ON i.registrado_por_id = u.id
+      LEFT JOIN usuarios uc ON i.cancelado_por_id = uc.id
+      WHERE i.estado = 'CANCELADO'
+        AND i.hora_fin IS NOT NULL
+        AND i.hora_fin >= NOW() - INTERVAL '24 hours'
+      ORDER BY i.hora_fin DESC LIMIT 10
+    `),
+
+    db.execute(sql`
+      SELECT 'CERRADO' AS tipo_evento, i.id, i.codigo,
+             i.hora_fin AS hora,
+             COALESCE(ucr.nombre, u.nombre) AS actor,
+             NULL::text AS proveedor_nombre, NULL::int AS nivel
+      FROM incidentes i
+      JOIN usuarios u ON i.registrado_por_id = u.id
+      LEFT JOIN usuarios ucr ON i.cerrado_por_id = ucr.id
+      WHERE i.estado = 'CERRADO'
+        AND i.hora_fin IS NOT NULL
+        AND i.hora_fin >= NOW() - INTERVAL '24 hours'
+      ORDER BY i.hora_fin DESC LIMIT 10
     `),
 
     db.execute(sql`
@@ -320,10 +354,12 @@ export async function GET(req: NextRequest) {
 
   // Merge activity
   const actividadReciente = [
-    ...(incCreadosRows as any[]),
-    ...(escRows        as any[]),
-    ...(respRows       as any[]),
-    ...(resolRows      as any[]),
+    ...(incCreadosRows  as any[]),
+    ...(escRows         as any[]),
+    ...(respRows        as any[]),
+    ...(resolRows       as any[]),
+    ...(canceladosRows  as any[]),
+    ...(cerradosRows    as any[]),
   ]
     .filter((a) => a.hora != null)
     .sort((a, b) => new Date(b.hora).getTime() - new Date(a.hora).getTime())

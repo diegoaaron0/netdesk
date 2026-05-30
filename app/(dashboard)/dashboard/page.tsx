@@ -357,7 +357,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
   const [provFiltro,      setProvFiltro]      = useState('Todos')
   const [cardFiltro,      setCardFiltro]      = useState<string | null>(null)
   const [asignarOpen,     setAsignarOpen]     = useState(false)
-  const [tabActividad,    setTabActividad]    = useState<'todos'|'escalados'|'resueltos'|'respuestas'>('todos')
+  const [tabActividad,    setTabActividad]    = useState<'todos'|'escalados'|'resueltos'|'respuestas'|'cancelados'|'cerrados'>('todos')
   const [turnoInicio,     setTurnoInicio]     = useState('08:00')
   const [filtroHeredados, setFiltroHeredados] = useState(false)
   const [confirmarCont,   setConfirmarCont]   = useState<string | null>(null)
@@ -931,10 +931,12 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
             </div>
             <div style={{ display: 'flex', gap: '3px', marginBottom: '7px', flexWrap: 'wrap' }}>
               {([
-                { key: 'todos',      label: 'Todos' },
-                { key: 'escalados',  label: 'Escalados' },
-                { key: 'resueltos',  label: 'Resueltos' },
-                { key: 'respuestas', label: 'Resp. prov.' },
+                { key: 'todos',       label: 'Todos' },
+                { key: 'escalados',   label: 'Escalados' },
+                { key: 'resueltos',   label: 'Resueltos' },
+                { key: 'respuestas',  label: 'Resp. prov.' },
+                { key: 'cancelados',  label: 'Cancelados' },
+                { key: 'cerrados',    label: 'Cerrados' },
               ] as const).map(t => (
                 <button key={t.key} onClick={() => setTabActividad(t.key)}
                   style={{ padding: '2px 8px', fontSize: '9px', fontWeight: tabActividad === t.key ? 600 : 400, background: tabActividad === t.key ? 'hsl(221,83%,23%)' : 'var(--muted)', color: tabActividad === t.key ? 'white' : 'var(--foreground)', border: 'none', borderRadius: '999px', cursor: 'pointer' }}>
@@ -947,6 +949,8 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                 if (tabActividad === 'escalados')  return ev.tipo_evento === 'ESCALADO'
                 if (tabActividad === 'resueltos')  return ev.tipo_evento === 'RESUELTO'
                 if (tabActividad === 'respuestas') return ev.tipo_evento === 'RESPUESTA_PROVEEDOR'
+                if (tabActividad === 'cancelados') return ev.tipo_evento === 'CANCELADO'
+                if (tabActividad === 'cerrados')   return ev.tipo_evento === 'CERRADO'
                 return true
               })
               return (
@@ -959,13 +963,17 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                       ESCALADO:            { icon: '↑', color: '#C84B00' },
                       RESPUESTA_PROVEEDOR: { icon: '✓', color: '#27500A' },
                       RESUELTO:            { icon: '✓', color: '#27500A' },
+                      CANCELADO:           { icon: '✗', color: '#6B7280' },
+                      CERRADO:             { icon: '⊘', color: '#6B7280' },
                     }
                     const c = conf[ev.tipo_evento] ?? { icon: '●', color: '#888' }
                     let texto = ''
-                    if (ev.tipo_evento === 'CREADO')              texto = `${ev.codigo} por ${ev.actor}`
-                    else if (ev.tipo_evento === 'ESCALADO')       texto = `${ev.codigo} escalado${ev.nivel ? ` N${ev.nivel}` : ''}${ev.proveedor_nombre ? ` · ${ev.proveedor_nombre}` : ''}`
-                    else if (ev.tipo_evento === 'RESPUESTA_PROVEEDOR') texto = `Resp. ${ev.proveedor_nombre ?? 'prov.'} — ${ev.codigo}`
-                    else if (ev.tipo_evento === 'RESUELTO')       texto = `${ev.codigo} resuelto · ${ev.actor}`
+                    if (ev.tipo_evento === 'CREADO')                   texto = `${ev.codigo} abierto por ${ev.actor}`
+                    else if (ev.tipo_evento === 'ESCALADO')            texto = `${ev.codigo} escalado N${ev.nivel ?? '?'} por ${ev.actor}${ev.proveedor_nombre ? ` · ${ev.proveedor_nombre}` : ''}`
+                    else if (ev.tipo_evento === 'RESPUESTA_PROVEEDOR') texto = `Resp. ${ev.proveedor_nombre ?? 'prov.'} en ${ev.codigo}`
+                    else if (ev.tipo_evento === 'RESUELTO')            texto = `${ev.codigo} resuelto por ${ev.actor}`
+                    else if (ev.tipo_evento === 'CANCELADO')           texto = `${ev.codigo} cancelado por ${ev.actor}`
+                    else if (ev.tipo_evento === 'CERRADO')             texto = `${ev.codigo} cerrado por ${ev.actor}`
                     else texto = ev.codigo ?? ''
                     const { text: horaText, isOld } = fmtHoraEvento(ev.hora)
                     return (

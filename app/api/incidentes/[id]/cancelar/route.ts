@@ -11,8 +11,9 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   if (!can(session, 'incidentes.cancelar')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
+  const canceladoPorId = (session.user as any)?.id ?? null
   const [updated] = await db.update(incidentes)
-    .set({ estado: 'CANCELADO', horaFin: new Date(), actualizadoEn: new Date() })
+    .set({ estado: 'CANCELADO', horaFin: new Date(), actualizadoEn: new Date(), canceladoPorId })
     .where(eq(incidentes.id, id))
     .returning()
 

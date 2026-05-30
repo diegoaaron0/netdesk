@@ -14,6 +14,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const estadoMap: Record<number, any> = { 1: 'ESCALADO_N1', 2: 'ESCALADO_N2', 3: 'ESCALADO_N3' }
   const nuevoEstado = estadoMap[body.nivel] ?? 'ESCALADO_N1'
 
+  const creadoPorId = (session.user as any)?.id ?? null
   const [esc] = await db.insert(escalamientos).values({
     incidenteId: id,
     nivel: body.nivel,
@@ -23,6 +24,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     telefonoContacto: body.telefonoContacto ?? null,
     tiempoEstimadoSolucion: body.tiempoEstimadoSolucion ?? null,
     cuerpoCorreo: body.cuerpoCorreo ?? null,
+    creadoPorId,
   }).returning()
 
   await db.update(incidentes)

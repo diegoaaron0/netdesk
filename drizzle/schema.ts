@@ -228,6 +228,10 @@ export const incidentes = pgTable('incidentes', {
   escaladoInfraId:       uuid('escalado_infra_id').references(() => usuarios.id, { onDelete: 'set null' }),
   horaEscaladoInfra:     timestamp('hora_escalado_infra'),
   notaEscaladoInfra:     text('nota_escalado_infra'),
+  // Auditoría de acciones
+  canceladoPorId:        uuid('cancelado_por_id').references(() => usuarios.id, { onDelete: 'set null' }),
+  cerradoPorId:          uuid('cerrado_por_id').references(() => usuarios.id, { onDelete: 'set null' }),
+  resueltoPorUsuarioId:  uuid('resuelto_por_usuario_id').references(() => usuarios.id, { onDelete: 'set null' }),
 })
 
 export const gruposMasivos = pgTable('grupos_masivos', {
@@ -255,6 +259,7 @@ export const escalamientos = pgTable('escalamientos', {
   cuerpoCorreo:            text('cuerpo_correo'),
   respuestaTexto:          text('respuesta_texto'),
   noHuboRespuesta:         boolean('no_hubo_respuesta').default(false),
+  creadoPorId:             uuid('creado_por_id').references(() => usuarios.id, { onDelete: 'set null' }),
   creadoEn:                timestamp('creado_en').defaultNow(),
 })
 
