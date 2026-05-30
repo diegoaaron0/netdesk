@@ -359,6 +359,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
   const [agenteFilter,    setAgenteFilter]    = useState<string | null>(null)
 
   async function desactivarContingencia(id: string, tiendaId: string, fuente: 'INCIDENTE' | 'STANDALONE') {
+    if (!id) { alert('Error: ID no disponible'); return }
     setDesactivandoCont(tiendaId)
     try {
       const res = fuente === 'STANDALONE'
@@ -369,6 +370,9 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
             body: JSON.stringify({ contActivadoPor: null }),
           })
       if (res.ok) { setConfirmarCont(null); onRefresh() }
+      else { const e = await res.json().catch(() => ({})); alert(`Error ${res.status}: ${e.error ?? 'desconocido'}`) }
+    } catch (err) {
+      alert(`Error de red: ${err}`)
     } finally {
       setDesactivandoCont(null)
     }
