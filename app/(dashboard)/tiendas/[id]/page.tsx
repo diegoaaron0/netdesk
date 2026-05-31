@@ -146,6 +146,12 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
   const [desactivandoContId, setDesactivandoContId] = useState<string | null>(null)
   const [incRecientes, setIncRecientes] = useState<any[]>([])
   const [historialOpen, setHistorialOpen] = useState(false)
+  const [ventasExpanded, setVentasExpanded] = useState(false)
+  const [editingVentas, setEditingVentas] = useState(false)
+  const [ventaMensualInput, setVentaMensualInput] = useState('')
+  const [savingVenta, setSavingVenta] = useState(false)
+  const [confirmVenta, setConfirmVenta] = useState<{ nuevaMensual: number; nuevaLJ: number; nuevaVD: number } | null>(null)
+  const [pendingCluster, setPendingCluster] = useState<string | null>(null)
 
   const loadData = useCallback(() => {
     if (!id) return
@@ -230,6 +236,50 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
     }
   }
 
+  function handleClusterChange(newVal: string) {
+    if ((newVal || null) === (form.cluster ?? null)) return
+    setPendingCluster(newVal)
+  }
+
+  function confirmClusterChange() {
+    setF('cluster', pendingCluster || null)
+    setPendingCluster(null)
+  }
+
+  function previewVentaUpdate() {
+    const mensual = parseFloat(ventaMensualInput.replace(',', '.'))
+    if (isNaN(mensual) || mensual <= 0) return
+    const prop = parseFloat(tienda.proporcionFds ?? '0.5')
+    const semanal = mensual * 7 / 30.44
+    const nuevaLJ = (semanal * (1 - prop)) / 48
+    const nuevaVD = (semanal * prop) / 36
+    setConfirmVenta({ nuevaMensual: mensual, nuevaLJ, nuevaVD })
+  }
+
+  async function handleConfirmVenta() {
+    if (!confirmVenta) return
+    setSavingVenta(true)
+    try {
+      const res = await fetch(`/api/tiendas/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ventaMensualSoles: confirmVenta.nuevaMensual.toFixed(2) }),
+      })
+      const updated = await res.json()
+      if (updated.id) {
+        setTienda((prev: any) => ({ ...prev, ...updated }))
+        setForm((prev: any) => ({ ...prev, ...updated }))
+        fetch(`/api/tiendas/historial?tiendaId=${id}`).then(r => r.json()).then(d => {
+          setHistorial(Array.isArray(d) ? d : [])
+        })
+      }
+    } finally {
+      setSavingVenta(false)
+      setConfirmVenta(null)
+      setEditingVentas(false)
+    }
+  }
+
   if (!tienda) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px', color: 'var(--muted-foreground)', fontSize: '13px' }}>
@@ -273,18 +323,37 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
         </div>
 
         {/* KPI mini inline */}
-        <div style={{ display: 'flex', gap: '14px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', gap: '8px', flexShrink: 0, alignItems: 'center' }}>
           {tienda.costoMensual && (
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontWeight: 700, color: 'var(--foreground)', fontSize: '13px' }}>S/ {Number(tienda.costoMensual).toLocaleString('es-PE')}</div>
-              <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>/mes</div>
+              <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>/mes costo</div>
             </div>
           )}
-          {tienda.ventaHoraSoles && (
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontWeight: 700, color: 'var(--foreground)', fontSize: '13px' }}>S/ {Number(tienda.ventaHoraSoles).toLocaleString('es-PE', { minimumFractionDigits: 2 })}</div>
-              <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>/hora</div>
-            </div>
+          {(tienda.ventaHoraSoles || tienda.ventaHoraFdsSoles || tienda.ventaMensualSoles) && (
+            <button
+              onClick={() => setVentasExpanded(v => !v)}
+              style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '4px 8px', border: '0.5px solid var(--border)', borderRadius: '7px', background: ventasExpanded ? 'var(--muted)' : 'var(--card)', cursor: 'pointer' }}>
+              {tienda.ventaHoraSoles && (
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontWeight: 700, color: '#15803d', fontSize: '12px' }}>S/ {Number(tienda.ventaHoraSoles).toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+                  <div style={{ fontSize: '8px', color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>L-J /h</div>
+                </div>
+              )}
+              {tienda.ventaHoraFdsSoles && (
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontWeight: 700, color: '#1d4ed8', fontSize: '12px' }}>S/ {Number(tienda.ventaHoraFdsSoles).toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+                  <div style={{ fontSize: '8px', color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>V-D /h</div>
+                </div>
+              )}
+              {tienda.ventaMensualSoles && (
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontWeight: 700, color: 'var(--foreground)', fontSize: '12px' }}>S/ {Number(tienda.ventaMensualSoles).toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+                  <div style={{ fontSize: '8px', color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>/mes venta</div>
+                </div>
+              )}
+              <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{ventasExpanded ? '▲' : '▼'}</span>
+            </button>
           )}
           <div style={{ padding: '3px 9px', borderRadius: '6px', background: contStatus.bg, textAlign: 'right' }}>
             <div style={{ fontWeight: 700, color: contStatus.color, fontSize: '12px' }}>{contStatus.label}</div>
@@ -315,6 +384,76 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
           </div>
         )}
       </div>
+
+      {/* ── Panel expandible de ventas ── */}
+      {ventasExpanded && (tienda.ventaHoraSoles || tienda.ventaHoraFdsSoles || tienda.ventaMensualSoles) && (() => {
+        const lj  = parseFloat(tienda.ventaHoraSoles     ?? '0')
+        const vd  = parseFloat(tienda.ventaHoraFdsSoles  ?? '0')
+        const mes = parseFloat(tienda.ventaMensualSoles   ?? '0')
+        const semLJ = lj * 48
+        const semVD = vd * 36
+        const fmt = (n: number) => n.toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+        const fmt2 = (n: number) => n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        return (
+          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 16px' }}>
+            {/* Fallback badge */}
+            {tienda.usaFallbackVentas && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '2px 8px', marginBottom: '10px', borderRadius: '5px', background: '#fef3c7', border: '0.5px solid #f59e0b', fontSize: '10px', fontWeight: 600, color: '#92400e' }}>
+                Valores de referencia — Cluster {tienda.cluster ?? '?'} (sin data propia suficiente)
+              </div>
+            )}
+
+            {/* Tabla de valores */}
+            <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', marginBottom: editingVentas ? '12px' : '0' }}>
+              {[
+                { label: 'Venta sem. L-J', value: `S/ ${fmt(semLJ)}` },
+                { label: 'Venta sem. V-D', value: `S/ ${fmt(semVD)}` },
+                { label: 'Venta semanal total', value: `S/ ${fmt(semLJ + semVD)}` },
+                { label: 'Venta mensual', value: `S/ ${fmt(mes)}` },
+                { label: 'Venta/hora L-J', value: `S/ ${fmt2(lj)}` },
+                { label: 'Venta/hora V-D', value: `S/ ${fmt2(vd)}` },
+              ].map(({ label, value }) => (
+                <div key={label}>
+                  <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>{label}</div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--foreground)', fontFamily: 'monospace' }}>{value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Edit venta mensual */}
+            {canEdit && !editingVentas && (
+              <button
+                onClick={() => { setVentaMensualInput(mes > 0 ? mes.toFixed(2) : ''); setEditingVentas(true) }}
+                style={{ marginTop: '10px', padding: '4px 10px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--muted)', color: 'var(--foreground)', cursor: 'pointer' }}>
+                Actualizar venta mensual
+              </button>
+            )}
+            {editingVentas && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
+                <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Nueva venta mensual (S/.)</div>
+                <input
+                  type="number"
+                  value={ventaMensualInput}
+                  onChange={e => setVentaMensualInput(e.target.value)}
+                  placeholder="Ej: 175000"
+                  style={{ padding: '4px 8px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', width: '140px' }}
+                />
+                <button
+                  onClick={previewVentaUpdate}
+                  disabled={!ventaMensualInput || isNaN(parseFloat(ventaMensualInput))}
+                  style={{ padding: '4px 12px', fontSize: '11px', border: 'none', borderRadius: '6px', background: 'hsl(221,83%,23%)', color: 'white', cursor: 'pointer', opacity: (!ventaMensualInput || isNaN(parseFloat(ventaMensualInput))) ? 0.5 : 1 }}>
+                  Guardar
+                </button>
+                <button
+                  onClick={() => setEditingVentas(false)}
+                  style={{ padding: '4px 10px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--muted)', color: 'var(--foreground)', cursor: 'pointer' }}>
+                  Cancelar
+                </button>
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* ── Main grid: left 2×2 | right sidebar ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 252px', gap: '10px', alignItems: 'start' }}>
@@ -392,7 +531,6 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               <Field label="Tipo servicio"     value={form.tipoServicio  ?? ''} editing={editing} onChange={v => setF('tipoServicio', v)} />
               <Field label="Velocidad"         value={form.velocidad     ?? ''} editing={editing} onChange={v => setF('velocidad', v)} />
               <Field label="Costo mensual (S/.)" value={form.costoMensual ?? ''} editing={editing} onChange={v => setF('costoMensual', v)} />
-              <Field label="Venta / hora (S/.)" value={form.ventaHoraSoles ?? ''} editing={editing} onChange={v => setF('ventaHoraSoles', v)} />
             </div>
             <Field label="Descripción servicio" value={form.descripcionServicio ?? ''} editing={editing} onChange={v => setF('descripcionServicio', v)} type="textarea" />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
@@ -472,7 +610,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               <div style={{ marginBottom: '8px' }}>
                 <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Cluster</div>
                 {editing ? (
-                  <select value={form.cluster ?? ''} onChange={e => setF('cluster', e.target.value)}
+                  <select value={form.cluster ?? ''} onChange={e => handleClusterChange(e.target.value)}
                     style={{ width: '100%', padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
                     <option value="">Sin cluster</option>
                     {['A','B','C','D'].map(c => <option key={c} value={c}>{c}</option>)}
@@ -767,6 +905,66 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
           })}
         </div>
       </div>
+
+      {/* ── Modal: confirmar cambio de cluster ── */}
+      {pendingCluster !== null && (
+        <div onClick={() => setPendingCluster(null)} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '22px 24px', width: '340px', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+            <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '8px' }}>Cambiar cluster</div>
+            <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '18px', lineHeight: 1.5 }}>
+              ¿Confirmas cambiar el cluster de{' '}
+              <strong>{form.cluster ? `Cluster ${form.cluster}` : 'Sin cluster'}</strong>
+              {' '}a{' '}
+              <strong>{pendingCluster ? `Cluster ${pendingCluster}` : 'Sin cluster'}</strong>?
+              <br />Este cambio afecta el cálculo del IEI si la tienda no tiene data propia de ventas.
+            </div>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setPendingCluster(null)}
+                style={{ padding: '6px 14px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', color: 'var(--foreground)', cursor: 'pointer' }}>
+                Cancelar
+              </button>
+              <button onClick={confirmClusterChange}
+                style={{ padding: '6px 14px', fontSize: '12px', border: 'none', borderRadius: '7px', background: 'hsl(221,83%,23%)', color: 'white', fontWeight: 600, cursor: 'pointer' }}>
+                Confirmar cambio
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: confirmar actualización de venta mensual ── */}
+      {confirmVenta && (
+        <div onClick={() => setConfirmVenta(null)} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '22px 24px', width: '380px', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+            <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '8px' }}>Actualizar venta mensual</div>
+            <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '14px' }}>
+              Se recalcularán los valores de venta por hora automáticamente:
+            </div>
+            <div style={{ background: 'var(--muted)', borderRadius: '8px', padding: '12px', marginBottom: '18px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {[
+                { label: 'Nueva venta mensual', value: `S/ ${confirmVenta.nuevaMensual.toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` },
+                { label: 'Nueva venta/hora L-J', value: `S/ ${confirmVenta.nuevaLJ.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+                { label: 'Nueva venta/hora V-D', value: `S/ ${confirmVenta.nuevaVD.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+              ].map(({ label, value }) => (
+                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                  <span style={{ color: 'var(--muted-foreground)' }}>{label}</span>
+                  <span style={{ fontWeight: 700, fontFamily: 'monospace' }}>{value}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setConfirmVenta(null)} disabled={savingVenta}
+                style={{ padding: '6px 14px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', color: 'var(--foreground)', cursor: 'pointer' }}>
+                Cancelar
+              </button>
+              <button onClick={handleConfirmVenta} disabled={savingVenta}
+                style={{ padding: '6px 14px', fontSize: '12px', border: 'none', borderRadius: '7px', background: 'hsl(221,83%,23%)', color: 'white', fontWeight: 600, cursor: 'pointer', opacity: savingVenta ? 0.7 : 1 }}>
+                {savingVenta ? 'Guardando...' : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Últimos incidentes */}
       <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', overflow: 'hidden', marginTop: '16px' }}>

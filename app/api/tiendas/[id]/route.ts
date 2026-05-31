@@ -43,6 +43,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     administradorEmail: tiendas.administradorEmail,
     administradorCelular: tiendas.administradorCelular,
     ventaHoraSoles: tiendas.ventaHoraSoles,
+    ventaHoraFdsSoles: tiendas.ventaHoraFdsSoles,
+    ventaMensualSoles: tiendas.ventaMensualSoles,
+    proporcionFds: tiendas.proporcionFds,
+    usaFallbackVentas: tiendas.usaFallbackVentas,
     tipoPersonalizadoHabilitado: tiendas.tipoPersonalizadoHabilitado,
     creadoEn: tiendas.creadoEn,
   })
@@ -73,6 +77,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     vigenciaContrato: null, descripcionServicio: null,
     observacion: null, fechaAltaServicio: null,
     estadoServicio: 'ACTIVO', velocidad: null, planAplicado: null,
+    ventaHoraFdsSoles: null, ventaMensualSoles: null,
+    proporcionFds: null, usaFallbackVentas: false,
   }
   try {
     const [ext] = await db.select({
@@ -89,6 +95,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       estadoServicio:      tiendas.estadoServicio,
       velocidad:           tiendas.velocidad,
       planAplicado:        tiendas.planAplicado,
+      ventaHoraFdsSoles:   tiendas.ventaHoraFdsSoles,
+      ventaMensualSoles:   tiendas.ventaMensualSoles,
+      proporcionFds:       tiendas.proporcionFds,
+      usaFallbackVentas:   tiendas.usaFallbackVentas,
     }).from(tiendas).where(eq(tiendas.id, id))
     if (ext) extended = ext as any
   } catch {
@@ -177,6 +187,7 @@ const TRACKED_FIELDS = [
   'administradorEmail', 'administradorCelular', 'proveedorId', 'ventaHoraSoles', 'extras',
   'gabinete', 'vigenciaContrato', 'descripcionServicio',
   'observacion', 'fechaAltaServicio', 'estadoServicio', 'velocidad', 'planAplicado',
+  'ventaMensualSoles', 'ventaHoraFdsSoles',
 ] as const
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -203,6 +214,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     contactoSoporte: tiendas.contactoSoporte, administradorNombre: tiendas.administradorNombre,
     administradorEmail: tiendas.administradorEmail, administradorCelular: tiendas.administradorCelular,
     ventaHoraSoles: tiendas.ventaHoraSoles,
+    ventaHoraFdsSoles:   tiendas.ventaHoraFdsSoles,
+    ventaMensualSoles:   tiendas.ventaMensualSoles,
+    proporcionFds:       tiendas.proporcionFds,
+    usaFallbackVentas:   tiendas.usaFallbackVentas,
     celularTienda:       tiendas.celularTienda,
     supervisorCelular:   tiendas.supervisorCelular,
     contingenciaChip:    tiendas.contingenciaChip,
@@ -220,6 +235,20 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!current) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
   const body = await req.json()
+
+  // Recálculo automático cuando se edita venta mensual
+  if ('ventaMensualSoles' in body && body.ventaMensualSoles != null) {
+    const prop = parseFloat(current.proporcionFds ?? '0.5')
+    const mensual = parseFloat(body.ventaMensualSoles)
+    if (!isNaN(mensual) && mensual > 0) {
+      const semanal = mensual * 7 / 30.44
+      const horaLJ = (semanal * (1 - prop)) / 48
+      const horaVD = (semanal * prop) / 36
+      body.ventaHoraSoles    = horaLJ.toFixed(2)
+      body.ventaHoraFdsSoles = horaVD.toFixed(2)
+    }
+  }
+
   const baseValues = {
     codigo:               body.codigo              ?? current.codigo,
     nombreCc:             'nombreCc'             in body ? (body.nombreCc             ?? null) : current.nombreCc,
@@ -267,6 +296,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       estadoServicio:      'estadoServicio'      in body ? (body.estadoServicio      ?? null) : current.estadoServicio,
       velocidad:           'velocidad'           in body ? (body.velocidad           ?? null) : current.velocidad,
       planAplicado:        'planAplicado'        in body ? (body.planAplicado        ?? null) : current.planAplicado,
+      ventaHoraFdsSoles:   'ventaHoraFdsSoles'  in body ? (body.ventaHoraFdsSoles   ?? null) : current.ventaHoraFdsSoles,
+      ventaMensualSoles:   'ventaMensualSoles'   in body ? (body.ventaMensualSoles   ?? null) : current.ventaMensualSoles,
     }
     const [r] = await db.update(tiendas).set(fullValues).where(eq(tiendas.id, id)).returning()
     updated = r
