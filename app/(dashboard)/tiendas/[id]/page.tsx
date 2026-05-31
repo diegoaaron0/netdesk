@@ -761,9 +761,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                   {h.valorNuevo && <span style={{ color: 'var(--foreground)', fontWeight: 500 }}>{h.valorNuevo}</span>}
                   {!h.valorAnterior && !h.valorNuevo && <span style={{ color: 'var(--muted-foreground)', fontStyle: 'italic' }}>sin valor</span>}
                 </div>
-                {h.usuarioNombre && (
-                  <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '4px' }}>por <strong>{h.usuarioNombre}</strong></div>
-                )}
+                <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '4px' }}>por <strong>{h.usuarioNombre ?? 'Sistema'}</strong></div>
               </div>
             )
           })}
