@@ -23,7 +23,11 @@
       "Bash(node -e \"require\\('pg'\\)\")",
       "Bash(findstr -i \"postgres\\\\|pg$\")",
       "Bash(findstr \"postgres\")",
-      "Bash(node --input-type=module)"
+      "Bash(node --input-type=module)",
+      "Bash(mkdir -p \"c:\\\\Users\\\\diego\\\\Downloads\\\\Ciclo5\\\\2026\\\\Proyecto_NetDesk\\\\NetDesk\\\\app\\\\api\\\\tiendas\\\\[id]\\\\incidentes-recientes\")"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\diego\\Downloads\\Ciclo5\\2026\\Proyecto_NetDesk\\NetDesk\\app\\api\\tiendas\\[id]"
     ]
   }
 }

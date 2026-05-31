@@ -62,6 +62,33 @@ function relTime(d: string) {
   return `${Math.floor(h / 24)}d`
 }
 
+function fmtTs(d: string | null | undefined) {
+  if (!d) return '—'
+  return new Date(d).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+}
+
+function estadoBadge(est: string | null | undefined): { bg: string; color: string } {
+  const m: Record<string, { bg: string; color: string }> = {
+    ABIERTO:         { bg: '#fee2e2', color: '#991b1b' },
+    EN_SEGUIMIENTO:  { bg: '#fef9c3', color: '#92400e' },
+    ESCALADO_N1:     { bg: '#ffedd5', color: '#9a3412' },
+    ESCALADO_N2:     { bg: '#fed7aa', color: '#7c2d12' },
+    ESCALADO_N3:     { bg: '#fecaca', color: '#7f1d1d' },
+    RESUELTO:        { bg: '#dcfce7', color: '#166534' },
+    CERRADO:         { bg: '#f3f4f6', color: '#374151' },
+    CANCELADO:       { bg: '#f3f4f6', color: '#6b7280' },
+  }
+  return m[est ?? ''] ?? { bg: '#f3f4f6', color: '#6b7280' }
+}
+
+function tipoLabel(t: string | null | undefined) {
+  const m: Record<string, string> = {
+    CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia',
+    LENTITUD: 'Lentitud', POS: 'POS', CORTE_ELECTRICO: 'Corte eléctrico', OTROS: 'Otros',
+  }
+  return m[t ?? ''] ?? t ?? '—'
+}
+
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px', paddingBottom: '5px', borderBottom: '0.5px solid var(--border)' }}>
@@ -117,6 +144,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
   const [contForm, setContForm] = useState({ tipo: '', activadoPor: '', justificacion: '' })
   const [contFormSaving, setContFormSaving] = useState(false)
   const [desactivandoContId, setDesactivandoContId] = useState<string | null>(null)
+  const [incRecientes, setIncRecientes] = useState<any[]>([])
 
   const loadData = useCallback(() => {
     if (!id) return
@@ -134,6 +162,9 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
     })
     fetch(`/api/tiendas/${id}/contingencias`).then(r => r.json()).then(d => {
       setContList(Array.isArray(d) ? d : [])
+    })
+    fetch(`/api/tiendas/${id}/incidentes-recientes`).then(r => r.json()).then(d => {
+      setIncRecientes(Array.isArray(d) ? d : [])
     })
   }, [id])
 
@@ -707,6 +738,46 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
             )}
           </div>
         </div>
+      </div>
+
+      {/* Últimos incidentes */}
+      <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', overflow: 'hidden', marginTop: '16px' }}>
+        <div style={{ padding: '12px 18px', borderBottom: '0.5px solid var(--border)' }}>
+          <div style={{ fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted-foreground)' }}>Últimos incidentes</div>
+        </div>
+        {incRecientes.length === 0 ? (
+          <div style={{ padding: '24px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Sin incidentes registrados</div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+            <thead>
+              <tr style={{ background: 'var(--muted)' }}>
+                {['Código', 'Fecha', 'Tipo', 'MTTR', 'Estado'].map(h => (
+                  <th key={h} style={{ padding: '7px 10px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {incRecientes.map((inc: any) => {
+                const eb = estadoBadge(inc.estado)
+                return (
+                  <tr key={inc.id}
+                    style={{ borderTop: '0.5px solid var(--border)', cursor: 'pointer' }}
+                    onClick={() => router.push(`/incidentes/${inc.id}`)}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                    <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontWeight: 600, fontSize: '11px' }}>{inc.codigo}</td>
+                    <td style={{ padding: '8px 10px', color: 'var(--muted-foreground)', fontSize: '11px' }}>{fmtTs(inc.hora_registro)}</td>
+                    <td style={{ padding: '8px 10px', fontSize: '11px' }}>{tipoLabel(inc.tipo)}</td>
+                    <td style={{ padding: '8px 10px', fontSize: '11px' }}>{inc.mttr_minutos ? `${inc.mttr_minutos}m` : '—'}</td>
+                    <td style={{ padding: '8px 10px' }}>
+                      <span style={{ fontSize: '10px', fontWeight: 600, padding: '1px 6px', borderRadius: '4px', background: eb.bg, color: eb.color }}>{inc.estado}</span>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   )
