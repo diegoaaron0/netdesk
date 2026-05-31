@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
       LEFT JOIN LATERAL (
         SELECT hora_respuesta AS hora_primera_resp
         FROM   escalamientos
-        WHERE  incidente_id = i.id AND hora_respuesta IS NOT NULL
+        WHERE  incidente_id = i.id AND hora_respuesta IS NOT NULL AND no_hubo_respuesta IS NOT TRUE
         ORDER  BY hora_respuesta LIMIT 1
       ) resp ON true
       LEFT JOIN LATERAL (

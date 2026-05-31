@@ -159,7 +159,7 @@ export async function GET(req: Request) {
         LEFT JOIN LATERAL (
           SELECT MIN(hora_respuesta) AS hora_primera_resp
           FROM escalamientos e
-          WHERE e.incidente_id = i.id AND e.hora_respuesta IS NOT NULL
+          WHERE e.incidente_id = i.id AND e.hora_respuesta IS NOT NULL AND e.no_hubo_respuesta IS NOT TRUE
         ) resp ON true
         LEFT JOIN LATERAL (
           SELECT DISTINCT incidente_id

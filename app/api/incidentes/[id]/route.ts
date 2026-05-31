@@ -169,7 +169,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       if (!e.horaEnvioCorreo) return min
       return min == null || new Date(e.horaEnvioCorreo) < new Date(min) ? e.horaEnvioCorreo : min
     }, null)
-    const horaPrimeraResp = escs.filter((e: any) => e.horaRespuesta).reduce((min: Date | null, e: any) => {
+    const horaPrimeraResp = escs.filter((e: any) => e.horaRespuesta && !e.noHuboRespuesta).reduce((min: Date | null, e: any) => {
       return min == null || new Date(e.horaRespuesta) < new Date(min) ? e.horaRespuesta : min
     }, null)
     const maxNivel = escs.reduce((max: number, e: any) => Math.max(max, e.nivel ?? 0), 0)

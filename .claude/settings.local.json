@@ -17,7 +17,13 @@
       "PowerShell(railway --version 2>&1)",
       "PowerShell(npx railway --version 2>&1)",
       "PowerShell(psql --version 2>&1)",
-      "PowerShell(node -e \"require\\('postgres'\\)\" 2>&1)"
+      "PowerShell(node -e \"require\\('postgres'\\)\" 2>&1)",
+      "Bash(psql \"postgresql://postgres:cbaEdUFlVULJNdlsdHdqBelV1lfBMZwL@tramway.proxy.rlwy.net:10333/railway\" -c \"ALTER TABLE \\\\\"incidentes\\\\\" DROP COLUMN IF EXISTS \\\\\"hora_inicio_seguimiento\\\\\";\")",
+      "Bash(npx pg-query *)",
+      "Bash(node -e \"require\\('pg'\\)\")",
+      "Bash(findstr -i \"postgres\\\\|pg$\")",
+      "Bash(findstr \"postgres\")",
+      "Bash(node --input-type=module)"
     ]
   }
 }
