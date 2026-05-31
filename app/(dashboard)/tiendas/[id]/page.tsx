@@ -145,6 +145,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
   const [contFormSaving, setContFormSaving] = useState(false)
   const [desactivandoContId, setDesactivandoContId] = useState<string | null>(null)
   const [incRecientes, setIncRecientes] = useState<any[]>([])
+  const [historialOpen, setHistorialOpen] = useState(false)
 
   const loadData = useCallback(() => {
     if (!id) return
@@ -713,30 +714,59 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
             )
           })()}
 
-          {/* Historial */}
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
-            <SectionTitle>Historial de cambios</SectionTitle>
-            {historial.length === 0 ? (
-              <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', textAlign: 'center', padding: '12px 0' }}>Sin cambios registrados</div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '340px', overflowY: 'auto' }}>
-                {historial.map(h => (
-                  <div key={h.id} style={{ borderBottom: '0.5px solid var(--border)', paddingBottom: '6px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1px' }}>
-                      <span style={{ fontWeight: 500, color: 'var(--foreground)', fontSize: '10px' }}>{CAMPO_LABELS[h.campoEditado] ?? h.campoEditado}</span>
-                      <span style={{ color: 'var(--muted-foreground)', fontSize: '10px' }}>{relTime(h.editadoEn)}</span>
-                    </div>
-                    <div style={{ color: 'var(--muted-foreground)', display: 'flex', gap: '4px', flexWrap: 'wrap', fontSize: '10px' }}>
-                      {h.valorAnterior && <span style={{ textDecoration: 'line-through' }}>{h.valorAnterior}</span>}
-                      {h.valorAnterior && h.valorNuevo && <span>→</span>}
-                      {h.valorNuevo && <span style={{ color: 'var(--foreground)' }}>{h.valorNuevo}</span>}
-                    </div>
-                    {h.usuarioNombre && <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', marginTop: '1px' }}>por {h.usuarioNombre}</div>}
-                  </div>
-                ))}
+          {/* Historial — botón que abre panel lateral */}
+          <button
+            onClick={() => setHistorialOpen(true)}
+            style={{ width: '100%', background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '10px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left' }}>
+            <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Historial de cambios</span>
+            <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{historial.length > 0 ? `${historial.length} cambios` : 'Sin cambios'} →</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Side panel — Historial de cambios */}
+      {historialOpen && (
+        <div onClick={() => setHistorialOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.22)' }} />
+      )}
+      <div style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0, width: 460, maxWidth: '95vw',
+        background: 'var(--card)', borderLeft: '1px solid var(--border)',
+        boxShadow: '-4px 0 28px rgba(0,0,0,0.13)',
+        zIndex: 201, display: 'flex', flexDirection: 'column',
+        transform: historialOpen ? 'translateX(0)' : 'translateX(100%)',
+        transition: 'transform 0.26s cubic-bezier(0.4,0,0.2,1)',
+        overflow: 'hidden',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderBottom: '0.5px solid var(--border)', background: 'var(--muted)', flexShrink: 0 }}>
+          <div style={{ fontSize: '13px', fontWeight: 600 }}>Historial de cambios — {tienda?.codigo}</div>
+          <button onClick={() => setHistorialOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--muted-foreground)', lineHeight: 1 }}>✕</button>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {historial.length === 0 ? (
+            <div style={{ textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px', padding: '32px 0' }}>Sin cambios registrados</div>
+          ) : historial.map((h: any) => {
+            const fechaExacta = h.editadoEn
+              ? new Date(h.editadoEn).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+              : '—'
+            return (
+              <div key={h.id} style={{ background: 'var(--background)', borderRadius: '8px', padding: '10px 12px', border: '0.5px solid var(--border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--foreground)' }}>{CAMPO_LABELS[h.campoEditado] ?? h.campoEditado}</span>
+                  <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap', marginLeft: '8px' }}>{relTime(h.editadoEn)}</span>
+                </div>
+                <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '4px' }}>{fechaExacta}</div>
+                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', fontSize: '11px', alignItems: 'center' }}>
+                  {h.valorAnterior && <span style={{ textDecoration: 'line-through', color: 'var(--muted-foreground)' }}>{h.valorAnterior}</span>}
+                  {h.valorAnterior && h.valorNuevo && <span style={{ color: 'var(--muted-foreground)' }}>→</span>}
+                  {h.valorNuevo && <span style={{ color: 'var(--foreground)', fontWeight: 500 }}>{h.valorNuevo}</span>}
+                  {!h.valorAnterior && !h.valorNuevo && <span style={{ color: 'var(--muted-foreground)', fontStyle: 'italic' }}>sin valor</span>}
+                </div>
+                {h.usuarioNombre && (
+                  <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '4px' }}>por <strong>{h.usuarioNombre}</strong></div>
+                )}
               </div>
-            )}
-          </div>
+            )
+          })}
         </div>
       </div>
 
