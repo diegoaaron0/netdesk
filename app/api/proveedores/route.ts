@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
   // ── 5. SLA Respuesta + SLA Resolución por proveedor (últimos 30d) ──────────
   // Límites default: respuesta 60min, resolución 60min (sla-core defaults)
   const SLA_RESP_SEG  = 60 * 60   // 3600 segundos
-  const SLA_RESOL_SEG = 60 * 60   // 3600 segundos
+  const SLA_RESOL_SEG = 90 * 60   // 5400 segundos
   let slaMap: Record<string, { respuesta: number | null; resolucion: number | null }> = {}
   try {
     const slaRows = await db.execute(sql`

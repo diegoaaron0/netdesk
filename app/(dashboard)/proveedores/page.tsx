@@ -86,12 +86,12 @@ export default function ProveedoresPage() {
   const totalTiendas     = lista.reduce((s, p) => s + (p.totalTiendas ?? 0), 0)
   const costoTotal       = lista.reduce((s, p) => s + Number(p.costoTotal ?? 0), 0)
   const totalInc30d      = lista.reduce((s, p) => s + (p.incidentes30d ?? 0), 0)
-  const slaValidos       = lista.filter(p => p.slaRespuesta != null)
-  const slaPromGlobal    = slaValidos.length > 0
-    ? Math.round(slaValidos.reduce((s, p) => s + p.slaRespuesta, 0) / slaValidos.length)
-    : null
-  const peorProveedor    = slaValidos.length > 0
-    ? slaValidos.reduce((prev, cur) => (cur.slaRespuesta ?? 100) < (prev.slaRespuesta ?? 100) ? cur : prev)
+  const slaRespValidos   = lista.filter(p => p.slaRespuesta  != null)
+  const slaResolValidos  = lista.filter(p => p.slaResolucion != null)
+  const slaRespGlobal    = slaRespValidos.length  > 0 ? Math.round(slaRespValidos.reduce((s, p)  => s + p.slaRespuesta,  0) / slaRespValidos.length)  : null
+  const slaResolGlobal   = slaResolValidos.length > 0 ? Math.round(slaResolValidos.reduce((s, p) => s + p.slaResolucion, 0) / slaResolValidos.length) : null
+  const peorProveedor    = slaRespValidos.length > 0
+    ? slaRespValidos.reduce((prev, cur) => (cur.slaRespuesta ?? 100) < (prev.slaRespuesta ?? 100) ? cur : prev)
     : null
 
   function setF(k: string, v: any) { setFiltros(f => ({ ...f, [k]: v })) }
@@ -131,7 +131,7 @@ export default function ProveedoresPage() {
       </div>
 
       {/* KPI cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '10px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: '10px' }}>
         <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
           <div style={{ fontSize: '22px', fontWeight: 700, color: '#3b82f6' }}>{totalProveedores}</div>
           <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Proveedores</div>
@@ -144,12 +144,16 @@ export default function ProveedoresPage() {
           <div style={{ fontSize: '18px', fontWeight: 700, color: '#8b5cf6', letterSpacing: '-0.02em' }}>{fmtSoles(costoTotal)}</div>
           <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Costo mensual total</div>
         </div>
-        <div style={{ background: slaPromGlobal != null ? slaBg(slaPromGlobal) : 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
-          <div style={{ fontSize: '22px', fontWeight: 700, color: slaColor(slaPromGlobal) }}>{slaPromGlobal != null ? `${slaPromGlobal}%` : '—'}</div>
-          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>SLA promedio 30d</div>
-          {peorProveedor && slaPromGlobal != null && slaPromGlobal < 80 && (
-            <div style={{ fontSize: '9px', color: '#dc2626', marginTop: '3px' }}>Peor resp.: {peorProveedor.nombre} ({peorProveedor.slaRespuesta}%)</div>
+        <div style={{ background: slaRespGlobal != null ? slaBg(slaRespGlobal) : 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+          <div style={{ fontSize: '22px', fontWeight: 700, color: slaColor(slaRespGlobal) }}>{slaRespGlobal != null ? `${slaRespGlobal}%` : '—'}</div>
+          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>SLA Respuesta 30d</div>
+          {peorProveedor && slaRespGlobal != null && slaRespGlobal < 80 && (
+            <div style={{ fontSize: '9px', color: '#dc2626', marginTop: '3px' }}>Peor: {peorProveedor.nombre} ({peorProveedor.slaRespuesta}%)</div>
           )}
+        </div>
+        <div style={{ background: slaResolGlobal != null ? slaBg(slaResolGlobal) : 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+          <div style={{ fontSize: '22px', fontWeight: 700, color: slaColor(slaResolGlobal) }}>{slaResolGlobal != null ? `${slaResolGlobal}%` : '—'}</div>
+          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>SLA Resolución 30d</div>
         </div>
         <div style={{ background: totalInc30d > 0 ? '#fef2f2' : 'var(--card)', border: `0.5px solid ${totalInc30d > 0 ? '#fecaca' : 'var(--border)'}`, borderRadius: '10px', padding: '12px 14px' }}>
           <div style={{ fontSize: '22px', fontWeight: 700, color: totalInc30d > 0 ? '#dc2626' : 'var(--muted-foreground)' }}>{totalInc30d}</div>
