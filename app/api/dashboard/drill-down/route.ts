@@ -48,20 +48,30 @@ export async function GET(req: NextRequest) {
       i.hora_fin,
       i.mttr_minutos,
       i.evaluable_proveedor,
-      e1.hora_envio_correo,
-      e1.hora_respuesta,
-      COALESCE(e1.no_hubo_respuesta, false)      AS no_hubo_respuesta,
+      n1.hora_correo_n1,
+      resp.hora_primera_resp,
+      nhr.no_hubo_respuesta,
       COALESCE(max_n.max_nivel, 0)               AS max_nivel
     FROM incidentes i
     JOIN tiendas t ON i.tienda_id = t.id
     LEFT JOIN proveedores p  ON i.proveedor_id = p.id
     LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
     LEFT JOIN LATERAL (
-      SELECT hora_envio_correo, hora_respuesta, no_hubo_respuesta
+      SELECT MIN(hora_envio_correo) AS hora_correo_n1
       FROM   escalamientos
-      WHERE  incidente_id = i.id AND nivel = 1
-      ORDER  BY creado_en LIMIT 1
-    ) e1 ON true
+      WHERE  incidente_id = i.id AND hora_envio_correo IS NOT NULL
+    ) n1 ON true
+    LEFT JOIN LATERAL (
+      SELECT hora_respuesta AS hora_primera_resp
+      FROM   escalamientos
+      WHERE  incidente_id = i.id AND hora_respuesta IS NOT NULL
+      ORDER  BY hora_respuesta LIMIT 1
+    ) resp ON true
+    LEFT JOIN LATERAL (
+      SELECT COALESCE(BOOL_OR(no_hubo_respuesta), false) AS no_hubo_respuesta
+      FROM   escalamientos
+      WHERE  incidente_id = i.id
+    ) nhr ON true
     LEFT JOIN LATERAL (
       SELECT COALESCE(MAX(nivel), 0) AS max_nivel
       FROM   escalamientos
@@ -85,8 +95,8 @@ export async function GET(req: NextRequest) {
     hora_fin: Date | null
     mttr_minutos: number | null
     evaluable_proveedor: boolean | null
-    hora_envio_correo: Date | null
-    hora_respuesta: Date | null
+    hora_correo_n1: Date | null
+    hora_primera_resp: Date | null
     no_hubo_respuesta: boolean
     max_nivel: number
   }
@@ -110,19 +120,19 @@ export async function GET(req: NextRequest) {
 
       const slaCalcs = incRows
         .filter(r => r.evaluable_proveedor !== false)
-        .map(r => calcSLARow({ tipo: r.tipo, hora_correo_n1: r.hora_envio_correo, hora_primera_resp: r.hora_respuesta, hora_fin: r.hora_fin, max_nivel: r.max_nivel }))
+        .map(r => calcSLARow({ tipo: r.tipo, hora_correo_n1: r.hora_correo_n1, hora_primera_resp: r.hora_primera_resp, hora_fin: r.hora_fin, hora_registro: r.hora_registro, max_nivel: r.max_nivel }))
       const evaluables = slaCalcs.filter(s => s.evaluable)
       const slaOk   = evaluables.filter(s => s.slaGeneral).length
       const slaFail = evaluables.length - slaOk
 
       const incidentes = incRows.map(r => {
-        const minHastaEnvio          = minBetween(r.hora_registro, r.hora_envio_correo)
-        const minRespuesta           = minBetween(r.hora_envio_correo, r.hora_respuesta)
-        const minSolucionDesdeCorreo = minBetween(r.hora_envio_correo, r.hora_fin)
+        const minHastaEnvio          = minBetween(r.hora_registro, r.hora_correo_n1)
+        const minRespuesta           = minBetween(r.hora_correo_n1, r.hora_primera_resp)
+        const minSolucionDesdeCorreo = minBetween(r.hora_correo_n1, r.hora_fin)
 
         let dentroSLA: boolean | null = null
         if (r.evaluable_proveedor !== false) {
-          const sla = calcSLARow({ tipo: r.tipo, hora_correo_n1: r.hora_envio_correo, hora_primera_resp: r.hora_respuesta, hora_fin: r.hora_fin, max_nivel: r.max_nivel })
+          const sla = calcSLARow({ tipo: r.tipo, hora_correo_n1: r.hora_correo_n1, hora_primera_resp: r.hora_primera_resp, hora_fin: r.hora_fin, hora_registro: r.hora_registro, max_nivel: r.max_nivel })
           if (sla.evaluable) dentroSLA = sla.slaGeneral
         }
 
@@ -134,8 +144,8 @@ export async function GET(req: NextRequest) {
           horaRegistroMs:         r.hora_registro ? new Date(r.hora_registro).getTime() : null,
           horaFin:                fmtLima(r.hora_fin),
           mttrMin:                r.mttr_minutos,
-          horaEnvioN1:            fmtLima(r.hora_envio_correo),
-          horaRespuesta:          fmtLima(r.hora_respuesta),
+          horaEnvioN1:            fmtLima(r.hora_correo_n1),
+          horaRespuesta:          fmtLima(r.hora_primera_resp),
           noHuboRespuesta:        r.no_hubo_respuesta,
           evaluableProveedor:     r.evaluable_proveedor !== false,
           minHastaEnvio,
@@ -160,7 +170,7 @@ export async function GET(req: NextRequest) {
     const allRows    = [...tiendaMap.values()].flat()
     const allSlaCalcs = allRows
       .filter(r => r.evaluable_proveedor !== false)
-      .map(r => calcSLARow({ tipo: r.tipo, hora_correo_n1: r.hora_envio_correo, hora_primera_resp: r.hora_respuesta, hora_fin: r.hora_fin, max_nivel: r.max_nivel }))
+      .map(r => calcSLARow({ tipo: r.tipo, hora_correo_n1: r.hora_correo_n1, hora_primera_resp: r.hora_primera_resp, hora_fin: r.hora_fin, hora_registro: r.hora_registro, max_nivel: r.max_nivel }))
     const evs        = allSlaCalcs.filter(s => s.evaluable)
     const dentroSLAn = evs.filter(s => s.slaGeneral).length
     const slaPct     = evs.length > 0 ? Math.round(dentroSLAn / evs.length * 100) : null

@@ -102,10 +102,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   } catch { /* skip */ }
 
   // SLA
-  let slaPromedio:          number | null = null
-  let slaRespuestaPromedio: number | null = null
-  let slaResolucionPromedio: number | null = null
-  let scoreEficiencia:      number | null = null
+  let scoreRespuestaPromedio: number | null = null
+  let scoreResolucionPromedio: number | null = null
+  let tRespuestaPromedio:     number | null = null
+  let tResolucionPromedio:    number | null = null
   try {
     const { getSlaContrato } = await import('@/lib/sla-contrato')
     const slaContrato = await getSlaContrato(id)
@@ -114,16 +114,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       SELECT
         i.tipo,
         i.evaluable_proveedor,
+        i.hora_registro,
         i.hora_fin,
         n1.hora_correo_n1,
         resp.hora_primera_resp,
         max_n.max_nivel
       FROM incidentes i
       LEFT JOIN LATERAL (
-        SELECT hora_envio_correo AS hora_correo_n1
+        SELECT MIN(hora_envio_correo) AS hora_correo_n1
         FROM   escalamientos
-        WHERE  incidente_id = i.id AND nivel = 1 AND hora_envio_correo IS NOT NULL
-        ORDER  BY creado_en LIMIT 1
+        WHERE  incidente_id = i.id AND hora_envio_correo IS NOT NULL
       ) n1 ON true
       LEFT JOIN LATERAL (
         SELECT hora_respuesta AS hora_primera_resp
@@ -142,41 +142,35 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         AND i.evaluable_proveedor IS NOT FALSE
     `)
 
-    const { calcSLARow, calcEficienciaSLA } = await import('@/lib/sla-core')
-    let okGen = 0, okResp = 0, okResol = 0
-    let totalEsc = 0, totalResol = 0
-    let scoreSum = 0, scoreCount = 0
+    const { calcSLARow } = await import('@/lib/sla-core')
+    let totalEsc = 0
+    let scoreRespSum = 0
+    let scoreResolSum = 0, scoreResolCount = 0
+    let tRespSum = 0, tRespCount = 0
+    let tResolSum = 0, tResolCount = 0
     for (const row of slaRows as any[]) {
       if (!row.hora_correo_n1) continue
-      const slaResolucionMin = slaContrato.resolucionMin
-      totalEsc++
       const res = calcSLARow({
         tipo: row.tipo,
         hora_correo_n1: row.hora_correo_n1,
         hora_primera_resp: row.hora_primera_resp,
         hora_fin: row.hora_fin ?? null,
+        hora_registro: row.hora_registro ?? null,
         max_nivel: row.max_nivel ?? 1,
         slaRespuestaOverride: slaContrato.respuestaMin,
-        slaResolucionOverride: slaResolucionMin,
+        slaResolucionOverride: slaContrato.resolucionMin,
       })
-      if (res.slaGeneral)   okGen++
-      if (res.slaRespuesta) okResp++
-      if (res.tResolucionMin != null) {
-        totalResol++
-        if (res.slaResolucion) okResol++
-      }
-      const ef = calcEficienciaSLA({
-        tRespuestaMin: res.tPrimeraRespuestaMin,
-        tResolucionMin: res.tResolucionMin,
-        slaRespuestaMin: slaContrato.respuestaMin,
-        slaResolucionMin,
-      })
-      if (ef.scoreSLA != null) { scoreSum += ef.scoreSLA; scoreCount++ }
+      if (!res.evaluable) continue
+      totalEsc++
+      scoreRespSum += res.scoreRespuesta ?? 0
+      if (res.scoreResolucion != null) { scoreResolSum += res.scoreResolucion; scoreResolCount++ }
+      if (res.tPrimeraRespuestaMin != null) { tRespSum += res.tPrimeraRespuestaMin; tRespCount++ }
+      if (res.tResolucionMin != null) { tResolSum += res.tResolucionMin; tResolCount++ }
     }
-    if (totalEsc  > 0) slaPromedio          = Math.round((okGen  / totalEsc)  * 100)
-    if (totalEsc  > 0) slaRespuestaPromedio  = Math.round((okResp  / totalEsc)  * 100)
-    if (totalResol > 0) slaResolucionPromedio = Math.round((okResol / totalResol) * 100)
-    scoreEficiencia = scoreCount > 0 ? Math.round(scoreSum / scoreCount) : null
+    if (totalEsc      > 0) scoreRespuestaPromedio  = Math.round(scoreRespSum  / totalEsc)
+    if (scoreResolCount > 0) scoreResolucionPromedio = Math.round(scoreResolSum / scoreResolCount)
+    if (tRespCount    > 0) tRespuestaPromedio      = Math.round(tRespSum  / tRespCount)
+    if (tResolCount   > 0) tResolucionPromedio     = Math.round(tResolSum / tResolCount)
   } catch { /* skip */ }
 
   const contratoVigente = contratos.find(c => c.estadoCalc === 'VIGENTE' && !c.tiendaId)
@@ -232,17 +226,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     niveles,
     contratos,
     metricas: {
-      totalTiendas:         tiendasData.count,
-      costoTotal:           tiendasData.costoTotal,
-      slaPromedio,
-      slaRespuestaPromedio,
-      slaResolucionPromedio,
-      scoreEficiencia,
-      mttrPromedio:    mttrData.avg,
-      mttrTotal:       mttrData.total,
-      incidentes30d:   totalInc30d,
+      totalTiendas:            tiendasData.count,
+      costoTotal:              tiendasData.costoTotal,
+      scoreRespuestaPromedio,
+      tRespuestaPromedio,
+      scoreResolucionPromedio,
+      tResolucionPromedio,
+      mttrPromedio:            mttrData.avg,
+      mttrTotal:               mttrData.total,
+      incidentes30d:           totalInc30d,
       tiendasCriticas,
-      slaComprometido: contratoVigente?.slaComprometido ?? null,
+      slaComprometido:         contratoVigente?.slaComprometido ?? null,
     },
     tiendasHistoricas,
   })

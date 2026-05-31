@@ -1,12 +1,21 @@
 /**
  * sla-core.ts — única fuente de verdad para cálculo SLA.
  *
- * SLA Respuesta:  hora_primera_resp − hora_correo_n1  vs contrato.tiempoRespuestaSla
- * SLA Resolución: hora_fin − hora_primera_resp         vs contrato.tiempoResolucionSla
- * slaGeneral:     ambos deben cumplirse
- * MTTR:           hora_fin − hora_registro (operativo, no mide al proveedor)
+ * Tiempos medidos:
+ *   tPrimerEnvioMin:       hora_correo_n1 − hora_registro   (tiempo hasta que el agente escala)
+ *   tPrimeraRespuestaMin:  hora_primera_resp − hora_correo_n1 (tiempo de respuesta del proveedor)
+ *   tResolucionMin:        hora_fin − hora_primera_resp       (tiempo de resolución del proveedor)
+ *   MTTR:                  hora_fin − hora_registro           (duración total, no mide al proveedor)
  *
- * hora_primera_resp = primera respuesta de CUALQUIER nivel de escalamiento.
+ * hora_correo_n1  = MIN(hora_envio_correo) de CUALQUIER nivel (el primer correo enviado)
+ * hora_primera_resp = MIN(hora_respuesta) de CUALQUIER nivel (la primera respuesta recibida)
+ *
+ * Si se saltó al N2 directamente, hora_correo_n1 = hora_envio_N2.
+ * Si N1 no respondió y N2 respondió, tPrimeraRespuesta se mide desde hora_envio_N1.
+ *
+ * SLA Respuesta:  tPrimeraRespuestaMin ≤ contrato.tiempoRespuestaSla
+ * SLA Resolución: tResolucionMin       ≤ contrato.tiempoResolucionSla
+ * slaGeneral:     ambos deben cumplirse
  */
 
 // ─── Constantes SLA ────────────────────────────────────────────────────────────
@@ -15,7 +24,7 @@
 export const SLA_RESPUESTA_MIN = 60
 
 /** Default tiempo de resolución (min) cuando no hay contrato vigente */
-export const SLA_RESOLUCION_DEFAULT_MIN = 60
+export const SLA_RESOLUCION_DEFAULT_MIN = 90
 
 // ─── Helpers de tiempo ────────────────────────────────────────────────────────
 
@@ -73,8 +82,11 @@ export interface SLAResult {
   evaluable: boolean
   escaladoN2: boolean                   // max_nivel >= 2
   nivelFinal: number | null             // nivel máximo alcanzado
-  tPrimeraRespuestaMin: number | null   // hora_primera_resp − hora_correo_n1
-  tResolucionMin: number | null         // hora_fin − hora_primera_resp
+  tPrimerEnvioMin: number | null        // hora_correo_n1 − hora_registro (tiempo del agente para escalar)
+  tPrimeraRespuestaMin: number | null   // hora_primera_resp − hora_correo_n1 (tiempo de respuesta del proveedor)
+  tResolucionMin: number | null         // hora_fin − hora_primera_resp (tiempo de resolución del proveedor)
+  scoreRespuesta: number | null         // 0-100: 100=dentro del límite, 0=doble o más del límite; 0 si nunca respondió; null si no evaluable
+  scoreResolucion: number | null        // igual para resolución; null si aún no resuelto
   slaRespuestaObj: number               // límite de respuesta aplicado
   slaResolucionObj: number              // límite de resolución aplicado
   slaRespuesta: boolean                 // cumplió SLA de respuesta
@@ -85,6 +97,15 @@ export interface SLAResult {
 }
 
 // ─── Función principal ────────────────────────────────────────────────────────
+
+/**
+ * Score de proximidad al límite SLA (0–100).
+ * 100 = dentro del límite, 50 = 1.5× el límite, 0 = 2× el límite o más.
+ */
+function calcScore(real: number | null, limite: number): number | null {
+  if (real == null) return null
+  return Math.max(0, Math.min(100, Math.round(100 * (2 - real / limite))))
+}
 
 /**
  * Evalúa el cumplimiento SLA de un incidente.
@@ -103,7 +124,10 @@ export function calcSLARow(row: SLAInputRow): SLAResult {
     const escaladoN2 = row.max_nivel >= 2
     const nivelFinal = row.max_nivel
 
-    // Tiempo desde correo N1 hasta primera respuesta de cualquier nivel
+    // Tiempo desde apertura hasta primer correo enviado (responsabilidad del agente)
+    const tPrimerEnvioMin = diffMin(row.hora_correo_n1, row.hora_registro ?? null)
+
+    // Tiempo desde primer correo hasta primera respuesta de cualquier nivel
     const tPrimeraRespuestaMin = diffMin(row.hora_primera_resp, row.hora_correo_n1)
 
     // Tiempo desde primera respuesta hasta cierre (responsabilidad del proveedor)
@@ -128,10 +152,19 @@ export function calcSLARow(row: SLAInputRow): SLAResult {
     }
     const motivoIncumplimiento = motivos.length > 0 ? motivos.join(' + ') : null
 
+    const tPrimeraRespuestaMinR = tPrimeraRespuestaMin != null ? Math.round(tPrimeraRespuestaMin) : null
+    const tResolucionMinR       = tResolucionMin       != null ? Math.round(tResolucionMin)        : null
+
+    // Sin respuesta → ambos scores 0; respondió pero no resuelto aún → scoreResolucion null
+    const scoreRespuesta  = row.hora_primera_resp == null ? 0 : calcScore(tPrimeraRespuestaMinR, slaRespuestaObj)
+    const scoreResolucion = row.hora_primera_resp == null ? 0 : (row.hora_fin == null ? null : calcScore(tResolucionMinR, slaResolucionObj))
+
     return {
       evaluable: true, escaladoN2, nivelFinal,
-      tPrimeraRespuestaMin: tPrimeraRespuestaMin != null ? Math.round(tPrimeraRespuestaMin) : null,
-      tResolucionMin:       tResolucionMin       != null ? Math.round(tResolucionMin)        : null,
+      tPrimerEnvioMin:      tPrimerEnvioMin != null ? Math.round(tPrimerEnvioMin) : null,
+      tPrimeraRespuestaMin: tPrimeraRespuestaMinR,
+      tResolucionMin:       tResolucionMinR,
+      scoreRespuesta, scoreResolucion,
       slaRespuestaObj, slaResolucionObj,
       slaRespuesta, slaResolucion, slaGeneral,
       cumplioETA, motivoIncumplimiento,
@@ -140,7 +173,8 @@ export function calcSLARow(row: SLAInputRow): SLAResult {
 
   return {
     evaluable: false, escaladoN2: false, nivelFinal: null,
-    tPrimeraRespuestaMin: null, tResolucionMin: null,
+    tPrimerEnvioMin: null, tPrimeraRespuestaMin: null, tResolucionMin: null,
+    scoreRespuesta: null, scoreResolucion: null,
     slaRespuestaObj, slaResolucionObj,
     slaRespuesta: false, slaResolucion: false, slaGeneral: false,
     cumplioETA: null, motivoIncumplimiento: null,

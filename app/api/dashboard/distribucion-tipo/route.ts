@@ -59,10 +59,9 @@ export async function GET(req: NextRequest) {
       LEFT JOIN proveedores p  ON i.proveedor_id = p.id
       LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
       LEFT JOIN LATERAL (
-        SELECT hora_envio_correo AS hora_correo_n1
+        SELECT MIN(hora_envio_correo) AS hora_correo_n1
         FROM   escalamientos
-        WHERE  incidente_id = i.id AND nivel = 1 AND hora_envio_correo IS NOT NULL
-        ORDER  BY creado_en LIMIT 1
+        WHERE  incidente_id = i.id AND hora_envio_correo IS NOT NULL
       ) n1 ON true
       LEFT JOIN LATERAL (
         SELECT hora_respuesta AS hora_primera_resp, nivel AS nivel_respuesta

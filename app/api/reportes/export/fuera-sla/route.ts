@@ -55,7 +55,7 @@ export async function GET(req: Request) {
         END                                                                   AS exceso_min,
         CASE
           WHEN n2.tiene_n2 THEN 'Nivel 1 sin respuesta'
-          WHEN n1.t_resp_min > 60 THEN 'Respuesta N1 tardía'
+          WHEN n1.t_resp_min > 60 THEN 'Respuesta tardía del proveedor'
           ELSE 'Resolución tardía'
         END                                                                   AS motivo
       FROM incidentes i
@@ -66,7 +66,7 @@ export async function GET(req: Request) {
         SELECT
           EXTRACT(EPOCH FROM (MIN(e.hora_respuesta) - MIN(e.hora_envio_correo))) / 60 AS t_resp_min
         FROM escalamientos e
-        WHERE e.incidente_id = i.id AND e.nivel = 1
+        WHERE e.incidente_id = i.id
       ) n1 ON true
       LEFT JOIN LATERAL (
         SELECT COUNT(*) > 0 AS tiene_n2

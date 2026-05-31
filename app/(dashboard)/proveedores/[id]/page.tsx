@@ -282,10 +282,12 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
             <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
               <SectionTitle>Métricas (30 días)</SectionTitle>
               {[
-                { label: 'Costo mensual total',       value: fmtSoles(metricas?.costoTotal) },
-                { label: 'SLA Respuesta (30d)',      value: metricas?.slaRespuestaPromedio  != null ? `${metricas.slaRespuestaPromedio}%`  : '—', color: slaColor(metricas?.slaRespuestaPromedio  ?? null) },
-                { label: 'SLA Resolución (30d)',     value: metricas?.slaResolucionPromedio != null ? `${metricas.slaResolucionPromedio}%` : '—', color: slaColor(metricas?.slaResolucionPromedio ?? null) },
-                { label: 'MTTR promedio',            value: fmtMttr(metricas?.mttrPromedio) },
+                { label: 'Costo mensual total',          value: fmtSoles(metricas?.costoTotal) },
+                { label: 'SLA Respuesta (30d)',         value: metricas?.scoreRespuestaPromedio  != null ? `${metricas.scoreRespuestaPromedio}%`  : '—', color: slaColor(metricas?.scoreRespuestaPromedio  ?? null) },
+                { label: 'T. respuesta promedio',       value: metricas?.tRespuestaPromedio != null ? `${metricas.tRespuestaPromedio} min` : '—' },
+                { label: 'SLA Resolución (30d)',        value: metricas?.scoreResolucionPromedio != null ? `${metricas.scoreResolucionPromedio}%` : '—', color: slaColor(metricas?.scoreResolucionPromedio ?? null) },
+                { label: 'T. resolución promedio',      value: metricas?.tResolucionPromedio != null ? `${metricas.tResolucionPromedio} min` : '—' },
+                { label: 'MTTR promedio',               value: fmtMttr(metricas?.mttrPromedio) },
                 { label: 'Incidentes (30d)',         value: String(metricas?.incidentes30d ?? 0) },
                 { label: 'Tiendas críticas',         value: String(metricas?.tiendasCriticas ?? 0), color: metricas?.tiendasCriticas > 0 ? '#ef4444' : undefined },
                 { label: 'Tiempo caído total',       value: fmtMttr(metricas?.mttrTotal) },

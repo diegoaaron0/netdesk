@@ -26,7 +26,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     descartesRealizados: incidentes.descartesRealizados,
     solucionAplicada: incidentes.solucionAplicada,
     horaRegistro: incidentes.horaRegistro,
-    horaInicioSeguimiento: incidentes.horaInicioSeguimiento,
     horaFin: incidentes.horaFin,
     mttrMinutos: incidentes.mttrMinutos,
     observaciones: incidentes.observaciones,
@@ -160,11 +159,51 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
+  // Métricas SLA del incidente
+  let slaMetrics: Record<string, any> | null = null
+  try {
+    const { calcSLARow } = await import('@/lib/sla-core')
+    const { getSlaContrato } = await import('@/lib/sla-contrato')
+
+    const horaCorreoN1  = escs.reduce((min: Date | null, e: any) => {
+      if (!e.horaEnvioCorreo) return min
+      return min == null || new Date(e.horaEnvioCorreo) < new Date(min) ? e.horaEnvioCorreo : min
+    }, null)
+    const horaPrimeraResp = escs.filter((e: any) => e.horaRespuesta).reduce((min: Date | null, e: any) => {
+      return min == null || new Date(e.horaRespuesta) < new Date(min) ? e.horaRespuesta : min
+    }, null)
+    const maxNivel = escs.reduce((max: number, e: any) => Math.max(max, e.nivel ?? 0), 0)
+
+    const slaContrato = inc.proveedorId ? await getSlaContrato(inc.proveedorId) : null
+    const res = calcSLARow({
+      tipo: inc.tipo,
+      hora_correo_n1:    horaCorreoN1,
+      hora_primera_resp: horaPrimeraResp,
+      hora_fin:          inc.horaFin,
+      hora_registro:     inc.horaRegistro,
+      max_nivel:         maxNivel,
+      slaRespuestaOverride:  slaContrato?.respuestaMin,
+      slaResolucionOverride: slaContrato?.resolucionMin,
+    })
+    slaMetrics = {
+      evaluable:            res.evaluable,
+      scoreRespuesta:       res.scoreRespuesta,
+      tPrimeraRespuestaMin: res.tPrimeraRespuestaMin,
+      scoreResolucion:      res.scoreResolucion,
+      tResolucionMin:       res.tResolucionMin,
+      tPrimerEnvioMin:      res.tPrimerEnvioMin,
+      nivelFinal:           res.nivelFinal,
+      slaRespuestaObj:      res.slaRespuestaObj,
+      slaResolucionObj:     res.slaResolucionObj,
+    }
+  } catch { /* skip */ }
+
   return NextResponse.json({
     ...inc,
     escalamientos: escs.map((e: any) => ({ ...e, atcLlamadas: atcMap[e.id] ?? [] })),
     nivelesProveedor,
     grupoMasivo,
+    slaMetrics,
   })
 }
 
@@ -179,7 +218,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     'estado','nivelImpacto','usuariosAfectados','tipo','tipoPersonalizado','otrosClasificacion',
     'registradoPorId',
     'descripcionInicial','ticketInvgate','ticketProveedor','descartesRealizados','solucionAplicada',
-    'horaInicioSeguimiento','observaciones','horaRegistro','horaFin','mttrMinutos',
+    'observaciones','horaRegistro','horaFin','mttrMinutos',
     'estadoOperacion','operacionManual','tipoOperacionManual','factorOperativo',
     'contActivadoPor','contHoraActivacion','contHoraDesactivacion','contRendimiento','contObservacion','contEsExterno',
     'movActivadoPor','movHoraActivacion','movHoraDesactivacion','movRendimiento','movObservacion',
@@ -190,7 +229,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     'alcanceCorte','tuvoUps',
     'escaladoInfraId','horaEscaladoInfra','notaEscaladoInfra',
   ]
-  const dateFields = new Set(['horaRegistro','horaFin','horaInicioSeguimiento','contHoraActivacion','contHoraDesactivacion','movHoraActivacion','movHoraDesactivacion','horaEscaladoInfra'])
+  const dateFields = new Set(['horaRegistro','horaFin','contHoraActivacion','contHoraDesactivacion','movHoraActivacion','movHoraDesactivacion','horaEscaladoInfra'])
   const intFields  = new Set(['cajasAfectadas','cajasTotales','mttrMinutos'])
   for (const k of editable) {
     if (k in body) {

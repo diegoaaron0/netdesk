@@ -1452,6 +1452,29 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
         </div>{/* end RIGHT */}
       </div>{/* end main grid */}
 
+      {/* ── Block D.SLA — Métricas SLA del incidente ── */}
+      {inc.slaMetrics?.evaluable && (
+        <div style={{ background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', marginTop: '16px' }}>
+          <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ fontSize: '13px', fontWeight: 600 }}>D.SLA — Métricas de respuesta del proveedor</div>
+          </div>
+          <div style={{ padding: '14px 18px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+            {[
+              { label: 'SLA Respuesta', value: inc.slaMetrics.scoreRespuesta != null ? `${inc.slaMetrics.scoreRespuesta}%` : '—', sub: inc.slaMetrics.tPrimeraRespuestaMin != null ? `${inc.slaMetrics.tPrimeraRespuestaMin} min` : 'Sin respuesta', score: inc.slaMetrics.scoreRespuesta },
+              { label: 'T. Primera Respuesta', value: inc.slaMetrics.tPrimeraRespuestaMin != null ? `${inc.slaMetrics.tPrimeraRespuestaMin} min` : '—', sub: `límite ${inc.slaMetrics.slaRespuestaObj} min`, score: null },
+              { label: 'SLA Resolución', value: inc.slaMetrics.scoreResolucion != null ? `${inc.slaMetrics.scoreResolucion}%` : (inc.slaMetrics.scoreRespuesta === 0 ? '0%' : '—'), sub: inc.slaMetrics.tResolucionMin != null ? `${inc.slaMetrics.tResolucionMin} min` : (inc.slaMetrics.scoreRespuesta === 0 ? 'Sin respuesta' : 'En curso'), score: inc.slaMetrics.scoreResolucion },
+              { label: 'T. Resolución', value: inc.slaMetrics.tResolucionMin != null ? `${inc.slaMetrics.tResolucionMin} min` : '—', sub: `límite ${inc.slaMetrics.slaResolucionObj} min`, score: null },
+            ].map(m => (
+              <div key={m.label} style={{ background: 'var(--background)', borderRadius: '8px', padding: '10px 14px', border: '0.5px solid var(--border)' }}>
+                <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '4px' }}>{m.label}</div>
+                <div style={{ fontSize: '18px', fontWeight: 700, color: m.score != null ? (m.score >= 80 ? '#16a34a' : m.score >= 60 ? '#d97706' : '#dc2626') : 'var(--foreground)' }}>{m.value}</div>
+                <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{m.sub}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ── Block D — Escalamientos + Infraestructura ── */}
       {(inc.escalamientos?.length > 0 || !isClosed || inc.escaladoInfraId) && (
         <div ref={escRef} style={{ background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', marginTop: '16px', overflow: 'hidden' }}>

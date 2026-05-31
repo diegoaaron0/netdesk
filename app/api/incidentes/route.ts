@@ -161,7 +161,6 @@ export async function POST(req: NextRequest) {
     ticketProveedor:       body.ticketProveedor ?? null,
     descartesRealizados:   body.descartesRealizados ?? null,
     solucionAplicada:      body.solucionAplicada ?? null,
-    horaInicioSeguimiento: body.horaInicioSeguimiento ? new Date(body.horaInicioSeguimiento) : null,
     observaciones:         body.observaciones ?? null,
   }).returning()
 

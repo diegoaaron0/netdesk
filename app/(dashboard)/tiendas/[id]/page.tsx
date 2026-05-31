@@ -619,6 +619,26 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
             )
           })()}
 
+          {/* SLA (30d) */}
+          {tienda?.slaTienda?.totalEvaluables > 0 && (
+            <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+              <SectionTitle>SLA proveedor (30d) — {tienda.slaTienda.totalEvaluables} inc. eval.</SectionTitle>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {[
+                  { label: 'SLA Respuesta',       value: tienda.slaTienda.scoreRespuestaPromedio  != null ? `${tienda.slaTienda.scoreRespuestaPromedio}%`  : '—', score: tienda.slaTienda.scoreRespuestaPromedio },
+                  { label: 'T. resp. promedio',   value: tienda.slaTienda.tRespuestaPromedio      != null ? `${tienda.slaTienda.tRespuestaPromedio} min`    : '—', score: null },
+                  { label: 'SLA Resolución',      value: tienda.slaTienda.scoreResolucionPromedio != null ? `${tienda.slaTienda.scoreResolucionPromedio}%` : '—', score: tienda.slaTienda.scoreResolucionPromedio },
+                  { label: 'T. resol. promedio',  value: tienda.slaTienda.tResolucionPromedio     != null ? `${tienda.slaTienda.tResolucionPromedio} min`   : '—', score: null },
+                ].map(r => (
+                  <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '0.5px solid var(--border)' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{r.label}</span>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: r.score != null ? (r.score >= 80 ? '#16a34a' : r.score >= 60 ? '#d97706' : '#dc2626') : 'var(--foreground)' }}>{r.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Uso de contingencia */}
           {contStats && (contStats.cnt_router_propio > 0 || contStats.cnt_router_externo > 0 || contStats.cnt_datos_moviles > 0) && (() => {
             function mhm(m: number) {

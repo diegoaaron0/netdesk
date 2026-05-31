@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
     LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
     LEFT JOIN LATERAL (
       SELECT MIN(hora_envio_correo) AS hora_envio, MIN(hora_respuesta) AS hora_resp
-      FROM escalamientos WHERE incidente_id = i.id AND nivel = 1
+      FROM escalamientos WHERE incidente_id = i.id
     ) n1 ON true
     LEFT JOIN LATERAL (
       SELECT MAX(nivel)::int AS nivel_max FROM escalamientos WHERE incidente_id = i.id

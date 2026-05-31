@@ -184,7 +184,7 @@ function getRazon(
   if (avgMttr > 240) return 'MTTR alto'
   const slaFail = incs.some((i) => {
     const sla = getSla(i.proveedor_id ?? '', i.tienda_id ?? '')
-    const r = calcSLARow({ tipo: i.tipo, hora_correo_n1: i.hora_correo_n1, hora_primera_resp: i.hora_primera_resp, hora_fin: i.hora_fin, max_nivel: i.max_nivel, slaRespuestaOverride: sla.respuestaMin, slaResolucionOverride: sla.resolucionMin })
+    const r = calcSLARow({ tipo: i.tipo, hora_correo_n1: i.hora_correo_n1, hora_primera_resp: i.hora_primera_resp, hora_fin: i.hora_fin, hora_registro: i.hora_registro, max_nivel: i.max_nivel, slaRespuestaOverride: sla.respuestaMin, slaResolucionOverride: sla.resolucionMin })
     return r.evaluable && !r.slaGeneral
   })
   if (slaFail) return 'SLA incumplido'
@@ -363,6 +363,7 @@ async function buildCards(
       hora_correo_n1: i.hora_correo_n1,
       hora_primera_resp: i.hora_primera_resp,
       hora_fin: i.hora_fin,
+      hora_registro: i.hora_registro,
       max_nivel: i.max_nivel,
       slaRespuestaOverride: sla.respuestaMin,
       slaResolucionOverride: sla.resolucionMin,
@@ -446,6 +447,7 @@ async function buildCards(
       hora_correo_n1: i.hora_correo_n1,
       hora_primera_resp: i.hora_primera_resp,
       hora_fin: i.hora_fin,
+      hora_registro: i.hora_registro,
       max_nivel: i.max_nivel,
       slaRespuestaOverride: sla.respuestaMin,
       slaResolucionOverride: sla.resolucionMin,
@@ -616,7 +618,7 @@ async function buildCards(
     m.tiendas.add(i.tienda_id)
     if (i.mttr_minutos) { m.mttrSum += i.mttr_minutos; m.mttrCount++ }
     const sla7 = getSlaParaIncidente(i.proveedor_id ?? '', i.tienda_id ?? '')
-    const slaRes7 = calcSLARow({ tipo: i.tipo, hora_correo_n1: i.hora_correo_n1, hora_primera_resp: i.hora_primera_resp, hora_fin: i.hora_fin, max_nivel: i.max_nivel, slaRespuestaOverride: sla7.respuestaMin, slaResolucionOverride: sla7.resolucionMin })
+    const slaRes7 = calcSLARow({ tipo: i.tipo, hora_correo_n1: i.hora_correo_n1, hora_primera_resp: i.hora_primera_resp, hora_fin: i.hora_fin, hora_registro: i.hora_registro, max_nivel: i.max_nivel, slaRespuestaOverride: sla7.respuestaMin, slaResolucionOverride: sla7.resolucionMin })
     if (slaRes7.evaluable) { m.slaTotal++; if (slaRes7.slaGeneral) m.slaOk++ }
     m.costo += calcCostoIncidente(i, ventasDiarias).costo
   }
@@ -657,7 +659,7 @@ async function buildCards(
       const incidentesDetalle = provIncs.slice(0, 20).map((i) => {
         const slaRes = calcSLARow({
           tipo: i.tipo, hora_correo_n1: i.hora_correo_n1,
-          hora_primera_resp: i.hora_primera_resp, hora_fin: i.hora_fin, max_nivel: i.max_nivel,
+          hora_primera_resp: i.hora_primera_resp, hora_fin: i.hora_fin, hora_registro: i.hora_registro, max_nivel: i.max_nivel,
         })
         const { costo } = calcCostoIncidente(i, ventasDiarias)
         const fecha = new Date(i.hora_registro).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', timeZone: 'America/Lima' })

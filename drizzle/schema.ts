@@ -171,7 +171,6 @@ export const incidentes = pgTable('incidentes', {
   descartesRealizados:   text('descartes_realizados'),
   solucionAplicada:      text('solucion_aplicada'),
   horaRegistro:          timestamp('hora_registro').defaultNow().notNull(),
-  horaInicioSeguimiento: timestamp('hora_inicio_seguimiento'),
   horaFin:               timestamp('hora_fin'),
   mttrMinutos:           integer('mttr_minutos'),
   observaciones:         text('observaciones'),

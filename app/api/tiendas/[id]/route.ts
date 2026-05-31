@@ -95,7 +95,76 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     // columnas no migradas aún — se retornan null
   }
 
-  return NextResponse.json({ ...tienda, ...extended, totalIncidentes: total, datosMovilesActivos: movCount > 0 })
+  // Métricas SLA (30d)
+  let slaTienda: Record<string, any> = {
+    scoreRespuestaPromedio: null, tRespuestaPromedio: null,
+    scoreResolucionPromedio: null, tResolucionPromedio: null,
+    totalEvaluables: 0,
+  }
+  try {
+    const { calcSLARow } = await import('@/lib/sla-core')
+    const { getSlaContrato } = await import('@/lib/sla-contrato')
+    const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString()
+    const slaContrato = tienda.proveedorId ? await getSlaContrato(tienda.proveedorId) : null
+
+    const slaRows = await db.execute(sql`
+      SELECT i.tipo, i.hora_registro, i.hora_fin,
+        n1.hora_correo_n1, resp.hora_primera_resp, max_n.max_nivel
+      FROM incidentes i
+      LEFT JOIN LATERAL (
+        SELECT MIN(hora_envio_correo) AS hora_correo_n1
+        FROM escalamientos WHERE incidente_id = i.id AND hora_envio_correo IS NOT NULL
+      ) n1 ON true
+      LEFT JOIN LATERAL (
+        SELECT hora_respuesta AS hora_primera_resp
+        FROM escalamientos WHERE incidente_id = i.id AND hora_respuesta IS NOT NULL
+        ORDER BY hora_respuesta LIMIT 1
+      ) resp ON true
+      LEFT JOIN LATERAL (
+        SELECT COALESCE(MAX(nivel), 0) AS max_nivel
+        FROM escalamientos WHERE incidente_id = i.id
+      ) max_n ON true
+      WHERE i.tienda_id = ${id}
+        AND i.hora_registro >= ${thirtyDaysAgoStr}::timestamptz
+        AND i.estado = 'RESUELTO'
+        AND i.evaluable_proveedor IS NOT FALSE
+    `)
+
+    let totalEsc = 0
+    let scoreRespSum = 0
+    let scoreResolSum = 0, scoreResolCount = 0
+    let tRespSum = 0, tRespCount = 0
+    let tResolSum = 0, tResolCount = 0
+    for (const row of slaRows as any[]) {
+      if (!row.hora_correo_n1) continue
+      const res = calcSLARow({
+        tipo: row.tipo,
+        hora_correo_n1: row.hora_correo_n1,
+        hora_primera_resp: row.hora_primera_resp,
+        hora_fin: row.hora_fin ?? null,
+        hora_registro: row.hora_registro ?? null,
+        max_nivel: row.max_nivel ?? 1,
+        slaRespuestaOverride: slaContrato?.respuestaMin,
+        slaResolucionOverride: slaContrato?.resolucionMin,
+      })
+      if (!res.evaluable) continue
+      totalEsc++
+      scoreRespSum += res.scoreRespuesta ?? 0
+      if (res.scoreResolucion != null) { scoreResolSum += res.scoreResolucion; scoreResolCount++ }
+      if (res.tPrimeraRespuestaMin != null) { tRespSum += res.tPrimeraRespuestaMin; tRespCount++ }
+      if (res.tResolucionMin != null) { tResolSum += res.tResolucionMin; tResolCount++ }
+    }
+    slaTienda = {
+      scoreRespuestaPromedio:  totalEsc      > 0 ? Math.round(scoreRespSum  / totalEsc)       : null,
+      tRespuestaPromedio:      tRespCount    > 0 ? Math.round(tRespSum      / tRespCount)      : null,
+      scoreResolucionPromedio: scoreResolCount > 0 ? Math.round(scoreResolSum / scoreResolCount) : null,
+      tResolucionPromedio:     tResolCount   > 0 ? Math.round(tResolSum     / tResolCount)     : null,
+      totalEvaluables: totalEsc,
+    }
+  } catch { /* skip */ }
+
+  return NextResponse.json({ ...tienda, ...extended, totalIncidentes: total, datosMovilesActivos: movCount > 0, slaTienda })
 }
 
 const TRACKED_FIELDS = [

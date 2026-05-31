@@ -42,7 +42,7 @@ export async function GET(req: Request) {
             NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'), 0))::int      AS sla_pct,
           ROUND(AVG(i.mttr_minutos))::int                                        AS mttr_avg,
           ROUND(AVG(
-            EXTRACT(EPOCH FROM (e1.hora_respuesta - e1.hora_envio_correo)) / 60
+            EXTRACT(EPOCH FROM (resp.hora_primera_resp - n1h.hora_correo_n1_val)) / 60
           ))::int                                                                 AS t_resp_avg,
           COUNT(DISTINCT e2.incidente_id)::int                                   AS escalados_n2,
           COUNT(DISTINCT i.tienda_id)::int                                       AS tiendas_afectadas,
@@ -90,19 +90,15 @@ export async function GET(req: Request) {
         LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
         LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
         LEFT JOIN LATERAL (
-          SELECT hora_envio_correo, hora_respuesta
+          SELECT MIN(hora_envio_correo) AS hora_correo_n1_val
           FROM escalamientos e
-          WHERE e.incidente_id = i.id AND e.nivel = 1
-            AND e.hora_envio_correo IS NOT NULL AND e.hora_respuesta IS NOT NULL
-          ORDER BY e.creado_en LIMIT 1
-        ) e1 ON true
-        -- alias para columna hora_correo_n1 en incidentes (para evaluables)
-        LEFT JOIN LATERAL (
-          SELECT hora_envio_correo AS hora_correo_n1_val
-          FROM escalamientos e
-          WHERE e.incidente_id = i.id AND e.nivel = 1
-          ORDER BY e.creado_en LIMIT 1
+          WHERE e.incidente_id = i.id AND e.hora_envio_correo IS NOT NULL
         ) n1h ON true
+        LEFT JOIN LATERAL (
+          SELECT MIN(hora_respuesta) AS hora_primera_resp
+          FROM escalamientos e
+          WHERE e.incidente_id = i.id AND e.hora_respuesta IS NOT NULL
+        ) resp ON true
         LEFT JOIN LATERAL (
           SELECT DISTINCT incidente_id
           FROM escalamientos e
