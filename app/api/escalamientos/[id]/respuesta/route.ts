@@ -15,6 +15,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     .from(escalamientos).where(eq(escalamientos.id, id))
 
   const horaRespuesta = body.horaRespuesta ? new Date(body.horaRespuesta) : new Date()
+  if (esc?.horaEnvioCorreo && horaRespuesta < new Date(esc.horaEnvioCorreo))
+    return NextResponse.json({ error: 'hora_respuesta no puede ser anterior a hora_envio_correo' }, { status: 400 })
   const tiempoRespuestaMin = esc?.horaEnvioCorreo
     ? Math.round((horaRespuesta.getTime() - new Date(esc.horaEnvioCorreo).getTime()) / 60000)
     : null

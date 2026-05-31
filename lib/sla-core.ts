@@ -154,6 +154,8 @@ export function calcSLARow(row: SLAInputRow): SLAResult {
 
     const tPrimeraRespuestaMinR = tPrimeraRespuestaMin != null ? Math.round(tPrimeraRespuestaMin) : null
     const tResolucionMinR       = tResolucionMin       != null ? Math.round(tResolucionMin)        : null
+    // tPrimerEnvioMin negativo = hora_registro backdateado después de hora_envio → dato inválido
+    const tPrimerEnvioMinR = tPrimerEnvioMin != null && tPrimerEnvioMin >= 0 ? Math.round(tPrimerEnvioMin) : null
 
     // Sin respuesta → ambos scores 0; respondió pero no resuelto aún → scoreResolucion null
     const scoreRespuesta  = row.hora_primera_resp == null ? 0 : calcScore(tPrimeraRespuestaMinR, slaRespuestaObj)
@@ -161,7 +163,7 @@ export function calcSLARow(row: SLAInputRow): SLAResult {
 
     return {
       evaluable: true, escaladoN2, nivelFinal,
-      tPrimerEnvioMin:      tPrimerEnvioMin != null ? Math.round(tPrimerEnvioMin) : null,
+      tPrimerEnvioMin:      tPrimerEnvioMinR,
       tPrimeraRespuestaMin: tPrimeraRespuestaMinR,
       tResolucionMin:       tResolucionMinR,
       scoreRespuesta, scoreResolucion,

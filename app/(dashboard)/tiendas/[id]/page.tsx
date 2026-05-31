@@ -651,6 +651,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               { label: 'Router externo', min: contStats.min_router_externo, cnt: contStats.cnt_router_externo, active: !!contStats.activo_externo, color: '#ea580c', bg: '#fff7ed' },
               { label: 'Datos móviles', min: contStats.min_datos_moviles, cnt: contStats.cnt_datos_moviles, active: !!contStats.activo_mov, color: '#2563eb', bg: '#eff6ff' },
             ].filter(r => r.cnt > 0)
+            const totalContMin = (contStats.min_router_propio ?? 0) + (contStats.min_router_externo ?? 0) + (contStats.min_datos_moviles ?? 0)
             return (
               <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
                 <SectionTitle>Uso de contingencia</SectionTitle>
@@ -670,6 +671,12 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                       </div>
                     </div>
                   ))}
+                  {rows.length > 1 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', borderTop: '0.5px solid var(--border)', marginTop: '2px' }}>
+                      <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--foreground)' }}>Total contingencia</span>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--foreground)', fontFamily: 'monospace' }}>{mhm(totalContMin)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             )

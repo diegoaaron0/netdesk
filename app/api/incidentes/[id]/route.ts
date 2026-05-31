@@ -243,6 +243,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
   }
 
+  // Validaciones de consistencia temporal
+  const af = allowedFields
+  if (af.horaRegistro && af.horaFin && af.horaFin < af.horaRegistro)
+    return NextResponse.json({ error: 'hora_fin no puede ser anterior a hora_registro' }, { status: 400 })
+  if (af.contHoraActivacion && af.contHoraDesactivacion && af.contHoraDesactivacion < af.contHoraActivacion)
+    return NextResponse.json({ error: 'cont_hora_desactivacion no puede ser anterior a cont_hora_activacion' }, { status: 400 })
+  if (af.movHoraActivacion && af.movHoraDesactivacion && af.movHoraDesactivacion < af.movHoraActivacion)
+    return NextResponse.json({ error: 'mov_hora_desactivacion no puede ser anterior a mov_hora_activacion' }, { status: 400 })
+
   // Auditoría: cuando se cierra, guardar quién cerró y auto-sellar hora_fin
   if (body.estado === 'CERRADO') {
     allowedFields.cerradoPorId = (session.user as any)?.id ?? null

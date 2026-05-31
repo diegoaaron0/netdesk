@@ -21,6 +21,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const envio = fields.horaEnvioCorreo instanceof Date ? fields.horaEnvioCorreo : null
   const resp  = fields.horaRespuesta   instanceof Date ? fields.horaRespuesta   : null
   if (envio && resp) {
+    if (resp < envio)
+      return NextResponse.json({ error: 'hora_respuesta no puede ser anterior a hora_envio_correo' }, { status: 400 })
     fields.tiempoRespuestaMin = Math.round((resp.getTime() - envio.getTime()) / 60000)
   } else if ('horaRespuesta' in body || 'horaEnvioCorreo' in body) {
     fields.tiempoRespuestaMin = null
