@@ -106,20 +106,21 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   let scoreResolucionPromedio: number | null = null
   let tRespuestaPromedio:     number | null = null
   let tResolucionPromedio:    number | null = null
+  let slaBreakdown: any[] = []
   try {
     const { getSlaContrato } = await import('@/lib/sla-contrato')
     const slaContrato = await getSlaContrato(id)
 
     const slaRows = await db.execute(sql`
       SELECT
-        i.tipo,
-        i.evaluable_proveedor,
-        i.hora_registro,
-        i.hora_fin,
+        i.id, i.codigo, i.tipo, i.evaluable_proveedor,
+        i.hora_registro, i.hora_fin, i.mttr_minutos,
+        t.codigo AS tienda_codigo, t.nombre_cc AS tienda_nombre,
         n1.hora_correo_n1,
         resp.hora_primera_resp,
         max_n.max_nivel
       FROM incidentes i
+      JOIN tiendas t ON i.tienda_id = t.id
       LEFT JOIN LATERAL (
         SELECT MIN(hora_envio_correo) AS hora_correo_n1
         FROM   escalamientos
@@ -148,6 +149,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     let scoreResolSum = 0, scoreResolCount = 0
     let tRespSum = 0, tRespCount = 0
     let tResolSum = 0, tResolCount = 0
+    const incidentesSla: any[] = []
     for (const row of slaRows as any[]) {
       if (!row.hora_correo_n1) continue
       const res = calcSLARow({
@@ -166,11 +168,27 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       if (res.scoreResolucion != null) { scoreResolSum += res.scoreResolucion; scoreResolCount++ }
       if (res.tPrimeraRespuestaMin != null) { tRespSum += res.tPrimeraRespuestaMin; tRespCount++ }
       if (res.tResolucionMin != null) { tResolSum += res.tResolucionMin; tResolCount++ }
+      incidentesSla.push({
+        id:              row.id,
+        codigo:          row.codigo,
+        tipo:            row.tipo,
+        tiendaCodigo:    row.tienda_codigo,
+        tiendaNombre:    row.tienda_nombre,
+        horaRegistro:    row.hora_registro,
+        mttrMinutos:     row.mttr_minutos,
+        tRespuestaMin:   res.tPrimeraRespuestaMin,
+        scoreRespuesta:  res.scoreRespuesta,
+        tResolucionMin:  res.tResolucionMin,
+        scoreResolucion: res.scoreResolucion,
+        slaRespObj:      res.slaRespuestaObj,
+        slaResolObj:     res.slaResolucionObj,
+      })
     }
     if (totalEsc      > 0) scoreRespuestaPromedio  = Math.round(scoreRespSum  / totalEsc)
     if (scoreResolCount > 0) scoreResolucionPromedio = Math.round(scoreResolSum / scoreResolCount)
     if (tRespCount    > 0) tRespuestaPromedio      = Math.round(tRespSum  / tRespCount)
     if (tResolCount   > 0) tResolucionPromedio     = Math.round(tResolSum / tResolCount)
+    slaBreakdown = incidentesSla
   } catch { /* skip */ }
 
   // IEI acumulado 30d de todas las tiendas del proveedor
@@ -213,6 +231,20 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       tiendaMap[key].incidentes.push({ id: r.id, codigo: r.codigo, tipo: r.tipo, mttrMinutos: r.mttr_minutos, horaRegistro: r.hora_registro, iei: res.impactoEstimado, motivo: res.motivoFactor })
     }
     iei30dBreakdown = Object.values(tiendaMap).sort((a, b) => b.ieiTotal - a.ieiTotal)
+  } catch { /* skip */ }
+
+  // Costos por tienda para el panel de desglose
+  let costoBreakdown: any[] = []
+  try {
+    const rows = await db.execute(sql`
+      SELECT codigo, nombre_cc, costo_mensual::numeric AS costo
+      FROM tiendas
+      WHERE proveedor_id = ${id} AND costo_mensual IS NOT NULL
+      ORDER BY costo_mensual::numeric DESC
+    `)
+    costoBreakdown = (rows as any[]).map(r => ({
+      codigo: r.codigo, nombre: r.nombre_cc, costo: Number(r.costo),
+    }))
   } catch { /* skip */ }
 
   const contratoVigente = contratos.find(c => c.estadoCalc === 'VIGENTE' && !c.tiendaId)
@@ -281,6 +313,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       slaComprometido:         contratoVigente?.slaComprometido ?? null,
       iei30d:                  Math.round(iei30d),
       iei30dBreakdown,
+      slaBreakdown,
+      costoBreakdown,
     },
     tiendasHistoricas,
   })

@@ -101,6 +101,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
   const [data, setData]   = useState<any>(null)
   const [tab, setTab]     = useState<'resumen' | 'tiendas' | 'contrato' | 'escalamiento' | 'historicas'>('resumen')
   const [ieiPanelOpen, setIeiPanelOpen] = useState(false)
+  const [panelMetrica, setPanelMetrica] = useState<string | null>(null)
   const [buscarT, setBuscarT] = useState('')
 
   // Edit proveedor modal
@@ -283,17 +284,17 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
             <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
               <SectionTitle>Métricas (30 días)</SectionTitle>
               {[
-                { label: 'Costo mensual total',          value: fmtSoles(metricas?.costoTotal) },
-                { label: 'SLA Respuesta (30d)',         value: metricas?.scoreRespuestaPromedio  != null ? `${metricas.scoreRespuestaPromedio}%`  : '—', color: slaColor(metricas?.scoreRespuestaPromedio  ?? null) },
-                { label: 'T. respuesta promedio',       value: metricas?.tRespuestaPromedio != null ? `${metricas.tRespuestaPromedio} min` : '—' },
-                { label: 'SLA Resolución (30d)',        value: metricas?.scoreResolucionPromedio != null ? `${metricas.scoreResolucionPromedio}%` : '—', color: slaColor(metricas?.scoreResolucionPromedio ?? null) },
-                { label: 'T. resolución promedio',      value: metricas?.tResolucionPromedio != null ? `${metricas.tResolucionPromedio} min` : '—' },
-                { label: 'MTTR promedio',               value: fmtMttr(metricas?.mttrPromedio) },
-                { label: 'Incidentes (30d)',         value: String(metricas?.incidentes30d ?? 0) },
-                { label: 'Tiendas críticas',         value: String(metricas?.tiendasCriticas ?? 0), color: metricas?.tiendasCriticas > 0 ? '#ef4444' : undefined },
-                { label: 'Tiempo caído total',       value: fmtMttr(metricas?.mttrTotal) },
-                { label: 'Tiendas asociadas',        value: String(metricas?.totalTiendas ?? 0) },
-                { label: 'IEI acumulado (30d) ↗',   value: metricas?.iei30d != null && metricas.iei30d > 0 ? `S/ ${metricas.iei30d.toLocaleString('es-PE')}` : '—', color: metricas?.iei30d > 0 ? '#b91c1c' : undefined, onClick: () => setIeiPanelOpen(true) },
+                { label: 'Costo mensual total ↗',       value: fmtSoles(metricas?.costoTotal), onClick: () => setPanelMetrica('costo') },
+                { label: 'SLA Respuesta (30d) ↗',      value: metricas?.scoreRespuestaPromedio  != null ? `${metricas.scoreRespuestaPromedio}%`  : '—', color: slaColor(metricas?.scoreRespuestaPromedio  ?? null), onClick: () => setPanelMetrica('slaResp') },
+                { label: 'T. respuesta promedio ↗',    value: metricas?.tRespuestaPromedio != null ? `${metricas.tRespuestaPromedio} min` : '—', onClick: () => setPanelMetrica('tResp') },
+                { label: 'SLA Resolución (30d) ↗',     value: metricas?.scoreResolucionPromedio != null ? `${metricas.scoreResolucionPromedio}%` : '—', color: slaColor(metricas?.scoreResolucionPromedio ?? null), onClick: () => setPanelMetrica('slaResol') },
+                { label: 'T. resolución promedio ↗',   value: metricas?.tResolucionPromedio != null ? `${metricas.tResolucionPromedio} min` : '—', onClick: () => setPanelMetrica('tResol') },
+                { label: 'MTTR promedio ↗',            value: fmtMttr(metricas?.mttrPromedio), onClick: () => setPanelMetrica('mttr') },
+                { label: 'Incidentes (30d)',            value: String(metricas?.incidentes30d ?? 0) },
+                { label: 'Tiendas críticas',            value: String(metricas?.tiendasCriticas ?? 0), color: metricas?.tiendasCriticas > 0 ? '#ef4444' : undefined },
+                { label: 'Tiempo caído total ↗',       value: fmtMttr(metricas?.mttrTotal), onClick: () => setPanelMetrica('tiempoCaido') },
+                { label: 'Tiendas asociadas',           value: String(metricas?.totalTiendas ?? 0) },
+                { label: 'IEI acumulado (30d) ↗',      value: metricas?.iei30d != null && metricas.iei30d > 0 ? `S/ ${metricas.iei30d.toLocaleString('es-PE')}` : '—', color: metricas?.iei30d > 0 ? '#b91c1c' : undefined, onClick: () => setIeiPanelOpen(true) },
               ].map(r => (
                 <div key={r.label}
                   onClick={(r as any).onClick}
@@ -792,6 +793,156 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
           <ModalFooter onCancel={() => { setEditContrato(null); setAddContrato(false) }} onSave={() => saveContrato(addContrato)} saving={savingC} />
         </ModalWrap>
       )}
+
+      {/* ── Side panel genérico de métricas ── */}
+      {panelMetrica && (
+        <div onClick={() => setPanelMetrica(null)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.22)' }} />
+      )}
+      {(() => {
+        const slaRows: any[] = data?.metricas?.slaBreakdown ?? []
+        const costoRows: any[] = data?.metricas?.costoBreakdown ?? []
+        const fmtMttrLocal = (m: number | null | undefined) => {
+          if (!m) return '—'
+          const h = Math.floor(m / 60), min = m % 60
+          return h > 0 ? `${h}h ${min}m` : `${min}m`
+        }
+        const slaCol = (v: number | null | undefined) => v == null ? '#9ca3af' : v >= 80 ? '#16a34a' : v >= 60 ? '#d97706' : '#dc2626'
+        const TIPO: Record<string, string> = { CAIDA_TOTAL: 'Caída', INTERMITENCIA: 'Intermitencia', LENTITUD: 'Lentitud', CORTE_ELECTRICO: 'Corte elét.' }
+
+        const config: Record<string, { title: string; cols: string[]; rows: () => any[]; render: (r: any) => React.ReactNode[] }> = {
+          costo: {
+            title: 'Costo mensual por tienda',
+            cols: ['Tienda', 'Costo mensual'],
+            rows: () => costoRows,
+            render: (r) => [
+              <span key="c" style={{ fontFamily: 'monospace', fontWeight: 600 }}>{r.codigo}</span>,
+              <span key="v" style={{ fontFamily: 'monospace', fontWeight: 700 }}>S/ {Number(r.costo).toLocaleString('es-PE', { minimumFractionDigits: 2 })}</span>,
+            ],
+          },
+          mttr: {
+            title: 'MTTR por incidente (30d)',
+            cols: ['Incidente', 'Tienda', 'Tipo', 'MTTR'],
+            rows: () => [...slaRows].sort((a, b) => (b.mttrMinutos ?? 0) - (a.mttrMinutos ?? 0)),
+            render: (r) => [
+              <span key="c" style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 600 }}>{r.codigo}</span>,
+              <span key="t">{r.tiendaCodigo}</span>,
+              <span key="ty" style={{ color: 'var(--muted-foreground)' }}>{TIPO[r.tipo] ?? r.tipo}</span>,
+              <span key="m" style={{ fontFamily: 'monospace', fontWeight: 700 }}>{fmtMttrLocal(r.mttrMinutos)}</span>,
+            ],
+          },
+          tiempoCaido: {
+            title: 'Tiempo caído por incidente (30d)',
+            cols: ['Incidente', 'Tienda', 'Tipo', 'MTTR'],
+            rows: () => [...slaRows].sort((a, b) => (b.mttrMinutos ?? 0) - (a.mttrMinutos ?? 0)),
+            render: (r) => [
+              <span key="c" style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 600 }}>{r.codigo}</span>,
+              <span key="t">{r.tiendaCodigo}</span>,
+              <span key="ty" style={{ color: 'var(--muted-foreground)' }}>{TIPO[r.tipo] ?? r.tipo}</span>,
+              <span key="m" style={{ fontFamily: 'monospace', fontWeight: 700 }}>{fmtMttrLocal(r.mttrMinutos)}</span>,
+            ],
+          },
+          slaResp: {
+            title: 'SLA Respuesta por incidente (30d)',
+            cols: ['Incidente', 'Tienda', 'T. Resp', 'Límite', 'Score'],
+            rows: () => [...slaRows].sort((a, b) => (a.scoreRespuesta ?? 100) - (b.scoreRespuesta ?? 100)),
+            render: (r) => [
+              <span key="c" style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 600 }}>{r.codigo}</span>,
+              <span key="t">{r.tiendaCodigo}</span>,
+              <span key="tr" style={{ fontFamily: 'monospace' }}>{r.tRespuestaMin != null ? `${r.tRespuestaMin}m` : '—'}</span>,
+              <span key="l" style={{ color: 'var(--muted-foreground)' }}>{r.slaRespObj}m</span>,
+              <span key="s" style={{ fontWeight: 700, color: slaCol(r.scoreRespuesta) }}>{r.scoreRespuesta != null ? `${r.scoreRespuesta}%` : '—'}</span>,
+            ],
+          },
+          tResp: {
+            title: 'Tiempo de primera respuesta (30d)',
+            cols: ['Incidente', 'Tienda', 'T. Resp', 'Límite', 'Score'],
+            rows: () => [...slaRows].sort((a, b) => (b.tRespuestaMin ?? 0) - (a.tRespuestaMin ?? 0)),
+            render: (r) => [
+              <span key="c" style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 600 }}>{r.codigo}</span>,
+              <span key="t">{r.tiendaCodigo}</span>,
+              <span key="tr" style={{ fontFamily: 'monospace', fontWeight: 700 }}>{r.tRespuestaMin != null ? `${r.tRespuestaMin}m` : '—'}</span>,
+              <span key="l" style={{ color: 'var(--muted-foreground)' }}>{r.slaRespObj}m</span>,
+              <span key="s" style={{ color: slaCol(r.scoreRespuesta) }}>{r.scoreRespuesta != null ? `${r.scoreRespuesta}%` : '—'}</span>,
+            ],
+          },
+          slaResol: {
+            title: 'SLA Resolución por incidente (30d)',
+            cols: ['Incidente', 'Tienda', 'T. Resol.', 'Límite', 'Score'],
+            rows: () => [...slaRows].sort((a, b) => (a.scoreResolucion ?? 100) - (b.scoreResolucion ?? 100)),
+            render: (r) => [
+              <span key="c" style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 600 }}>{r.codigo}</span>,
+              <span key="t">{r.tiendaCodigo}</span>,
+              <span key="tr" style={{ fontFamily: 'monospace' }}>{r.tResolucionMin != null ? `${r.tResolucionMin}m` : '—'}</span>,
+              <span key="l" style={{ color: 'var(--muted-foreground)' }}>{r.slaResolObj}m</span>,
+              <span key="s" style={{ fontWeight: 700, color: slaCol(r.scoreResolucion) }}>{r.scoreResolucion != null ? `${r.scoreResolucion}%` : '—'}</span>,
+            ],
+          },
+          tResol: {
+            title: 'Tiempo de resolución por incidente (30d)',
+            cols: ['Incidente', 'Tienda', 'T. Resol.', 'Límite', 'Score'],
+            rows: () => [...slaRows].sort((a, b) => (b.tResolucionMin ?? 0) - (a.tResolucionMin ?? 0)),
+            render: (r) => [
+              <span key="c" style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 600 }}>{r.codigo}</span>,
+              <span key="t">{r.tiendaCodigo}</span>,
+              <span key="tr" style={{ fontFamily: 'monospace', fontWeight: 700 }}>{r.tResolucionMin != null ? `${r.tResolucionMin}m` : '—'}</span>,
+              <span key="l" style={{ color: 'var(--muted-foreground)' }}>{r.slaResolObj}m</span>,
+              <span key="s" style={{ color: slaCol(r.scoreResolucion) }}>{r.scoreResolucion != null ? `${r.scoreResolucion}%` : '—'}</span>,
+            ],
+          },
+        }
+
+        const cfg = panelMetrica ? config[panelMetrica] : null
+        const rows = cfg?.rows() ?? []
+
+        return (
+          <div style={{
+            position: 'fixed', top: 0, right: 0, bottom: 0, width: 540, maxWidth: '95vw',
+            background: 'var(--card)', borderLeft: '1px solid var(--border)',
+            boxShadow: '-4px 0 28px rgba(0,0,0,0.13)',
+            zIndex: 201, display: 'flex', flexDirection: 'column',
+            transform: panelMetrica ? 'translateX(0)' : 'translateX(100%)',
+            transition: 'transform 0.26s cubic-bezier(0.4,0,0.2,1)',
+            overflow: 'hidden',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderBottom: '0.5px solid var(--border)', background: 'var(--muted)', flexShrink: 0 }}>
+              <div style={{ fontSize: '13px', fontWeight: 600 }}>{cfg?.title ?? ''}</div>
+              <button onClick={() => setPanelMetrica(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--muted-foreground)' }}>✕</button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              {rows.length === 0 ? (
+                <div style={{ textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px', padding: '32px 0' }}>Sin datos</div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                  <thead style={{ position: 'sticky', top: 0, background: 'var(--muted)', zIndex: 1 }}>
+                    <tr>
+                      {cfg?.cols.map(h => (
+                        <th key={h} style={{ padding: '7px 12px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', borderBottom: '0.5px solid var(--border)' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r: any, i: number) => {
+                      const cells = cfg?.render(r) ?? []
+                      const isInc = !!r.id
+                      return (
+                        <tr key={i}
+                          style={{ borderBottom: '0.5px solid var(--border)', cursor: isInc ? 'pointer' : 'default' }}
+                          onClick={isInc ? () => router.push(`/incidentes/${r.id}`) : undefined}
+                          onMouseEnter={isInc ? e => (e.currentTarget.style.background = 'var(--muted)') : undefined}
+                          onMouseLeave={isInc ? e => (e.currentTarget.style.background = 'transparent') : undefined}>
+                          {cells.map((cell, j) => (
+                            <td key={j} style={{ padding: '7px 12px', whiteSpace: 'nowrap' }}>{cell}</td>
+                          ))}
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ── Side panel IEI 30d por tienda ── */}
       {ieiPanelOpen && (
