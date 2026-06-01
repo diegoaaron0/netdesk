@@ -107,7 +107,7 @@ export const tiendas = pgTable('tiendas', {
   ventaHoraFdsSoles:             numeric('venta_hora_fds_soles'),
   ventaMensualSoles:             numeric('venta_mensual_soles'),
   proporcionFds:                 numeric('proporcion_fds'),
-  usaFallbackVentas:             boolean('usa_fallback_ventas').default(false),
+  fuenteVentas:                  text('fuente_ventas'),
   contingenciaActiva:            boolean('contingencia_activa').default(false),
   contingenciaActivadaPor:       text('contingencia_activada_por'),
   contingenciaDescripcion:       text('contingencia_descripcion'),

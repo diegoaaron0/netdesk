@@ -46,7 +46,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     ventaHoraFdsSoles: tiendas.ventaHoraFdsSoles,
     ventaMensualSoles: tiendas.ventaMensualSoles,
     proporcionFds: tiendas.proporcionFds,
-    usaFallbackVentas: tiendas.usaFallbackVentas,
+    fuenteVentas: tiendas.fuenteVentas,
     tipoPersonalizadoHabilitado: tiendas.tipoPersonalizadoHabilitado,
     creadoEn: tiendas.creadoEn,
   })
@@ -78,7 +78,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     observacion: null, fechaAltaServicio: null,
     estadoServicio: 'ACTIVO', velocidad: null, planAplicado: null,
     ventaHoraFdsSoles: null, ventaMensualSoles: null,
-    proporcionFds: null, usaFallbackVentas: false,
+    proporcionFds: null, fuenteVentas: null,
   }
   try {
     const [ext] = await db.select({
@@ -98,7 +98,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       ventaHoraFdsSoles:   tiendas.ventaHoraFdsSoles,
       ventaMensualSoles:   tiendas.ventaMensualSoles,
       proporcionFds:       tiendas.proporcionFds,
-      usaFallbackVentas:   tiendas.usaFallbackVentas,
+      fuenteVentas:   tiendas.fuenteVentas,
     }).from(tiendas).where(eq(tiendas.id, id))
     if (ext) extended = ext as any
   } catch {
@@ -217,7 +217,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     ventaHoraFdsSoles:   tiendas.ventaHoraFdsSoles,
     ventaMensualSoles:   tiendas.ventaMensualSoles,
     proporcionFds:       tiendas.proporcionFds,
-    usaFallbackVentas:   tiendas.usaFallbackVentas,
+    fuenteVentas:   tiendas.fuenteVentas,
     celularTienda:       tiendas.celularTienda,
     supervisorCelular:   tiendas.supervisorCelular,
     contingenciaChip:    tiendas.contingenciaChip,

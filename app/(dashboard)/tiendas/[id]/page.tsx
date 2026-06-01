@@ -396,10 +396,15 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
         const fmt2 = (n: number) => n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
         return (
           <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 16px' }}>
-            {/* Fallback badge */}
-            {tienda.usaFallbackVentas && (
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '2px 8px', marginBottom: '10px', borderRadius: '5px', background: '#fef3c7', border: '0.5px solid #f59e0b', fontSize: '10px', fontWeight: 600, color: '#92400e' }}>
-                Valores de referencia — Cluster {tienda.cluster ?? '?'} (sin data propia suficiente)
+            {/* Badge fuente de datos */}
+            {tienda.fuenteVentas === 'ESTIMADO' && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '2px 9px', marginBottom: '10px', borderRadius: '5px', background: '#fef9c3', border: '0.5px solid #ca8a04', fontSize: '10px', fontWeight: 600, color: '#713f12' }}>
+                Estimado — datos limitados (muestra reducida)
+              </div>
+            )}
+            {tienda.fuenteVentas === 'REFERENCIA' && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '2px 9px', marginBottom: '10px', borderRadius: '5px', background: '#ffedd5', border: '0.5px solid #f97316', fontSize: '10px', fontWeight: 600, color: '#9a3412' }}>
+                Referencia cluster {tienda.cluster ?? '?'} — sin data propia
               </div>
             )}
 
