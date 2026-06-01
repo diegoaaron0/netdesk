@@ -59,11 +59,24 @@ export async function GET(req: NextRequest) {
         ) AS pendiente_proveedor,
         i.cont_activado_por,
         i.cont_hora_activacion,
+        i.cont_hora_desactivacion,
         i.cont_rendimiento,
+        i.cont_es_externo,
+        i.mov_hora_activacion,
+        i.mov_hora_desactivacion,
+        i.mov_rendimiento,
+        i.boleta_manual,
+        i.boleta_rendimiento,
         i.escalado_infra_id,
         i.hora_escalado_infra,
         infra_u.nombre AS infra_nombre,
-        mov.ultimo_movimiento
+        mov.ultimo_movimiento,
+        -- venta/hora según día de semana del incidente (0=dom,5=vie,6=sab = FDS)
+        CASE
+          WHEN EXTRACT(DOW FROM i.hora_registro AT TIME ZONE 'America/Lima') IN (0,5,6)
+          THEN COALESCE(t.venta_hora_fds_soles, t.venta_hora_soles)
+          ELSE COALESCE(t.venta_hora_soles, t.venta_hora_fds_soles)
+        END AS iei_venta_hora
       FROM incidentes i
       JOIN tiendas   t ON i.tienda_id           = t.id
       JOIN usuarios  u ON i.registrado_por_id   = u.id

@@ -155,6 +155,43 @@ function fmtEspera(min: number): string {
 function initials(nombre: string): string {
   return nombre.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
 }
+const _FACTOR_BASE: Record<string, number> = { CAIDA_TOTAL: 1.00, INTERMITENCIA: 0.50, LENTITUD: 0.30, CORTE_ELECTRICO: 1.00 }
+const _MARGEN = 0.35
+function _normCont(r: string | null | undefined) { if (!r) return 0.20; const v = r.toUpperCase(); if (v==='EFECTIVO'||v==='TOTAL'||v==='EFECTIVA') return 0.00; if (v==='PARCIAL'||v==='LIMITADA') return 0.20; return 1.00 }
+function _normBoleta(r: string | null | undefined) { if (!r) return 0.10; const v = r.toUpperCase(); if (v==='EFECTIVA') return 0.10; if (v==='PARCIAL') return 0.30; return 1.00 }
+
+function calcIeiLive(inc: any, nowMs: number): number {
+  const vh = inc.iei_venta_hora ? Number(inc.iei_venta_hora) : 0
+  if (!vh) return 0
+  const startMs = tsMs(inc.hora_registro)
+  if (nowMs <= startMs) return 0
+  const contStartMs = inc.cont_hora_activacion ? tsMs(inc.cont_hora_activacion) : null
+  const contEndMs   = inc.cont_hora_desactivacion ? tsMs(inc.cont_hora_desactivacion) : null
+  const movStartMs  = inc.mov_hora_activacion ? tsMs(inc.mov_hora_activacion) : null
+  const movEndMs    = inc.mov_hora_desactivacion ? tsMs(inc.mov_hora_desactivacion) : null
+  const contF  = contStartMs !== null ? _normCont(inc.cont_rendimiento) : null
+  const movF   = movStartMs  !== null ? _normCont(inc.mov_rendimiento)  : null
+  const bolF   = inc.boleta_manual ? _normBoleta(inc.boleta_rendimiento) : null
+  const bpSet  = new Set([startMs, nowMs])
+  const addBp  = (t: number | null) => { if (t && t > startMs && t < nowMs) bpSet.add(t) }
+  addBp(contStartMs); addBp(contEndMs); addBp(movStartMs); addBp(movEndMs)
+  const bps = Array.from(bpSet).sort((a, b) => a - b)
+  let iei = 0
+  for (let i = 0; i < bps.length - 1; i++) {
+    const mid = (bps[i] + bps[i+1]) / 2
+    const h   = (bps[i+1] - bps[i]) / 3600000
+    const opts: number[] = []
+    if (inc.tipo === 'CORTE_ELECTRICO') { opts.push(bolF ?? 1.00) } else {
+      if (contF !== null && contStartMs !== null && mid >= contStartMs && (contEndMs === null || mid < contEndMs)) opts.push(contF)
+      if (movF  !== null && movStartMs  !== null && mid >= movStartMs  && (movEndMs  === null || mid < movEndMs))  opts.push(movF)
+      if (bolF  !== null) opts.push(bolF)
+      if (!opts.length) opts.push(_FACTOR_BASE[inc.tipo] ?? 1.00)
+    }
+    iei += vh * h * _MARGEN * Math.min(...opts)
+  }
+  return Math.round(iei)
+}
+
 function getEstadoOpClient(inc: any, nowMs: number) {
   const minutos  = (nowMs - tsMs(inc.hora_registro)) / 60000
   const slaLimite = SLA_RESOLUCION_DEFAULT_MIN
@@ -672,7 +709,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
                 <thead style={{ position: 'sticky', top: 0, background: 'var(--card)', zIndex: 1 }}>
                   <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
-                    {['ID','Tienda','Proveedor','Tipo','Impacto','Estado op.','Agente','Tiempo','Acción'].map(h => (
+                    {['ID','Tienda','Proveedor','Tipo','Impacto','Estado op.','Agente','Tiempo','IEI est.','Acción'].map(h => (
                       <th key={h} style={{ padding: '5px 8px', textAlign: 'left', fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
@@ -680,7 +717,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                 <tbody>
                   {colaFiltrada.length === 0 && (
                     <tr>
-                      <td colSpan={9} style={{ padding: '32px', textAlign: 'center', color: 'var(--muted-foreground)' }}>
+                      <td colSpan={10} style={{ padding: '32px', textAlign: 'center', color: 'var(--muted-foreground)' }}>
                         <div style={{ fontSize: '28px', marginBottom: '8px' }}>📥</div>
                         <div style={{ fontSize: '13px', fontWeight: 500 }}>Sin incidentes activos</div>
                         <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '4px' }}>Cuando haya incidentes, aparecerán aquí.</div>
@@ -690,6 +727,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                   {colaFiltrada.map((inc: any, idx: number) => {
                     const imp  = IMP_BADGE[inc.nivel_impacto] ?? IMP_BADGE.BAJO
                     const nowM = Date.now()
+                    const iei  = calcIeiLive(inc, nowM)
                     const { minutosTranscurridos } = getEstadoOpClient(inc, nowM)
                     const isCritical = inc.estadoOp === 'SLA_VENCIDO'
                     const esInfra = !!inc.escalado_infra_id
@@ -728,6 +766,9 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                         <td style={{ padding: '6px 8px', whiteSpace: 'nowrap', fontSize: '10px' }}>{inc.agente_nombre ?? '—'}</td>
                         <td style={{ padding: '6px 8px', fontFamily: 'monospace', fontSize: '11px', fontWeight: 600, whiteSpace: 'nowrap', color: minutosTranscurridos >= 240 ? '#A32D2D' : minutosTranscurridos >= 120 ? '#C84B00' : 'var(--foreground)' }}>
                           {fmtMin(minutosTranscurridos)}
+                        </td>
+                        <td style={{ padding: '6px 8px', fontFamily: 'monospace', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap', color: iei > 0 ? '#b91c1c' : 'var(--muted-foreground)' }}>
+                          {inc.iei_venta_hora ? (iei > 0 ? `S/ ${iei.toLocaleString('es-PE')}` : 'S/ 0') : '—'}
                         </td>
                         <td style={{ padding: '6px 8px' }}>
                           <div style={{ display: 'flex', gap: '4px' }}>
