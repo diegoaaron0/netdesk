@@ -913,21 +913,31 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia',
               LENTITUD: 'Lentitud', CORTE_ELECTRICO: 'Corte eléctrico', OTROS: 'Otros', POS: 'POS',
             }
-            return iei30dBreakdown.map((inc: any) => (
-              <div key={inc.id}
-                style={{ background: 'var(--background)', borderRadius: '8px', padding: '10px 12px', border: '0.5px solid var(--border)', cursor: 'pointer' }}
-                onClick={() => router.push(`/incidentes/${inc.id}`)}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
-                  <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 600 }}>{inc.codigo}</span>
-                  <span style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: 700, color: '#b91c1c' }}>S/ {inc.iei.toLocaleString('es-PE')}</span>
+            return iei30dBreakdown.map((inc: any) => {
+              const esCorte = inc.tipo === 'CORTE_ELECTRICO'
+              return (
+                <div key={inc.id}
+                  style={{ background: esCorte ? '#fffbeb' : 'var(--background)', borderRadius: '8px', padding: '10px 12px', border: `0.5px solid ${esCorte ? '#f59e0b' : 'var(--border)'}`, cursor: 'pointer' }}
+                  onClick={() => router.push(`/incidentes/${inc.id}`)}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 600 }}>{inc.codigo}</span>
+                      {esCorte && (
+                        <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '3px', background: '#fef3c7', color: '#92400e', border: '0.5px solid #f59e0b' }}>
+                          ⚡ Corte de energía
+                        </span>
+                      )}
+                    </div>
+                    <span style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: 700, color: esCorte ? '#92400e' : '#b91c1c' }}>S/ {inc.iei.toLocaleString('es-PE')}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px', fontSize: '10px', color: esCorte ? '#78350f' : 'var(--muted-foreground)' }}>
+                    <span>{TIPO_LABEL[inc.tipo] ?? inc.tipo}</span>
+                    {inc.mttrMinutos && <span>{inc.mttrMinutos >= 60 ? `${Math.floor(inc.mttrMinutos/60)}h ${inc.mttrMinutos%60}m` : `${inc.mttrMinutos}m`}</span>}
+                    <span style={{ flex: 1, textAlign: 'right', textTransform: 'capitalize' }}>{inc.motivo}</span>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: '10px', fontSize: '10px', color: 'var(--muted-foreground)' }}>
-                  <span>{TIPO_LABEL[inc.tipo] ?? inc.tipo}</span>
-                  {inc.mttrMinutos && <span>{inc.mttrMinutos >= 60 ? `${Math.floor(inc.mttrMinutos/60)}h ${inc.mttrMinutos%60}m` : `${inc.mttrMinutos}m`}</span>}
-                  <span style={{ flex: 1, textAlign: 'right', textTransform: 'capitalize' }}>{inc.motivo}</span>
-                </div>
-              </div>
-            ))
+              )
+            })
           })()}
         </div>
       </div>

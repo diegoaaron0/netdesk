@@ -190,6 +190,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       JOIN tiendas t ON i.tienda_id = t.id
       WHERE i.proveedor_id = ${id}
         AND i.estado = 'RESUELTO'
+        AND i.tipo != 'CORTE_ELECTRICO'
         AND i.hora_registro >= ${thirtyDaysAgoStr}::timestamptz
     `)
     const tiendaMap: Record<string, { tiendaId: string; tiendaCodigo: string; tiendaNombre: string | null; incidentes: any[]; ieiTotal: number }> = {}

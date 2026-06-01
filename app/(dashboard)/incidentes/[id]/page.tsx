@@ -726,10 +726,10 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Estado operación</label>
                 <select disabled={!canEditB} style={iStyle(!canEditB)} value={editForm.estadoOperacion ?? ''} onChange={e => handleEstadoOperacion(e.target.value)}>
                   <option value="">Sin operación especial</option>
-                  <option value="CONTINGENCIA">Operación con contingencia</option>
-                  <option value="DATOS_MOVILES">Operación con datos móviles</option>
+                  {editForm.tipo !== 'CORTE_ELECTRICO' && <option value="CONTINGENCIA">Operación con contingencia</option>}
+                  {editForm.tipo !== 'CORTE_ELECTRICO' && <option value="DATOS_MOVILES">Operación con datos móviles</option>}
                   <option value="BOLETA_MANUAL">Operación con boletas manuales</option>
-                  <option value="CAIDA">Operación con caída</option>
+                  {editForm.tipo !== 'CORTE_ELECTRICO' && <option value="CAIDA">Operación con caída</option>}
                 </select>
               </div>
             </div>
