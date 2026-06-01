@@ -25,9 +25,19 @@ export interface RawInsightsRow {
   tienda_distrito: string | null
   cluster: string | null
   venta_hora_soles: number | null
+  venta_hora_fds_soles: number | null
   tiene_contingencia: boolean | null
   contingencia_activa: boolean | null
+  cont_hora_activacion: string | null
+  cont_hora_desactivacion: string | null
   cont_rendimiento: string | null
+  cont_es_externo: boolean | null
+  mov_hora_activacion: string | null
+  mov_hora_desactivacion: string | null
+  mov_rendimiento: string | null
+  boleta_manual: boolean | null
+  boleta_rendimiento: string | null
+  boleta_hora_activacion: string | null
   hora_correo_n1: string | null
   hora_primera_resp: string | null
   max_nivel: number
@@ -62,15 +72,25 @@ function calcSLA(row: RawInsightsRow): boolean | null {
 
 function calcImpacto(row: RawInsightsRow): number {
   return calcImpactoRow({
-    hora_registro: row.hora_registro,
-    hora_fin: row.hora_fin,
-    estado: row.estado,
-    venta_hora_soles: row.venta_hora_soles,
-    tipo: row.tipo,
-    cluster: row.cluster,
-    contingencia_activa: row.contingencia_activa,
-    cont_rendimiento: row.cont_rendimiento,
-    otros_clasificacion: row.otros_clasificacion,
+    hora_registro:           row.hora_registro,
+    hora_fin:                row.hora_fin,
+    estado:                  row.estado,
+    tipo:                    row.tipo,
+    cluster:                 row.cluster,
+    venta_hora_soles:        row.venta_hora_soles,
+    venta_hora_fds_soles:    row.venta_hora_fds_soles,
+    cont_hora_activacion:    row.cont_hora_activacion,
+    cont_hora_desactivacion: row.cont_hora_desactivacion,
+    cont_rendimiento:        row.cont_rendimiento,
+    cont_es_externo:         row.cont_es_externo,
+    contingencia_activa:     row.contingencia_activa,
+    mov_hora_activacion:     row.mov_hora_activacion,
+    mov_hora_desactivacion:  row.mov_hora_desactivacion,
+    mov_rendimiento:         row.mov_rendimiento,
+    boleta_manual:           row.boleta_manual,
+    boleta_rendimiento:      row.boleta_rendimiento,
+    boleta_hora_activacion:  row.boleta_hora_activacion,
+    otros_clasificacion:     row.otros_clasificacion,
   }).impactoEstimado
 }
 

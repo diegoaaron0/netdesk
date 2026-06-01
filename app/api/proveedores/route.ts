@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { proveedores, tiendas, incidentes, escalamientos, contratosProveedor } from '@/drizzle/schema'
 import { eq, gte, sql, and, isNotNull, desc } from 'drizzle-orm'
 import { auth } from '@/auth'
+import { SLA_RESPUESTA_MIN, SLA_RESOLUCION_DEFAULT_MIN } from '@/lib/sla-core'
 
 function calcEstado(fechaFin: string | null): 'VIGENTE' | 'POR_VENCER' | 'VENCIDO' {
   if (!fechaFin) return 'VIGENTE'
@@ -80,9 +81,8 @@ export async function GET(req: NextRequest) {
   } catch { /* skip */ }
 
   // ── 5. SLA Respuesta + SLA Resolución por proveedor (últimos 30d) ──────────
-  // Límites default: respuesta 60min, resolución 60min (sla-core defaults)
-  const SLA_RESP_SEG  = 60 * 60   // 3600 segundos
-  const SLA_RESOL_SEG = 90 * 60   // 5400 segundos
+  const SLA_RESP_SEG  = SLA_RESPUESTA_MIN * 60
+  const SLA_RESOL_SEG = SLA_RESOLUCION_DEFAULT_MIN * 60
   let slaMap: Record<string, { respuesta: number | null; resolucion: number | null }> = {}
   try {
     const slaRows = await db.execute(sql`

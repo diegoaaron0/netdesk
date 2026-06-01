@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { DASHBOARD_CONFIG } from '@/lib/dashboard-config'
+import { getTotalTiendas } from '@/lib/tiendas-stats'
 import { db } from '@/lib/db'
 import { contratosProveedor } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
@@ -43,12 +44,13 @@ export async function GET(req: NextRequest) {
   const prevHasta = desde
   const prevDesde = new Date(new Date(desde).getTime() - daysDiff * 86400000).toISOString()
 
-  const [incidentes, escalamientos, ventasDiarias, proveedoresList, prevIncidentes] = await Promise.all([
+  const [incidentes, escalamientos, ventasDiarias, proveedoresList, prevIncidentes, totalTiendas] = await Promise.all([
     fetchIncidentesPeriodo(desde, hasta, proveedorId),
     fetchEscalamientosPeriodo(desde, hasta, proveedorId),
     fetchVentasDiarias(),
     fetchProveedoresList(),
     fetchIncidentesPeriodo(prevDesde, prevHasta, proveedorId),
+    getTotalTiendas(),
   ])
 
   const prevEscalamientos = await fetchEscalamientosPeriodo(prevDesde, prevHasta, proveedorId)
@@ -714,7 +716,7 @@ async function buildCards(
     },
     tiendasAfectadas: {
       total: tiendasDetailMap.size,
-      porcentajeRed: Math.round((tiendasDetailMap.size / DASHBOARD_CONFIG.TOTAL_TIENDAS_ACTIVAS) * 1000) / 10,
+      porcentajeRed: Math.round((tiendasDetailMap.size / totalTiendas) * 1000) / 10,
       deltaVsAnterior: dTiendas,
       lista: tiendasLista,
     },

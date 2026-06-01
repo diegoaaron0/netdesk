@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
 import { contratosProveedor } from '@/drizzle/schema'
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, desc, eq, isNull } from 'drizzle-orm'
 import { SLA_RESPUESTA_MIN, SLA_RESOLUCION_DEFAULT_MIN } from './sla-core'
 
 export interface SlaContrato {
@@ -43,10 +43,10 @@ export async function getSlaContrato(
       }
     }
 
-    // 2. Buscar contrato marco del proveedor
+    // 2. Buscar contrato marco del proveedor — ORDER BY para determinismo
     const [marco] = await db.select().from(contratosProveedor).where(
       and(eq(contratosProveedor.proveedorId, proveedorId), isNull(contratosProveedor.tiendaId), eq(contratosProveedor.estado, 'VIGENTE'))
-    ).limit(1)
+    ).orderBy(desc(contratosProveedor.creadoEn)).limit(1)
     if (marco?.tiempoRespuestaSla || marco?.tiempoResolucionSla) {
       const data: SlaContrato = {
         respuestaMin: marco.tiempoRespuestaSla ?? SLA_RESPUESTA_MIN,

@@ -1,8 +1,9 @@
+// TOTAL_TIENDAS_ACTIVAS eliminado — usar getTotalTiendas() de lib/tiendas-stats.ts
+
 export const DASHBOARD_CONFIG = {
   MARGEN_BRUTO: 0.35,
   HORAS_ATENCION: 12,
   SLA_META_PORCENTAJE: 90,
-  TOTAL_TIENDAS_ACTIVAS: 156,
 
   FACTOR_IMPACTO: {
     CAIDA_TOTAL:   1.00,
