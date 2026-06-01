@@ -1436,12 +1436,13 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
         const MARGEN = 0.35
         const FACTOR_BASE: Record<string,number> = { CAIDA_TOTAL:1.00, INTERMITENCIA:0.50, LENTITUD:0.30, CORTE_ELECTRICO:1.00 }
         const nC = (r:string|null|undefined) => { if(!r)return 0.20;const v=r.toUpperCase();if(v==='EFECTIVO'||v==='TOTAL'||v==='EFECTIVA')return 0.00;if(v==='PARCIAL'||v==='LIMITADA')return 0.20;return 1.00 }
-        const nB = (r:string|null|undefined) => { if(!r)return 0.10;const v=r.toUpperCase();if(v==='EFECTIVA')return 0.10;if(v==='PARCIAL')return 0.30;return 1.00 }
+        const nB = (r:string|null|undefined) => { const c=inc.tipo==='CORTE_ELECTRICO';if(!r)return c?0.00:0.10;const v=r.toUpperCase();if(v==='EFECTIVA')return c?0.00:0.10;if(v==='PARCIAL')return 0.30;return 1.00 }
         const tsMs = (v:any) => v ? new Date(v).getTime() : null
 
         // Cálculo en curso (activo) usando Date.now()
         let ieiEnCurso = 0
         let ventaHoraEnCurso = 0
+        const segmentosEnCurso: {desdeMs:number;hastaMs:number;horas:number;factor:number;descripcion:string;ieiParcial:number}[] = []
         if (!esResuelto && inc.tiendaVentaHoraSoles) {
           const nowMs  = Date.now()
           void tick  // dependencia para re-render cada segundo
@@ -1466,16 +1467,25 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
           addBp(contStartMs);addBp(contEndMs);addBp(movStartMs);addBp(movEndMs);addBp(bolStartMs)
           const bps = Array.from(bpSet).sort((a,b)=>a-b)
           for(let i=0;i<bps.length-1;i++){
-            const mid=(bps[i]+bps[i+1])/2, h=(bps[i+1]-bps[i])/3600000
-            const opts:number[]=[]
+            const segS=bps[i], segE=bps[i+1]
+            const mid=(segS+segE)/2, h=(segE-segS)/3600000
+            const opts:{f:number;label:string}[]=[]
             const bolActiva = bolF!==null && bolStartMs!==null && mid>=bolStartMs
-            if(inc.tipo==='CORTE_ELECTRICO'){opts.push(bolActiva?bolF!:1.00)}else{
-              if(contF!==null&&contStartMs!==null&&mid>=contStartMs&&(contEndMs===null||mid<contEndMs))opts.push(contF)
-              if(movF!==null&&movStartMs!==null&&mid>=movStartMs&&(movEndMs===null||mid<movEndMs))opts.push(movF)
-              if(bolActiva)opts.push(bolF!)
-              if(!opts.length)opts.push(FACTOR_BASE[inc.tipo]??1.00)
+            if(inc.tipo==='CORTE_ELECTRICO'){
+              if(bolActiva) opts.push({f:bolF!, label:`boleta ${inc.boletaRendimiento?.toLowerCase()??'efectiva'}`})
+              else opts.push({f:1.00, label:'sin mitigación'})
+            } else {
+              if(contF!==null&&contStartMs!==null&&mid>=contStartMs&&(contEndMs===null||mid<contEndMs))
+                opts.push({f:contF, label:`router ${inc.contEsExterno?'externo':'propio'}${inc.contRendimiento?' '+inc.contRendimiento.toLowerCase():''}`})
+              if(movF!==null&&movStartMs!==null&&mid>=movStartMs&&(movEndMs===null||mid<movEndMs))
+                opts.push({f:movF, label:`datos móviles${inc.movRendimiento?' '+inc.movRendimiento.toLowerCase():''}`})
+              if(bolActiva) opts.push({f:bolF!, label:`boleta ${inc.boletaRendimiento?.toLowerCase()??'efectiva'}`})
+              if(!opts.length) opts.push({f:FACTOR_BASE[inc.tipo]??1.00, label:'sin mitigación'})
             }
-            ieiEnCurso += ventaHoraEnCurso * h * MARGEN * Math.min(...opts)
+            const best=opts.reduce((a,b)=>a.f<=b.f?a:b)
+            const segIEI=ventaHoraEnCurso*h*MARGEN*best.f
+            ieiEnCurso+=segIEI
+            segmentosEnCurso.push({desdeMs:segS,hastaMs:segE,horas:Math.round(h*100)/100,factor:best.f,descripcion:best.label,ieiParcial:Math.round(segIEI)})
           }
           ieiEnCurso = Math.round(ieiEnCurso)
         }
@@ -1488,7 +1498,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
 
         const displayIei    = esResuelto ? (inc.ieiCalc?.impactoEstimado ?? 0) : ieiEnCurso
         const displayVH     = esResuelto ? inc.ieiCalc?.ventaHora : ventaHoraEnCurso
-        const displaySegs   = esResuelto ? (inc.ieiCalc?.segmentos ?? []) : []
+        const displaySegs   = esResuelto ? (inc.ieiCalc?.segmentos ?? []) : segmentosEnCurso
         const displayMotivo = esResuelto ? inc.ieiCalc?.motivoFactor : null
         const faltaInfo     = esResuelto && inc.ieiCalc?.faltaInformacion
 

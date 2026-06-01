@@ -7,8 +7,10 @@
  * Factores de mitigación de red (router propio, router externo, datos móviles):
  *   EFECTIVO → 0.00  |  PARCIAL → 0.20  |  NULO → 1.00
  *
- * Factores boleta manual:
+ * Factores boleta manual (conectividad):
  *   EFECTIVA → 0.10  |  PARCIAL → 0.30  |  NULA → 1.00
+ * Factores boleta manual (CORTE_ELECTRICO):
+ *   EFECTIVA → 0.00  |  PARCIAL → 0.30  |  NULA → 1.00  ← boleta cubre la venta completa
  *
  * Factores base sin mitigación (por tipo de incidente):
  *   CAIDA_TOTAL → 1.00  |  INTERMITENCIA → 0.50  |  LENTITUD → 0.30  |  CORTE_ELECTRICO → 1.00
@@ -35,10 +37,11 @@ function normContFactor(rend: string | null | undefined): number {
   return 1.00  // NULO, FALLIDA, NO_FUNCIONO, INOPERATIVA
 }
 
-function normBoletaFactor(rend: string | null | undefined): number {
-  if (!rend) return 0.10  // boleta activa sin rendimiento → efectiva
+function normBoletaFactor(rend: string | null | undefined, tipo?: string): number {
+  const isCorte = tipo === 'CORTE_ELECTRICO'
+  if (!rend) return isCorte ? 0.00 : 0.10
   const r = rend.toUpperCase()
-  if (r === 'EFECTIVA') return 0.10
+  if (r === 'EFECTIVA') return isCorte ? 0.00 : 0.10
   if (r === 'PARCIAL')  return 0.30
   return 1.00  // NULA
 }
@@ -183,7 +186,7 @@ export function calcImpactoRow(row: ImpactoInputRow): ImpactoResult {
 
   const contFactor  = contStart ? normContFactor(row.cont_rendimiento)  : null
   const movFactor   = movStart  ? normContFactor(row.mov_rendimiento)   : null
-  const boletaFactor = row.boleta_manual ? normBoletaFactor(row.boleta_rendimiento) : null
+  const boletaFactor = row.boleta_manual ? normBoletaFactor(row.boleta_rendimiento, row.tipo) : null
 
   // boleta_hora_activacion: cuándo empezó a cubrir la boleta
   // Si no hay timestamp → la boleta aplica desde el inicio (backward compat para datos históricos)
