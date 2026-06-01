@@ -158,7 +158,7 @@ function initials(nombre: string): string {
 const _FACTOR_BASE: Record<string, number> = { CAIDA_TOTAL: 1.00, INTERMITENCIA: 0.50, LENTITUD: 0.30, CORTE_ELECTRICO: 1.00 }
 const _MARGEN = 0.35
 function _normCont(r: string | null | undefined) { if (!r) return 0.20; const v = r.toUpperCase(); if (v==='EFECTIVO'||v==='TOTAL'||v==='EFECTIVA') return 0.00; if (v==='PARCIAL'||v==='LIMITADA') return 0.20; return 1.00 }
-function _normBoleta(r: string | null | undefined) { if (!r) return 0.10; const v = r.toUpperCase(); if (v==='EFECTIVA') return 0.10; if (v==='PARCIAL') return 0.30; return 1.00 }
+function _normBoleta(r: string | null | undefined, tipo?: string) { const c=tipo==='CORTE_ELECTRICO'; if (!r) return c?0.00:0.10; const v = r.toUpperCase(); if (v==='EFECTIVA'||v==='TOTAL') return c?0.00:0.10; if (v==='PARCIAL') return 0.30; return 1.00 }
 
 function calcIeiLive(inc: any, nowMs: number): number {
   const vh = inc.iei_venta_hora ? Number(inc.iei_venta_hora) : 0
@@ -171,7 +171,7 @@ function calcIeiLive(inc: any, nowMs: number): number {
   const movEndMs    = inc.mov_hora_desactivacion ? tsMs(inc.mov_hora_desactivacion) : null
   const contF  = contStartMs !== null ? _normCont(inc.cont_rendimiento) : null
   const movF   = movStartMs  !== null ? _normCont(inc.mov_rendimiento)  : null
-  const bolF   = inc.boleta_manual ? _normBoleta(inc.boleta_rendimiento) : null
+  const bolF   = inc.boleta_manual ? _normBoleta(inc.boleta_rendimiento, inc.tipo) : null
   const bolStartMs = inc.boleta_manual
     ? (inc.boleta_hora_activacion ? tsMs(inc.boleta_hora_activacion) : startMs)
     : null
@@ -473,6 +473,12 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ movHoraDesactivacion: new Date().toISOString() }),
         })
+      } else if (tipoCont === 'BOLETA_MANUAL') {
+        res = await fetch(`/api/incidentes/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ boletaManual: false }),
+        })
       } else {
         res = await fetch(`/api/incidentes/${id}`, {
           method: 'PUT',
@@ -591,10 +597,11 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
               const tipo = c.tipo_contingencia ?? (c.cont_es_externo ? 'ROUTER_EXTERNO' : 'ROUTER_PROPIO')
               const esDatos    = tipo === 'DATOS_MOVILES'
               const esExterno  = tipo === 'ROUTER_EXTERNO'
-              const borderColor = esDatos ? '#3b82f6' : esExterno ? '#ea580c' : '#f59e0b'
-              const bgColor     = esDatos ? '#eff6ff' : esExterno ? '#fff7ed' : 'white'
-              const textColor   = esDatos ? '#1e3a8a' : esExterno ? '#7c2d12' : '#78350f'
-              const tipoLabel   = esDatos ? 'Datos móviles' : esExterno ? '📦 Router ext.' : '📶 Router'
+              const esBoleta   = tipo === 'BOLETA_MANUAL'
+              const borderColor = esBoleta ? '#16a34a' : esDatos ? '#3b82f6' : esExterno ? '#ea580c' : '#f59e0b'
+              const bgColor     = esBoleta ? '#f0fdf4' : esDatos ? '#eff6ff' : esExterno ? '#fff7ed' : 'white'
+              const textColor   = esBoleta ? '#14532d' : esDatos ? '#1e3a8a' : esExterno ? '#7c2d12' : '#78350f'
+              const tipoLabel   = esBoleta ? '🧾 Boleta manual' : esDatos ? 'Datos móviles' : esExterno ? '📦 Router ext.' : '📶 Router'
               const mins = c.cont_hora_activacion
                 ? Math.round((nowMs - tsMs(c.cont_hora_activacion)) / 60000)
                 : null

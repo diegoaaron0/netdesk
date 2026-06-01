@@ -285,6 +285,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
   }
 
+  // Normalizar: empty string en campos de activación → null (evita IS NOT NULL falso positivo en queries)
+  for (const f of ['contActivadoPor', 'movActivadoPor']) {
+    if (f in allowedFields && allowedFields[f] === '') allowedFields[f] = null
+  }
+
   // Validaciones de consistencia temporal
   const af = allowedFields
   if (af.horaRegistro && af.horaFin && af.horaFin < af.horaRegistro)

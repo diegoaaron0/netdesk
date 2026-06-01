@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   const [y, m, d]  = fechaLima.split('-').map(Number)
   const siguienteIso = new Date(Date.UTC(y, m - 1, d + 1, 5, 0, 0, 0)).toISOString()
 
-  const [activosRows, resueltoRows, agentesRows, incCreadosRows, escRows, respRows, resolRows, canceladosRows, cerradosRows, contRows, creadosHoyRows, contStandaloneRows, movRows] = await Promise.all([
+  const [activosRows, resueltoRows, agentesRows, incCreadosRows, escRows, respRows, resolRows, canceladosRows, cerradosRows, contRows, creadosHoyRows, contStandaloneRows, movRows, boletaRows] = await Promise.all([
     db.execute(sql`
       SELECT
         i.id,
@@ -286,6 +286,27 @@ export async function GET(req: NextRequest) {
         AND i.estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
       ORDER BY i.mov_hora_activacion ASC
     `),
+
+    db.execute(sql`
+      SELECT
+        i.id                           AS incidente_id,
+        i.codigo                       AS incidente_codigo,
+        i.boleta_hora_activacion       AS cont_hora_activacion,
+        i.boleta_rendimiento,
+        t.id                           AS tienda_id,
+        t.codigo                       AS tienda_codigo,
+        t.nombre_cc                    AS tienda_nombre,
+        t.distrito                     AS tienda_distrito,
+        COALESCE(pi.nombre, pt.nombre) AS proveedor_nombre
+      FROM incidentes i
+      JOIN tiendas t ON t.id = i.tienda_id
+      LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
+      LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
+      WHERE i.boleta_manual = true
+        AND i.boleta_hora_activacion IS NOT NULL
+        AND i.estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
+      ORDER BY i.boleta_hora_activacion ASC
+    `),
   ])
 
   const activos  = activosRows as any[]
@@ -312,7 +333,13 @@ export async function GET(req: NextRequest) {
     incidente_codigo: null,
     fuente: 'STANDALONE',
   }))
-  const contingenciasActivas = [...contInc, ...contMov, ...contStd]
+  const contBoleta = (boletaRows as any[]).map((c: any) => ({
+    ...c,
+    fuente: 'INCIDENTE',
+    tipo_contingencia: 'BOLETA_MANUAL',
+    cont_es_externo: false,
+  }))
+  const contingenciasActivas = [...contInc, ...contMov, ...contBoleta, ...contStd]
     .sort((a: any, b: any) => new Date(a.cont_hora_activacion ?? a.hora_activacion).getTime() - new Date(b.cont_hora_activacion ?? b.hora_activacion).getTime())
 
   const activosConEstado = activos.map((inc: any) => {

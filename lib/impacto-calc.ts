@@ -41,7 +41,7 @@ function normBoletaFactor(rend: string | null | undefined, tipo?: string): numbe
   const isCorte = tipo === 'CORTE_ELECTRICO'
   if (!rend) return isCorte ? 0.00 : 0.10
   const r = rend.toUpperCase()
-  if (r === 'EFECTIVA') return isCorte ? 0.00 : 0.10
+  if (r === 'EFECTIVA' || r === 'TOTAL') return isCorte ? 0.00 : 0.10
   if (r === 'PARCIAL')  return 0.30
   return 1.00  // NULA
 }

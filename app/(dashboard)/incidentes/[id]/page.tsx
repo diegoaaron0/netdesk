@@ -326,6 +326,8 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
     if (body.estadoOperacion === 'BOLETA_MANUAL') {
       body.factorOperativo = rfUnif[body.contRendimiento] ?? '1.00'
       body.operacionManual = true; body.tipoOperacionManual = 'BOLETA_MANUAL'
+      body.boletaManual = true
+      body.boletaRendimiento = body.contRendimiento || null
     } else if (body.estadoOperacion === 'CONTINGENCIA') {
       body.factorOperativo = rfUnif[body.contRendimiento] ?? null
       body.operacionManual = false; body.tipoOperacionManual = null
@@ -1436,7 +1438,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
         const MARGEN = 0.35
         const FACTOR_BASE: Record<string,number> = { CAIDA_TOTAL:1.00, INTERMITENCIA:0.50, LENTITUD:0.30, CORTE_ELECTRICO:1.00 }
         const nC = (r:string|null|undefined) => { if(!r)return 0.20;const v=r.toUpperCase();if(v==='EFECTIVO'||v==='TOTAL'||v==='EFECTIVA')return 0.00;if(v==='PARCIAL'||v==='LIMITADA')return 0.20;return 1.00 }
-        const nB = (r:string|null|undefined) => { const c=inc.tipo==='CORTE_ELECTRICO';if(!r)return c?0.00:0.10;const v=r.toUpperCase();if(v==='EFECTIVA')return c?0.00:0.10;if(v==='PARCIAL')return 0.30;return 1.00 }
+        const nB = (r:string|null|undefined) => { const c=inc.tipo==='CORTE_ELECTRICO';if(!r)return c?0.00:0.10;const v=r.toUpperCase();if(v==='EFECTIVA'||v==='TOTAL')return c?0.00:0.10;if(v==='PARCIAL')return 0.30;return 1.00 }
         const tsMs = (v:any) => v ? new Date(v).getTime() : null
 
         // Cálculo en curso (activo) usando Date.now()
