@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
+import { getTotalTiendas } from '@/lib/tiendas-stats'
 
 function esc(v: unknown): string {
   if (v == null) return ''
@@ -67,6 +68,10 @@ const IEI_EXPR = sql`
                       WHEN i.cont_rendimiento IN ('FALLIDA','NO_FUNCIONO','INOPERATIVA') THEN 0.40
                       ELSE 0.20 END
                ELSE 0.40 END
+        WHEN 'CORTE_ELECTRICO' THEN
+          CASE WHEN i.boleta_manual = true AND COALESCE(i.boleta_rendimiento,'') = 'PARCIAL' THEN 0.30
+               WHEN i.boleta_manual = true THEN 0.00
+               ELSE 1.00 END
         ELSE 0.30 END
   ))::int
 `
@@ -88,6 +93,7 @@ export async function GET(req: Request) {
     const durMs   = new Date(hasta).getTime() - new Date(desde).getTime()
     const desdeAnt = new Date(new Date(desde).getTime() - durMs).toISOString()
 
+    const totalTiendas = await getTotalTiendas()
     const [tot, totAnt, porProv, top15, porTipo, reincidentes, porZona, slaTend] = await Promise.all([
 
       // ── Totales período actual ────────────────────────────────────────────────
@@ -140,6 +146,18 @@ export async function GET(req: Request) {
               WHEN 'LENTITUD'    THEN 240 WHEN 'POS' THEN 60 ELSE 120 END
             AND i.estado = 'RESUELTO') * 100.0 /
             NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'), 0))::int      AS sla_pct,
+          -- SLA Respuesta: respondió en ≤60 min
+          ROUND(COUNT(*) FILTER (
+            WHERE n1h.hora_correo_n1_val IS NOT NULL
+              AND resp.hora_primera_resp IS NOT NULL
+              AND EXTRACT(EPOCH FROM (resp.hora_primera_resp - n1h.hora_correo_n1_val)) / 60 <= 60
+          ) * 100.0 / NULLIF(COUNT(*) FILTER (WHERE n1h.hora_correo_n1_val IS NOT NULL), 0))::int AS sla_respuesta_pct,
+          -- SLA Resolución: resuelto dentro del límite por tipo
+          ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= CASE i.tipo
+              WHEN 'CAIDA_TOTAL' THEN 60 WHEN 'INTERMITENCIA' THEN 120
+              WHEN 'LENTITUD'    THEN 240 WHEN 'POS' THEN 60 ELSE 120 END
+            AND i.estado = 'RESUELTO') * 100.0 /
+            NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO' AND n1h.hora_correo_n1_val IS NOT NULL), 0))::int AS sla_resolucion_pct,
           ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int  AS mttr_avg,
           ROUND(AVG(
             EXTRACT(EPOCH FROM (resp.hora_primera_resp - n1h.hora_correo_n1_val)) / 60
@@ -346,8 +364,8 @@ export async function GET(req: Request) {
       `${t1.sla_pct ?? 0}%`,
       varAbs(Number(t0.sla_pct), Number(t1.sla_pct)) + ' pp')
     add('Tiendas afectadas',
-      `${t0.tiendas ?? 0} de 156`,
-      `${t1.tiendas ?? 0} de 156`,
+      `${t0.tiendas ?? 0} de ${totalTiendas}`,
+      `${t1.tiendas ?? 0} de ${totalTiendas}`,
       '—')
     add('Impacto económico estimado (IEI)',
       `S/ ${(Number(t0.iei_total) || 0).toLocaleString('es-PE')}`,
@@ -357,12 +375,15 @@ export async function GET(req: Request) {
 
     // ── 2. Métricas por proveedor ────────────────────────────────────────────────
     add('2. MÉTRICAS POR PROVEEDOR')
-    add('Proveedor', 'Incidentes', 'Evaluables SLA', 'SLA %',
+    add('Proveedor', 'Incidentes', 'Evaluables SLA', 'SLA Respuesta %', 'SLA Resolución %', 'SLA Global %',
       'MTTR prom (min)', 'T. respuesta N1 prom (min)', 'Escalados N2+',
       'Tiendas afectadas', 'IEI est (S/)')
     for (const p of provs)
-      add(p.proveedor, p.incidentes, p.evaluables_sla ?? 0, p.sla_pct != null ? `${p.sla_pct}%` : '—',
-        p.mttr_avg ?? '—', p.t_resp_n1_avg ?? '—', p.escalados_n2 ?? 0,
+      add(p.proveedor, p.incidentes, p.evaluables_sla ?? 0,
+        p.sla_respuesta_pct != null ? `${p.sla_respuesta_pct}%` : '—',
+        p.sla_resolucion_pct != null ? `${p.sla_resolucion_pct}%` : '—',
+        p.sla_pct != null ? `${p.sla_pct}%` : '—',
+        p.mttr_avg ?? '—', p.t_resp_prov_avg ?? '—', p.escalados_n2 ?? 0,
         p.tiendas_afectadas, p.iei ?? 0)
     blank()
 

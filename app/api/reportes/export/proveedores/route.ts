@@ -83,6 +83,10 @@ export async function GET(req: Request) {
                               WHEN i.cont_rendimiento IN ('FALLIDA','NO_FUNCIONO','INOPERATIVA')       THEN 0.40
                               ELSE 0.20 END
                        ELSE 0.40 END
+                WHEN 'CORTE_ELECTRICO' THEN
+                  CASE WHEN i.boleta_manual = true AND COALESCE(i.boleta_rendimiento,'') = 'PARCIAL' THEN 0.30
+                       WHEN i.boleta_manual = true THEN 0.00
+                       ELSE 1.00 END
                 ELSE 0.30 END
           ))::int                                                                 AS iei
         FROM incidentes i
@@ -162,6 +166,10 @@ export async function GET(req: Request) {
                               WHEN i.cont_rendimiento IN ('FALLIDA','NO_FUNCIONO','INOPERATIVA')       THEN 0.40
                               ELSE 0.20 END
                        ELSE 0.40 END
+                WHEN 'CORTE_ELECTRICO' THEN
+                  CASE WHEN i.boleta_manual = true AND COALESCE(i.boleta_rendimiento,'') = 'PARCIAL' THEN 0.30
+                       WHEN i.boleta_manual = true THEN 0.00
+                       ELSE 1.00 END
                 ELSE 0.30 END
           ))::int AS iei
         FROM incidentes i

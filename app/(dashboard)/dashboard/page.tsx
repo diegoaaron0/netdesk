@@ -77,20 +77,42 @@ function csvHora(d: string | Date | null): string {
   return new Date(raw).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Lima' })
 }
 
+function tipoContingenciaLabel(i: any): string {
+  if (i.boleta_manual) return 'Boleta Manual'
+  if (i.cont_activado_por && i.cont_es_externo) return 'Router Externo'
+  if (i.cont_activado_por) return 'Router Propio'
+  if (i.mov_activado_por) return 'Datos Móviles'
+  return ''
+}
+
 function downloadCSV(activos: any[], resoluciones: any[], fecha?: string) {
   const BOM = '﻿'
   const headers = [
     'Código Incidente', 'Código Tienda', 'Nombre CC', 'Distrito', 'Cluster',
     'Proveedor', 'Tipo', 'Impacto', 'Estado', 'Estado Operativo',
-    'Agente', 'Contingencia Activa',
+    'Agente', 'Tipo Contingencia', 'Rendimiento Contingencia',
     'Fecha Registro', 'Hora Registro', 'Fecha Fin', 'Hora Fin',
-    'MTTR (min)', 'Resuelto Por',
+    'MTTR (min)', 'SLA Respuesta', 'SLA Resolución', 'IEI est (S/)', 'Resuelto Por',
   ]
 
   const nowMs = Date.now()
 
+  function slaRespuestaLabel(i: any): string {
+    if (!i.hora_correo_n1 || !i.hora_primera_resp) return 'No aplica'
+    const mins = Math.round((new Date(i.hora_primera_resp).getTime() - new Date(i.hora_correo_n1).getTime()) / 60000)
+    return mins <= 60 ? 'Cumplido' : `Incumplido (+${mins - 60}m)`
+  }
+  function slaResolucionLabel(i: any): string {
+    if (!i.mttr_minutos) return 'Pendiente'
+    const limite: Record<string, number> = { CAIDA_TOTAL: 60, INTERMITENCIA: 120, LENTITUD: 240, POS: 60 }
+    const lim = limite[i.tipo] ?? 120
+    return i.mttr_minutos <= lim ? 'Cumplido' : `Incumplido (+${i.mttr_minutos - lim}m)`
+  }
+
   const toRowActivo = (i: any) => {
     const { estadoOp } = getEstadoOpClient(i, nowMs)
+    const tipoCont = tipoContingenciaLabel(i)
+    const rendCont = i.boleta_manual ? (i.boleta_rendimiento ?? '') : (i.cont_activado_por ? (i.cont_rendimiento ?? '') : (i.mov_activado_por ? (i.mov_rendimiento ?? '') : ''))
     return [
       i.codigo ?? '',
       i.tienda_codigo ?? '',
@@ -103,31 +125,38 @@ function downloadCSV(activos: any[], resoluciones: any[], fecha?: string) {
       i.estado ?? '',
       estadoOp,
       i.agente_nombre ?? '',
-      i.cont_activado_por ? 'Sí' : 'No',
+      tipoCont, rendCont,
       csvFecha(i.hora_registro), csvHora(i.hora_registro),
-      '', '',  // sin hora_fin ni MTTR para activos
       '', '',
+      '', slaRespuestaLabel(i), '', '', '',
     ]
   }
 
-  const toRowResuelto = (r: any) => [
-    r.codigo ?? '',
-    r.tienda_codigo ?? '',
-    r.tienda_nombre ?? '',
-    r.tienda_distrito ?? '',
-    r.tienda_cluster ?? '',
-    r.proveedor_nombre ?? '',
-    TIPO_LABELS[r.tipo] ?? r.tipo ?? '',
-    r.nivel_impacto ?? '',
-    'RESUELTO',
-    'RESUELTO',
-    r.agente_nombre ?? '',
-    '',
-    csvFecha(r.hora_registro), csvHora(r.hora_registro),
-    csvFecha(r.hora_fin),       csvHora(r.hora_fin),
-    r.mttr_minutos ?? '',
-    r.resuelto_por ?? '',
-  ]
+  const toRowResuelto = (r: any) => {
+    const tipoCont = tipoContingenciaLabel(r)
+    const rendCont = r.boleta_manual ? (r.boleta_rendimiento ?? '') : (r.cont_activado_por ? (r.cont_rendimiento ?? '') : (r.mov_activado_por ? (r.mov_rendimiento ?? '') : ''))
+    const iei = r.iei_venta_hora
+      ? Math.round(Number(r.iei_venta_hora) * (r.mttr_minutos ?? 0) / 60 * 0.35)
+      : ''
+    return [
+      r.codigo ?? '',
+      r.tienda_codigo ?? '',
+      r.tienda_nombre ?? '',
+      r.tienda_distrito ?? '',
+      r.tienda_cluster ?? '',
+      r.proveedor_nombre ?? '',
+      TIPO_LABELS[r.tipo] ?? r.tipo ?? '',
+      r.nivel_impacto ?? '',
+      'RESUELTO', 'RESUELTO',
+      r.agente_nombre ?? '',
+      tipoCont, rendCont,
+      csvFecha(r.hora_registro), csvHora(r.hora_registro),
+      csvFecha(r.hora_fin), csvHora(r.hora_fin),
+      r.mttr_minutos ?? '',
+      slaRespuestaLabel(r), slaResolucionLabel(r),
+      iei, r.resuelto_por ?? '',
+    ]
+  }
 
   const rows = [
     ...resoluciones.map(toRowResuelto),

@@ -34,6 +34,19 @@ export async function GET(req: Request) {
         esc_max.nivel_max                                                              AS nivel_escalado,
         i.tipo_operacion_manual                                                        AS factor_operativo,
         CASE WHEN COALESCE(t.tiene_contingencia, false) THEN 'Sí' ELSE 'No' END      AS tiene_contingencia,
+        CASE
+          WHEN i.boleta_manual = true                          THEN 'Boleta Manual'
+          WHEN i.cont_activado_por IS NOT NULL AND i.cont_es_externo = true THEN 'Router Externo'
+          WHEN i.cont_activado_por IS NOT NULL                 THEN 'Router Propio'
+          WHEN i.mov_activado_por  IS NOT NULL                 THEN 'Datos Móviles'
+          ELSE ''
+        END                                                                           AS tipo_contingencia,
+        CASE
+          WHEN i.boleta_manual = true     THEN COALESCE(i.boleta_rendimiento, '')
+          WHEN i.cont_activado_por IS NOT NULL THEN COALESCE(i.cont_rendimiento, '')
+          WHEN i.mov_activado_por  IS NOT NULL THEN COALESCE(i.mov_rendimiento, '')
+          ELSE ''
+        END                                                                           AS contingencia_rendimiento,
         TO_CHAR(i.hora_registro AT TIME ZONE 'America/Lima', 'DD/MM/YYYY')             AS fecha,
         TO_CHAR(i.hora_registro AT TIME ZONE 'America/Lima', 'HH24:MI')               AS hora_inicio,
         CASE
@@ -106,16 +119,23 @@ export async function GET(req: Request) {
         t.venta_hora_soles                                                             AS venta_hora_tienda,
         i.resuelto_por,
         i.atribucion_final,
-        -- Raw fields for IEI calculation in application code (calcImpactoRow)
+        -- Raw fields for IEI calculation (calcImpactoRow con timestamps)
         i.hora_registro                                                                AS hora_reg_raw,
         i.hora_fin                                                                     AS hora_fin_raw,
         i.estado                                                                       AS estado_raw,
         (i.cont_activado_por IS NOT NULL)                                              AS contingencia_activa_inc,
         COALESCE(i.cont_es_externo, false)                                             AS cont_es_externo,
+        i.cont_hora_activacion                                                         AS cont_hora_activacion_raw,
+        i.cont_hora_desactivacion                                                      AS cont_hora_desactivacion_raw,
         i.cont_rendimiento                                                             AS cont_rendimiento_raw,
+        i.mov_hora_activacion                                                          AS mov_hora_activacion_raw,
+        i.mov_hora_desactivacion                                                       AS mov_hora_desactivacion_raw,
         i.mov_rendimiento                                                              AS mov_rendimiento_raw,
         (i.mov_activado_por IS NOT NULL)                                               AS hubo_movil,
         i.boleta_manual,
+        i.boleta_rendimiento                                                           AS boleta_rendimiento_raw,
+        i.boleta_hora_activacion                                                       AS boleta_hora_activacion_raw,
+        t.venta_hora_fds_soles,
         i.venta_parcial,
         i.cajas_afectadas,
         i.cajas_totales
@@ -173,12 +193,12 @@ export async function GET(req: Request) {
       'Código', 'Ticket InvGate', 'Ticket Proveedor', 'Código Tienda', 'Nombre CC', 'Ubicación',
       'Proveedor', 'CID', 'Tipo Conexión', 'Cluster', 'Nivel Impacto',
       'Tipo Incidente', 'Usuarios Afectados', 'Nivel Escalado', 'Factor Operativo',
-      'Tiene Contingencia', 'Fecha', 'Hora Inicio', 'Tiempo Total (MTTR)',
+      'Tiene Contingencia', 'Tipo Contingencia', 'Rendimiento Contingencia',
+      'Fecha', 'Hora Inicio', 'Tiempo Total (MTTR)',
       'Enviado N1', 'Respuesta N1', 'Enviado N2', 'Respuesta N2',
       'Enviado N3', 'Respuesta N3', 'Hora Solución', 'Comentarios',
-      'Efectividad Contingencia', 'MTTR (min)', 'SLA Respuesta',
-      'SLA Resolución', 'SLA Cumplido', 'IEI (S/)', 'Venta/Hora Tienda',
-      'Resuelto por', 'Atribución',
+      'MTTR (min)', 'SLA Respuesta', 'SLA Resolución', 'SLA Cumplido',
+      'IEI (S/)', 'Venta/Hora Tienda', 'Resuelto por', 'Atribución',
     ]
 
     const escape = (v: unknown) => {
@@ -192,32 +212,39 @@ export async function GET(req: Request) {
       headers.join(','),
       ...(rows as any[]).map(r => {
         const iei = calcImpactoRow({
-          hora_registro:    r.hora_reg_raw,
-          hora_fin:         r.hora_fin_raw,
-          estado:           r.estado_raw,
-          tipo:             r.tipo_incidente,
-          venta_hora_soles: r.venta_hora_tienda != null ? Number(r.venta_hora_tienda) : null,
-          cluster:          r.cluster,
-          contingencia_activa: Boolean(r.contingencia_activa_inc),
-          cont_es_externo:     Boolean(r.cont_es_externo),
-          cont_rendimiento:    r.cont_rendimiento_raw,
-          hubo_movil:          Boolean(r.hubo_movil),
-          mov_rendimiento:     r.mov_rendimiento_raw,
-          boleta_manual:       r.boleta_manual,
-          venta_parcial:    r.venta_parcial,
-          cajas_afectadas:  r.cajas_afectadas != null ? Number(r.cajas_afectadas) : null,
-          cajas_totales:    r.cajas_totales   != null ? Number(r.cajas_totales)   : null,
+          hora_registro:           r.hora_reg_raw,
+          hora_fin:                r.hora_fin_raw,
+          estado:                  r.estado_raw,
+          tipo:                    r.tipo_incidente,
+          venta_hora_soles:        r.venta_hora_tienda != null ? Number(r.venta_hora_tienda) : null,
+          venta_hora_fds_soles:    r.venta_hora_fds_soles != null ? Number(r.venta_hora_fds_soles) : null,
+          cluster:                 r.cluster,
+          cont_hora_activacion:    r.cont_hora_activacion_raw,
+          cont_hora_desactivacion: r.cont_hora_desactivacion_raw,
+          cont_es_externo:         Boolean(r.cont_es_externo),
+          cont_rendimiento:        r.cont_rendimiento_raw,
+          contingencia_activa:     Boolean(r.contingencia_activa_inc),
+          mov_hora_activacion:     r.mov_hora_activacion_raw,
+          mov_hora_desactivacion:  r.mov_hora_desactivacion_raw,
+          mov_rendimiento:         r.mov_rendimiento_raw,
+          hubo_movil:              Boolean(r.hubo_movil),
+          boleta_manual:           r.boleta_manual,
+          boleta_rendimiento:      r.boleta_rendimiento_raw,
+          boleta_hora_activacion:  r.boleta_hora_activacion_raw,
+          venta_parcial:           r.venta_parcial,
+          cajas_afectadas:         r.cajas_afectadas != null ? Number(r.cajas_afectadas) : null,
+          cajas_totales:           r.cajas_totales   != null ? Number(r.cajas_totales)   : null,
         }).impactoEstimado || null
         return [
           r.codigo, r.ticket_invgate, r.ticket_proveedor, r.tienda_codigo, r.tienda_nombre_cc, r.ubicacion,
           r.proveedor, r.cid_servicio, r.tipo_conexion, r.cluster, r.nivel_impacto,
           r.tipo_incidente, r.usuarios_afectados, r.nivel_escalado, r.factor_operativo,
-          r.tiene_contingencia, r.fecha, r.hora_inicio, r.tiempo_total_mttr,
+          r.tiene_contingencia, r.tipo_contingencia, r.contingencia_rendimiento,
+          r.fecha, r.hora_inicio, r.tiempo_total_mttr,
           r.enviado_n1, r.respuesta_n1, r.enviado_n2, r.respuesta_n2,
           r.enviado_n3, r.respuesta_n3, r.hora_solucion, r.comentarios,
-          r.efectividad_contingencia, r.mttr_min, r.sla_respuesta,
-          r.sla_resolucion, r.sla_cumplido, iei, r.venta_hora_tienda,
-          r.resuelto_por ?? '', r.atribucion_final ?? '',
+          r.mttr_min, r.sla_respuesta, r.sla_resolucion, r.sla_cumplido,
+          iei, r.venta_hora_tienda, r.resuelto_por ?? '', r.atribucion_final ?? '',
         ].map(escape).join(',')
       }),
     ]

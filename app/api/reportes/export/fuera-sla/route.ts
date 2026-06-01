@@ -27,73 +27,133 @@ export async function GET(req: Request) {
       const d = new Date(); d.setDate(1); d.setHours(5, 0, 0, 0); return d.toISOString()
     })()
 
+    // Trae TODOS los evaluables: tanto los que fallaron SLA respuesta como SLA resolución
     const rows = await db.execute(sql`
       SELECT
         i.codigo,
-        TO_CHAR(i.hora_registro AT TIME ZONE 'America/Lima', 'DD/MM/YYYY')  AS fecha,
-        t.codigo                                                              AS tienda_codigo,
-        t.nombre_cc                                                           AS tienda_nombre_cc,
+        TO_CHAR(i.hora_registro AT TIME ZONE 'America/Lima', 'DD/MM/YYYY')       AS fecha,
+        t.codigo                                                                   AS tienda_codigo,
+        t.nombre_cc                                                                AS tienda_nombre_cc,
         t.distrito,
-        COALESCE(pi.nombre, pt.nombre)                                        AS proveedor,
-        i.tipo                                                                AS tipo_incidente,
-        TO_CHAR(i.hora_registro AT TIME ZONE 'America/Lima', 'HH24:MI')      AS hora_inicio,
-        TO_CHAR(i.hora_fin     AT TIME ZONE 'America/Lima', 'HH24:MI')       AS hora_resolucion,
-        i.mttr_minutos                                                        AS mttr_min,
+        COALESCE(pi.nombre, pt.nombre)                                             AS proveedor,
+        i.tipo                                                                     AS tipo_incidente,
+        i.estado,
+        TO_CHAR(i.hora_registro AT TIME ZONE 'America/Lima', 'HH24:MI')           AS hora_inicio,
+        TO_CHAR(i.hora_fin      AT TIME ZONE 'America/Lima', 'HH24:MI')           AS hora_resolucion,
+        i.mttr_minutos                                                             AS mttr_min,
+
+        -- Límite SLA resolución según tipo
         CASE i.tipo
           WHEN 'CAIDA_TOTAL'   THEN 60
           WHEN 'INTERMITENCIA' THEN 120
           WHEN 'LENTITUD'      THEN 240
           WHEN 'POS'           THEN 60
           ELSE 120
-        END                                                                   AS limite_sla,
+        END                                                                        AS limite_resolucion_min,
+
+        -- Exceso resolución (negativo = dentro de SLA)
         i.mttr_minutos - CASE i.tipo
           WHEN 'CAIDA_TOTAL'   THEN 60
           WHEN 'INTERMITENCIA' THEN 120
           WHEN 'LENTITUD'      THEN 240
           WHEN 'POS'           THEN 60
           ELSE 120
-        END                                                                   AS exceso_min,
+        END                                                                        AS exceso_resolucion_min,
+
+        -- SLA Respuesta: tiempo desde envío N1 hasta primera respuesta
+        ROUND(EXTRACT(EPOCH FROM (n1.hora_respuesta_raw - n1.hora_envio_raw)) / 60)::int AS t_respuesta_min,
+        60                                                                         AS limite_respuesta_min,
+        ROUND(EXTRACT(EPOCH FROM (n1.hora_respuesta_raw - n1.hora_envio_raw)) / 60)::int - 60
+                                                                                   AS exceso_respuesta_min,
+
+        -- Tipo de falla
         CASE
-          WHEN n2.tiene_n2 THEN 'Nivel 1 sin respuesta'
-          WHEN n1.t_resp_min > 60 THEN 'Respuesta tardía del proveedor'
+          WHEN i.estado != 'RESUELTO' OR i.mttr_minutos IS NULL THEN 'SLA Pendiente'
+          WHEN n1.hora_envio_raw IS NULL THEN 'Sin escalamiento N1'
+          WHEN n1.hora_respuesta_raw IS NULL
+            AND i.mttr_minutos > CASE i.tipo
+              WHEN 'CAIDA_TOTAL' THEN 60 WHEN 'INTERMITENCIA' THEN 120
+              WHEN 'LENTITUD' THEN 240   WHEN 'POS' THEN 60 ELSE 120 END
+            THEN 'Sin respuesta N1 + Resolución tardía'
+          WHEN n1.hora_respuesta_raw IS NULL THEN 'Sin respuesta N1'
+          WHEN EXTRACT(EPOCH FROM (n1.hora_respuesta_raw - n1.hora_envio_raw)) / 60 > 60
+            AND i.mttr_minutos > CASE i.tipo
+              WHEN 'CAIDA_TOTAL' THEN 60 WHEN 'INTERMITENCIA' THEN 120
+              WHEN 'LENTITUD' THEN 240   WHEN 'POS' THEN 60 ELSE 120 END
+            THEN 'Respuesta tardía + Resolución tardía'
+          WHEN EXTRACT(EPOCH FROM (n1.hora_respuesta_raw - n1.hora_envio_raw)) / 60 > 60
+            THEN 'Respuesta N1 tardía'
           ELSE 'Resolución tardía'
-        END                                                                   AS motivo
+        END                                                                        AS tipo_falla,
+
+        -- SLA Respuesta cumplido
+        CASE
+          WHEN n1.hora_envio_raw IS NULL OR n1.hora_respuesta_raw IS NULL THEN 'No aplica'
+          WHEN EXTRACT(EPOCH FROM (n1.hora_respuesta_raw - n1.hora_envio_raw)) / 60 <= 60 THEN 'Cumplido'
+          ELSE 'Incumplido'
+        END                                                                        AS sla_respuesta,
+
+        -- SLA Resolución cumplido
+        CASE
+          WHEN i.estado != 'RESUELTO' OR i.mttr_minutos IS NULL THEN 'Pendiente'
+          WHEN i.mttr_minutos <= CASE i.tipo
+            WHEN 'CAIDA_TOTAL' THEN 60 WHEN 'INTERMITENCIA' THEN 120
+            WHEN 'LENTITUD' THEN 240   WHEN 'POS' THEN 60 ELSE 120 END
+            THEN 'Cumplido'
+          ELSE 'Incumplido'
+        END                                                                        AS sla_resolucion
+
       FROM incidentes i
       JOIN tiendas t ON i.tienda_id = t.id
       LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
       LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
       LEFT JOIN LATERAL (
         SELECT
-          EXTRACT(EPOCH FROM (MIN(e.hora_respuesta) - MIN(e.hora_envio_correo))) / 60 AS t_resp_min
+          MIN(e.hora_envio_correo)  AS hora_envio_raw,
+          MIN(e.hora_respuesta)     AS hora_respuesta_raw
         FROM escalamientos e
         WHERE e.incidente_id = i.id
+          AND e.hora_envio_correo IS NOT NULL
       ) n1 ON true
-      LEFT JOIN LATERAL (
-        SELECT COUNT(*) > 0 AS tiene_n2
-        FROM escalamientos e
-        WHERE e.incidente_id = i.id AND e.nivel >= 2
-      ) n2 ON true
       WHERE i.hora_registro >= ${desde}::timestamptz
         AND i.hora_registro <  ${hasta}::timestamptz
-        AND i.estado = 'RESUELTO'
+        AND i.estado != 'CANCELADO'
         AND i.evaluable_proveedor IS NOT FALSE
-        AND i.mttr_minutos > CASE i.tipo
-          WHEN 'CAIDA_TOTAL'   THEN 60
-          WHEN 'INTERMITENCIA' THEN 120
-          WHEN 'LENTITUD'      THEN 240
-          WHEN 'POS'           THEN 60
-          ELSE 120
-        END
+        AND i.tipo != 'CORTE_ELECTRICO'
+        AND (
+          -- SLA Resolución incumplida
+          (i.estado = 'RESUELTO' AND i.mttr_minutos > CASE i.tipo
+            WHEN 'CAIDA_TOTAL' THEN 60 WHEN 'INTERMITENCIA' THEN 120
+            WHEN 'LENTITUD' THEN 240   WHEN 'POS' THEN 60 ELSE 120 END)
+          OR
+          -- SLA Respuesta incumplida (respondió pero tarde)
+          (n1.hora_envio_raw IS NOT NULL AND n1.hora_respuesta_raw IS NOT NULL
+            AND EXTRACT(EPOCH FROM (n1.hora_respuesta_raw - n1.hora_envio_raw)) / 60 > 60)
+          OR
+          -- No hubo respuesta del proveedor en incidente resuelto
+          (i.estado = 'RESUELTO' AND n1.hora_envio_raw IS NOT NULL AND n1.hora_respuesta_raw IS NULL)
+        )
       ORDER BY i.hora_registro DESC
     `)
 
     const CRLF = '\r\n'
-    const headers = row('Código', 'Fecha', 'Código Tienda', 'Nombre CC', 'Distrito', 'Proveedor',
-      'Tipo incidente', 'Hora inicio', 'Hora resolución', 'MTTR (min)', 'Límite SLA (min)', 'Exceso (min)', 'Motivo')
+    const headers = row(
+      'Código', 'Fecha', 'Código Tienda', 'Nombre CC', 'Distrito', 'Proveedor',
+      'Tipo incidente', 'Estado', 'Hora inicio', 'Hora resolución',
+      'MTTR (min)', 'Límite resolución (min)', 'Exceso resolución (min)',
+      'T. respuesta N1 (min)', 'Límite respuesta (min)', 'Exceso respuesta (min)',
+      'SLA Respuesta', 'SLA Resolución', 'Tipo de falla'
+    )
     const dataRows = (rows as any[]).map(r =>
-      row(r.codigo, r.fecha, r.tienda_codigo, r.tienda_nombre_cc ?? '', r.distrito ?? '',
-        r.proveedor ?? '', r.tipo_incidente, r.hora_inicio, r.hora_resolucion ?? '',
-        r.mttr_min, r.limite_sla, r.exceso_min, r.motivo)
+      row(
+        r.codigo, r.fecha, r.tienda_codigo, r.tienda_nombre_cc ?? '', r.distrito ?? '',
+        r.proveedor ?? '', r.tipo_incidente, r.estado,
+        r.hora_inicio, r.hora_resolucion ?? '',
+        r.mttr_min ?? '', r.limite_resolucion_min, r.exceso_resolucion_min ?? '',
+        r.t_respuesta_min ?? '', r.limite_respuesta_min,
+        r.exceso_respuesta_min != null && r.exceso_respuesta_min > 0 ? r.exceso_respuesta_min : '',
+        r.sla_respuesta, r.sla_resolucion, r.tipo_falla
+      )
     )
 
     const csv = '﻿' + [headers, ...dataRows].join(CRLF)
