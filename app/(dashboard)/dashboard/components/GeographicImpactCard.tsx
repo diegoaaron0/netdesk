@@ -147,7 +147,7 @@ export default function GeographicImpactCard({ desde, hasta, proveedorId, refres
                   dataKey="incidentes"
                   position="right"
                   style={{ fontSize: 9, fill: '#64748b', fontWeight: 600 }}
-                  formatter={(v: number) => `${v} inc.`}
+                  formatter={(v: unknown) => `${v} inc.`}
                 />
               </Bar>
             </BarChart>

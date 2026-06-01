@@ -302,7 +302,7 @@ function ImpactoProveedorContent() {
                                           {inc.tiendaNombre && <span style={{ color: 'var(--muted-foreground)', marginLeft: '4px', fontSize: '10px' }}> — {inc.tiendaNombre}</span>}
                                         </td>
                                         <td style={{ padding: '4px 7px', fontSize: '11px', color: 'var(--muted-foreground)' }}>{fmtTipo(inc.tipo)}</td>
-                                        <td style={{ padding: '4px 7px', fontSize: '11px', fontFamily: 'monospace', color: inc.mttrMinutos > 240 ? '#A32D2D' : inc.mttrMinutos > 120 ? '#854F0B' : '#3B6D11', fontWeight: 500 }}>
+                                        <td style={{ padding: '4px 7px', fontSize: '11px', fontFamily: 'monospace', color: (inc.mttrMinutos ?? 0) > 240 ? '#A32D2D' : (inc.mttrMinutos ?? 0) > 120 ? '#854F0B' : '#3B6D11', fontWeight: 500 }}>
                                           {fmtMin(inc.mttrMinutos)}
                                         </td>
                                         <td style={{ padding: '4px 7px', fontSize: '11px', fontFamily: 'monospace', fontWeight: 600 }}>{fmtCosto(inc.costoEstimado)}</td>

@@ -642,7 +642,7 @@ export default function TiendasPage() {
               )}
 
               {/* Result */}
-              {importResult && !importResult.error && (
+              {importResult && !('error' in importResult) && (
                 <div style={{ padding: '12px 14px', borderRadius: '8px', background: importResult.errors?.length > 0 ? '#fffbeb' : '#f0fdf4', border: `0.5px solid ${importResult.errors?.length > 0 ? '#f59e0b' : '#22c55e'}`, marginBottom: '16px' }}>
                   <div style={{ fontSize: '12px', fontWeight: 600, color: importResult.errors?.length > 0 ? '#92400e' : '#15803d', marginBottom: '6px' }}>
                     Importación completada
