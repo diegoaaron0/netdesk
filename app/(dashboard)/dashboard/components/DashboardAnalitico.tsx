@@ -102,26 +102,40 @@ function IncidentList({
       {sorted.map(item => (
         <div key={item.id}>
           {expandedId === item.id ? (
-            <IncidentTimeline
-              inc={toDrill(item)}
-              onNavigate={() => router.push(`/incidentes/${item.id}`)}
-            />
+            <div>
+              <div onClick={() => onExpand(null)} style={{ fontSize: '10px', color: 'var(--muted-foreground)', cursor: 'pointer', padding: '2px 4px', marginBottom: '4px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <span>▲</span> cerrar
+              </div>
+              <IncidentTimeline
+                inc={toDrill(item)}
+                onNavigate={() => router.push(`/incidentes/${item.id}`)}
+              />
+            </div>
           ) : (
             <div
               onClick={() => onExpand(item.id)}
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', background: 'var(--background)', border: '0.5px solid var(--border)', borderRadius: '7px', cursor: 'pointer', fontSize: '11px', gap: '8px' }}
+              style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '7px 10px', borderRadius: '7px', cursor: 'pointer', fontSize: '11px', gap: '8px',
+                background: item.evaluableProveedor ? 'var(--background)' : 'var(--muted)',
+                border: `0.5px solid ${item.evaluableProveedor ? 'var(--border)' : 'transparent'}`,
+                opacity: item.evaluableProveedor ? 1 : 0.75,
+              }}
               onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'var(--muted)'}
-              onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'var(--background)'}
+              onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = item.evaluableProveedor ? 'var(--background)' : 'var(--muted)'}
             >
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
                 <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#185FA5', whiteSpace: 'nowrap' }}>{item.codigo}</span>
                 <span style={{ color: 'var(--muted-foreground)', fontWeight: 600 }}>{item.tiendaCodigo}</span>
                 <span style={{ color: 'var(--muted-foreground)' }}>{TIPO_LABELS[item.tipo] ?? item.tipo}</span>
                 <span style={{ color: 'var(--muted-foreground)', fontSize: '10px' }}>{item.fecha}</span>
+                {!item.evaluableProveedor && (
+                  <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: '#f3f4f6', color: '#6b7280', fontWeight: 500 }}>no evaluable</span>
+                )}
               </div>
               <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>
                 {item.ieiEstimado > 0 && <span style={{ fontSize: '10px', color: '#b91c1c', fontFamily: 'monospace' }}>{fmtCosto(item.ieiEstimado)}</span>}
-                {item.mttrMin && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{fmtMin(item.mttrMin)}</span>}
+                {item.mttrMin != null && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{fmtMin(item.mttrMin)}</span>}
                 {item.dentroSLA === true  && <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: '#f0fdf4', color: '#15803d', fontWeight: 600 }}>✓SLA</span>}
                 {item.dentroSLA === false && <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: '#fef2f2', color: '#b91c1c', fontWeight: 600 }}>✗SLA</span>}
               </div>
@@ -421,7 +435,7 @@ function PanelTiendas({ data, expandedId, onExpand }: { data: DashboardAnalitico
   const [selTienda, setSelTienda] = useState<string | null>(null)
   const tiendas = data.cards.tiendasAfectadas
   const incs = data.cards.incidentes.lista
-  const incsFiltrados = selTienda ? incs.filter(i => i.tiendaCodigo === selTienda) : []
+  const incsFiltrados = selTienda ? incs.filter(i => i.tiendaCodigo === selTienda) : incs
 
   // IEI por tienda
   const ieiByTienda = new Map<string, number>()
@@ -472,14 +486,15 @@ function PanelTiendas({ data, expandedId, onExpand }: { data: DashboardAnalitico
           </tbody>
         </table>
       </div>
-      {selTienda && (
-        <>
-          <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
-            Incidentes — {selTienda}
-          </div>
-          <IncidentList items={incsFiltrados} expandedId={expandedId} onExpand={onExpand} sortBy="date" />
-        </>
-      )}
+      <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
+        Incidentes {selTienda ? `— ${selTienda}` : '(todas las tiendas)'}
+        {selTienda && (
+          <button onClick={() => setSelTienda(null)} style={{ marginLeft: '8px', fontSize: '10px', background: 'none', border: 'none', cursor: 'pointer', color: '#185FA5', textDecoration: 'underline', padding: 0 }}>
+            ver todas
+          </button>
+        )}
+      </div>
+      <IncidentList items={incsFiltrados} expandedId={expandedId} onExpand={onExpand} sortBy="date" />
     </>
   )
 }
@@ -494,22 +509,33 @@ function PanelProveedorCritico({ data, expandedId, onExpand }: { data: Dashboard
     </div>
   )
 
-  // Mejor proveedor para comparativa
+  // Datos SLA separados del proveedor crítico
+  const slaProvData = sla.porProveedor.find(p => p.nombre === prov.nombre)
   const mejor = sla.porProveedor.find(p => p.nombre !== prov.nombre && p.slaPct === Math.max(...sla.porProveedor.filter(x => x.nombre !== prov.nombre).map(x => x.slaPct)))
 
   return (
     <>
       <div style={{ background: '#fef2f2', border: '0.5px solid #fca5a5', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
         <div style={{ fontSize: '10px', color: '#b91c1c', fontWeight: 600, marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Proveedor más crítico del período</div>
-        <div style={{ fontSize: '20px', fontWeight: 700, color: '#991b1b', marginBottom: '8px' }}>{prov.nombre}</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+        <div style={{ fontSize: '20px', fontWeight: 700, color: '#991b1b', marginBottom: '10px' }}>{prov.nombre}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
           {[
-            { label: 'SLA', value: `${prov.metricas.slaPct}%`, bad: prov.metricas.slaPct < 90 },
-            { label: 'MTTR', value: fmtMin(prov.metricas.mttrMinutos), bad: prov.metricas.mttrMinutos > 120 },
-            { label: 'IEI', value: fmtCosto(prov.metricas.costoEstimado), bad: true },
-            { label: 'Incidentes', value: String(prov.metricas.incidentes), bad: false },
-            { label: 'Reincidentes', value: String(prov.metricas.reincidenciaTiendas), bad: prov.metricas.reincidenciaTiendas > 0 },
-            { label: 'Score crítico', value: String(prov.score), bad: true },
+            { label: 'SLA Respuesta',  value: slaProvData ? `${slaProvData.slaRespuestaPct}%`  : `${prov.metricas.slaPct}%`, bad: (slaProvData?.slaRespuestaPct ?? prov.metricas.slaPct) < 90 },
+            { label: 'SLA Resolución', value: slaProvData ? `${slaProvData.slaResolucionPct}%` : '—',                         bad: (slaProvData?.slaResolucionPct ?? 100) < 90 },
+          ].map(({ label, value, bad }) => (
+            <div key={label} style={{ background: 'white', borderRadius: '6px', padding: '8px 10px', border: `0.5px solid ${bad ? '#fca5a5' : '#e5e7eb'}` }}>
+              <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', marginBottom: '2px' }}>{label}</div>
+              <div style={{ fontSize: '18px', fontWeight: 700, color: bad ? '#b91c1c' : '#15803d' }}>{value}</div>
+              <div style={{ fontSize: '9px', color: 'var(--muted-foreground)' }}>meta: 90%</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px' }}>
+          {[
+            { label: 'MTTR',          value: fmtMin(prov.metricas.mttrMinutos),           bad: prov.metricas.mttrMinutos > 120 },
+            { label: 'IEI',           value: fmtCosto(prov.metricas.costoEstimado),        bad: true },
+            { label: 'Incidentes',    value: String(prov.metricas.incidentes),             bad: false },
+            { label: 'Reincidentes',  value: String(prov.metricas.reincidenciaTiendas),    bad: prov.metricas.reincidenciaTiendas > 0 },
           ].map(({ label, value, bad }) => (
             <div key={label} style={{ background: 'white', borderRadius: '6px', padding: '6px 8px', border: `0.5px solid ${bad ? '#fca5a5' : '#e5e7eb'}` }}>
               <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', marginBottom: '1px' }}>{label}</div>
