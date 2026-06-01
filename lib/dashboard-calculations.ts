@@ -14,7 +14,10 @@ export function getVentaHoraEstimadaOrNull(
   if (match) return Number(match.venta_hora_promedio)
   if (ventaHoraSoles != null) return Number(ventaHoraSoles)
   if (cluster != null) {
-    const fb = DASHBOARD_CONFIG.CLUSTER_FALLBACK_HORA[cluster]
+    const isFDS = diaSemana === 0 || diaSemana === 5 || diaSemana === 6
+    const fb = isFDS
+      ? DASHBOARD_CONFIG.CLUSTER_FALLBACK_HORA_FDS[cluster]
+      : DASHBOARD_CONFIG.CLUSTER_FALLBACK_HORA[cluster]
     if (fb != null) return fb
   }
   return null

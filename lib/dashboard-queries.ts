@@ -173,13 +173,17 @@ export async function fetchVentasDiarias(): Promise<RawVentaDiaria[]> {
   try {
     const rows = await db.execute(sql`
       SELECT
-        t.codigo          AS tienda_codigo,
-        gs.dia::int       AS dia_semana,
-        t.venta_hora_soles::float AS venta_hora_promedio
+        t.codigo    AS tienda_codigo,
+        gs.dia::int AS dia_semana,
+        -- dias 0=dom, 5=vie, 6=sab → tasa FDS; 1-4=lun-jue → tasa L-J
+        CASE WHEN gs.dia IN (0, 5, 6)
+          THEN COALESCE(t.venta_hora_fds_soles, t.venta_hora_soles)
+          ELSE COALESCE(t.venta_hora_soles, t.venta_hora_fds_soles)
+        END::float AS venta_hora_promedio
       FROM tiendas t
       CROSS JOIN generate_series(0, 6) AS gs(dia)
-      WHERE t.venta_hora_soles IS NOT NULL
-        AND t.venta_hora_soles > 0
+      WHERE COALESCE(t.venta_hora_soles, t.venta_hora_fds_soles) IS NOT NULL
+        AND COALESCE(t.venta_hora_soles, t.venta_hora_fds_soles) > 0
     `)
     return rows as unknown as RawVentaDiaria[]
   } catch {
