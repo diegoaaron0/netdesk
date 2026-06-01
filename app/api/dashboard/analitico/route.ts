@@ -152,6 +152,50 @@ function fmtFechaInc(hora: Date | string): string {
   })
 }
 
+function fmtHoraLima(d: Date | string | null | undefined): string | null {
+  if (!d) return null
+  return new Date(d).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Lima' })
+}
+
+type SlaSnapshot = { cumplido: boolean; slaRespuesta: boolean | null; slaResolucion: boolean | null; tPrimeraRespuestaMin: number | null; tResolucionMin: number | null }
+
+function toListItem(
+  i: RawIncidente,
+  tiendaIncCount: number,
+  sla: SlaSnapshot | null,
+  iei: number,
+): import('@/types/dashboard').IncidenteListItem {
+  const minHastaEnvio = i.hora_correo_n1
+    ? Math.round((new Date(i.hora_correo_n1).getTime() - new Date(i.hora_registro).getTime()) / 60000)
+    : null
+  return {
+    id:                  i.id,
+    codigo:              i.codigo,
+    tiendaCodigo:        i.tienda_codigo,
+    tiendaNombre:        i.tienda_nombre ?? '',
+    proveedor:           i.prov_nombre ?? '—',
+    tipo:                i.tipo,
+    estado:              i.estado,
+    fecha:               fmtFechaInc(i.hora_registro),
+    horaInicio:          fmtHoraLima(i.hora_registro)!,
+    horaFin:             fmtHoraLima(i.hora_fin),
+    horaEnvioN1:         fmtHoraLima(i.hora_correo_n1),
+    horaRespuesta:       fmtHoraLima(i.hora_primera_resp),
+    horaRegistroMs:      new Date(i.hora_registro).getTime(),
+    mttrMin:             i.mttr_minutos ?? null,
+    noHuboRespuesta:     false,
+    evaluableProveedor:  i.evaluable_proveedor !== false,
+    minHastaEnvio,
+    minRespuesta:        sla?.tPrimeraRespuestaMin ?? null,
+    minSolucionDesdeCorreo: sla?.tResolucionMin ?? null,
+    dentroSLA:           sla ? sla.cumplido : null,
+    slaRespOk:           sla?.slaRespuesta ?? null,
+    slaResolOk:          sla?.slaResolucion ?? null,
+    ieiEstimado:         iei,
+    tiendaIncCount,
+  }
+}
+
 // ─── By-day helpers ──────────────────────────────────────────────────────────
 
 function buildByDay(incs: RawIncidente[]) {
@@ -353,11 +397,18 @@ async function buildCards(
   type SlaIncRow = { codigo: string; fecha: string; tipo: string; excRespMin: number | null; excResolMin: number | null; duracionMin: number | null; cumplido: boolean }
   const slaByProvIncidentes = new Map<string, SlaIncRow[]>()
 
+  // Pre-pass: IEI por incidente (evita recalcular en la lista final)
+  const ieiMap = new Map<string, number>()
+  for (const i of incs) { ieiMap.set(i.id, calcCostoIncidente(i, ventasDiarias).costo) }
+
+  // SLA result por incidente (se llena en el loop evaluables)
+  const slaMap = new Map<string, SlaSnapshot>()
+
   let slaCumplidos = 0
   let slaRespuestaOk = 0
   let slaResolucionOk = 0
   let slaEvaluablesCount = 0
-  const evaluables: SlaEvaluableItem[] = []
+  const evaluables: import('@/types/dashboard').IncidenteListItem[] = []
   for (const i of incs) {
     if (i.evaluable_proveedor === false) continue
     const sla = getSlaParaIncidente(i.proveedor_id ?? '', i.tienda_id ?? '')
@@ -388,21 +439,21 @@ async function buildCards(
       slaResolucionMin: sla.resolucionMin,
     })
 
-    evaluables.push({
-      codigo: i.codigo,
-      tiendaCodigo: i.tienda_codigo,
-      proveedor: i.prov_nombre ?? '—',
-      tipo: i.tipo,
-      fecha: fmtFechaInc(i.hora_registro),
+    const slaSnap: SlaSnapshot = {
       cumplido,
-      scoreEficiencia: eficiencia.scoreSLA,
-      tRespuestaMin: slaRes.tPrimeraRespuestaMin ?? null,
+      slaRespuesta: slaRes.slaRespuesta ?? null,
+      slaResolucion: slaRes.slaResolucion ?? null,
+      tPrimeraRespuestaMin: slaRes.tPrimeraRespuestaMin ?? null,
       tResolucionMin: slaRes.tResolucionMin ?? null,
-    })
+    }
+    slaMap.set(i.id, slaSnap)
+    evaluables.push(toListItem(i, tiendasDetailMap.get(i.tienda_id)?.count ?? 1, slaSnap, ieiMap.get(i.id) ?? 0))
 
-    if (!slaByProv.has(prov)) slaByProv.set(prov, { ok: 0, total: 0, excessRespSum: 0, excessRespCount: 0, excessResolSum: 0, excessResolCount: 0, scoreSum: 0, scoreCount: 0, tRespSum: 0, tRespCount: 0, tResolSum: 0, tResolCount: 0 })
+    if (!slaByProv.has(prov)) slaByProv.set(prov, { ok: 0, total: 0, respOk: 0, resolOk: 0, excessRespSum: 0, excessRespCount: 0, excessResolSum: 0, excessResolCount: 0, scoreSum: 0, scoreCount: 0, tRespSum: 0, tRespCount: 0, tResolSum: 0, tResolCount: 0 })
     const s = slaByProv.get(prov)!
     s.total++
+    if (slaRes.slaRespuesta) s.respOk++
+    if (slaRes.slaResolucion) s.resolOk++
     if (eficiencia.scoreSLA != null) { s.scoreSum += eficiencia.scoreSLA; s.scoreCount++ }
     if (slaRes.tPrimeraRespuestaMin != null) { s.tRespSum += slaRes.tPrimeraRespuestaMin; s.tRespCount++ }
     if (slaRes.tResolucionMin != null) { s.tResolSum += slaRes.tResolucionMin; s.tResolCount++ }
@@ -440,9 +491,7 @@ async function buildCards(
   const slaRespuestaPct  = slaEvaluablesCount > 0 ? Math.round(slaRespuestaOk  / slaEvaluablesCount * 100) : 0
   const slaResolucionPct = slaEvaluablesCount > 0 ? Math.round(slaResolucionOk / slaEvaluablesCount * 100) : 0
 
-  let prevSlaOk = 0
-  let prevSlaRespuestaOk = 0
-  let prevEvaluablesCount = 0
+  let prevSlaOk = 0, prevSlaRespuestaOk = 0, prevSlaResolucionOk = 0, prevEvaluablesCount = 0
   for (const i of prevIncs) {
     const sla = getSlaParaIncidente(i.proveedor_id ?? '', i.tienda_id ?? '')
     const slaRes = calcSLARow({
@@ -460,20 +509,26 @@ async function buildCards(
     prevEvaluablesCount++
     if (slaRes.slaGeneral)   prevSlaOk++
     if (slaRes.slaRespuesta) prevSlaRespuestaOk++
+    if (slaRes.slaResolucion) prevSlaResolucionOk++
   }
-  const prevSlaPct          = prevEvaluablesCount > 0 ? Math.round(prevSlaOk          / prevEvaluablesCount * 100) : null
-  const prevSlaRespuestaPct = prevEvaluablesCount > 0 ? Math.round(prevSlaRespuestaOk / prevEvaluablesCount * 100) : null
-  const dSla          = prevSlaPct          != null ? slaPct          - prevSlaPct          : null
-  const dSlaRespuesta = prevSlaRespuestaPct != null ? slaRespuestaPct - prevSlaRespuestaPct : null
+  const prevSlaPct           = prevEvaluablesCount > 0 ? Math.round(prevSlaOk           / prevEvaluablesCount * 100) : null
+  const prevSlaRespuestaPct  = prevEvaluablesCount > 0 ? Math.round(prevSlaRespuestaOk  / prevEvaluablesCount * 100) : null
+  const prevSlaResolucionPct = prevEvaluablesCount > 0 ? Math.round(prevSlaResolucionOk / prevEvaluablesCount * 100) : null
+  const dSla           = prevSlaPct           != null ? slaPct           - prevSlaPct           : null
+  const dSlaRespuesta  = prevSlaRespuestaPct  != null ? slaRespuestaPct  - prevSlaRespuestaPct  : null
+  const dSlaResolucion = prevSlaResolucionPct != null ? slaResolucionPct - prevSlaResolucionPct : null
 
   const slaPorProveedor = [...slaByProv.entries()]
     .map(([nombre, s]) => ({
       nombre,
-      slaPct: s.total > 0 ? Math.round(s.ok / s.total * 100) : 0,
-      scoreEficiencia: s.scoreCount > 0 ? Math.round(s.scoreSum / s.scoreCount) : null,
-      tRespPromMin: s.tRespCount > 0 ? Math.round(s.tRespSum / s.tRespCount) : null,
-      tResolPromMin: s.tResolCount > 0 ? Math.round(s.tResolSum / s.tResolCount) : null,
-      excessoRespuestaMin: s.excessRespCount > 0 ? Math.round(s.excessRespSum / s.excessRespCount) : 0,
+      slaPct:          s.total > 0 ? Math.round(s.ok      / s.total * 100) : 0,
+      slaRespuestaPct: s.total > 0 ? Math.round(s.respOk  / s.total * 100) : 0,
+      slaResolucionPct:s.total > 0 ? Math.round(s.resolOk / s.total * 100) : 0,
+      evaluables:      s.total,
+      scoreEficiencia: s.scoreCount > 0 ? Math.round(s.scoreSum  / s.scoreCount) : null,
+      tRespPromMin:    s.tRespCount  > 0 ? Math.round(s.tRespSum  / s.tRespCount)  : null,
+      tResolPromMin:   s.tResolCount > 0 ? Math.round(s.tResolSum / s.tResolCount) : null,
+      excessoRespuestaMin:  s.excessRespCount  > 0 ? Math.round(s.excessRespSum  / s.excessRespCount)  : 0,
       excessoResolucionMin: s.excessResolCount > 0 ? Math.round(s.excessResolSum / s.excessResolCount) : 0,
       tiendas: slaByProvIncidentes.get(nombre) ?? [],
     }))
@@ -659,25 +714,9 @@ async function buildCards(
     const top = scored[0]
     if (top.score >= 30) {
       const provIncs = incs.filter((i) => (i.prov_nombre ?? '—') === top.nombre)
-      const incidentesDetalle = provIncs.slice(0, 20).map((i) => {
-        const slaRes = calcSLARow({
-          tipo: i.tipo, hora_correo_n1: i.hora_correo_n1,
-          hora_primera_resp: i.hora_primera_resp, hora_fin: i.hora_fin, hora_registro: i.hora_registro, max_nivel: i.max_nivel,
-        })
-        const { costo } = calcCostoIncidente(i, ventasDiarias)
-        const fecha = new Date(i.hora_registro).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', timeZone: 'America/Lima' })
-        const hora  = new Date(i.hora_registro).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Lima' })
-        return {
-          codigo: i.codigo,
-          tiendaCodigo: i.tienda_codigo,
-          tipo: i.tipo,
-          estado: i.estado,
-          mttrMinutos: i.mttr_minutos ?? null,
-          slaCumplido: slaRes.evaluable ? slaRes.slaGeneral : null,
-          iei: Math.round(costo),
-          horaRegistro: `${fecha} ${hora}`,
-        }
-      })
+      const incidentesDetalle = provIncs.slice(0, 20).map((i) =>
+        toListItem(i, tiendasDetailMap.get(i.tienda_id)?.count ?? 1, slaMap.get(i.id) ?? null, ieiMap.get(i.id) ?? 0)
+      )
       proveedorCritico = {
         nombre: top.nombre,
         score: top.score,
@@ -698,21 +737,12 @@ async function buildCards(
     incidentes: {
       total: incs.length,
       deltaVsAnterior: dTotal,
-      lista: incs.map((i) => ({
-        id: i.id,
-        codigo: i.codigo,
-        tiendaCodigo: i.tienda_codigo,
-        tiendaNombre: i.tienda_nombre ?? '',
-        proveedor: i.prov_nombre ?? '—',
-        tipo: i.tipo,
-        estado: i.estado,
-        fecha: fmtFechaInc(i.hora_registro),
-        horaInicio: new Date(i.hora_registro).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Lima' }),
-        horaFin: i.hora_fin ? new Date(i.hora_fin).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Lima' }) : null,
-        horaEnvioN1: i.hora_correo_n1 ? new Date(i.hora_correo_n1).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Lima' }) : null,
-        horaRespuesta: i.hora_primera_resp ? new Date(i.hora_primera_resp).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Lima' }) : null,
-        tiendaIncCount: tiendasDetailMap.get(i.tienda_id)?.count ?? 1,
-      })),
+      lista: incs.map((i) => toListItem(
+        i,
+        tiendasDetailMap.get(i.tienda_id)?.count ?? 1,
+        slaMap.get(i.id) ?? null,
+        ieiMap.get(i.id) ?? 0,
+      )),
       byDay,
     },
     tiendasAfectadas: {
@@ -736,6 +766,7 @@ async function buildCards(
       slaRespuestaPct,
       slaResolucionPct,
       deltaRespuestaPct: dSlaRespuesta,
+      deltaResolucionPct: dSlaResolucion,
       deltaVsAnterior: dSla,
       porProveedor: slaPorProveedor,
       evaluables,

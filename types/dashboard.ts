@@ -1,3 +1,5 @@
+// IncidenteListItem — enriquecido con campos de timeline, SLA e IEI
+// Es la única fuente de datos para los timelines del panel analítico
 export interface IncidenteListItem {
   id: string
   codigo: string
@@ -7,10 +9,24 @@ export interface IncidenteListItem {
   tipo: string
   estado: string
   fecha: string
+  // Timeline fields (compatibles con DrillIncidente)
   horaInicio: string
   horaFin: string | null
   horaEnvioN1: string | null
   horaRespuesta: string | null
+  horaRegistroMs: number
+  mttrMin: number | null
+  noHuboRespuesta: boolean
+  evaluableProveedor: boolean
+  minHastaEnvio: number | null
+  minRespuesta: number | null
+  minSolucionDesdeCorreo: number | null
+  dentroSLA: boolean | null
+  slaRespOk: boolean | null
+  slaResolOk: boolean | null
+  // IEI
+  ieiEstimado: number
+  // Contexto
   tiendaIncCount: number
 }
 
@@ -39,25 +55,19 @@ export interface MttrProveedor {
 export interface SlaProveedor {
   nombre: string
   slaPct: number
+  slaRespuestaPct: number
+  slaResolucionPct: number
   scoreEficiencia: number | null
   tRespPromMin: number | null
   tResolPromMin: number | null
   excessoRespuestaMin: number
   excessoResolucionMin: number
+  evaluables: number
   tiendas: Array<{ codigo: string; fecha: string; tipo: string; excRespMin: number | null; excResolMin: number | null; duracionMin: number | null; cumplido: boolean }>
 }
 
-export interface SlaEvaluableItem {
-  codigo: string
-  tiendaCodigo: string
-  proveedor: string
-  tipo: string
-  fecha: string
-  cumplido: boolean
-  scoreEficiencia: number | null
-  tRespuestaMin: number | null
-  tResolucionMin: number | null
-}
+// SlaEvaluableItem deprecated — usar IncidenteListItem filtrado por dentroSLA
+export type SlaEvaluableItem = IncidenteListItem
 
 export interface CostoTienda {
   codigo: string
@@ -127,10 +137,11 @@ export interface CumplimientoSLACard {
   slaRespuestaPct: number
   slaResolucionPct: number
   deltaRespuestaPct: number | null
+  deltaResolucionPct: number | null
   scoreEficiencia: number | null
   deltaVsAnterior: number | null
   porProveedor: SlaProveedor[]
-  evaluables: SlaEvaluableItem[]
+  evaluables: IncidenteListItem[]
 }
 
 export interface CostoEstimadoCard {
@@ -167,16 +178,7 @@ export interface ProveedorCriticoCard {
     reincidencia: number
     incidentes: number
   }
-  incidentesDetalle: Array<{
-    codigo: string
-    tiendaCodigo: string
-    tipo: string
-    estado: string
-    mttrMinutos: number | null
-    slaCumplido: boolean | null
-    iei: number
-    horaRegistro: string
-  }>
+  incidentesDetalle: IncidenteListItem[]
 }
 
 export interface DashboardAnaliticoResponse {

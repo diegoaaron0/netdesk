@@ -55,7 +55,7 @@ export interface DrillPanelProps {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function fmtMin(min: number | null): string {
+export function fmtMin(min: number | null): string {
   if (min == null) return '—'
   if (min < 60) return `${min}m`
   const h = Math.floor(min / 60); const m = min % 60
@@ -83,7 +83,7 @@ function mttrClr(min: number | null) {
 
 // ─── Timeline row ─────────────────────────────────────────────────────────────
 
-function TimelineRow({ dot, label, hora, delta, isAlert = false, isLast = false }: {
+export function TimelineRow({ dot, label, hora, delta, isAlert = false, isLast = false }: {
   dot: 'blue' | 'orange' | 'green' | 'red' | 'purple' | 'gray'
   label: string
   hora: string | null
@@ -112,7 +112,8 @@ function TimelineRow({ dot, label, hora, delta, isAlert = false, isLast = false 
 
 // ─── Incident card with timeline ──────────────────────────────────────────────
 
-function IncidentTimeline({ inc, onNavigate }: { inc: DrillIncidente; onNavigate: () => void }) {
+export type { DrillIncidente }
+export function IncidentTimeline({ inc, onNavigate }: { inc: DrillIncidente; onNavigate: () => void }) {
   const isAgente  = !inc.horaEnvioN1
   const isAbierto = !inc.horaFin
   const status    = isAgente ? 'na' : inc.dentroSLA === true ? 'ok' : inc.dentroSLA === false ? 'fail' : 'na'

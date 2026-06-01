@@ -1,17 +1,8 @@
 'use client'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import type { DashboardAnaliticoResponse } from '@/types/dashboard'
-import { fmtSLA } from '@/lib/sla-display'
-import TendenciaSLACard from './TendenciaSLACard'
-import ProviderImpactCard from './ProviderImpactCard'
-import CriticalStoresCard from './CriticalStoresCard'
-import DistributionByTypeCard from './DistributionByTypeCard'
-import ProviderSlaComplianceCard from './ProviderSlaComplianceCard'
-import GeographicImpactCard from './GeographicImpactCard'
-import SlaTrendSixMonthsCard from './SlaTrendSixMonthsCard'
-import InsightsRecommendationsCard from './InsightsRecommendationsCard'
-import DrillPanel from './DrillPanel'
+import type { DashboardAnaliticoResponse, IncidenteListItem, SlaProveedor, MttrProveedor } from '@/types/dashboard'
+import { IncidentTimeline, fmtMin, type DrillIncidente } from './DrillPanel'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -21,207 +12,576 @@ function firstDayOfMonth() {
 }
 function todayStr() { return new Date().toISOString().split('T')[0] }
 
-function fmtMttr(min: number | null | undefined) {
-  if (!min) return '—'
-  const h = Math.floor(min / 60); const m = min % 60
-  return h > 0 ? `${h}h ${m}m` : `${m}m`
-}
 function fmtCosto(n: number) {
   return `S/ ${n.toLocaleString('es-PE', { maximumFractionDigits: 0 })}`
 }
-function fmtTipo(t: string) {
-  const map: Record<string, string> = {
-    CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia',
-    LENTITUD: 'Lentitud', POS: 'POS', OTROS: 'Otros',
-  }
-  return map[t] ?? t
+
+const TIPO_LABELS: Record<string, string> = {
+  CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia',
+  LENTITUD: 'Lentitud', POS: 'POS', OTROS: 'Otros', CORTE_ELECTRICO: '⚡ Corte eléctr.',
 }
-function fmtEstado(e: string) { return e.replace(/_/g, ' ') }
+
+function slaColor(pct: number | null | undefined) {
+  if (pct == null) return 'var(--muted-foreground)'
+  if (pct >= 90) return '#15803d'
+  if (pct >= 70) return '#d97706'
+  return '#b91c1c'
+}
+function slaBg(pct: number | null | undefined) {
+  if (pct == null) return 'var(--muted)'
+  if (pct >= 90) return '#f0fdf4'
+  if (pct >= 70) return '#fffbeb'
+  return '#fef2f2'
+}
+function mttrColor(min: number | null | undefined) {
+  if (min == null) return 'var(--muted-foreground)'
+  if (min < 120) return '#15803d'
+  if (min < 240) return '#d97706'
+  return '#b91c1c'
+}
 
 function DeltaBadge({ delta, invertir = false }: { delta: number | null; invertir?: boolean }) {
   if (delta == null) return null
-  const mejor = invertir ? delta < 0 : delta < 0
-  const color = mejor ? '#3B6D11' : '#A32D2D'
-  const bg    = mejor ? '#EAF3DE' : '#FCEBEB'
-  const arrow = delta > 0 ? '↑' : '↓'
+  const mejor = invertir ? delta < 0 : delta > 0
+  const mismo = delta === 0
+  const color = mismo ? '#6b7280' : mejor ? '#15803d' : '#b91c1c'
+  const bg    = mismo ? '#f3f4f6' : mejor ? '#f0fdf4' : '#fef2f2'
+  const sign  = delta > 0 ? '+' : ''
   return (
-    <span style={{ fontSize: '11px', fontWeight: 500, padding: '2px 7px', borderRadius: '999px', background: bg, color }}>
-      {arrow} {Math.abs(delta)}% vs. período equivalente anterior
+    <span style={{ fontSize: '10px', fontWeight: 500, padding: '1px 6px', borderRadius: '999px', background: bg, color }}>
+      {sign}{delta}pp
     </span>
   )
 }
 
-// ─── Mini Bar Chart (SVG) ─────────────────────────────────────────────────────
+// ─── Converts IncidenteListItem → DrillIncidente (compatible con IncidentTimeline) ──
 
-function MiniBarChart({ data }: { data: Array<{ dia: string; total: number }> }) {
-  if (!data.length) return null
-  const max = Math.max(...data.map((d) => d.total), 1)
-  const W = 200; const H = 40
-  const barW = Math.max(2, Math.floor(W / data.length) - 1)
-  return (
-    <svg width="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block', height: '40px' }}>
-      {data.map((d, i) => {
-        const h = Math.max(2, Math.round((d.total / max) * H))
-        return <rect key={i} x={i * (W / data.length)} y={H - h} width={barW} height={h} rx={1} fill="#378ADD" opacity={0.8} />
-      })}
-    </svg>
-  )
+function toDrill(item: IncidenteListItem): DrillIncidente {
+  return {
+    id: item.id,
+    codigo: item.codigo,
+    tipo: item.tipo,
+    horaInicio: item.horaInicio,
+    horaRegistroMs: item.horaRegistroMs,
+    horaFin: item.horaFin,
+    mttrMin: item.mttrMin,
+    horaEnvioN1: item.horaEnvioN1,
+    horaRespuesta: item.horaRespuesta,
+    noHuboRespuesta: item.noHuboRespuesta,
+    evaluableProveedor: item.evaluableProveedor,
+    minHastaEnvio: item.minHastaEnvio,
+    minRespuesta: item.minRespuesta,
+    minSolucionDesdeCorreo: item.minSolucionDesdeCorreo,
+    dentroSLA: item.dentroSLA,
+  }
 }
 
-// ─── Mini Sparkline (SVG) ────────────────────────────────────────────────────
+// ─── Incident list with expandable inline timeline ────────────────────────────
 
-function MiniSparkline({ data }: { data: Array<{ dia: string; mttrMinutos: number | null }> }) {
-  const filtered = data.filter((d) => d.mttrMinutos != null)
-  if (filtered.length < 2) return null
-  const vals = filtered.map((d) => d.mttrMinutos!)
-  const max = Math.max(...vals, 1); const min = Math.min(...vals)
-  const W = 200; const H = 40
-  const pts = vals.map((v, i) => {
-    const x = (i / (vals.length - 1)) * W
-    const y = H - ((v - min) / Math.max(max - min, 1)) * (H - 4) - 2
-    return `${x},${y}`
-  })
-  return (
-    <svg width="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block', height: '40px' }}>
-      <polyline points={pts.join(' ')} fill="none" stroke="#8B5CF6" strokeWidth={1.5} strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-// ─── Progress Bar ─────────────────────────────────────────────────────────────
-
-function ProgressBar({ value, max = 100, color }: { value: number; max?: number; color: string }) {
-  const pct = Math.min(100, Math.round((value / max) * 100))
-  return (
-    <div style={{ height: '6px', background: 'var(--muted)', borderRadius: '3px', overflow: 'hidden' }}>
-      <div style={{ height: '6px', width: `${pct}%`, background: color, borderRadius: '3px', transition: 'width 0.4s ease' }} />
-    </div>
-  )
-}
-
-// ─── Skeleton ────────────────────────────────────────────────────────────────
-
-function Sk({ w = '60%', h = 16 }: { w?: string; h?: number }) {
-  return (
-    <div style={{ width: w, height: h, background: 'linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%)', backgroundSize: '200% 100%', borderRadius: 4, animation: 'shimmer 1.4s infinite' }} />
-  )
-}
-
-// ─── Panel wrapper ───────────────────────────────────────────────────────────
-
-function Panel({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '12px', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', marginTop: '8px', padding: '16px', maxHeight: '300px', overflowY: 'auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-        <span style={{ fontSize: '13px', fontWeight: 600 }}>{title}</span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--muted-foreground)', lineHeight: 1 }}>✕</button>
-      </div>
-      {children}
-    </div>
-  )
-}
-
-// ─── Card shell ──────────────────────────────────────────────────────────────
-
-function Card({
-  children, onClick, isOpen, pulse = false, pulseColor = '#EA580C',
+function IncidentList({
+  items, expandedId, onExpand, sortBy = 'date', max = 50,
 }: {
-  children: React.ReactNode; onClick: () => void; isOpen: boolean
-  pulse?: boolean; pulseColor?: string
+  items: IncidenteListItem[]
+  expandedId: string | null
+  onExpand: (id: string | null) => void
+  sortBy?: 'date' | 'mttr' | 'iei' | 'tResp'
+  max?: number
+}) {
+  const router = useRouter()
+  const sorted = [...items].sort((a, b) => {
+    if (sortBy === 'mttr')  return (b.mttrMin ?? 0) - (a.mttrMin ?? 0)
+    if (sortBy === 'iei')   return b.ieiEstimado - a.ieiEstimado
+    if (sortBy === 'tResp') return (b.minRespuesta ?? 0) - (a.minRespuesta ?? 0)
+    return b.horaRegistroMs - a.horaRegistroMs
+  }).slice(0, max)
+
+  if (!sorted.length) return <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', padding: '16px 0', textAlign: 'center' }}>Sin incidentes en este período.</div>
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      {sorted.map(item => (
+        <div key={item.id}>
+          {expandedId === item.id ? (
+            <IncidentTimeline
+              inc={toDrill(item)}
+              onNavigate={() => router.push(`/incidentes/${item.id}`)}
+            />
+          ) : (
+            <div
+              onClick={() => onExpand(item.id)}
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', background: 'var(--background)', border: '0.5px solid var(--border)', borderRadius: '7px', cursor: 'pointer', fontSize: '11px', gap: '8px' }}
+              onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'var(--muted)'}
+              onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'var(--background)'}
+            >
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
+                <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#185FA5', whiteSpace: 'nowrap' }}>{item.codigo}</span>
+                <span style={{ color: 'var(--muted-foreground)', fontWeight: 600 }}>{item.tiendaCodigo}</span>
+                <span style={{ color: 'var(--muted-foreground)' }}>{TIPO_LABELS[item.tipo] ?? item.tipo}</span>
+                <span style={{ color: 'var(--muted-foreground)', fontSize: '10px' }}>{item.fecha}</span>
+              </div>
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>
+                {item.ieiEstimado > 0 && <span style={{ fontSize: '10px', color: '#b91c1c', fontFamily: 'monospace' }}>{fmtCosto(item.ieiEstimado)}</span>}
+                {item.mttrMin && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{fmtMin(item.mttrMin)}</span>}
+                {item.dentroSLA === true  && <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: '#f0fdf4', color: '#15803d', fontWeight: 600 }}>✓SLA</span>}
+                {item.dentroSLA === false && <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: '#fef2f2', color: '#b91c1c', fontWeight: 600 }}>✗SLA</span>}
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ─── Provider table ───────────────────────────────────────────────────────────
+
+function ProvTable({ rows, selectedProv, onSelect, cols }: {
+  rows: Array<{ nombre: string; pct?: number | null; min?: number | null; costo?: number; evaluables?: number; delta?: number | null }>
+  selectedProv: string | null
+  onSelect: (p: string) => void
+  cols: Array<{ key: string; label: string; fmt: (v: any) => string; color?: (v: any) => string }>
+}) {
+  return (
+    <div style={{ border: '0.5px solid var(--border)', borderRadius: '8px', overflow: 'hidden', marginBottom: '12px' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+        <thead>
+          <tr style={{ background: 'var(--muted)' }}>
+            <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, color: 'var(--muted-foreground)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Proveedor</th>
+            {cols.map(c => <th key={c.key} style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 600, color: 'var(--muted-foreground)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{c.label}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => {
+            const isSel = selectedProv === r.nombre
+            return (
+              <tr key={r.nombre} onClick={() => onSelect(r.nombre)} style={{ borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', background: isSel ? '#eff6ff' : 'transparent', cursor: 'pointer' }}
+                onMouseEnter={e => { if (!isSel) (e.currentTarget as HTMLTableRowElement).style.background = 'var(--muted)' }}
+                onMouseLeave={e => { if (!isSel) (e.currentTarget as HTMLTableRowElement).style.background = 'transparent' }}
+              >
+                <td style={{ padding: '7px 10px', fontWeight: isSel ? 600 : 400, color: isSel ? '#1e40af' : 'var(--foreground)' }}>{r.nombre}</td>
+                {cols.map(c => {
+                  const v = (r as any)[c.key]
+                  const clr = c.color ? c.color(v) : 'var(--foreground)'
+                  return <td key={c.key} style={{ padding: '7px 10px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: clr }}>{v != null ? c.fmt(v) : '—'}</td>
+                })}
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// ─── Panel sections ───────────────────────────────────────────────────────────
+
+function PanelSLARespuesta({ data, expandedId, onExpand }: { data: DashboardAnaliticoResponse; expandedId: string | null; onExpand: (id: string | null) => void }) {
+  const [selProv, setSelProv] = useState<string | null>(null)
+  const sla = data.cards.cumplimientoSLA
+  const incAll = data.cards.incidentes.lista.filter(i => i.evaluableProveedor)
+  const incFiltradas = selProv ? incAll.filter(i => i.proveedor === selProv) : incAll
+  const incOrdenadas = [...incFiltradas].sort((a, b) => (b.minRespuesta ?? 0) - (a.minRespuesta ?? 0))
+
+  return (
+    <>
+      <div style={{ display: 'flex', gap: '16px', marginBottom: '14px', flexWrap: 'wrap' }}>
+        <div style={{ background: slaBg(sla.slaRespuestaPct), borderRadius: '8px', padding: '10px 16px', flex: 1 }}>
+          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '2px' }}>SLA RESPUESTA GLOBAL</div>
+          <div style={{ fontSize: '24px', fontWeight: 700, color: slaColor(sla.slaRespuestaPct) }}>{sla.slaRespuestaPct}%</div>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px' }}>
+            <DeltaBadge delta={sla.deltaRespuestaPct} />
+            <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Meta: 90%</span>
+          </div>
+        </div>
+        <div style={{ background: 'var(--muted)', borderRadius: '8px', padding: '10px 16px' }}>
+          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '2px' }}>EVALUABLES</div>
+          <div style={{ fontSize: '20px', fontWeight: 700 }}>{sla.evaluables.length}</div>
+          <div style={{ fontSize: '10px', color: '#15803d', marginTop: '2px' }}>
+            {sla.evaluables.filter(e => e.slaRespOk).length} cumplieron
+          </div>
+        </div>
+      </div>
+      <ProvTable
+        rows={sla.porProveedor.map(p => ({ nombre: p.nombre, pct: p.slaRespuestaPct, evaluables: p.evaluables, min: p.tRespPromMin }))}
+        selectedProv={selProv}
+        onSelect={p => setSelProv(selProv === p ? null : p)}
+        cols={[
+          { key: 'pct', label: 'SLA Resp.', fmt: v => `${v}%`, color: slaColor },
+          { key: 'evaluables', label: 'Eval.', fmt: v => String(v) },
+          { key: 'min', label: 'T.Resp prom.', fmt: v => fmtMin(v) },
+        ]}
+      />
+      <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
+        Incidentes {selProv ? `— ${selProv}` : '(todos)'} · ordenados por mayor T. respuesta
+      </div>
+      <IncidentList items={incOrdenadas} expandedId={expandedId} onExpand={onExpand} sortBy="tResp" />
+    </>
+  )
+}
+
+function PanelSLAResolucion({ data, expandedId, onExpand }: { data: DashboardAnaliticoResponse; expandedId: string | null; onExpand: (id: string | null) => void }) {
+  const [selProv, setSelProv] = useState<string | null>(null)
+  const sla = data.cards.cumplimientoSLA
+  const incAll = data.cards.incidentes.lista.filter(i => i.evaluableProveedor)
+  const incFiltradas = selProv ? incAll.filter(i => i.proveedor === selProv) : incAll
+  const incOrdenadas = [...incFiltradas].sort((a, b) => (b.minSolucionDesdeCorreo ?? 0) - (a.minSolucionDesdeCorreo ?? 0))
+
+  return (
+    <>
+      <div style={{ display: 'flex', gap: '16px', marginBottom: '14px', flexWrap: 'wrap' }}>
+        <div style={{ background: slaBg(sla.slaResolucionPct), borderRadius: '8px', padding: '10px 16px', flex: 1 }}>
+          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '2px' }}>SLA RESOLUCIÓN GLOBAL</div>
+          <div style={{ fontSize: '24px', fontWeight: 700, color: slaColor(sla.slaResolucionPct) }}>{sla.slaResolucionPct}%</div>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px' }}>
+            <DeltaBadge delta={sla.deltaResolucionPct} />
+            <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Meta: 90%</span>
+          </div>
+        </div>
+        <div style={{ background: 'var(--muted)', borderRadius: '8px', padding: '10px 16px' }}>
+          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '2px' }}>EVALUABLES</div>
+          <div style={{ fontSize: '20px', fontWeight: 700 }}>{sla.evaluables.length}</div>
+          <div style={{ fontSize: '10px', color: '#15803d', marginTop: '2px' }}>
+            {sla.evaluables.filter(e => e.slaResolOk).length} cumplieron
+          </div>
+        </div>
+      </div>
+      <ProvTable
+        rows={sla.porProveedor.map(p => ({ nombre: p.nombre, pct: p.slaResolucionPct, evaluables: p.evaluables, min: p.tResolPromMin }))}
+        selectedProv={selProv}
+        onSelect={p => setSelProv(selProv === p ? null : p)}
+        cols={[
+          { key: 'pct', label: 'SLA Resol.', fmt: v => `${v}%`, color: slaColor },
+          { key: 'evaluables', label: 'Eval.', fmt: v => String(v) },
+          { key: 'min', label: 'T.Resol prom.', fmt: v => fmtMin(v) },
+        ]}
+      />
+      <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
+        Incidentes {selProv ? `— ${selProv}` : '(todos)'} · ordenados por mayor T. resolución
+      </div>
+      <IncidentList items={incOrdenadas} expandedId={expandedId} onExpand={onExpand} sortBy="date" />
+    </>
+  )
+}
+
+function PanelMTTR({ data, expandedId, onExpand }: { data: DashboardAnaliticoResponse; expandedId: string | null; onExpand: (id: string | null) => void }) {
+  const [selProv, setSelProv] = useState<string | null>(null)
+  const mttr = data.cards.mttrPromedio
+  const incsResueltos = data.cards.incidentes.lista.filter(i => i.estado === 'RESUELTO' && i.mttrMin != null)
+  const incFiltradas = selProv ? incsResueltos.filter(i => i.proveedor === selProv) : incsResueltos
+
+  return (
+    <>
+      <div style={{ display: 'flex', gap: '16px', marginBottom: '14px' }}>
+        <div style={{ background: 'var(--muted)', borderRadius: '8px', padding: '10px 16px', flex: 1 }}>
+          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '2px' }}>MTTR GLOBAL</div>
+          <div style={{ fontSize: '24px', fontWeight: 700, color: mttrColor(mttr.minutos) }}>{fmtMin(mttr.minutos)}</div>
+          <DeltaBadge delta={mttr.deltaMinutos != null ? -mttr.deltaMinutos : null} invertir={false} />
+        </div>
+        <div style={{ background: 'var(--muted)', borderRadius: '8px', padding: '10px 16px' }}>
+          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '2px' }}>RESUELTOS</div>
+          <div style={{ fontSize: '20px', fontWeight: 700 }}>{incsResueltos.length}</div>
+        </div>
+      </div>
+      <ProvTable
+        rows={mttr.porProveedor.map(p => ({ nombre: p.nombre, min: p.mttrMinutos, mejor: p.mejorTiempo, peor: p.peorTiempo, n: p.incidentesResueltos }))}
+        selectedProv={selProv}
+        onSelect={p => setSelProv(selProv === p ? null : p)}
+        cols={[
+          { key: 'min',  label: 'MTTR prom.', fmt: v => fmtMin(v), color: mttrColor },
+          { key: 'mejor',label: 'Mejor',      fmt: v => fmtMin(v) },
+          { key: 'peor', label: 'Peor',       fmt: v => fmtMin(v) },
+          { key: 'n',    label: 'N',           fmt: v => String(v) },
+        ]}
+      />
+      <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
+        Incidentes resueltos {selProv ? `— ${selProv}` : '(todos)'} · mayor MTTR primero
+      </div>
+      <IncidentList items={incFiltradas} expandedId={expandedId} onExpand={onExpand} sortBy="mttr" />
+    </>
+  )
+}
+
+function PanelIEI({ data, expandedId, onExpand }: { data: DashboardAnaliticoResponse; expandedId: string | null; onExpand: (id: string | null) => void }) {
+  const [selProv, setSelProv] = useState<string | null>(null)
+  const costo = data.cards.costoEstimado
+  const incs = data.cards.incidentes.lista.filter(i => i.ieiEstimado > 0)
+  const incFiltradas = selProv ? incs.filter(i => i.proveedor === selProv) : incs
+
+  return (
+    <>
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '14px', flexWrap: 'wrap' }}>
+        <div style={{ background: '#fffbeb', border: '0.5px solid #fde68a', borderRadius: '8px', padding: '10px 16px', flex: 1 }}>
+          <div style={{ fontSize: '10px', color: '#92400e', marginBottom: '2px' }}>IEI TOTAL</div>
+          <div style={{ fontSize: '22px', fontWeight: 700, color: '#b45309' }}>{fmtCosto(costo.total)}</div>
+          <DeltaBadge delta={costo.deltaVsAnterior} invertir />
+        </div>
+        <div style={{ background: 'var(--muted)', borderRadius: '8px', padding: '10px 16px' }}>
+          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '2px' }}>Por agente</div>
+          <div style={{ fontSize: '14px', fontWeight: 600 }}>{fmtCosto(costo.totalAgente)}</div>
+          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '4px' }}>Por proveedor</div>
+          <div style={{ fontSize: '14px', fontWeight: 600 }}>{fmtCosto(costo.totalProveedor)}</div>
+        </div>
+      </div>
+      <ProvTable
+        rows={costo.proveedoresDesglose.map(p => ({ nombre: p.nombre, costo: p.costo }))}
+        selectedProv={selProv}
+        onSelect={p => setSelProv(selProv === p ? null : p)}
+        cols={[
+          { key: 'costo', label: 'IEI (S/)', fmt: v => fmtCosto(v), color: () => '#b45309' },
+        ]}
+      />
+      <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
+        Incidentes {selProv ? `— ${selProv}` : '(todos)'} · mayor IEI primero
+      </div>
+      <IncidentList items={incFiltradas} expandedId={expandedId} onExpand={onExpand} sortBy="iei" />
+    </>
+  )
+}
+
+function PanelIncidentes({ data, expandedId, onExpand }: { data: DashboardAnaliticoResponse; expandedId: string | null; onExpand: (id: string | null) => void }) {
+  const [tab, setTab] = useState<'todos' | 'reincidencia'>('todos')
+  const inc = data.cards.incidentes
+  const reInc = data.cards.reincidenciaCritica
+
+  // Distribution by type
+  const tipoCount: Record<string, number> = {}
+  for (const i of inc.lista) tipoCount[i.tipo] = (tipoCount[i.tipo] ?? 0) + 1
+  const tiposSorted = Object.entries(tipoCount).sort((a, b) => b[1] - a[1])
+  const maxTipo = tiposSorted[0]?.[1] ?? 1
+
+  return (
+    <>
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '14px' }}>
+        <div style={{ background: 'var(--muted)', borderRadius: '8px', padding: '10px 16px', flex: 1 }}>
+          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '2px' }}>TOTAL</div>
+          <div style={{ fontSize: '24px', fontWeight: 700 }}>{inc.total}</div>
+          <DeltaBadge delta={inc.deltaVsAnterior} invertir />
+        </div>
+        <div style={{ background: '#fff7ed', border: '0.5px solid #fed7aa', borderRadius: '8px', padding: '10px 16px' }}>
+          <div style={{ fontSize: '10px', color: '#c2410c', marginBottom: '2px' }}>REINCIDENTES</div>
+          <div style={{ fontSize: '20px', fontWeight: 700, color: '#c2410c' }}>{reInc.total}</div>
+          <div style={{ fontSize: '10px', color: '#c2410c' }}>tiendas con 2+ caídas</div>
+        </div>
+      </div>
+
+      {/* Distribución por tipo */}
+      <div style={{ marginBottom: '14px' }}>
+        <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Por tipo</div>
+        {tiposSorted.map(([tipo, cnt]) => (
+          <div key={tipo} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
+            <div style={{ fontSize: '11px', width: '120px', flexShrink: 0 }}>{TIPO_LABELS[tipo] ?? tipo}</div>
+            <div style={{ flex: 1, height: '8px', background: 'var(--muted)', borderRadius: '4px', overflow: 'hidden' }}>
+              <div style={{ width: `${Math.round(cnt / maxTipo * 100)}%`, height: '100%', background: '#3b82f6', borderRadius: '4px' }} />
+            </div>
+            <div style={{ fontSize: '11px', fontWeight: 600, width: '30px', textAlign: 'right' }}>{cnt}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '10px' }}>
+        {([['todos', 'Todos los incidentes'], ['reincidencia', 'Reincidentes']] as const).map(([t, l]) => (
+          <button key={t} onClick={() => setTab(t)} style={{ padding: '5px 12px', fontSize: '11px', fontWeight: tab === t ? 600 : 400, borderRadius: '6px', border: 'none', background: tab === t ? '#185FA5' : 'var(--muted)', color: tab === t ? 'white' : 'var(--foreground)', cursor: 'pointer' }}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'todos' && <IncidentList items={inc.lista} expandedId={expandedId} onExpand={onExpand} sortBy="date" />}
+      {tab === 'reincidencia' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {reInc.tiendas.length === 0 && <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', textAlign: 'center', padding: '16px 0' }}>Sin reincidentes en este período.</div>}
+          {reInc.tiendas.map(t => (
+            <div key={t.id} style={{ background: '#fff7ed', border: '0.5px solid #fed7aa', borderRadius: '8px', padding: '10px 12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                <div>
+                  <span style={{ fontWeight: 600, fontSize: '12px' }}>{t.codigo}</span>
+                  <span style={{ color: 'var(--muted-foreground)', fontSize: '11px', marginLeft: '8px' }}>{t.proveedor}</span>
+                </div>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: '#c2410c' }}>{t.caidas} caídas</span>
+              </div>
+              <div style={{ fontSize: '10px', color: '#92400e' }}>{t.razon} · {t.tipoRepetido} · IEI {fmtCosto(t.costoEstimado)}</div>
+              {t.tendencia !== 'ESTABLE' && (
+                <span style={{ fontSize: '9px', padding: '1px 6px', borderRadius: '999px', background: t.tendencia === 'EMPEORA' ? '#fef2f2' : '#eff6ff', color: t.tendencia === 'EMPEORA' ? '#b91c1c' : '#1e40af', fontWeight: 600 }}>
+                  {t.tendencia}
+                </span>
+              )}
+              <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '4px', fontFamily: 'monospace' }}>
+                {t.incidenteCodigos.join(' · ')}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
+function PanelTiendas({ data, expandedId, onExpand }: { data: DashboardAnaliticoResponse; expandedId: string | null; onExpand: (id: string | null) => void }) {
+  const [selTienda, setSelTienda] = useState<string | null>(null)
+  const tiendas = data.cards.tiendasAfectadas
+  const incs = data.cards.incidentes.lista
+  const incsFiltrados = selTienda ? incs.filter(i => i.tiendaCodigo === selTienda) : []
+
+  // IEI por tienda
+  const ieiByTienda = new Map<string, number>()
+  for (const i of incs) ieiByTienda.set(i.tiendaCodigo, (ieiByTienda.get(i.tiendaCodigo) ?? 0) + i.ieiEstimado)
+
+  const tiendasSorted = [...tiendas.lista].sort((a, b) => b.incidentesCount - a.incidentesCount)
+
+  return (
+    <>
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '14px' }}>
+        <div style={{ background: 'var(--muted)', borderRadius: '8px', padding: '10px 16px', flex: 1 }}>
+          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '2px' }}>TIENDAS AFECTADAS</div>
+          <div style={{ fontSize: '24px', fontWeight: 700 }}>{tiendas.total}</div>
+          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{tiendas.porcentajeRed}% de la red</div>
+        </div>
+        <div style={{ background: 'var(--muted)', borderRadius: '8px', padding: '10px 16px' }}>
+          <DeltaBadge delta={tiendas.deltaVsAnterior} invertir />
+        </div>
+      </div>
+      <div style={{ border: '0.5px solid var(--border)', borderRadius: '8px', overflow: 'hidden', marginBottom: '12px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+          <thead>
+            <tr style={{ background: 'var(--muted)' }}>
+              {['Tienda', 'Proveedor', 'Inc.', 'IEI'].map(h => (
+                <th key={h} style={{ padding: '6px 10px', textAlign: h === 'Tienda' || h === 'Proveedor' ? 'left' : 'right', fontWeight: 600, color: 'var(--muted-foreground)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {tiendasSorted.map((t, i) => {
+              const isSel = selTienda === t.codigo
+              const iei = ieiByTienda.get(t.codigo) ?? 0
+              return (
+                <tr key={t.id} onClick={() => setSelTienda(isSel ? null : t.codigo)} style={{ borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', background: isSel ? '#eff6ff' : 'transparent', cursor: 'pointer' }}
+                  onMouseEnter={e => { if (!isSel) (e.currentTarget as HTMLTableRowElement).style.background = 'var(--muted)' }}
+                  onMouseLeave={e => { if (!isSel) (e.currentTarget as HTMLTableRowElement).style.background = 'transparent' }}
+                >
+                  <td style={{ padding: '7px 10px', fontWeight: 600, color: isSel ? '#1e40af' : 'var(--foreground)' }}>
+                    {t.codigo}
+                    {t.nombre && <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', fontWeight: 400 }}>{t.nombre}</div>}
+                  </td>
+                  <td style={{ padding: '7px 10px', color: 'var(--muted-foreground)' }}>{t.proveedor}</td>
+                  <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 600 }}>{t.incidentesCount}</td>
+                  <td style={{ padding: '7px 10px', textAlign: 'right', fontFamily: 'monospace', color: iei > 0 ? '#b45309' : 'var(--muted-foreground)' }}>{iei > 0 ? fmtCosto(Math.round(iei)) : '—'}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      {selTienda && (
+        <>
+          <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
+            Incidentes — {selTienda}
+          </div>
+          <IncidentList items={incsFiltrados} expandedId={expandedId} onExpand={onExpand} sortBy="date" />
+        </>
+      )}
+    </>
+  )
+}
+
+function PanelProveedorCritico({ data, expandedId, onExpand }: { data: DashboardAnaliticoResponse; expandedId: string | null; onExpand: (id: string | null) => void }) {
+  const prov = data.cards.proveedorCritico
+  const sla = data.cards.cumplimientoSLA
+
+  if (!prov) return (
+    <div style={{ padding: '32px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '13px' }}>
+      Sin proveedor crítico detectado en este período.
+    </div>
+  )
+
+  // Mejor proveedor para comparativa
+  const mejor = sla.porProveedor.find(p => p.nombre !== prov.nombre && p.slaPct === Math.max(...sla.porProveedor.filter(x => x.nombre !== prov.nombre).map(x => x.slaPct)))
+
+  return (
+    <>
+      <div style={{ background: '#fef2f2', border: '0.5px solid #fca5a5', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
+        <div style={{ fontSize: '10px', color: '#b91c1c', fontWeight: 600, marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Proveedor más crítico del período</div>
+        <div style={{ fontSize: '20px', fontWeight: 700, color: '#991b1b', marginBottom: '8px' }}>{prov.nombre}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+          {[
+            { label: 'SLA', value: `${prov.metricas.slaPct}%`, bad: prov.metricas.slaPct < 90 },
+            { label: 'MTTR', value: fmtMin(prov.metricas.mttrMinutos), bad: prov.metricas.mttrMinutos > 120 },
+            { label: 'IEI', value: fmtCosto(prov.metricas.costoEstimado), bad: true },
+            { label: 'Incidentes', value: String(prov.metricas.incidentes), bad: false },
+            { label: 'Reincidentes', value: String(prov.metricas.reincidenciaTiendas), bad: prov.metricas.reincidenciaTiendas > 0 },
+            { label: 'Score crítico', value: String(prov.score), bad: true },
+          ].map(({ label, value, bad }) => (
+            <div key={label} style={{ background: 'white', borderRadius: '6px', padding: '6px 8px', border: `0.5px solid ${bad ? '#fca5a5' : '#e5e7eb'}` }}>
+              <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', marginBottom: '1px' }}>{label}</div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: bad ? '#b91c1c' : 'var(--foreground)' }}>{value}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {mejor && (
+        <div style={{ background: '#f0fdf4', border: '0.5px solid #bbf7d0', borderRadius: '8px', padding: '10px 14px', marginBottom: '14px', fontSize: '11px' }}>
+          <span style={{ color: '#15803d', fontWeight: 600 }}>Mejor del período: {mejor.nombre}</span>
+          <span style={{ color: 'var(--muted-foreground)', marginLeft: '8px' }}>SLA {mejor.slaPct}% · MTTR {fmtMin(mejor.tResolPromMin)}</span>
+        </div>
+      )}
+
+      <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
+        Incidentes de {prov.nombre}
+      </div>
+      <IncidentList items={prov.incidentesDetalle} expandedId={expandedId} onExpand={onExpand} sortBy="iei" />
+    </>
+  )
+}
+
+// ─── KPI Card ─────────────────────────────────────────────────────────────────
+
+function KpiCard({ id, label, value, sub, delta, invertirDelta = false, color, bg, selected, onClick }: {
+  id: string; label: string; value: string; sub?: string
+  delta?: number | null; invertirDelta?: boolean
+  color: string; bg: string; selected: boolean; onClick: () => void
 }) {
   return (
     <div
       onClick={onClick}
-      className={pulse ? 'card-critico' : undefined}
       style={{
-        background: 'white',
-        border: `0.5px solid ${isOpen ? '#185FA5' : '#e5e7eb'}`,
-        borderRadius: '12px',
-        padding: '16px',
-        cursor: 'pointer',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '6px',
-        minWidth: 0,
-        transition: 'border-color 0.2s',
-        ...(pulse ? { '--pulse-color': pulseColor } as any : {}),
+        flex: '1 1 120px', minWidth: '120px', padding: '12px 14px',
+        background: selected ? '#eff6ff' : bg,
+        border: selected ? '1.5px solid #3b82f6' : '0.5px solid var(--border)',
+        borderRadius: '10px', cursor: 'pointer', transition: 'box-shadow 0.15s',
+        boxShadow: selected ? '0 0 0 2px rgba(59,130,246,0.15)' : 'none',
       }}
+      onMouseEnter={e => { if (!selected) (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)' }}
+      onMouseLeave={e => { if (!selected) (e.currentTarget as HTMLDivElement).style.boxShadow = 'none' }}
     >
-      {children}
+      <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>{label}</div>
+      <div style={{ fontSize: '22px', fontWeight: 700, color, lineHeight: 1, marginBottom: '4px' }}>{value}</div>
+      {sub && <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '3px' }}>{sub}</div>}
+      {delta != null && <DeltaBadge delta={delta} invertir={invertirDelta} />}
     </div>
   )
 }
 
-// ─── MTTR color ──────────────────────────────────────────────────────────────
-
-function mttrColor(min: number | null) {
-  if (!min) return '#0f172a'
-  if (min < 120) return '#3B6D11'
-  if (min < 240) return '#854F0B'
-  return '#A32D2D'
-}
-function slaColor(pct: number) {
-  if (pct >= 90) return '#3B6D11'
-  if (pct >= 70) return '#854F0B'
-  return '#A32D2D'
-}
-function mttrBadge(min: number) {
-  if (min < 120) return { label: '✓ Bueno', color: '#3B6D11', bg: '#EAF3DE' }
-  if (min < 240) return { label: '⚠ Lento', color: '#854F0B', bg: '#FAEEDA' }
-  return { label: '✗ Crítico', color: '#A32D2D', bg: '#FCEBEB' }
-}
-function slaBadge(pct: number) {
-  if (pct >= 90) return { label: '✓ OK', color: '#3B6D11', bg: '#EAF3DE' }
-  if (pct >= 70) return { label: '⚠ Lento', color: '#854F0B', bg: '#FAEEDA' }
-  return { label: '✗ Crítico', color: '#A32D2D', bg: '#FCEBEB' }
-}
-
-// ─── ICONS (inline SVG) ──────────────────────────────────────────────────────
-
-const IconIncidentes  = () => <svg width={22} height={22} fill="none" stroke="#185FA5" strokeWidth={1.8} viewBox="0 0 24 24"><circle cx={12} cy={12} r={10}/><line x1={12} y1={8} x2={12} y2={12}/><circle cx={12} cy={16} r={0.5} fill="#185FA5"/></svg>
-const IconTienda      = () => <svg width={22} height={22} fill="none" stroke="#1D9E75" strokeWidth={1.8} viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-const IconClock       = () => <svg width={22} height={22} fill="none" stroke="#8B5CF6" strokeWidth={1.8} viewBox="0 0 24 24"><circle cx={12} cy={12} r={10}/><polyline points="12 6 12 12 16 14"/></svg>
-const IconShield      = () => <svg width={22} height={22} fill="none" stroke="#0EA5E9" strokeWidth={1.8} viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-const IconDollar      = () => <svg width={22} height={22} fill="none" stroke="#F59E0B" strokeWidth={1.8} viewBox="0 0 24 24"><circle cx={12} cy={12} r={10}/><path d="M12 6v12M9 9a3 3 0 016 0c0 1.7-1.3 2.5-3 3s-3 1.3-3 3a3 3 0 006 0"/></svg>
-const IconAlert       = () => <svg width={22} height={22} fill="none" stroke="#EF4444" strokeWidth={1.8} viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1={12} y1={9} x2={12} y2={13}/><circle cx={12} cy={17} r={0.5} fill="#EF4444"/></svg>
-const IconZap         = () => <svg width={22} height={22} fill="none" stroke="#EA580C" strokeWidth={1.8} viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-const IconPlaceholder = () => <svg width={28} height={28} fill="none" stroke="#d1d5db" strokeWidth={1.5} viewBox="0 0 24 24"><rect x={3} y={3} width={18} height={18} rx={2}/><path d="M3 9h18M9 21V9"/></svg>
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function DashboardAnalitico() {
-  const router = useRouter()
-  const [desde, setDesde] = useState(firstDayOfMonth)
-  const [hasta, setHasta] = useState(todayStr)
+  const [desde, setDesde]   = useState(firstDayOfMonth)
+  const [hasta, setHasta]   = useState(todayStr)
   const [proveedorId, setProveedorId] = useState('')
-  const [data, setData] = useState<DashboardAnaliticoResponse | null>(null)
+  const [data, setData]     = useState<DashboardAnaliticoResponse | null>(null)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(false)
-  const [openCard, setOpenCard] = useState<string | null>(null)
-  const [rotatingIdx, setRotatingIdx] = useState(0)
-  const [refreshKey, setRefreshKey] = useState(0)
-  const [slaProvSelected, setSlaProvSelected] = useState<string | null>(null)
-  const [ieiProvSelected, setIeiProvSelected] = useState<string | null>(null)
-  const [ieiTiendaSelected, setIeiTiendaSelected] = useState<string | null>(null)
-  const [provIncOpen, setProvIncOpen] = useState(false)
-  const [mttrProvSelected, setMttrProvSelected] = useState<string | null>(null)
-  const [drillOpen, setDrillOpen] = useState(false)
-  const [drillMetrica, setDrillMetrica] = useState<'sla' | 'mttr' | 'reincidencia' | null>(null)
-  const [reincSelectedTienda, setReincSelectedTienda] = useState<string | null>(null)
+  const [error, setError]   = useState(false)
+  const [selectedCard, setSelectedCard] = useState<string | null>(null)
+  const [expandedIncId, setExpandedIncId] = useState<string | null>(null)
 
-  function openDrill(m: 'sla' | 'mttr' | 'reincidencia') {
-    setDrillMetrica(m); setDrillOpen(true)
-  }
-
-  const fetchData = useCallback(async (d = desde, h = hasta, pId = proveedorId) => {
-    setLoading(true)
-    setError(false)
+  const fetchData = useCallback(async () => {
+    setLoading(true); setError(false)
     try {
-      const params = new URLSearchParams({ desde: d, hasta: h })
-      if (pId) params.set('proveedorId', pId)
-      const res = await fetch(`/api/dashboard/analitico?${params}`)
-      if (res.ok) setData(await res.json())
-      else setError(true)
+      const p = new URLSearchParams({ desde, hasta })
+      if (proveedorId) p.set('proveedorId', proveedorId)
+      const res = await fetch(`/api/dashboard/analitico?${p}`)
+      if (!res.ok) throw new Error()
+      setData(await res.json())
     } catch {
       setError(true)
     } finally {
@@ -229,828 +589,153 @@ export default function DashboardAnalitico() {
     }
   }, [desde, hasta, proveedorId])
 
-  useEffect(() => { fetchData() }, [])  // solo al montar
+  const handleCardClick = (id: string) => {
+    setSelectedCard(prev => prev === id ? null : id)
+    setExpandedIncId(null)
+  }
 
-  // Rotating card for reincidencia
-  useEffect(() => {
-    const tiendas = data?.cards.reincidenciaCritica.tiendas ?? []
-    if (tiendas.length < 2) return
-    const id = setInterval(() => setRotatingIdx((i) => (i + 1) % tiendas.length), 4000)
-    return () => clearInterval(id)
-  }, [data?.cards.reincidenciaCritica.tiendas])
+  const PANEL_TITLES: Record<string, string> = {
+    slaResp:    'SLA Respuesta — primera respuesta al proveedor',
+    slaResol:   'SLA Resolución — tiempo de resolución',
+    mttr:       'MTTR — tiempo promedio de resolución',
+    iei:        'IEI — impacto económico estimado',
+    incidentes: 'Incidentes del período',
+    tiendas:    'Tiendas afectadas',
+    provCrit:   'Proveedor crítico',
+  }
 
-  function toggle(id: string) { setOpenCard((c) => c === id ? null : id) }
-
-  const cards = data?.cards
+  const c = data?.cards
+  const sla = c?.cumplimientoSLA
+  const provCrit = c?.proveedorCritico
 
   return (
-    <>
-      <style>{`
-        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
-        @keyframes pulse-border {
-          0%,100%{box-shadow:0 0 0 0 rgba(234,88,12,0.25)}
-          50%{box-shadow:0 0 0 5px rgba(234,88,12,0.08)}
-        }
-        .card-critico { animation: pulse-border 2s ease-in-out infinite; }
-        @keyframes fade-in { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
-        .reincide-fade { animation: fade-in 0.4s ease; }
-      `}</style>
+    <div style={{ minHeight: '100vh', background: 'var(--background)', position: 'relative' }}>
 
-      {/* Filters */}
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '16px' }}>
-        <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }} />
-        <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }} />
-        <select value={proveedorId} onChange={(e) => setProveedorId(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
-          <option value="">Todos los proveedores</option>
-          {(data?.proveedores ?? []).map((p: any) => (
-            <option key={p.nombre} value={p.nombre}>{p.nombre}</option>
-          ))}
-        </select>
-        <button onClick={() => { fetchData(); setRefreshKey(k => k + 1) }}
-          style={{ padding: '6px 14px', fontSize: '12px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 500 }}>
-          Actualizar
+      {/* ── Filtros ──────────────────────────────────────────────────────── */}
+      <div style={{ padding: '16px 24px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', borderBottom: '0.5px solid var(--border)' }}>
+        <input type="date" value={desde} onChange={e => setDesde(e.target.value)} style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }} />
+        <input type="date" value={hasta} onChange={e => setHasta(e.target.value)} style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }} />
+        {data?.proveedores && (
+          <select value={proveedorId} onChange={e => setProveedorId(e.target.value)} style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
+            <option value="">Todos los proveedores</option>
+            {data.proveedores.map(p => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
+          </select>
+        )}
+        <button onClick={fetchData} disabled={loading} style={{ padding: '6px 16px', fontSize: '12px', fontWeight: 600, background: loading ? '#93c5fd' : '#185FA5', color: 'white', border: 'none', borderRadius: '7px', cursor: loading ? 'default' : 'pointer' }}>
+          {loading ? 'Cargando…' : 'Actualizar'}
         </button>
-        <button onClick={() => { setDesde(firstDayOfMonth()); setHasta(todayStr()); setProveedorId(''); fetchData(firstDayOfMonth(), todayStr(), ''); setRefreshKey(k => k + 1) }}
-          style={{ padding: '6px 14px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'pointer', background: 'var(--card)', color: 'var(--foreground)' }}>
+        <button onClick={() => { setDesde(firstDayOfMonth()); setHasta(todayStr()); setProveedorId('') }} style={{ padding: '6px 12px', fontSize: '12px', background: 'var(--muted)', border: 'none', borderRadius: '7px', cursor: 'pointer', color: 'var(--foreground)' }}>
           Limpiar filtros
         </button>
-<button onClick={() => alert('Exportar CSV — próximamente')}
-          style={{ padding: '6px 14px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'pointer', background: 'var(--card)', color: 'var(--foreground)', opacity: 0.5 }}>
-          Exportar CSV
-        </button>
       </div>
 
-      {!loading && error && (
-        <div style={{ padding: '32px', textAlign: 'center', color: '#A32D2D', fontSize: '14px', fontWeight: 500 }}>
-          Error cargando datos. Intenta de nuevo.
+      {/* ── Estado vacío / error ─────────────────────────────────────────── */}
+      {error && !loading && (
+        <div style={{ padding: '48px', textAlign: 'center', color: '#b91c1c', fontSize: '13px' }}>
+          Error cargando datos. <button onClick={fetchData} style={{ background: 'none', border: 'none', color: '#185FA5', cursor: 'pointer', textDecoration: 'underline' }}>Intenta de nuevo.</button>
         </div>
       )}
-      {!error && <>
-      {/* ── KPI strip — 7 chips compactos ───────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', marginBottom: '12px' }}>
-
-        {/* ── Chip 1 — SLA ──────────────────────────────────────────────────── */}
-        <div onClick={() => openDrill('sla')}
-          style={{ background: 'white', border: `0.5px solid ${drillOpen && drillMetrica === 'sla' ? '#185FA5' : '#e5e7eb'}`, borderRadius: '12px', padding: '10px 12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>SLA</span>
-            <IconShield />
-          </div>
-          {loading ? <Sk w="50%" h={22} /> : (
-            <div style={{ fontSize: '26px', fontWeight: 700, color: slaColor(cards?.cumplimientoSLA.porcentaje ?? 0), lineHeight: 1 }}>
-              {cards?.cumplimientoSLA.porcentaje ?? 0}%
-            </div>
-          )}
-          {!loading && cards && <ProgressBar value={cards.cumplimientoSLA.porcentaje ?? 0} color={slaColor(cards.cumplimientoSLA.porcentaje ?? 0)} />}
-          {!loading && cards?.cumplimientoSLA.slaRespuestaPct != null && (
-            <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Resp. {Math.round(cards.cumplimientoSLA.slaRespuestaPct)}%</span>
-          )}
-          {!loading && cards?.cumplimientoSLA.slaResolucionPct != null && (
-            <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Resol. {Math.round(cards.cumplimientoSLA.slaResolucionPct)}%</span>
-          )}
+      {!data && !loading && !error && (
+        <div style={{ padding: '48px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '13px' }}>
+          <button onClick={fetchData} style={{ padding: '10px 24px', fontSize: '13px', fontWeight: 600, background: '#185FA5', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+            Cargar datos analíticos
+          </button>
         </div>
+      )}
+      {loading && (
+        <div style={{ padding: '48px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '13px' }}>Cargando…</div>
+      )}
 
-        {/* ── Chip 2 — MTTR ─────────────────────────────────────────────────── */}
-        <div onClick={() => openDrill('mttr')}
-          style={{ background: 'white', border: `0.5px solid ${drillOpen && drillMetrica === 'mttr' ? '#185FA5' : '#e5e7eb'}`, borderRadius: '12px', padding: '10px 12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>MTTR</span>
-            <IconClock />
+      {/* ── 7 KPI Cards ──────────────────────────────────────────────────── */}
+      {c && (
+        <div style={{ padding: '20px 24px 12px' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <KpiCard
+              id="slaResp" label="SLA Respuesta"
+              value={`${sla!.slaRespuestaPct}%`}
+              sub={`${sla!.evaluables.length} evaluables`}
+              delta={sla!.deltaRespuestaPct}
+              color={slaColor(sla!.slaRespuestaPct)} bg={slaBg(sla!.slaRespuestaPct)}
+              selected={selectedCard === 'slaResp'} onClick={() => handleCardClick('slaResp')}
+            />
+            <KpiCard
+              id="slaResol" label="SLA Resolución"
+              value={`${sla!.slaResolucionPct}%`}
+              sub={`${sla!.evaluables.filter(e => e.slaResolOk).length} cumplieron`}
+              delta={sla!.deltaResolucionPct}
+              color={slaColor(sla!.slaResolucionPct)} bg={slaBg(sla!.slaResolucionPct)}
+              selected={selectedCard === 'slaResol'} onClick={() => handleCardClick('slaResol')}
+            />
+            <KpiCard
+              id="mttr" label="MTTR"
+              value={fmtMin(c.mttrPromedio.minutos)}
+              sub="promedio resolución"
+              delta={c.mttrPromedio.deltaMinutos != null ? -c.mttrPromedio.deltaMinutos : null}
+              color={mttrColor(c.mttrPromedio.minutos)} bg="var(--card)"
+              selected={selectedCard === 'mttr'} onClick={() => handleCardClick('mttr')}
+            />
+            <KpiCard
+              id="iei" label="IEI"
+              value={fmtCosto(c.costoEstimado.total)}
+              sub={c.costoEstimado.proveedorMayorImpacto ? `Mayor: ${c.costoEstimado.proveedorMayorImpacto.nombre}` : undefined}
+              delta={c.costoEstimado.deltaVsAnterior} invertirDelta
+              color="#b45309" bg="#fffbeb"
+              selected={selectedCard === 'iei'} onClick={() => handleCardClick('iei')}
+            />
+            <KpiCard
+              id="incidentes" label="Incidentes"
+              value={String(c.incidentes.total)}
+              sub={`${c.reincidenciaCritica.total} tiendas reincidentes`}
+              delta={c.incidentes.deltaVsAnterior} invertirDelta
+              color="#185FA5" bg="var(--card)"
+              selected={selectedCard === 'incidentes'} onClick={() => handleCardClick('incidentes')}
+            />
+            <KpiCard
+              id="tiendas" label="Tiendas"
+              value={String(c.tiendasAfectadas.total)}
+              sub={`${c.tiendasAfectadas.porcentajeRed}% de la red`}
+              delta={c.tiendasAfectadas.deltaVsAnterior} invertirDelta
+              color="#1d9e75" bg="var(--card)"
+              selected={selectedCard === 'tiendas'} onClick={() => handleCardClick('tiendas')}
+            />
+            <KpiCard
+              id="provCrit" label="Prov. Crítico"
+              value={provCrit?.nombre ?? '—'}
+              sub={provCrit ? `Score: ${provCrit.score} · SLA ${provCrit.metricas.slaPct}%` : 'Sin alertas'}
+              color={provCrit ? '#b91c1c' : '#15803d'} bg={provCrit ? '#fef2f2' : 'var(--card)'}
+              selected={selectedCard === 'provCrit'} onClick={() => handleCardClick('provCrit')}
+            />
           </div>
-          {loading ? <Sk w="45%" h={22} /> : (
-            <div style={{ fontSize: '22px', fontWeight: 700, color: mttrColor(cards?.mttrPromedio.minutos ?? null), lineHeight: 1, fontFamily: 'monospace' }}>
-              {fmtMttr(cards?.mttrPromedio.minutos)}
-            </div>
-          )}
-          {!loading && cards?.mttrPromedio.deltaMinutos != null && (
-            <span style={{ fontSize: '10px', color: (cards.mttrPromedio.deltaMinutos ?? 0) > 0 ? '#A32D2D' : '#3B6D11' }}>
-              {(cards.mttrPromedio.deltaMinutos ?? 0) > 0 ? '↑' : '↓'} {Math.abs(cards.mttrPromedio.deltaMinutos ?? 0)}m vs. anterior
-            </span>
-          )}
         </div>
+      )}
 
-        {/* ── Chip 3 — Reincidencia ─────────────────────────────────────────── */}
-        <div onClick={() => openDrill('reincidencia')}
-          style={{ background: 'white', border: `0.5px solid ${drillOpen && drillMetrica === 'reincidencia' ? '#185FA5' : '#e5e7eb'}`, borderRadius: '12px', padding: '10px 12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Reincidencia</span>
-            <IconAlert />
-          </div>
-          {loading ? <Sk w="35%" h={22} /> : (
-            <div style={{ fontSize: '26px', fontWeight: 700, color: (cards?.reincidenciaCritica.total ?? 0) > 0 ? '#A32D2D' : '#0f172a', lineHeight: 1 }}>
-              {cards?.reincidenciaCritica.total ?? 0}
-            </div>
-          )}
-          <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>tiendas críticas</span>
-          {!loading && (() => {
-            const ts = cards?.reincidenciaCritica.tiendas ?? []
-            if (!ts.length) return null
-            const t = ts[rotatingIdx % ts.length]
-            return <div key={rotatingIdx} className="reincide-fade" style={{ fontSize: '10px', fontWeight: 600, color: '#A32D2D', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.codigo} · {t.caidas} caídas</div>
-          })()}
-        </div>
-
-        {/* ── Chip 4 — Incidentes ───────────────────────────────────────────── */}
-        <div onClick={() => toggle('incidentes')}
-          style={{ background: 'white', border: `0.5px solid ${openCard === 'incidentes' ? '#185FA5' : '#e5e7eb'}`, borderRadius: '12px', padding: '10px 12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Incidentes</span>
-            <IconIncidentes />
-          </div>
-          {loading ? <Sk w="40%" h={22} /> : (
-            <div style={{ fontSize: '26px', fontWeight: 700, color: '#0f172a', lineHeight: 1 }}>{cards?.incidentes.total ?? 0}</div>
-          )}
-          {!loading && cards && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{cards.tiendasAfectadas.total} tiendas</span>}
-          {!loading && cards?.incidentes.deltaVsAnterior != null && (
-            <span style={{ fontSize: '10px', color: (cards.incidentes.deltaVsAnterior ?? 0) > 0 ? '#A32D2D' : '#3B6D11' }}>
-              {(cards.incidentes.deltaVsAnterior ?? 0) > 0 ? '↑' : '↓'} {Math.abs(cards.incidentes.deltaVsAnterior ?? 0)}% vs. anterior
-            </span>
-          )}
-        </div>
-
-        {/* ── Chip 5 — Tiendas ─────────────────────────────────────────────── */}
-        <div onClick={() => toggle('tiendas')}
-          style={{ background: 'white', border: `0.5px solid ${openCard === 'tiendas' ? '#185FA5' : '#e5e7eb'}`, borderRadius: '12px', padding: '10px 12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tiendas</span>
-            <IconTienda />
-          </div>
-          {loading ? <Sk w="35%" h={22} /> : (
-            <div style={{ fontSize: '26px', fontWeight: 700, color: '#0f172a', lineHeight: 1 }}>{cards?.tiendasAfectadas.total ?? 0}</div>
-          )}
-          {!loading && cards && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{cards.tiendasAfectadas.porcentajeRed}% de la red</span>}
-          {!loading && cards && <ProgressBar value={cards.tiendasAfectadas.porcentajeRed} color="#1D9E75" />}
-        </div>
-
-        {/* ── Chip 6 — I.E.I ───────────────────────────────────────────────── */}
-        <div onClick={() => toggle('costo')}
-          style={{ background: 'white', border: `0.5px solid ${openCard === 'costo' ? '#185FA5' : '#e5e7eb'}`, borderRadius: '12px', padding: '10px 12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>I.E.I</span>
-            <IconDollar />
-          </div>
-          {loading ? <Sk w="55%" h={22} /> : (
-            <div style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', lineHeight: 1.2, fontFamily: 'monospace' }}>{fmtCosto(cards?.costoEstimado.total ?? 0)}</div>
-          )}
-          {!loading && cards && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-              <span style={{ fontSize: '10px', color: '#1D4ED8' }}>↩ Ag.: {fmtCosto(cards.costoEstimado.totalAgente)}</span>
-              <span style={{ fontSize: '10px', color: '#A32D2D' }}>↩ Pv.: {fmtCosto(cards.costoEstimado.totalProveedor)}</span>
-            </div>
-          )}
-        </div>
-
-        {/* ── Chip 7 — Proveedor crítico ────────────────────────────────────── */}
-        <div onClick={() => toggle('proveedor')}
-          className={(!loading && !!cards?.proveedorCritico) ? 'card-critico' : undefined}
-          style={{ background: 'white', border: `0.5px solid ${openCard === 'proveedor' ? '#185FA5' : '#e5e7eb'}`, borderRadius: '12px', padding: '10px 12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Proveedor crítico</span>
-            <IconZap />
-          </div>
-          {loading ? <Sk w="60%" h={22} /> : cards?.proveedorCritico ? (
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
-                <div style={{ fontSize: '18px', fontWeight: 700, color: '#EA580C', lineHeight: 1 }}>{cards.proveedorCritico.nombre}</div>
-                <span style={{ fontSize: '9px', background: '#FEE2E2', color: '#991B1B', borderRadius: '4px', padding: '1px 4px', fontWeight: 700 }}>Score {cards.proveedorCritico.score}</span>
+      {/* ── Panel lateral ───────────────────────────────────────────────── */}
+      {selectedCard && data && (
+        <>
+          <div onClick={() => setSelectedCard(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.25)', zIndex: 79 }} />
+          <aside style={{
+            position: 'fixed', top: 0, right: 0, width: '480px', maxWidth: '95vw',
+            height: '100vh', background: 'var(--card)', borderLeft: '0.5px solid var(--border)',
+            zIndex: 80, overflowY: 'auto', display: 'flex', flexDirection: 'column',
+          }}>
+            <div style={{ padding: '16px 20px', borderBottom: '0.5px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'var(--card)', zIndex: 1 }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--foreground)', lineHeight: 1.3 }}>
+                {PANEL_TITLES[selectedCard]}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 8px' }}>
-                {[
-                  { label: 'SLA', val: `${Math.round(cards.proveedorCritico.metricas.slaPct)}%` },
-                  { label: 'MTTR', val: fmtMttr(cards.proveedorCritico.metricas.mttrMinutos) },
-                  { label: 'IEI', val: fmtCosto(cards.proveedorCritico.metricas.costoEstimado) },
-                  { label: 'Incs.', val: String(cards.proveedorCritico.metricas.incidentes) },
-                ].map(({ label, val }) => (
-                  <div key={label}>
-                    <div style={{ fontSize: '8px', color: 'var(--muted-foreground)', textTransform: 'uppercase', fontWeight: 600 }}>{label}</div>
-                    <div style={{ fontSize: '11px', fontWeight: 700 }}>{val}</div>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <div style={{ fontSize: '12px', fontWeight: 600, color: '#3B6D11' }}>Sin crítico</div>
-          )}
-        </div>
-
-      </div>
-
-      {/* Panel detail */}
-      {openCard === 'incidentes' && cards && (
-        <Panel title={`Incidentes del período (${cards.incidentes.total})`} onClose={() => setOpenCard(null)}>
-          <div style={{ display: 'grid', gridTemplateColumns: '90px 55px 80px 85px 85px 50px 50px 55px 55px 35px', gap: '8px', padding: '0 0 8px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
-            {['Código','Tienda','Proveedor','Tipo','Estado','Inicio','Fin','Env.N1','Resp.N1','#'].map((h) => (
-              <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
-            ))}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-            {[...cards.incidentes.lista].sort((a, b) => {
-              const aOpen = a.estado !== 'RESUELTO' ? 1 : 0
-              const bOpen = b.estado !== 'RESUELTO' ? 1 : 0
-              return bOpen - aOpen
-            }).map((inc, i) => {
-              const esAbierto  = inc.estado !== 'RESUELTO'
-              const esPorAgente = inc.estado === 'RESUELTO' && !inc.horaEnvioN1
-              return (
-                <div key={inc.id}
-                  onClick={() => router.push(`/incidentes/${inc.id}`)}
-                  style={{ display: 'grid', gridTemplateColumns: '90px 55px 80px 85px 85px 50px 50px 55px 55px 35px', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center', cursor: 'pointer' }}>
-                  <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#185FA5' }}>{inc.codigo}</span>
-                  <span style={{ fontSize: '11px', fontWeight: 500 }}>{inc.tiendaCodigo}</span>
-                  <span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inc.proveedor}</span>
-                  <span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fmtTipo(inc.tipo)}</span>
-                  <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', whiteSpace: 'nowrap',
-                    background: esAbierto ? '#FECACA' : esPorAgente ? '#F3F4F6' : '#EAF3DE',
-                    color:      esAbierto ? '#B91C1C' : esPorAgente ? '#6B7280' : '#3B6D11' }}>
-                    {esAbierto ? 'Abierto' : esPorAgente ? 'Agente' : 'Resuelto'}
-                  </span>
-                  <span style={{ fontSize: '11px', fontFamily: 'monospace' }}>{inc.horaInicio}</span>
-                  <span style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--muted-foreground)' }}>{inc.horaFin ?? '—'}</span>
-                  <span style={{ fontSize: '11px', fontFamily: 'monospace', color: inc.horaEnvioN1 ? '#854F0B' : 'var(--muted-foreground)' }}>{inc.horaEnvioN1 ?? '—'}</span>
-                  <span style={{ fontSize: '11px', fontFamily: 'monospace', color: inc.horaRespuesta ? '#3B6D11' : 'var(--muted-foreground)' }}>{inc.horaRespuesta ?? '—'}</span>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: inc.tiendaIncCount > 2 ? '#A32D2D' : '#0f172a' }}>{inc.tiendaIncCount}</span>
-                </div>
-              )
-            })}
-          </div>
-        </Panel>
-      )}
-
-      {openCard === 'tiendas' && cards && (
-        <Panel title={`Tiendas afectadas (${cards.tiendasAfectadas.total} de 156)`} onClose={() => setOpenCard(null)}>
-          {(() => {
-            const reincSet = new Set(cards.reincidenciaCritica.tiendas.map(t => t.codigo))
-            const ieiMap   = new Map(cards.costoEstimado.top5Tiendas.map(t => [t.codigo, t.costo]))
-            const sorted   = [...cards.tiendasAfectadas.lista].sort((a, b) => b.incidentesCount - a.incidentesCount)
-            return (
-              <>
-                <div style={{ display: 'grid', gridTemplateColumns: '65px 1fr 80px 55px 70px 70px', gap: '8px', padding: '0 0 8px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
-                  {['Código','Nombre','Proveedor','Incs.','I.E.I','Estado'].map((h) => (
-                    <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                  {sorted.map((t, i) => (
-                    <div key={t.id}
-                      onClick={() => router.push(`/tiendas/${t.id}`)}
-                      style={{ display: 'grid', gridTemplateColumns: '65px 1fr 80px 55px 70px 70px', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center', cursor: 'pointer' }}>
-                      <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 600 }}>{t.codigo}</span>
-                      <span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.nombre}</span>
-                      <span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.proveedor}</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 600, color: t.incidentesCount > 2 ? '#A32D2D' : '#0f172a' }}>{t.incidentesCount}</span>
-                        {reincSet.has(t.codigo) && (
-                          <span title="Reincidencia crítica" style={{ fontSize: '11px', color: '#A32D2D', fontWeight: 700, lineHeight: 1 }}>↺</span>
-                        )}
-                      </div>
-                      <span style={{ fontSize: '11px', fontFamily: 'monospace', color: ieiMap.has(t.codigo) ? '#854F0B' : 'var(--muted-foreground)' }}>
-                        {ieiMap.has(t.codigo) ? fmtCosto(ieiMap.get(t.codigo)!) : '—'}
-                      </span>
-                      <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', whiteSpace: 'nowrap',
-                        background: t.estadoReciente === 'RESUELTO' ? '#EAF3DE' : '#FEF3C7',
-                        color:      t.estadoReciente === 'RESUELTO' ? '#3B6D11' : '#92400E' }}>
-                        {t.estadoReciente === 'RESUELTO' ? 'Resuelto' : 'Activo'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )
-          })()}
-        </Panel>
-      )}
-
-      {openCard === 'mttr' && cards && (
-        <Panel title="MTTR por proveedor" onClose={() => setOpenCard(null)}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 55px 70px 65px 60px 60px 70px auto', gap: '8px', padding: '0 0 8px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
-            {['Proveedor','Resueltos','MTTR prom','MTTR Prov.','Mejor','Peor','Δ vs ant.','Estado'].map((h) => (
-              <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}
-                title={h === 'MTTR Prov.' ? 'MTTR solo de incidentes resueltos por el proveedor' : undefined}
-              >{h}</span>
-            ))}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-            {cards.mttrPromedio.porProveedor.map((p, i) => {
-              const b = mttrBadge(p.mttrMinutos)
-              const deltaMin = p.mttrPrevMinutos != null ? p.mttrMinutos - p.mttrPrevMinutos : null
-              const isSelected = mttrProvSelected === p.nombre
-              const mttrProvColor = p.mttrProveedorMin == null ? 'var(--muted-foreground)' : p.mttrProveedorMin > 120 ? '#A32D2D' : p.mttrProveedorMin > 60 ? '#854F0B' : '#3B6D11'
-              return (
-                <div key={i}>
-                  <div
-                    onClick={() => setMttrProvSelected(isSelected ? null : p.nombre)}
-                    style={{ display: 'grid', gridTemplateColumns: '1fr 55px 70px 65px 60px 60px 70px auto', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center', cursor: 'pointer', background: isSelected ? 'var(--muted)' : 'transparent', borderRadius: isSelected ? '6px' : undefined }}>
-                    <span style={{ fontSize: '12px' }}>{p.nombre}</span>
-                    <span style={{ fontSize: '12px', textAlign: 'right' }}>{p.incidentesResueltos}</span>
-                    <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'monospace', color: b.color }}>{fmtMttr(p.mttrMinutos)}</span>
-                    <span style={{ fontSize: '11px', fontFamily: 'monospace', color: mttrProvColor }}
-                      title="MTTR solo de incidentes resueltos por el proveedor">
-                      {fmtMttr(p.mttrProveedorMin)}
-                    </span>
-                    <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#3B6D11' }}>{fmtMttr(p.mejorTiempo)}</span>
-                    <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#A32D2D' }}>{fmtMttr(p.peorTiempo)}</span>
-                    <span style={{ fontSize: '11px', color: deltaMin == null ? 'var(--muted-foreground)' : deltaMin > 0 ? '#A32D2D' : '#3B6D11' }}>
-                      {deltaMin == null ? '—' : `${deltaMin > 0 ? '↑' : '↓'} ${fmtMttr(Math.abs(deltaMin))}`}
-                    </span>
-                    <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: b.bg, color: b.color, whiteSpace: 'nowrap' }}>{b.label}</span>
-                  </div>
-                  {isSelected && p.tiendas.length > 0 && (
-                    <div style={{ margin: '4px 0 8px 8px', padding: '8px', background: 'var(--muted)', borderRadius: '8px' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '70px 60px 70px 60px 60px', gap: '8px', marginBottom: '4px' }}>
-                        {['Tienda', 'Incidentes', 'MTTR', 'Mejor', 'Peor'].map((h) => (
-                          <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
-                        ))}
-                      </div>
-                      {(() => {
-                        const maxMttr = Math.max(...p.tiendas.map((t) => t.mttrMinutos), 1)
-                        return p.tiendas.map((t, j) => {
-                          const barPct = Math.round((t.mttrMinutos / maxMttr) * 100)
-                          const barColor = barPct >= 80 ? '#A32D2D' : barPct >= 50 ? '#854F0B' : '#3B6D11'
-                          return (
-                            <div key={j} style={{ display: 'grid', gridTemplateColumns: '70px 60px 70px 60px 60px', gap: '8px', padding: '5px 0', borderTop: j > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
-                              <span style={{ fontSize: '11px', fontWeight: 500 }}>{t.codigo}</span>
-                              <span style={{ fontSize: '11px', textAlign: 'center' }}>{t.incidentes}</span>
-                              <div>
-                                <span style={{ fontSize: '11px', fontFamily: 'monospace', color: barColor }}>{fmtMttr(t.mttrMinutos)}</span>
-                                <div style={{ height: '3px', background: '#e5e7eb', borderRadius: '2px', marginTop: '3px', overflow: 'hidden' }}>
-                                  <div style={{ height: '3px', width: `${barPct}%`, background: barColor, borderRadius: '2px' }} />
-                                </div>
-                              </div>
-                              <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#3B6D11' }}>{fmtMttr(t.mejorTiempo)}</span>
-                              <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#A32D2D' }}>{fmtMttr(t.peorTiempo)}</span>
-                            </div>
-                          )
-                        })
-                      })()}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </Panel>
-      )}
-
-      {openCard === 'sla' && cards && (
-        <Panel title="Cumplimiento SLA" onClose={() => setOpenCard(null)}>
-          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Resumen por proveedor</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 80px 80px auto', gap: '8px', padding: '0 0 8px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
-            {['Proveedor', 'Eficiencia SLA', 'Exceso resp.', 'Exceso resol.', 'Estado'].map((h) => (
-              <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
-            ))}
-          </div>
-          {cards.cumplimientoSLA.porProveedor.map((p, i) => {
-            const d = fmtSLA({ score: p.scoreEficiencia, tRealMin: p.tRespPromMin, tLimiteMin: 60 })
-            const b = slaBadge(p.slaPct)
-            const isSelected = slaProvSelected === p.nombre
-            return (
-              <div key={i}>
-                <div
-                  onClick={() => setSlaProvSelected(isSelected ? null : p.nombre)}
-                  style={{ display: 'grid', gridTemplateColumns: '1fr 90px 80px 80px auto', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center', cursor: 'pointer', background: isSelected ? 'var(--muted)' : 'transparent' }}>
-                  <span style={{ fontSize: '12px' }}>{p.nombre}</span>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                    <span
-                      title="Eficiencia: 100 = respondió/resolvió instantáneo, 50 = usó el 100% del tiempo límite, 0 = tardó el doble o más"
-                      style={{ fontSize: '12px', fontWeight: 600, color: d.color, cursor: 'help' }}>
-                      {d.texto}
-                    </span>
-                    {d.subTexto && <span style={{ fontSize: '10px', color: '#6B7280' }}>{d.subTexto}</span>}
-                  </div>
-                  <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
-                    {p.excessoRespuestaMin > 0 ? `+${fmtMttr(p.excessoRespuestaMin)}` : '—'}
-                  </span>
-                  <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
-                    {p.excessoResolucionMin > 0 ? `+${fmtMttr(p.excessoResolucionMin)}` : '—'}
-                  </span>
-                  <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: b.bg, color: b.color, whiteSpace: 'nowrap' }}>{b.label}</span>
-                </div>
-                {isSelected && p.tiendas.length > 0 && (
-                  <div style={{ margin: '4px 0 8px 8px', padding: '8px', background: 'var(--muted)', borderRadius: '8px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '70px 85px 90px 75px 75px 90px 55px', gap: '8px', marginBottom: '4px' }}>
-                      {['Código','Fecha','Tipo','Exc.Resp.','Exc.Resol.','Duración total','SLA'].map((h) => (
-                        <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
-                      ))}
-                    </div>
-                    {p.tiendas.map((t, j) => (
-                      <div key={j} style={{ display: 'grid', gridTemplateColumns: '70px 85px 90px 75px 75px 90px 55px', gap: '8px', padding: '5px 0', borderTop: j > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 500 }}>{t.codigo}</span>
-                        <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{t.fecha}</span>
-                        <span style={{ fontSize: '11px' }}>{fmtTipo(t.tipo)}</span>
-                        <span style={{ fontSize: '11px', fontFamily: 'monospace', color: t.excRespMin ? '#A32D2D' : 'var(--muted-foreground)' }}>{t.excRespMin ? `+${fmtMttr(t.excRespMin)}` : '—'}</span>
-                        <span style={{ fontSize: '11px', fontFamily: 'monospace', color: t.excResolMin ? '#A32D2D' : 'var(--muted-foreground)' }}>{t.excResolMin ? `+${fmtMttr(t.excResolMin)}` : '—'}</span>
-                        <span style={{ fontSize: '11px', fontFamily: 'monospace' }}>{t.duracionMin ? fmtMttr(t.duracionMin) : '—'}</span>
-                        <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', background: t.cumplido ? '#EAF3DE' : '#FCEBEB', color: t.cumplido ? '#3B6D11' : '#A32D2D', whiteSpace: 'nowrap' }}>
-                          {t.cumplido ? '✓ OK' : '✗ Fuera'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '14px 0 6px' }}>Incidentes evaluables</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '100px 70px 1fr 80px auto', gap: '8px', padding: '0 0 6px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
-            {['Código','Tienda','Proveedor','Tipo','SLA'].map((h) => (
-              <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
-            ))}
-          </div>
-          {cards.cumplimientoSLA.evaluables.map((e, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '100px 70px 1fr 80px auto', gap: '8px', padding: '5px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
-              <span style={{ fontFamily: 'monospace', fontSize: '11px', color: 'var(--muted-foreground)' }}>{e.codigo}</span>
-              <span style={{ fontSize: '11px', fontWeight: 500 }}>{e.tiendaCodigo}</span>
-              <span style={{ fontSize: '11px' }}>{e.proveedor}</span>
-              <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{fmtTipo(e.tipo)}</span>
-              {e.scoreEficiencia != null ? (
-                <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', whiteSpace: 'nowrap',
-                  background: e.scoreEficiencia >= 70 ? '#EAF3DE' : e.scoreEficiencia >= 40 ? '#FEF3C7' : '#FCEBEB',
-                  color: e.scoreEficiencia >= 70 ? '#3B6D11' : e.scoreEficiencia >= 40 ? '#92400E' : '#A32D2D' }}>
-                  Efic. {e.scoreEficiencia}
-                </span>
-              ) : (
-                <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: e.cumplido ? '#EAF3DE' : '#FCEBEB', color: e.cumplido ? '#3B6D11' : '#A32D2D', whiteSpace: 'nowrap' }}>
-                  {e.cumplido ? '✓ OK' : '✗ Fuera'}
-                </span>
-              )}
+              <button onClick={() => setSelectedCard(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--muted-foreground)', lineHeight: 1 }}>×</button>
             </div>
-          ))}
-        </Panel>
-      )}
-
-      {openCard === 'costo' && cards && (
-        <Panel title="I.E.I — Impacto Económico de Indisponibilidad" onClose={() => setOpenCard(null)}>
-          {(() => {
-            const top     = cards.costoEstimado.top5Tiendas
-            const total   = cards.costoEstimado.total
-            const abiertos = cards.incidentes.lista.filter(i => i.estado !== 'RESUELTO').length
-            const provList = cards.costoEstimado.proveedoresDesglose ?? []
-            const maxProvCosto = provList[0]?.costo ?? 1
-            return (
-              <>
-                {/* 1. Fórmula + resumen numérico */}
-                <div style={{ background: '#F8FAFC', border: '0.5px solid #E2E8F0', borderRadius: '8px', padding: '10px 12px', marginBottom: '10px' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '5px' }}>Cómo se calcula</div>
-                  <div style={{ fontSize: '11px', fontFamily: 'monospace', color: '#475569', marginBottom: '8px' }}>
-                    I.E.I = Venta/hora × Horas de caída × 35% margen × factor contingencia
-                  </div>
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <div>
-                      <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Venta afectada</div>
-                      <div style={{ fontSize: '13px', fontWeight: 600 }}>{fmtCosto(cards.costoEstimado.ventaAfectadaTotal)}</div>
-                    </div>
-                    <span style={{ fontSize: '16px', color: '#d1d5db' }}>×</span>
-                    <div>
-                      <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Margen</div>
-                      <div style={{ fontSize: '13px', fontWeight: 600 }}>35%</div>
-                    </div>
-                    <span style={{ fontSize: '16px', color: '#d1d5db' }}>=</span>
-                    <div>
-                      <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>I.E.I total</div>
-                      <div style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>{fmtCosto(total)}</div>
-                    </div>
-                  </div>
-                  {abiertos > 0 && (
-                    <div style={{ marginTop: '8px', fontSize: '10px', color: '#92400E', background: '#FEF3C7', padding: '3px 8px', borderRadius: '6px', display: 'inline-block' }}>
-                      ⚠ {abiertos} incidente{abiertos > 1 ? 's' : ''} aún abierto{abiertos > 1 ? 's' : ''} no {abiertos > 1 ? 'están incluidos' : 'está incluido'} — el impacto real puede ser mayor
-                    </div>
-                  )}
-                </div>
-
-                {/* 2. Impacto evitado por agente */}
-                {cards.costoEstimado.totalAgente > 0 && (
-                  <div style={{ background: '#EFF6FF', borderRadius: '8px', padding: '8px 12px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '11px', color: '#1D4ED8' }}>✓ Resolución interna evitó impacto adicional de</span>
-                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#1D4ED8' }}>{fmtCosto(cards.costoEstimado.totalAgente)}</span>
-                  </div>
-                )}
-
-                {/* 3. Responsabilidad por proveedor — barras visuales, clicables */}
-                <div style={{ marginBottom: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '7px' }}>
-                    <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Responsabilidad por proveedor</div>
-                    {ieiProvSelected && (
-                      <button onClick={() => { setIeiProvSelected(null); setIeiTiendaSelected(null) }} style={{ fontSize: '10px', color: '#2563EB', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                        ← Ver todos
-                      </button>
-                    )}
-                  </div>
-                  {provList.map(({ nombre: prov, costo }, i) => {
-                    const pct    = total > 0 ? Math.round(costo / total * 100) : 0
-                    const barPct = Math.round(costo / maxProvCosto * 100)
-                    const barClr = i === 0 ? '#A32D2D' : i === 1 ? '#854F0B' : '#6B7280'
-                    const isSel  = ieiProvSelected === prov
-                    const isDim  = ieiProvSelected !== null && !isSel
-                    return (
-                      <div
-                        key={i}
-                        onClick={() => { setIeiProvSelected(isSel ? null : prov); setIeiTiendaSelected(null) }}
-                        style={{ marginBottom: '8px', cursor: 'pointer', padding: '5px 7px', borderRadius: '6px', border: isSel ? `1.5px solid ${barClr}` : '1.5px solid transparent', background: isSel ? '#F9FAFB' : 'transparent', opacity: isDim ? 0.4 : 1 }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '3px' }}>
-                          <span style={{ fontSize: '12px', fontWeight: isSel ? 700 : 500 }}>{prov}</span>
-                          <div style={{ display: 'flex', gap: '10px' }}>
-                            <span style={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 600 }}>{fmtCosto(Math.round(costo))}</span>
-                            <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', minWidth: '28px', textAlign: 'right' }}>{pct}%</span>
-                          </div>
-                        </div>
-                        <div style={{ height: '6px', background: '#e5e7eb', borderRadius: '3px', overflow: 'hidden' }}>
-                          <div style={{ height: '6px', width: `${barPct}%`, background: barClr, borderRadius: '3px' }} />
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-
-                {/* 4. Tiendas — tabla filtrada por proveedor seleccionado */}
-                <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
-                  {ieiProvSelected ? `Tiendas de ${ieiProvSelected}` : 'Tiendas con mayor impacto'}
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '22px 55px 70px 50px 110px 80px', gap: '8px', padding: '0 0 6px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '2px' }}>
-                  {['#','Tienda','Proveedor','Horas','Operó con','I.E.I'].map(h => (
-                    <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
-                  ))}
-                </div>
-                {(ieiProvSelected ? top.filter(t => t.proveedor === ieiProvSelected) : top).map((t, i) => {
-                  const isSel   = ieiTiendaSelected === t.codigo
-                  const tieneBk = t.huboContingencia || t.huboMovil || t.huboBoleta
-                  const opero   = t.huboContingencia ? 'Contingencia' : t.huboMovil ? 'Datos móviles' : t.huboBoleta ? 'Boleta manual' : 'Sin backup'
-                  return (
-                    <div key={i}>
-                      <div
-                        onClick={() => setIeiTiendaSelected(isSel ? null : t.codigo)}
-                        style={{ display: 'grid', gridTemplateColumns: '22px 55px 70px 50px 110px 80px', gap: '8px', padding: '7px 0', borderTop: '0.5px solid var(--border)', alignItems: 'center', cursor: 'pointer', background: isSel ? 'var(--muted)' : 'transparent', borderRadius: isSel ? '4px' : undefined }}>
-                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#d1d5db' }}>{i + 1}</span>
-                        <span style={{ fontSize: '12px', fontWeight: 600 }}>{t.codigo}</span>
-                        <span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.proveedor}</span>
-                        <span style={{ fontSize: '11px', fontFamily: 'monospace' }}>{t.horasAfectadas}h</span>
-                        <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', whiteSpace: 'nowrap', display: 'inline-block',
-                          background: tieneBk ? '#EAF3DE' : '#FCEBEB',
-                          color:      tieneBk ? '#3B6D11'  : '#A32D2D', fontWeight: 500 }}>
-                          {opero}
-                        </span>
-                        <span style={{ fontSize: '12px', fontWeight: 700, fontFamily: 'monospace', textAlign: 'right' }}>{fmtCosto(t.costo)}</span>
-                      </div>
-                      {isSel && (
-                        <div style={{ margin: '2px 0 6px 0', padding: '10px 12px', background: '#f8fafc', border: '0.5px solid #e5e7eb', borderRadius: '8px' }}>
-                          <div style={{ fontSize: '11px', fontWeight: 600, marginBottom: '6px' }}>{t.codigo} · {t.proveedor}</div>
-                          <div style={{ fontSize: '11px', fontFamily: 'monospace', background: 'white', border: '0.5px solid #e5e7eb', padding: '8px 10px', borderRadius: '6px', marginBottom: '6px', lineHeight: 2 }}>
-                            {'S/'}{t.ventaHora != null ? t.ventaHora.toLocaleString('es-PE') : '—'}{'/h'}
-                            {' × '}{t.horasAfectadas}{'h'}
-                            {' × '}{Math.round(t.margen * 100)}{'%'}
-                            {' × '}{t.factor}
-                            {' = '}<strong>{fmtCosto(t.costo)}</strong>
-                          </div>
-                          {t.ventaHoraEsEstimada && (
-                            <div style={{ fontSize: '10px', color: '#92400E', background: '#FEF3C7', padding: '3px 8px', borderRadius: '6px', marginBottom: '6px', display: 'inline-block' }}>
-                              Venta estimada por cluster {t.cluster ?? '—'} — no hay dato exacto de esta tienda
-                            </div>
-                          )}
-                          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '4px' }}>{t.motivo}</div>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </>
-            )
-          })()}
-        </Panel>
-      )}
-
-      {openCard === 'reincidencia' && cards && (
-        <Panel title={`Reincidencia crítica — ${cards.reincidenciaCritica.total} tiendas`} onClose={() => setOpenCard(null)}>
-          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '8px', marginTop: '-4px' }}>
-            Ordenadas por mayor número de caídas. Clic en fila para ver sus incidentes.
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '65px 80px 45px 55px 80px 85px 75px 80px', gap: '8px', padding: '0 0 8px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
-            {['Tienda','Prov.','Caídas','Cada','Tipo rep.','Contingencia','Tendencia','I.E.I'].map((h) => (
-              <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
-            ))}
-          </div>
-          {[...cards.reincidenciaCritica.tiendas].sort((a, b) => b.caidas - a.caidas).map((t, i) => {
-            const isExpanded  = reincSelectedTienda === t.codigo
-            const incsTienda  = cards.incidentes.lista.filter(inc => inc.tiendaCodigo === t.codigo)
-            return (
-              <div key={i}>
-                <div
-                  onClick={() => setReincSelectedTienda(isExpanded ? null : t.codigo)}
-                  style={{ display: 'grid', gridTemplateColumns: '65px 80px 45px 55px 80px 85px 75px 80px', gap: '8px', padding: '7px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center', cursor: 'pointer', background: isExpanded ? 'var(--muted)' : 'transparent', borderRadius: isExpanded ? '6px' : undefined }}>
-                  <span style={{ fontSize: '12px', fontWeight: 600 }}>{t.codigo}</span>
-                  <span style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.proveedor}</span>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: t.caidas >= 3 ? '#A32D2D' : '#854F0B' }}>{t.caidas}</span>
-                  <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{t.diasEntreCaidas != null ? `~${t.diasEntreCaidas}d` : '—'}</span>
-                  <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{fmtTipo(t.tipoRepetido)}</span>
-                  <span style={{ fontSize: '11px', fontWeight: 500, color: t.tieneContingencia ? '#3B6D11' : '#A32D2D' }}>{t.tieneContingencia ? '✓ Sí' : '✗ No'}</span>
-                  <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', whiteSpace: 'nowrap',
-                    background: t.tendencia === 'EMPEORA' ? '#FCEBEB' : t.tendencia === 'ESTABLE' ? '#FAEEDA' : '#EAF3DE',
-                    color:      t.tendencia === 'EMPEORA' ? '#A32D2D' : t.tendencia === 'ESTABLE' ? '#854F0B' : '#3B6D11' }}>
-                    {t.tendencia}
-                  </span>
-                  <span style={{ fontSize: '11px', fontFamily: 'monospace' }}>{fmtCosto(t.costoEstimado)}</span>
-                </div>
-                {isExpanded && (
-                  <div style={{ margin: '2px 0 8px 8px', padding: '8px 10px', background: 'var(--muted)', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
-                      Incidentes de {t.codigo} ({incsTienda.length})
-                    </div>
-                    {incsTienda.length === 0 ? (
-                      <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Sin incidentes en el período visible.</div>
-                    ) : (
-                      <>
-                        <div style={{ display: 'grid', gridTemplateColumns: '90px 72px 50px 55px 55px 50px', gap: '8px', padding: '0 0 4px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
-                          {['Código','Estado','Inicio','Env.N1','Resp.N1','Fin'].map(h => (
-                            <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
-                          ))}
-                        </div>
-                        {incsTienda.map((inc, j) => {
-                          const esAbierto   = inc.estado !== 'RESUELTO'
-                          const esPorAgente = inc.estado === 'RESUELTO' && !inc.horaEnvioN1
-                          return (
-                            <div key={j}
-                              onClick={(e) => { e.stopPropagation(); router.push(`/incidentes/${inc.id}`) }}
-                              style={{ display: 'grid', gridTemplateColumns: '90px 72px 50px 55px 55px 50px', gap: '8px', padding: '5px 0', borderTop: j > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center', cursor: 'pointer' }}>
-                              <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#185FA5' }}>{inc.codigo}</span>
-                              <span style={{ fontSize: '10px', padding: '2px 5px', borderRadius: '999px', whiteSpace: 'nowrap',
-                                background: esAbierto ? '#FECACA' : esPorAgente ? '#F3F4F6' : '#EAF3DE',
-                                color:      esAbierto ? '#B91C1C' : esPorAgente ? '#6B7280' : '#3B6D11' }}>
-                                {esAbierto ? 'Abierto' : esPorAgente ? 'Agente' : 'Resuelto'}
-                              </span>
-                              <span style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--muted-foreground)' }}>{inc.horaInicio}</span>
-                              <span style={{ fontSize: '11px', fontFamily: 'monospace', color: inc.horaEnvioN1 ? '#854F0B' : 'var(--muted-foreground)' }}>{inc.horaEnvioN1 ?? '—'}</span>
-                              <span style={{ fontSize: '11px', fontFamily: 'monospace', color: inc.horaRespuesta ? '#3B6D11' : 'var(--muted-foreground)' }}>{inc.horaRespuesta ?? '—'}</span>
-                              <span style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--muted-foreground)' }}>{inc.horaFin ?? '—'}</span>
-                            </div>
-                          )
-                        })}
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </Panel>
-      )}
-
-      {openCard === 'proveedor' && cards && !cards.proveedorCritico && (
-        <Panel title="Estado de proveedores" onClose={() => setOpenCard(null)}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px 0', gap: '8px' }}>
-            <span style={{ fontSize: '28px' }}>✓</span>
-            <span style={{ fontSize: '14px', fontWeight: 600, color: '#3B6D11' }}>Sin proveedor crítico en el período</span>
-            <span style={{ fontSize: '12px', color: 'var(--muted-foreground)', textAlign: 'center' }}>
-              Todos los proveedores se encuentran en niveles aceptables de SLA, MTTR e impacto.
-            </span>
-          </div>
-        </Panel>
-      )}
-
-      {openCard === 'proveedor' && cards?.proveedorCritico && (
-        <Panel title={`${cards.proveedorCritico.nombre} — proveedor más crítico`} onClose={() => setOpenCard(null)}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '14px' }}>
-            {[
-              { label: 'I.E.I estimado', valor: fmtCosto(cards.proveedorCritico.metricas.costoEstimado), ok: false, click: false },
-              { label: 'Incidentes', valor: String(cards.proveedorCritico.metricas.incidentes), ok: cards.proveedorCritico.metricas.incidentes <= 2, click: true },
-              { label: 'SLA', valor: `${cards.proveedorCritico.metricas.slaPct}%`, ok: cards.proveedorCritico.metricas.slaPct >= 90, click: false },
-              { label: 'MTTR prom.', valor: fmtMttr(cards.proveedorCritico.metricas.mttrMinutos), ok: cards.proveedorCritico.metricas.mttrMinutos < 120, click: false },
-              { label: 'Tiendas reinc.', valor: String(cards.proveedorCritico.metricas.reincidenciaTiendas), ok: cards.proveedorCritico.metricas.reincidenciaTiendas === 0, click: false },
-            ].map(({ label, valor, ok, click }) => (
-              <div
-                key={label}
-                onClick={click ? () => setProvIncOpen((v) => !v) : undefined}
-                style={{ background: (click && provIncOpen) ? '#e2e8f0' : 'var(--muted)', borderRadius: '8px', padding: '8px 10px', cursor: click ? 'pointer' : 'default' }}>
-                <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '2px' }}>{label}{click ? ' ↓' : ''}</div>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: ok ? '#3B6D11' : '#A32D2D' }}>{valor}</div>
-              </div>
-            ))}
-          </div>
-          {provIncOpen && cards.proveedorCritico.incidentesDetalle.length > 0 && (
-            <div>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Incidentes del proveedor</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '80px 60px 90px 65px 55px 75px 75px', gap: '8px', padding: '0 0 6px 0', borderBottom: '0.5px solid var(--border)', marginBottom: '4px' }}>
-                {['Código','Tienda','Tipo','MTTR','SLA','IEI','Estado'].map((h) => (
-                  <span key={h} style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{h}</span>
-                ))}
-              </div>
-              {[...cards.proveedorCritico.incidentesDetalle].sort((a, b) => {
-                const aOpen = a.estado !== 'RESUELTO' ? 1 : 0
-                const bOpen = b.estado !== 'RESUELTO' ? 1 : 0
-                return bOpen !== aOpen ? bOpen - aOpen : b.iei - a.iei
-              }).map((inc, i) => {
-                const isOpen = inc.estado !== 'RESUELTO'
-                return (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '80px 60px 90px 65px 55px 75px 75px', gap: '8px', padding: '5px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', alignItems: 'center' }}>
-                    <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#185FA5' }}>{inc.codigo}</span>
-                    <span style={{ fontSize: '11px', fontWeight: 500 }}>{inc.tiendaCodigo}</span>
-                    <span style={{ fontSize: '11px' }}>{fmtTipo(inc.tipo)}</span>
-                    <span style={{ fontSize: '11px', fontFamily: 'monospace', color: mttrColor(inc.mttrMinutos) }}>{fmtMttr(inc.mttrMinutos)}</span>
-                    {inc.slaCumplido == null ? (
-                      <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', background: '#F1F5F9', color: '#475569', whiteSpace: 'nowrap' }}>N/A</span>
-                    ) : (
-                      <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', background: inc.slaCumplido ? '#EAF3DE' : '#FCEBEB', color: inc.slaCumplido ? '#3B6D11' : '#A32D2D', whiteSpace: 'nowrap' }}>
-                        {inc.slaCumplido ? '✓ OK' : '✗ Fuera'}
-                      </span>
-                    )}
-                    <span style={{ fontSize: '11px', fontFamily: 'monospace' }}>{fmtCosto(inc.iei)}</span>
-                    <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', whiteSpace: 'nowrap',
-                      background: isOpen ? '#FECACA' : '#EAF3DE',
-                      color:      isOpen ? '#B91C1C' : '#3B6D11' }}>
-                      {isOpen ? 'Abierto' : 'Resuelto'}
-                    </span>
-                  </div>
-                )
-              })}
+            <div style={{ padding: '16px 20px', flex: 1 }}>
+              {selectedCard === 'slaResp'    && <PanelSLARespuesta     data={data} expandedId={expandedIncId} onExpand={id => setExpandedIncId(expandedIncId === id ? null : id)} />}
+              {selectedCard === 'slaResol'   && <PanelSLAResolucion    data={data} expandedId={expandedIncId} onExpand={id => setExpandedIncId(expandedIncId === id ? null : id)} />}
+              {selectedCard === 'mttr'       && <PanelMTTR             data={data} expandedId={expandedIncId} onExpand={id => setExpandedIncId(expandedIncId === id ? null : id)} />}
+              {selectedCard === 'iei'        && <PanelIEI              data={data} expandedId={expandedIncId} onExpand={id => setExpandedIncId(expandedIncId === id ? null : id)} />}
+              {selectedCard === 'incidentes' && <PanelIncidentes       data={data} expandedId={expandedIncId} onExpand={id => setExpandedIncId(expandedIncId === id ? null : id)} />}
+              {selectedCard === 'tiendas'    && <PanelTiendas          data={data} expandedId={expandedIncId} onExpand={id => setExpandedIncId(expandedIncId === id ? null : id)} />}
+              {selectedCard === 'provCrit'   && <PanelProveedorCritico data={data} expandedId={expandedIncId} onExpand={id => setExpandedIncId(expandedIncId === id ? null : id)} />}
             </div>
-          )}
-        </Panel>
+          </aside>
+        </>
       )}
-
-      {/* ── Drill-down panel ─────────────────────────────────────────────────── */}
-      <DrillPanel
-        open={drillOpen}
-        onClose={() => setDrillOpen(false)}
-        metrica={drillMetrica}
-        desde={desde}
-        hasta={hasta}
-      />
-
-      {/* KPIs — A activo, B-H activos */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '6px' }}>
-
-        {/* A — Tendencia de incidentes y SLA (activo) */}
-        <div style={{ gridColumn: '1 / -1' }}>
-          <TendenciaSLACard
-            desde={desde}
-            hasta={hasta}
-            proveedorId={proveedorId}
-            refreshKey={refreshKey}
-          />
-        </div>
-
-        {/* B + E apilados en col 1 */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <ProviderImpactCard
-            desde={desde}
-            hasta={hasta}
-            proveedorId={proveedorId}
-            refreshKey={refreshKey}
-          />
-          <ProviderSlaComplianceCard
-            desde={desde}
-            hasta={hasta}
-            proveedorId={proveedorId}
-            refreshKey={refreshKey}
-          />
-        </div>
-
-        {/* C — Tiendas críticas (activo) */}
-        <div>
-          <CriticalStoresCard
-            desde={desde}
-            hasta={hasta}
-            proveedorId={proveedorId}
-            refreshKey={refreshKey}
-          />
-        </div>
-
-        {/* D + F apilados en col 3 */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <DistributionByTypeCard
-            desde={desde}
-            hasta={hasta}
-            proveedorId={proveedorId}
-            refreshKey={refreshKey}
-          />
-          <GeographicImpactCard
-            desde={desde}
-            hasta={hasta}
-            proveedorId={proveedorId}
-            refreshKey={refreshKey}
-          />
-        </div>
-
-        {/* G — Tendencia SLA 6 meses, ancho completo */}
-        <div style={{ gridColumn: '1 / -1' }}>
-          <SlaTrendSixMonthsCard
-            proveedorId={proveedorId}
-            refreshKey={refreshKey}
-          />
-        </div>
-
-        {/* H — Insights y decisiones sugeridas (activo) */}
-        <div style={{ gridColumn: '1 / -1' }}>
-          <InsightsRecommendationsCard
-            desde={desde}
-            hasta={hasta}
-            proveedorId={proveedorId}
-            refreshKey={refreshKey}
-          />
-        </div>
-      </div>
-      </>}
-    </>
+    </div>
   )
 }
