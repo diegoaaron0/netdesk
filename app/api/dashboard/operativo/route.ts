@@ -67,6 +67,7 @@ export async function GET(req: NextRequest) {
         i.mov_rendimiento,
         i.boleta_manual,
         i.boleta_rendimiento,
+        i.boleta_hora_activacion,
         i.escalado_infra_id,
         i.hora_escalado_infra,
         infra_u.nombre AS infra_nombre,

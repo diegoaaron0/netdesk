@@ -78,8 +78,9 @@ export interface ImpactoInputRow {
   mov_rendimiento?:        string | null
 
   // Boleta manual
-  boleta_manual?:      boolean | null
-  boleta_rendimiento?: string | null  // EFECTIVA | PARCIAL | NULA
+  boleta_manual?:           boolean | null
+  boleta_rendimiento?:      string | null   // EFECTIVA | PARCIAL | NULA
+  boleta_hora_activacion?:  Date | string | null  // cuándo se activó la boleta
 
   // Legacy — mantenidos en la interfaz para compatibilidad, no afectan el cálculo
   cajas_afectadas?:    number | null
@@ -184,6 +185,12 @@ export function calcImpactoRow(row: ImpactoInputRow): ImpactoResult {
   const movFactor   = movStart  ? normContFactor(row.mov_rendimiento)   : null
   const boletaFactor = row.boleta_manual ? normBoletaFactor(row.boleta_rendimiento) : null
 
+  // boleta_hora_activacion: cuándo empezó a cubrir la boleta
+  // Si no hay timestamp → la boleta aplica desde el inicio (backward compat para datos históricos)
+  const boletaStart = row.boleta_manual
+    ? (toDate(row.boleta_hora_activacion) ?? incStart)
+    : null
+
   // Construir breakpoints de tiempo para segmentación
   const bpSet = new Set<number>([incStart.getTime(), incEnd.getTime()])
   const addBp = (d: Date | null) => {
@@ -193,6 +200,7 @@ export function calcImpactoRow(row: ImpactoInputRow): ImpactoResult {
   }
   addBp(contStart); addBp(contEnd)
   addBp(movStart);  addBp(movEnd)
+  addBp(boletaStart)
 
   const breakpoints = Array.from(bpSet).sort((a, b) => a - b)
 
@@ -212,8 +220,8 @@ export function calcImpactoRow(row: ImpactoInputRow): ImpactoResult {
     const opts: { f: number; label: string }[] = []
 
     if (row.tipo === 'CORTE_ELECTRICO') {
-      // Solo boleta aplica en corte eléctrico
-      if (boletaFactor !== null) {
+      // Solo boleta aplica en corte eléctrico, y solo desde su hora de activación
+      if (boletaStart && boletaFactor !== null && midMs >= boletaStart.getTime()) {
         opts.push({ f: boletaFactor, label: `boleta ${row.boleta_rendimiento?.toLowerCase() ?? 'efectiva'}` })
       } else {
         opts.push({ f: 1.00, label: 'sin mitigación' })
@@ -226,7 +234,8 @@ export function calcImpactoRow(row: ImpactoInputRow): ImpactoResult {
       if (movStart && isActiveAt(movStart, movEnd, midMs) && movFactor !== null) {
         opts.push({ f: movFactor, label: `datos móviles ${row.mov_rendimiento?.toLowerCase() ?? ''}`.trim() })
       }
-      if (boletaFactor !== null) {
+      // Boleta activa solo desde su hora de activación en adelante
+      if (boletaStart && boletaFactor !== null && midMs >= boletaStart.getTime()) {
         opts.push({ f: boletaFactor, label: `boleta ${row.boleta_rendimiento?.toLowerCase() ?? 'efectiva'}` })
       }
       if (opts.length === 0) {

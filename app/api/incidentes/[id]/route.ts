@@ -78,8 +78,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     resueltoPor:         incidentes.resueltoPor,
     atribucionFinal:     incidentes.atribucionFinal,
     evaluableProveedor:  incidentes.evaluableProveedor,
-    boletaManual:        incidentes.boletaManual,
-    boletaRendimiento:   incidentes.boletaRendimiento,
+    boletaManual:          incidentes.boletaManual,
+    boletaRendimiento:     incidentes.boletaRendimiento,
+    boletaHoraActivacion:  incidentes.boletaHoraActivacion,
     ventaParcial:        incidentes.ventaParcial,
     cajasAfectadas:      incidentes.cajasAfectadas,
     cajasTotales:        incidentes.cajasTotales,
@@ -221,8 +222,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       mov_hora_activacion:     inc.movHoraActivacion,
       mov_hora_desactivacion:  inc.movHoraDesactivacion,
       mov_rendimiento:         inc.movRendimiento,
-      boleta_manual:           inc.boletaManual,
-      boleta_rendimiento:      inc.boletaRendimiento,
+      boleta_manual:            inc.boletaManual,
+      boleta_rendimiento:       inc.boletaRendimiento,
+      boleta_hora_activacion:   inc.boletaHoraActivacion,
     })
     ieiCalc = {
       impactoEstimado:       res.impactoEstimado,
@@ -265,7 +267,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     'descEnergia','descRouter','descDns',
     'checkIpconfig','checkPingGw','checkPingInternet','checkTracert','checkDns','checkRenovarIp',
     'descartesDetallado','resueltoPor','atribucionFinal','evaluableProveedor',
-    'boletaManual','ventaParcial','cajasAfectadas','cajasTotales',
+    'boletaManual','boletaRendimiento','ventaParcial','cajasAfectadas','cajasTotales',
     'alcanceCorte','tuvoUps',
     'escaladoInfraId','horaEscaladoInfra','notaEscaladoInfra',
   ]
@@ -320,6 +322,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       .from(incidentes).where(eq(incidentes.id, id))
     if (prev?.movHoraActivacion && !prev?.movHoraDesactivacion) {
       allowedFields.movHoraDesactivacion = new Date()
+    }
+  }
+
+  // Auto-timestamp boleta_hora_activacion cuando boletaManual se activa por primera vez
+  if ('boletaManual' in allowedFields) {
+    if (allowedFields.boletaManual === true) {
+      const [prev] = await db.select({ boletaHoraActivacion: incidentes.boletaHoraActivacion })
+        .from(incidentes).where(eq(incidentes.id, id))
+      if (!prev?.boletaHoraActivacion) {
+        allowedFields.boletaHoraActivacion = new Date()
+      }
+    } else if (allowedFields.boletaManual === false || allowedFields.boletaManual === null) {
+      allowedFields.boletaHoraActivacion = null
     }
   }
 

@@ -172,19 +172,23 @@ function calcIeiLive(inc: any, nowMs: number): number {
   const contF  = contStartMs !== null ? _normCont(inc.cont_rendimiento) : null
   const movF   = movStartMs  !== null ? _normCont(inc.mov_rendimiento)  : null
   const bolF   = inc.boleta_manual ? _normBoleta(inc.boleta_rendimiento) : null
+  const bolStartMs = inc.boleta_manual
+    ? (inc.boleta_hora_activacion ? tsMs(inc.boleta_hora_activacion) : startMs)
+    : null
   const bpSet  = new Set([startMs, nowMs])
   const addBp  = (t: number | null) => { if (t && t > startMs && t < nowMs) bpSet.add(t) }
-  addBp(contStartMs); addBp(contEndMs); addBp(movStartMs); addBp(movEndMs)
+  addBp(contStartMs); addBp(contEndMs); addBp(movStartMs); addBp(movEndMs); addBp(bolStartMs)
   const bps = Array.from(bpSet).sort((a, b) => a - b)
   let iei = 0
   for (let i = 0; i < bps.length - 1; i++) {
     const mid = (bps[i] + bps[i+1]) / 2
     const h   = (bps[i+1] - bps[i]) / 3600000
     const opts: number[] = []
-    if (inc.tipo === 'CORTE_ELECTRICO') { opts.push(bolF ?? 1.00) } else {
+    const bolActiva = bolF !== null && bolStartMs !== null && mid >= bolStartMs
+    if (inc.tipo === 'CORTE_ELECTRICO') { opts.push(bolActiva ? bolF! : 1.00) } else {
       if (contF !== null && contStartMs !== null && mid >= contStartMs && (contEndMs === null || mid < contEndMs)) opts.push(contF)
       if (movF  !== null && movStartMs  !== null && mid >= movStartMs  && (movEndMs  === null || mid < movEndMs))  opts.push(movF)
-      if (bolF  !== null) opts.push(bolF)
+      if (bolActiva) opts.push(bolF!)
       if (!opts.length) opts.push(_FACTOR_BASE[inc.tipo] ?? 1.00)
     }
     iei += vh * h * _MARGEN * Math.min(...opts)

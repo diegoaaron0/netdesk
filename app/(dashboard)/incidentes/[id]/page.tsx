@@ -1458,17 +1458,21 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
           const contF = contStartMs !== null ? nC(inc.contRendimiento) : null
           const movF  = movStartMs  !== null ? nC(inc.movRendimiento)  : null
           const bolF  = inc.boletaManual ? nB(inc.boletaRendimiento) : null
+          const bolStartMs = inc.boletaManual
+            ? (inc.boletaHoraActivacion ? tsMs(inc.boletaHoraActivacion) : startMs)
+            : null
           const bpSet = new Set([startMs, nowMs])
           const addBp = (t:number|null) => { if(t&&t>startMs&&t<nowMs)bpSet.add(t) }
-          addBp(contStartMs);addBp(contEndMs);addBp(movStartMs);addBp(movEndMs)
+          addBp(contStartMs);addBp(contEndMs);addBp(movStartMs);addBp(movEndMs);addBp(bolStartMs)
           const bps = Array.from(bpSet).sort((a,b)=>a-b)
           for(let i=0;i<bps.length-1;i++){
             const mid=(bps[i]+bps[i+1])/2, h=(bps[i+1]-bps[i])/3600000
             const opts:number[]=[]
-            if(inc.tipo==='CORTE_ELECTRICO'){opts.push(bolF??1.00)}else{
+            const bolActiva = bolF!==null && bolStartMs!==null && mid>=bolStartMs
+            if(inc.tipo==='CORTE_ELECTRICO'){opts.push(bolActiva?bolF!:1.00)}else{
               if(contF!==null&&contStartMs!==null&&mid>=contStartMs&&(contEndMs===null||mid<contEndMs))opts.push(contF)
               if(movF!==null&&movStartMs!==null&&mid>=movStartMs&&(movEndMs===null||mid<movEndMs))opts.push(movF)
-              if(bolF!==null)opts.push(bolF)
+              if(bolActiva)opts.push(bolF!)
               if(!opts.length)opts.push(FACTOR_BASE[inc.tipo]??1.00)
             }
             ieiEnCurso += ventaHoraEnCurso * h * MARGEN * Math.min(...opts)

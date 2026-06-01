@@ -15,7 +15,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       i.hora_registro, i.hora_fin,
       i.cont_hora_activacion, i.cont_hora_desactivacion, i.cont_rendimiento, i.cont_es_externo,
       i.mov_hora_activacion,  i.mov_hora_desactivacion,  i.mov_rendimiento,
-      i.boleta_manual, i.boleta_rendimiento,
+      i.boleta_manual, i.boleta_rendimiento, i.boleta_hora_activacion,
       t.venta_hora_soles, t.venta_hora_fds_soles, t.cluster
     FROM incidentes i
     JOIN tiendas t ON i.tienda_id = t.id
@@ -41,8 +41,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       mov_hora_activacion:     r.mov_hora_activacion,
       mov_hora_desactivacion:  r.mov_hora_desactivacion,
       mov_rendimiento:         r.mov_rendimiento,
-      boleta_manual:           r.boleta_manual,
-      boleta_rendimiento:      r.boleta_rendimiento,
+      boleta_manual:            r.boleta_manual,
+      boleta_rendimiento:       r.boleta_rendimiento,
+      boleta_hora_activacion:   r.boleta_hora_activacion,
     })
     return {
       id:            r.id,
@@ -64,7 +65,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       i.id, i.codigo, i.hora_registro, i.hora_fin, i.estado, i.tipo, i.mttr_minutos,
       i.cont_hora_activacion, i.cont_hora_desactivacion, i.cont_rendimiento, i.cont_es_externo,
       i.mov_hora_activacion,  i.mov_hora_desactivacion,  i.mov_rendimiento,
-      i.boleta_manual, i.boleta_rendimiento,
+      i.boleta_manual, i.boleta_rendimiento, i.boleta_hora_activacion,
       t.venta_hora_soles, t.venta_hora_fds_soles, t.cluster
     FROM incidentes i
     JOIN tiendas t ON i.tienda_id = t.id
@@ -84,7 +85,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       cont_rendimiento: r.cont_rendimiento, cont_es_externo: r.cont_es_externo,
       mov_hora_activacion: r.mov_hora_activacion, mov_hora_desactivacion: r.mov_hora_desactivacion,
       mov_rendimiento: r.mov_rendimiento,
-      boleta_manual: r.boleta_manual, boleta_rendimiento: r.boleta_rendimiento,
+      boleta_manual: r.boleta_manual, boleta_rendimiento: r.boleta_rendimiento, boleta_hora_activacion: r.boleta_hora_activacion,
     })
     iei30d += res.impactoEstimado
   }
@@ -101,7 +102,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         cont_rendimiento: r.cont_rendimiento, cont_es_externo: r.cont_es_externo,
         mov_hora_activacion: r.mov_hora_activacion, mov_hora_desactivacion: r.mov_hora_desactivacion,
         mov_rendimiento: r.mov_rendimiento,
-        boleta_manual: r.boleta_manual, boleta_rendimiento: r.boleta_rendimiento,
+        boleta_manual: r.boleta_manual, boleta_rendimiento: r.boleta_rendimiento, boleta_hora_activacion: r.boleta_hora_activacion,
       })
       return {
         id:           r.id,
