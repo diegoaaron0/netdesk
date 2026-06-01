@@ -1452,6 +1452,90 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
         </div>{/* end RIGHT */}
       </div>{/* end main grid */}
 
+      {/* ── Block IEI — Impacto Económico Estimado ── */}
+      {inc.ieiCalc && (
+        <div style={{ background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', marginTop: '16px' }}>
+          <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontSize: '13px', fontWeight: 600 }}>Impacto Económico Estimado (IEI)</div>
+            {!inc.ieiCalc.faltaInformacion && (
+              <div style={{ fontFamily: 'monospace', fontSize: '18px', fontWeight: 700, color: inc.ieiCalc.impactoEstimado > 0 ? '#b91c1c' : '#16a34a' }}>
+                {inc.ieiCalc.impactoEstimado > 0 ? `S/ ${inc.ieiCalc.impactoEstimado.toLocaleString('es-PE')}` : 'S/ 0'}
+              </div>
+            )}
+            {inc.ieiCalc.faltaInformacion && (
+              <div style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>Sin datos suficientes</div>
+            )}
+          </div>
+          <div style={{ padding: '14px 18px' }}>
+            {inc.ieiCalc.faltaInformacion ? (
+              <div style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>{inc.ieiCalc.motivoFactor}</div>
+            ) : (() => {
+              const segs: any[] = inc.ieiCalc.segmentos ?? []
+              const fmtMs = (ms: number) => new Date(ms).toLocaleTimeString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit' })
+              const fmtH = (h: number) => h < 1 ? `${Math.round(h * 60)}m` : `${h.toFixed(1)}h`
+              return (
+                <div>
+                  {/* KPIs fila */}
+                  <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', marginBottom: segs.length > 1 ? '14px' : '0' }}>
+                    {[
+                      { label: 'Venta/hora',      value: `S/ ${inc.ieiCalc.ventaHora?.toLocaleString('es-PE')}` },
+                      { label: 'Venta esperada',  value: `S/ ${inc.ieiCalc.ventaEsperadaAfectada?.toLocaleString('es-PE')}` },
+                      { label: 'Impacto bruto',   value: `S/ ${inc.ieiCalc.impactoEconomicoBruto?.toLocaleString('es-PE')}` },
+                      { label: 'Margen aplicado', value: `${(inc.ieiCalc.margenUsado * 100).toFixed(0)}%` },
+                      { label: 'Factor prom.',    value: inc.ieiCalc.factorAplicado.toFixed(2) },
+                    ].map(({ label, value }) => (
+                      <div key={label}>
+                        <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>{label}</div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, fontFamily: 'monospace' }}>{value}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Tabla de segmentos — solo si hay más de 1 */}
+                  {segs.length > 1 && (
+                    <div style={{ background: 'var(--muted)', borderRadius: '8px', overflow: 'hidden' }}>
+                      <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '7px 12px', borderBottom: '0.5px solid var(--border)' }}>
+                        Desglose por tramos
+                      </div>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                        <thead>
+                          <tr style={{ background: 'var(--card)' }}>
+                            {['Desde', 'Hasta', 'Duración', 'Mitigación activa', 'Factor', 'IEI tramo'].map(h => (
+                              <th key={h} style={{ padding: '5px 10px', textAlign: 'left', fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {segs.map((seg: any, i: number) => (
+                            <tr key={i} style={{ borderTop: '0.5px solid var(--border)' }}>
+                              <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{fmtMs(seg.desdeMs)}</td>
+                              <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{fmtMs(seg.hastaMs)}</td>
+                              <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{fmtH(seg.horas)}</td>
+                              <td style={{ padding: '6px 10px', color: 'var(--foreground)', textTransform: 'capitalize' }}>{seg.descripcion}</td>
+                              <td style={{ padding: '6px 10px', fontFamily: 'monospace', fontWeight: 600 }}>{seg.factor.toFixed(2)}</td>
+                              <td style={{ padding: '6px 10px', fontFamily: 'monospace', fontWeight: 700, color: seg.ieiParcial > 0 ? '#b91c1c' : '#16a34a' }}>
+                                {seg.ieiParcial > 0 ? `S/ ${seg.ieiParcial.toLocaleString('es-PE')}` : 'S/ 0'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* Motivo único cuando hay 1 solo segmento */}
+                  {segs.length <= 1 && (
+                    <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '6px' }}>
+                      {inc.ieiCalc.motivoFactor}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+          </div>
+        </div>
+      )}
+
       {/* ── Block D.SLA — Métricas SLA del incidente ── */}
       {inc.slaMetrics?.evaluable && (
         <div style={{ background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', marginTop: '16px' }}>

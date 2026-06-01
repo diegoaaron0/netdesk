@@ -46,6 +46,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     tiendaReferencia:        tiendas.referencia,
     tiendaInstruccion:       tiendas.instruccionReporte,
     tiendaTieneContingencia: tiendas.tieneContingencia,
+    tiendaVentaHoraSoles:    tiendas.ventaHoraSoles,
+    tiendaVentaHoraFdsSoles: tiendas.ventaHoraFdsSoles,
+    tiendaClusterFuente:     tiendas.fuenteVentas,
     // Operación / gestión
     estadoOperacion:     incidentes.estadoOperacion,
     operacionManual:     incidentes.operacionManual,
@@ -76,6 +79,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     atribucionFinal:     incidentes.atribucionFinal,
     evaluableProveedor:  incidentes.evaluableProveedor,
     boletaManual:        incidentes.boletaManual,
+    boletaRendimiento:   incidentes.boletaRendimiento,
     ventaParcial:        incidentes.ventaParcial,
     cajasAfectadas:      incidentes.cajasAfectadas,
     cajasTotales:        incidentes.cajasTotales,
@@ -198,12 +202,48 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }
   } catch { /* skip */ }
 
+  // Calcular IEI
+  let ieiCalc: any = null
+  try {
+    const { calcImpactoRow } = await import('@/lib/impacto-calc')
+    const res = calcImpactoRow({
+      hora_registro:           inc.horaRegistro,
+      hora_fin:                inc.horaFin,
+      estado:                  inc.estado,
+      tipo:                    inc.tipo,
+      venta_hora_soles:        inc.tiendaVentaHoraSoles,
+      venta_hora_fds_soles:    inc.tiendaVentaHoraFdsSoles,
+      cluster:                 inc.tiendaCluster,
+      cont_hora_activacion:    inc.contHoraActivacion,
+      cont_hora_desactivacion: inc.contHoraDesactivacion,
+      cont_rendimiento:        inc.contRendimiento,
+      cont_es_externo:         inc.contEsExterno,
+      mov_hora_activacion:     inc.movHoraActivacion,
+      mov_hora_desactivacion:  inc.movHoraDesactivacion,
+      mov_rendimiento:         inc.movRendimiento,
+      boleta_manual:           inc.boletaManual,
+      boleta_rendimiento:      inc.boletaRendimiento,
+    })
+    ieiCalc = {
+      impactoEstimado:       res.impactoEstimado,
+      impactoEconomicoBruto: res.impactoEconomicoBruto,
+      ventaHora:             res.ventaHora,
+      ventaEsperadaAfectada: res.ventaEsperadaAfectada,
+      factorAplicado:        res.factorAplicado,
+      motivoFactor:          res.motivoFactor,
+      margenUsado:           res.margenUsado,
+      faltaInformacion:      res.faltaInformacion,
+      segmentos:             res.segmentos,
+    }
+  } catch { /* skip */ }
+
   return NextResponse.json({
     ...inc,
     escalamientos: escs.map((e: any) => ({ ...e, atcLlamadas: atcMap[e.id] ?? [] })),
     nivelesProveedor,
     grupoMasivo,
     slaMetrics,
+    ieiCalc,
   })
 }
 

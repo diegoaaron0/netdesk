@@ -100,6 +100,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
 
   const [data, setData]   = useState<any>(null)
   const [tab, setTab]     = useState<'resumen' | 'tiendas' | 'contrato' | 'escalamiento' | 'historicas'>('resumen')
+  const [ieiPanelOpen, setIeiPanelOpen] = useState(false)
   const [buscarT, setBuscarT] = useState('')
 
   // Edit proveedor modal
@@ -292,9 +293,11 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
                 { label: 'Tiendas críticas',         value: String(metricas?.tiendasCriticas ?? 0), color: metricas?.tiendasCriticas > 0 ? '#ef4444' : undefined },
                 { label: 'Tiempo caído total',       value: fmtMttr(metricas?.mttrTotal) },
                 { label: 'Tiendas asociadas',        value: String(metricas?.totalTiendas ?? 0) },
-                { label: 'IEI acumulado (30d)',      value: metricas?.iei30d != null && metricas.iei30d > 0 ? `S/ ${metricas.iei30d.toLocaleString('es-PE')}` : '—', color: metricas?.iei30d > 0 ? '#b91c1c' : undefined },
+                { label: 'IEI acumulado (30d) ↗',   value: metricas?.iei30d != null && metricas.iei30d > 0 ? `S/ ${metricas.iei30d.toLocaleString('es-PE')}` : '—', color: metricas?.iei30d > 0 ? '#b91c1c' : undefined, onClick: () => setIeiPanelOpen(true) },
               ].map(r => (
-                <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '0.5px solid var(--border)' }}>
+                <div key={r.label}
+                  onClick={(r as any).onClick}
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '0.5px solid var(--border)', cursor: (r as any).onClick ? 'pointer' : 'default' }}>
                   <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{r.label}</span>
                   <span style={{ fontSize: '12px', fontWeight: 600, color: (r as any).color ?? 'var(--foreground)' }}>{r.value}</span>
                 </div>
@@ -789,6 +792,65 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
           <ModalFooter onCancel={() => { setEditContrato(null); setAddContrato(false) }} onSave={() => saveContrato(addContrato)} saving={savingC} />
         </ModalWrap>
       )}
+
+      {/* ── Side panel IEI 30d por tienda ── */}
+      {ieiPanelOpen && (
+        <div onClick={() => setIeiPanelOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.22)' }} />
+      )}
+      <div style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0, width: 520, maxWidth: '95vw',
+        background: 'var(--card)', borderLeft: '1px solid var(--border)',
+        boxShadow: '-4px 0 28px rgba(0,0,0,0.13)',
+        zIndex: 201, display: 'flex', flexDirection: 'column',
+        transform: ieiPanelOpen ? 'translateX(0)' : 'translateX(100%)',
+        transition: 'transform 0.26s cubic-bezier(0.4,0,0.2,1)',
+        overflow: 'hidden',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderBottom: '0.5px solid var(--border)', background: 'var(--muted)', flexShrink: 0 }}>
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: 600 }}>IEI acumulado 30 días — {data?.nombre}</div>
+            <div style={{ fontSize: '11px', color: data?.metricas?.iei30d > 0 ? '#b91c1c' : 'var(--muted-foreground)', fontWeight: 600 }}>
+              Total: {data?.metricas?.iei30d > 0 ? `S/ ${Math.round(data.metricas.iei30d).toLocaleString('es-PE')}` : 'S/ 0'}
+            </div>
+          </div>
+          <button onClick={() => setIeiPanelOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--muted-foreground)' }}>✕</button>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {(data?.metricas?.iei30dBreakdown ?? []).length === 0 ? (
+            <div style={{ textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px', padding: '32px 0' }}>Sin incidentes con IEI en los últimos 30 días</div>
+          ) : (data?.metricas?.iei30dBreakdown ?? []).map((t: any) => (
+            <div key={t.tiendaId} style={{ background: 'var(--background)', borderRadius: '8px', border: '0.5px solid var(--border)', overflow: 'hidden' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--muted)', borderBottom: '0.5px solid var(--border)' }}>
+                <div>
+                  <span style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: 700 }}>{t.tiendaCodigo}</span>
+                  {t.tiendaNombre && <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginLeft: '6px' }}>{t.tiendaNombre}</span>}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{t.incidentes.length} inc.</span>
+                  <span style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: 700, color: '#b91c1c' }}>S/ {t.ieiTotal.toLocaleString('es-PE')}</span>
+                </div>
+              </div>
+              {t.incidentes.sort((a: any, b: any) => b.iei - a.iei).map((inc: any) => {
+                const TIPO_LABEL: Record<string, string> = { CAIDA_TOTAL: 'Caída', INTERMITENCIA: 'Intermitencia', LENTITUD: 'Lentitud', CORTE_ELECTRICO: 'Corte elét.' }
+                return (
+                  <div key={inc.id}
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', borderBottom: '0.5px solid var(--border)', cursor: 'pointer', fontSize: '11px' }}
+                    onClick={() => router.push(`/incidentes/${inc.id}`)}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{inc.codigo}</span>
+                      <span style={{ color: 'var(--muted-foreground)' }}>{TIPO_LABEL[inc.tipo] ?? inc.tipo}</span>
+                      {inc.mttrMinutos && <span style={{ color: 'var(--muted-foreground)' }}>{inc.mttrMinutos >= 60 ? `${Math.floor(inc.mttrMinutos/60)}h ${inc.mttrMinutos%60}m` : `${inc.mttrMinutos}m`}</span>}
+                    </div>
+                    <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#b91c1c', flexShrink: 0 }}>S/ {inc.iei.toLocaleString('es-PE')}</span>
+                  </div>
+                )
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

@@ -146,6 +146,8 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
   const [desactivandoContId, setDesactivandoContId] = useState<string | null>(null)
   const [incRecientes, setIncRecientes] = useState<any[]>([])
   const [iei30d, setIei30d] = useState<number | null>(null)
+  const [iei30dBreakdown, setIei30dBreakdown] = useState<any[]>([])
+  const [ieiPanelOpen, setIeiPanelOpen] = useState(false)
   const [historialOpen, setHistorialOpen] = useState(false)
   const [ventasExpanded, setVentasExpanded] = useState(false)
   const [editingVentas, setEditingVentas] = useState(false)
@@ -174,6 +176,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
     fetch(`/api/tiendas/${id}/incidentes-recientes`).then(r => r.json()).then(d => {
       setIncRecientes(Array.isArray(d?.incidentes) ? d.incidentes : [])
       setIei30d(typeof d?.iei30d === 'number' ? d.iei30d : null)
+      setIei30dBreakdown(Array.isArray(d?.iei30dBreakdown) ? d.iei30dBreakdown : [])
     })
   }, [id])
 
@@ -358,12 +361,13 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
             </button>
           )}
           {iei30d !== null && (
-            <div style={{ textAlign: 'right' }}>
+            <button onClick={() => setIeiPanelOpen(true)}
+              style={{ textAlign: 'right', background: 'none', border: '0.5px solid var(--border)', borderRadius: '6px', padding: '3px 8px', cursor: 'pointer' }}>
               <div style={{ fontWeight: 700, color: iei30d > 0 ? '#b91c1c' : '#16a34a', fontSize: '12px' }}>
                 {iei30d > 0 ? `S/ ${iei30d.toLocaleString('es-PE')}` : 'S/ 0'}
               </div>
-              <div style={{ fontSize: '8px', color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>IEI 30d</div>
-            </div>
+              <div style={{ fontSize: '8px', color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>IEI 30d ↗</div>
+            </button>
           )}
           <div style={{ padding: '3px 9px', borderRadius: '6px', background: contStatus.bg, textAlign: 'right' }}>
             <div style={{ fontWeight: 700, color: contStatus.color, fontSize: '12px' }}>{contStatus.label}</div>
@@ -874,6 +878,57 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
             <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Historial de cambios</span>
             <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{historial.length > 0 ? `${historial.length} cambios` : 'Sin cambios'} →</span>
           </button>
+        </div>
+      </div>
+
+      {/* ── Side panel IEI 30d ── */}
+      {ieiPanelOpen && (
+        <div onClick={() => setIeiPanelOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.22)' }} />
+      )}
+      <div style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0, width: 480, maxWidth: '95vw',
+        background: 'var(--card)', borderLeft: '1px solid var(--border)',
+        boxShadow: '-4px 0 28px rgba(0,0,0,0.13)',
+        zIndex: 201, display: 'flex', flexDirection: 'column',
+        transform: ieiPanelOpen ? 'translateX(0)' : 'translateX(100%)',
+        transition: 'transform 0.26s cubic-bezier(0.4,0,0.2,1)',
+        overflow: 'hidden',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderBottom: '0.5px solid var(--border)', background: 'var(--muted)', flexShrink: 0 }}>
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: 600 }}>IEI últimos 30 días — {tienda?.codigo}</div>
+            <div style={{ fontSize: '11px', color: iei30d && iei30d > 0 ? '#b91c1c' : 'var(--muted-foreground)', fontWeight: 600 }}>
+              Total: {iei30d != null ? (iei30d > 0 ? `S/ ${iei30d.toLocaleString('es-PE')}` : 'S/ 0') : '—'}
+            </div>
+          </div>
+          <button onClick={() => setIeiPanelOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--muted-foreground)' }}>✕</button>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          {iei30dBreakdown.length === 0 ? (
+            <div style={{ textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px', padding: '32px 0' }}>
+              Sin incidentes con IEI en los últimos 30 días
+            </div>
+          ) : (() => {
+            const TIPO_LABEL: Record<string, string> = {
+              CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia',
+              LENTITUD: 'Lentitud', CORTE_ELECTRICO: 'Corte eléctrico', OTROS: 'Otros', POS: 'POS',
+            }
+            return iei30dBreakdown.map((inc: any) => (
+              <div key={inc.id}
+                style={{ background: 'var(--background)', borderRadius: '8px', padding: '10px 12px', border: '0.5px solid var(--border)', cursor: 'pointer' }}
+                onClick={() => router.push(`/incidentes/${inc.id}`)}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                  <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 600 }}>{inc.codigo}</span>
+                  <span style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: 700, color: '#b91c1c' }}>S/ {inc.iei.toLocaleString('es-PE')}</span>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', fontSize: '10px', color: 'var(--muted-foreground)' }}>
+                  <span>{TIPO_LABEL[inc.tipo] ?? inc.tipo}</span>
+                  {inc.mttrMinutos && <span>{inc.mttrMinutos >= 60 ? `${Math.floor(inc.mttrMinutos/60)}h ${inc.mttrMinutos%60}m` : `${inc.mttrMinutos}m`}</span>}
+                  <span style={{ flex: 1, textAlign: 'right', textTransform: 'capitalize' }}>{inc.motivo}</span>
+                </div>
+              </div>
+            ))
+          })()}
         </div>
       </div>
 

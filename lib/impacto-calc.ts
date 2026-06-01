@@ -90,6 +90,15 @@ export interface ImpactoInputRow {
 
 // ─── Output ───────────────────────────────────────────────────────────────────
 
+export interface ImpactoSegmento {
+  desdeMs:     number
+  hastaMs:     number
+  horas:       number
+  factor:      number
+  descripcion: string
+  ieiParcial:  number
+}
+
 export interface ImpactoResult {
   faltaInformacion:       boolean
   mttrMin:                number | null
@@ -100,7 +109,8 @@ export interface ImpactoResult {
   factorAplicado:         number
   motivoFactor:           string
   impactoEconomicoEstimado: number | null
-  impactoEstimado:        number  // alias backward-compat
+  impactoEstimado:        number
+  segmentos:              ImpactoSegmento[]
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -148,6 +158,7 @@ export function calcImpactoRow(row: ImpactoInputRow): ImpactoResult {
     faltaInformacion: true, mttrMin: mttrMin ?? null, ventaHora: null,
     ventaEsperadaAfectada: null, margenUsado, impactoEconomicoBruto: null,
     factorAplicado: 0, motivoFactor: motivo, impactoEconomicoEstimado: null, impactoEstimado: 0,
+    segmentos: [],
   })
 
   if (row.estado !== 'RESUELTO') return empty('Incidente no resuelto.')
@@ -190,6 +201,7 @@ export function calcImpactoRow(row: ImpactoInputRow): ImpactoResult {
   let totalIEI           = 0
   let weightedFactorSum  = 0
   const motivosParts: string[] = []
+  const segmentos: ImpactoSegmento[] = []
 
   for (let i = 0; i < breakpoints.length - 1; i++) {
     const segStartMs = breakpoints[i]
@@ -233,6 +245,15 @@ export function calcImpactoRow(row: ImpactoInputRow): ImpactoResult {
     weightedFactorSum  += best.f * segHours
 
     if (motivosParts[motivosParts.length - 1] !== best.label) motivosParts.push(best.label)
+
+    segmentos.push({
+      desdeMs:     segStartMs,
+      hastaMs:     segEndMs,
+      horas:       Math.round(segHours * 100) / 100,
+      factor:      best.f,
+      descripcion: best.label,
+      ieiParcial:  Math.round(segIEI),
+    })
   }
 
   const totalHours   = totalMs / 3600000
@@ -249,5 +270,6 @@ export function calcImpactoRow(row: ImpactoInputRow): ImpactoResult {
     motivoFactor:            motivosParts.join(' → '),
     impactoEconomicoEstimado: Math.round(totalIEI),
     impactoEstimado:         Math.round(totalIEI),
+    segmentos,
   }
 }

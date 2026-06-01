@@ -175,23 +175,26 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   // IEI acumulado 30d de todas las tiendas del proveedor
   let iei30d = 0
+  let iei30dBreakdown: any[] = []
   try {
     const { calcImpactoRow } = await import('@/lib/impacto-calc')
     const ieiRows = await db.execute(sql`
       SELECT
-        i.hora_registro, i.hora_fin, i.estado, i.tipo,
+        i.id, i.codigo, i.hora_registro, i.hora_fin, i.estado, i.tipo, i.mttr_minutos,
         i.cont_hora_activacion, i.cont_hora_desactivacion, i.cont_rendimiento, i.cont_es_externo,
         i.mov_hora_activacion,  i.mov_hora_desactivacion,  i.mov_rendimiento,
         i.boleta_manual, i.boleta_rendimiento,
-        t.venta_hora_soles, t.venta_hora_fds_soles, t.cluster
+        t.venta_hora_soles, t.venta_hora_fds_soles, t.cluster,
+        t.codigo AS tienda_codigo, t.nombre_cc AS tienda_nombre, t.id AS tienda_id
       FROM incidentes i
       JOIN tiendas t ON i.tienda_id = t.id
       WHERE i.proveedor_id = ${id}
         AND i.estado = 'RESUELTO'
         AND i.hora_registro >= ${thirtyDaysAgoStr}::timestamptz
     `)
+    const tiendaMap: Record<string, { tiendaId: string; tiendaCodigo: string; tiendaNombre: string | null; incidentes: any[]; ieiTotal: number }> = {}
     for (const r of ieiRows as any[]) {
-      iei30d += calcImpactoRow({
+      const res = calcImpactoRow({
         hora_registro: r.hora_registro, hora_fin: r.hora_fin,
         estado: r.estado, tipo: r.tipo,
         venta_hora_soles: r.venta_hora_soles, venta_hora_fds_soles: r.venta_hora_fds_soles,
@@ -201,8 +204,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         mov_hora_activacion: r.mov_hora_activacion, mov_hora_desactivacion: r.mov_hora_desactivacion,
         mov_rendimiento: r.mov_rendimiento,
         boleta_manual: r.boleta_manual, boleta_rendimiento: r.boleta_rendimiento,
-      }).impactoEstimado
+      })
+      iei30d += res.impactoEstimado
+      const key = r.tienda_id
+      if (!tiendaMap[key]) tiendaMap[key] = { tiendaId: r.tienda_id, tiendaCodigo: r.tienda_codigo, tiendaNombre: r.tienda_nombre, incidentes: [], ieiTotal: 0 }
+      tiendaMap[key].ieiTotal += res.impactoEstimado
+      tiendaMap[key].incidentes.push({ id: r.id, codigo: r.codigo, tipo: r.tipo, mttrMinutos: r.mttr_minutos, horaRegistro: r.hora_registro, iei: res.impactoEstimado, motivo: res.motivoFactor })
     }
+    iei30dBreakdown = Object.values(tiendaMap).sort((a, b) => b.ieiTotal - a.ieiTotal)
   } catch { /* skip */ }
 
   const contratoVigente = contratos.find(c => c.estadoCalc === 'VIGENTE' && !c.tiendaId)
@@ -270,6 +279,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       tiendasCriticas,
       slaComprometido:         contratoVigente?.slaComprometido ?? null,
       iei30d:                  Math.round(iei30d),
+      iei30dBreakdown,
     },
     tiendasHistoricas,
   })
