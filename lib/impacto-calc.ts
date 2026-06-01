@@ -1,204 +1,142 @@
 /**
- * impacto-calc.ts — única fuente de verdad para cálculo de impacto económico estimado.
+ * impacto-calc.ts — Fuente única de verdad para el cálculo del IEI.
  *
- * Fórmula:
- *   ventaEsperadaAfectada = venta_hora × horas_afectadas
- *   impactoEconomicoBruto = ventaEsperadaAfectada × margen_bruto
- *   impactoEconomicoEstimado = impactoEconomicoBruto × factor_afectacion_real
+ * Fórmula: IEI = Σ (venta_hora × horas_segmento × margen_bruto × factor_segmento)
+ * La suma es sobre tramos de tiempo en que las mitigaciones activas cambian.
  *
- * factor_afectacion_real depende de: tipo, tipo de contingencia (propia/externa/móvil),
- * rendimiento de cada contingencia, boleta_manual, venta_parcial, cajas.
+ * Factores de mitigación de red (router propio, router externo, datos móviles):
+ *   EFECTIVO → 0.00  |  PARCIAL → 0.20  |  NULO → 1.00
  *
- * Factores de backup — IGUALES para router propio, externo y datos móviles:
- *   CAIDA_TOTAL:   TOTAL 0.00 / PARCIAL 0.25 / FALLIDA 1.00 / sin rend 0.25
- *   INTERMITENCIA: TOTAL 0.00 / PARCIAL 0.20 / FALLIDA 0.75 / sin rend 0.20
- *   LENTITUD:      TOTAL 0.00 / PARCIAL 0.10 / FALLIDA 0.30 / sin rend 0.10
- *   POS:           TOTAL 0.00 / PARCIAL 0.15 / FALLIDA 0.40 / sin rend 0.20
+ * Factores boleta manual:
+ *   EFECTIVA → 0.10  |  PARCIAL → 0.30  |  NULA → 1.00
  *
- *   Boleta manual (sin backup): cubre 80% → factor 0.20
- *   Sin ninguna mitigación: venta_parcial → 0.50, ninguna → 1.00
+ * Factores base sin mitigación (por tipo de incidente):
+ *   CAIDA_TOTAL → 1.00  |  INTERMITENCIA → 0.50  |  LENTITUD → 0.30  |  CORTE_ELECTRICO → 1.00
  *
- * Si varios backups activos: se toma el de menor factor (mejor cobertura).
+ * Reglas especiales:
+ *   - CORTE_ELECTRICO: solo boleta manual aplica; router y datos se ignoran.
+ *   - Si hay varias mitigaciones activas simultáneamente → se toma la de menor factor.
+ *   - Venta/hora: usa tasa L-J (lun-jue) o V-D (vie-dom) según el día de inicio del incidente.
+ *
+ * Compatibilidad hacia atrás:
+ *   - Si se pasan timestamps (cont_hora_activacion, mov_hora_activacion) → cálculo ponderado por tramos.
+ *   - Si se pasa solo boolean (contingencia_activa, hubo_movil) → la mitigación aplica durante todo el MTTR.
  */
 
 import { DASHBOARD_CONFIG } from './dashboard-config'
-import { calcMTTRMin } from './sla-core'
+
+// ─── Normalización de rendimiento ─────────────────────────────────────────────
+
+function normContFactor(rend: string | null | undefined): number {
+  if (!rend) return 0.20  // activada pero sin rendimiento registrado → parcial
+  const r = rend.toUpperCase()
+  if (r === 'EFECTIVO' || r === 'TOTAL' || r === 'EFECTIVA') return 0.00
+  if (r === 'PARCIAL'  || r === 'LIMITADA')                  return 0.20
+  return 1.00  // NULO, FALLIDA, NO_FUNCIONO, INOPERATIVA
+}
+
+function normBoletaFactor(rend: string | null | undefined): number {
+  if (!rend) return 0.10  // boleta activa sin rendimiento → efectiva
+  const r = rend.toUpperCase()
+  if (r === 'EFECTIVA') return 0.10
+  if (r === 'PARCIAL')  return 0.30
+  return 1.00  // NULA
+}
+
+const FACTOR_BASE: Record<string, number> = {
+  CAIDA_TOTAL:     1.00,
+  INTERMITENCIA:   0.50,
+  LENTITUD:        0.30,
+  CORTE_ELECTRICO: 1.00,
+}
 
 // ─── Input ────────────────────────────────────────────────────────────────────
 
 export interface ImpactoInputRow {
-  hora_registro: Date | string
-  hora_fin: Date | string | null
-  estado: string
-  tipo: string
-  // Venta hora del incidente
-  venta_hora_soles?: number | null
-  cluster?: string | null
-  // Si el llamador ya resolvió la venta hora, la pasa aquí.
-  ventaHoraResolvida?: number | null
-  // Contingencia router (propio o externo)
-  contingencia_activa?: boolean | null
-  cont_es_externo?: boolean | null        // true = ROUTER_EXTERNO, false/null = ROUTER_PROPIO
-  cont_rendimiento?: string | null        // TOTAL | PARCIAL | FALLIDA
-  // Datos móviles
-  hubo_movil?: boolean | null
-  mov_rendimiento?: string | null         // TOTAL | PARCIAL | FALLIDA
-  // Otras condiciones
-  boleta_manual?: boolean | null
-  venta_parcial?: boolean | null
-  cajas_afectadas?: number | null
-  cajas_totales?: number | null
+  hora_registro:  Date | string
+  hora_fin:       Date | string | null
+  estado:         string
+  tipo:           string
+
+  // Venta hora tienda (L-J y V-D diferenciados)
+  venta_hora_soles?:     number | string | null
+  venta_hora_fds_soles?: number | string | null
+  cluster?:              string | null
+  ventaHoraResolvida?:   number | null  // si el llamador ya la resolvió
+
+  // Contingencia de red — nuevo: timestamps; legacy: boolean
+  cont_hora_activacion?:    Date | string | null
+  cont_hora_desactivacion?: Date | string | null
+  contingencia_activa?:     boolean | null  // legacy
+  cont_es_externo?:         boolean | null
+  cont_rendimiento?:        string | null
+
+  // Datos móviles — nuevo: timestamps; legacy: boolean
+  mov_hora_activacion?:    Date | string | null
+  mov_hora_desactivacion?: Date | string | null
+  hubo_movil?:             boolean | null  // legacy
+  mov_rendimiento?:        string | null
+
+  // Boleta manual
+  boleta_manual?:      boolean | null
+  boleta_rendimiento?: string | null  // EFECTIVA | PARCIAL | NULA
+
+  // Legacy — mantenidos en la interfaz para compatibilidad, no afectan el cálculo
+  cajas_afectadas?:    number | null
+  cajas_totales?:      number | null
+  venta_parcial?:      boolean | null
   otros_clasificacion?: string | null
 }
 
 // ─── Output ───────────────────────────────────────────────────────────────────
 
 export interface ImpactoResult {
-  faltaInformacion: boolean
-  mttrMin: number | null
-  ventaHora: number | null
-  ventaEsperadaAfectada: number | null
-  margenUsado: number
-  impactoEconomicoBruto: number | null
-  factorAplicado: number
-  motivoFactor: string
+  faltaInformacion:       boolean
+  mttrMin:                number | null
+  ventaHora:              number | null
+  ventaEsperadaAfectada:  number | null
+  margenUsado:            number
+  impactoEconomicoBruto:  number | null
+  factorAplicado:         number
+  motivoFactor:           string
   impactoEconomicoEstimado: number | null
-  /** Alias de impactoEconomicoEstimado (0 si faltaInformacion) — backward compat */
-  impactoEstimado: number
+  impactoEstimado:        number  // alias backward-compat
 }
 
-// ─── Resolución de venta hora ─────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function toDate(v: Date | string | null | undefined): Date | null {
+  if (!v) return null
+  return v instanceof Date ? v : new Date(v as string)
+}
+
+function isActiveAt(start: Date, end: Date | null, pointMs: number): boolean {
+  if (pointMs < start.getTime()) return false
+  if (!end) return true  // aún activa al finalizar el incidente
+  return pointMs < end.getTime()
+}
 
 function resolveVentaHora(row: ImpactoInputRow): number | null {
   if (row.ventaHoraResolvida !== undefined) return row.ventaHoraResolvida ?? null
-  if (row.venta_hora_soles != null) return Number(row.venta_hora_soles)
-  if (row.cluster != null) {
-    const fb = DASHBOARD_CONFIG.CLUSTER_FALLBACK_HORA[row.cluster]
+  const d   = toDate(row.hora_registro)
+  const dow = d?.getDay() ?? 1  // 0=dom, 1-4=lun-jue, 5=vie, 6=sab
+  const isFDS = dow === 0 || dow === 5 || dow === 6
+
+  if (isFDS) {
+    if (row.venta_hora_fds_soles != null) return Number(row.venta_hora_fds_soles)
+    if (row.venta_hora_soles     != null) return Number(row.venta_hora_soles)
+  } else {
+    if (row.venta_hora_soles     != null) return Number(row.venta_hora_soles)
+    if (row.venta_hora_fds_soles != null) return Number(row.venta_hora_fds_soles)
+  }
+
+  if (row.cluster) {
+    const fb = isFDS
+      ? DASHBOARD_CONFIG.CLUSTER_FALLBACK_HORA_FDS[row.cluster]
+      : DASHBOARD_CONFIG.CLUSTER_FALLBACK_HORA[row.cluster]
     if (fb != null) return fb
   }
   return null
-}
-
-// ─── Factor de backup por rendimiento (igual para propio, externo y datos móviles) ──
-
-// Normaliza rendimiento a tier canónico
-function normRend(r: string | null | undefined): 'TOTAL' | 'PARCIAL' | 'FALLIDA' | null {
-  if (!r) return null
-  if (r === 'TOTAL'   || r === 'EFECTIVA')                           return 'TOTAL'
-  if (r === 'PARCIAL' || r === 'LIMITADA')                           return 'PARCIAL'
-  if (r === 'FALLIDA' || r === 'NO_FUNCIONO' || r === 'INOPERATIVA') return 'FALLIDA'
-  return null
-}
-
-/**
- * Factor por rendimiento del backup — mismo valor para router propio, externo y datos móviles.
- * Factor = fracción del impacto que QUEDA después de la mitigación.
- */
-function factorBackup(tipo: string, rend: 'TOTAL' | 'PARCIAL' | 'FALLIDA' | null): number {
-  const tabla: Record<string, Record<string, number>> = {
-    CAIDA_TOTAL:    { TOTAL: 0.00, PARCIAL: 0.25, FALLIDA: 1.00, unknown: 0.25 },
-    INTERMITENCIA:  { TOTAL: 0.00, PARCIAL: 0.20, FALLIDA: 0.75, unknown: 0.20 },
-    LENTITUD:       { TOTAL: 0.00, PARCIAL: 0.10, FALLIDA: 0.30, unknown: 0.10 },
-    POS:            { TOTAL: 0.00, PARCIAL: 0.15, FALLIDA: 0.40, unknown: 0.20 },
-    CORTE_ELECTRICO:{ TOTAL: 0.00, PARCIAL: 0.25, FALLIDA: 1.00, unknown: 0.25 },
-  }
-  const row = tabla[tipo] ?? tabla['CAIDA_TOTAL']
-  return row[rend ?? 'unknown'] ?? row['unknown']
-}
-
-// ─── Factor de afectación real ────────────────────────────────────────────────
-
-const RE_NO_AFECTA_VENTA = /biom[eé]trico|asistencia|rrhh|control.*personal|no afecta|clima|limpieza|seguridad/i
-const RE_AFECTA_VENTA    = /pos|sistema.*venta|venta|caja|red|conectividad|internet|lector|escaner/i
-
-function calcFactorAfectacion(
-  tipo: string,
-  contingencia_activa: boolean | null | undefined,
-  cont_es_externo: boolean | null | undefined,
-  cont_rendimiento: string | null | undefined,
-  hubo_movil: boolean | null | undefined,
-  mov_rendimiento: string | null | undefined,
-  boleta_manual: boolean | null | undefined,
-  venta_parcial: boolean | null | undefined,
-  cajas_afectadas: number | null | undefined,
-  cajas_totales: number | null | undefined,
-  otros_clasificacion: string | null | undefined,
-): { factor: number; motivo: string } {
-
-  const rendRouter = normRend(cont_rendimiento)
-  const rendMovil  = normRend(mov_rendimiento)
-
-  // Calcular factor de cada backup activo (misma tabla para los 3 tipos)
-  const factores: { f: number; desc: string }[] = []
-
-  if (contingencia_activa) {
-    const label = cont_es_externo ? 'router externo' : 'router propio'
-    const f = factorBackup(tipo, rendRouter)
-    factores.push({ f, desc: `${label} (${rendRouter?.toLowerCase() ?? 'sin rendimiento'})` })
-  }
-
-  if (hubo_movil) {
-    const f = factorBackup(tipo, rendMovil)
-    factores.push({ f, desc: `datos móviles (${rendMovil?.toLowerCase() ?? 'sin rendimiento'})` })
-  }
-
-  // Si algún backup estuvo activo → tomar el de mejor cobertura (menor factor)
-  if (factores.length > 0) {
-    const best = factores.reduce((a, b) => a.f <= b.f ? a : b)
-
-    // boleta manual puede complementar si backup fue fallido
-    if (boleta_manual && best.f >= 1.0) {
-      return { factor: 0.20, motivo: `${best.desc} fallida; boleta manual como respaldo (cubre 80%).` }
-    }
-
-    const backupsDesc = factores.map(x => x.desc).join(' + ')
-    return {
-      factor: best.f,
-      motivo: best.f === 0
-        ? `${backupsDesc} cubrió al 100%: sin pérdida estimada.`
-        : `${backupsDesc}: impacto parcial según rendimiento.`,
-    }
-  }
-
-  // Sin ningún backup — fallback a boleta manual o venta parcial
-  if (boleta_manual) {
-    // boleta manual cubre 80% de las operaciones → factor 0.20
-    const baseFactores: Record<string, number> = {
-      CAIDA_TOTAL:  0.20,
-      INTERMITENCIA: 0.20,
-      LENTITUD:      0.10,
-      POS:           0.20,
-    }
-    const f = baseFactores[tipo] ?? 0.20
-    return { factor: f, motivo: 'Boleta manual activa: recuperó ~80% de operaciones.' }
-  }
-
-  if (tipo === 'OTROS') {
-    const clas = otros_clasificacion?.trim() ?? ''
-    if (clas && RE_NO_AFECTA_VENTA.test(clas)) {
-      return { factor: 0.00, motivo: `Tipo Otros (${clas}): no afecta directamente ventas.` }
-    }
-    if (clas && RE_AFECTA_VENTA.test(clas)) {
-      return { factor: venta_parcial ? 0.25 : 0.40, motivo: `Tipo Otros (${clas}): afecta sistema de ventas.` }
-    }
-    return {
-      factor: venta_parcial ? 0.25 : 0.30,
-      motivo: clas ? `Tipo Otros (${clas}): impacto moderado estimado.` : 'Tipo Otros: impacto moderado estimado.',
-    }
-  }
-
-  const basesSinBackup: Record<string, number> = {
-    CAIDA_TOTAL:   venta_parcial ? 0.50 : 1.00,
-    INTERMITENCIA: venta_parcial ? 0.35 : 0.75,
-    LENTITUD:      venta_parcial ? 0.20 : 0.30,
-    POS:           0.40,
-    CORTE_ELECTRICO: 1.00,
-  }
-  const factor = basesSinBackup[tipo] ?? 0.30
-  const motivo = venta_parcial
-    ? `${tipo}: venta parcial reportada, impacto reducido.`
-    : `${tipo}: sin backup ni mitigación, impacto completo estimado.`
-  return { factor, motivo }
 }
 
 // ─── Función principal ────────────────────────────────────────────────────────
@@ -206,68 +144,110 @@ function calcFactorAfectacion(
 export function calcImpactoRow(row: ImpactoInputRow): ImpactoResult {
   const margenUsado = DASHBOARD_CONFIG.MARGEN_BRUTO
 
-  const { factor, motivo } = calcFactorAfectacion(
-    row.tipo,
-    row.contingencia_activa,
-    row.cont_es_externo,
-    row.cont_rendimiento,
-    row.hubo_movil,
-    row.mov_rendimiento,
-    row.boleta_manual,
-    row.venta_parcial,
-    row.cajas_afectadas,
-    row.cajas_totales,
-    row.otros_clasificacion,
-  )
+  const empty = (motivo: string, mttrMin?: number | null): ImpactoResult => ({
+    faltaInformacion: true, mttrMin: mttrMin ?? null, ventaHora: null,
+    ventaEsperadaAfectada: null, margenUsado, impactoEconomicoBruto: null,
+    factorAplicado: 0, motivoFactor: motivo, impactoEconomicoEstimado: null, impactoEstimado: 0,
+  })
 
-  // Factor por cajas afectadas (prorratea si no todas las cajas estuvieron caídas)
-  let factorFinal = factor
-  if (
-    row.cajas_afectadas != null &&
-    row.cajas_totales   != null &&
-    row.cajas_totales > 0 &&
-    row.cajas_afectadas < row.cajas_totales
-  ) {
-    const factorCajas = row.cajas_afectadas / row.cajas_totales
-    factorFinal = Math.round(factorFinal * factorCajas * 1000) / 1000
-  }
+  if (row.estado !== 'RESUELTO') return empty('Incidente no resuelto.')
 
-  const mttrRaw = row.estado === 'RESUELTO'
-    ? calcMTTRMin(row.hora_registro, row.hora_fin)
-    : null
-  const mttrMin = mttrRaw != null ? Math.round(mttrRaw) : null
+  const incStart = toDate(row.hora_registro)
+  const incEnd   = toDate(row.hora_fin)
+  if (!incStart || !incEnd) return empty('Sin timestamps de inicio/fin.')
 
+  const totalMs = incEnd.getTime() - incStart.getTime()
+  if (totalMs <= 0) return empty('MTTR inválido.')
+
+  const mttrMin  = Math.round(totalMs / 60000)
   const ventaHora = resolveVentaHora(row)
+  if (!ventaHora) return empty('Sin venta/hora para esta tienda.', mttrMin)
 
-  if (ventaHora == null || mttrMin == null || mttrMin <= 0) {
-    return {
-      faltaInformacion: ventaHora == null,
-      mttrMin,
-      ventaHora,
-      ventaEsperadaAfectada: null,
-      margenUsado,
-      impactoEconomicoBruto: null,
-      factorAplicado: factorFinal,
-      motivoFactor: motivo,
-      impactoEconomicoEstimado: null,
-      impactoEstimado: 0,
+  // Normalizar fuente de activación — timestamps (nuevo) o boolean (legacy)
+  const contStart = toDate(row.cont_hora_activacion) ?? (row.contingencia_activa ? incStart : null)
+  const contEnd   = toDate(row.cont_hora_desactivacion)
+  const movStart  = toDate(row.mov_hora_activacion)  ?? (row.hubo_movil ? incStart : null)
+  const movEnd    = toDate(row.mov_hora_desactivacion)
+
+  const contFactor  = contStart ? normContFactor(row.cont_rendimiento)  : null
+  const movFactor   = movStart  ? normContFactor(row.mov_rendimiento)   : null
+  const boletaFactor = row.boleta_manual ? normBoletaFactor(row.boleta_rendimiento) : null
+
+  // Construir breakpoints de tiempo para segmentación
+  const bpSet = new Set<number>([incStart.getTime(), incEnd.getTime()])
+  const addBp = (d: Date | null) => {
+    if (!d) return
+    const ms = d.getTime()
+    if (ms > incStart.getTime() && ms < incEnd.getTime()) bpSet.add(ms)
+  }
+  addBp(contStart); addBp(contEnd)
+  addBp(movStart);  addBp(movEnd)
+
+  const breakpoints = Array.from(bpSet).sort((a, b) => a - b)
+
+  let totalVentaEsperada = 0
+  let totalImpactoBruto  = 0
+  let totalIEI           = 0
+  let weightedFactorSum  = 0
+  const motivosParts: string[] = []
+
+  for (let i = 0; i < breakpoints.length - 1; i++) {
+    const segStartMs = breakpoints[i]
+    const segEndMs   = breakpoints[i + 1]
+    const midMs      = (segStartMs + segEndMs) / 2
+    const segHours   = (segEndMs - segStartMs) / 3600000
+
+    const opts: { f: number; label: string }[] = []
+
+    if (row.tipo === 'CORTE_ELECTRICO') {
+      // Solo boleta aplica en corte eléctrico
+      if (boletaFactor !== null) {
+        opts.push({ f: boletaFactor, label: `boleta ${row.boleta_rendimiento?.toLowerCase() ?? 'efectiva'}` })
+      } else {
+        opts.push({ f: 1.00, label: 'sin mitigación' })
+      }
+    } else {
+      if (contStart && isActiveAt(contStart, contEnd, midMs) && contFactor !== null) {
+        const tipo = row.cont_es_externo ? 'router externo' : 'router propio'
+        opts.push({ f: contFactor, label: `${tipo} ${row.cont_rendimiento?.toLowerCase() ?? ''}`.trim() })
+      }
+      if (movStart && isActiveAt(movStart, movEnd, midMs) && movFactor !== null) {
+        opts.push({ f: movFactor, label: `datos móviles ${row.mov_rendimiento?.toLowerCase() ?? ''}`.trim() })
+      }
+      if (boletaFactor !== null) {
+        opts.push({ f: boletaFactor, label: `boleta ${row.boleta_rendimiento?.toLowerCase() ?? 'efectiva'}` })
+      }
+      if (opts.length === 0) {
+        opts.push({ f: FACTOR_BASE[row.tipo] ?? 1.00, label: 'sin mitigación' })
+      }
     }
+
+    const best   = opts.reduce((a, b) => a.f <= b.f ? a : b)
+    const segV   = ventaHora * segHours
+    const segIB  = segV * margenUsado
+    const segIEI = segIB * best.f
+
+    totalVentaEsperada += segV
+    totalImpactoBruto  += segIB
+    totalIEI           += segIEI
+    weightedFactorSum  += best.f * segHours
+
+    if (motivosParts[motivosParts.length - 1] !== best.label) motivosParts.push(best.label)
   }
 
-  const ventaEsperadaAfectada   = Math.round(ventaHora * (mttrMin / 60))
-  const impactoEconomicoBruto   = Math.round(ventaEsperadaAfectada * margenUsado)
-  const impactoEconomicoEstimado = Math.round(impactoEconomicoBruto * factorFinal)
+  const totalHours   = totalMs / 3600000
+  const factorProm   = totalHours > 0 ? weightedFactorSum / totalHours : 0
 
   return {
-    faltaInformacion: false,
+    faltaInformacion:        false,
     mttrMin,
-    ventaHora: Math.round(ventaHora),
-    ventaEsperadaAfectada,
+    ventaHora:               Math.round(ventaHora),
+    ventaEsperadaAfectada:   Math.round(totalVentaEsperada),
     margenUsado,
-    impactoEconomicoBruto,
-    factorAplicado: factorFinal,
-    motivoFactor: motivo,
-    impactoEconomicoEstimado,
-    impactoEstimado: impactoEconomicoEstimado,
+    impactoEconomicoBruto:   Math.round(totalImpactoBruto),
+    factorAplicado:          Math.round(factorProm * 1000) / 1000,
+    motivoFactor:            motivosParts.join(' → '),
+    impactoEconomicoEstimado: Math.round(totalIEI),
+    impactoEstimado:         Math.round(totalIEI),
   }
 }

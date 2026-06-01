@@ -292,6 +292,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
                 { label: 'Tiendas críticas',         value: String(metricas?.tiendasCriticas ?? 0), color: metricas?.tiendasCriticas > 0 ? '#ef4444' : undefined },
                 { label: 'Tiempo caído total',       value: fmtMttr(metricas?.mttrTotal) },
                 { label: 'Tiendas asociadas',        value: String(metricas?.totalTiendas ?? 0) },
+                { label: 'IEI acumulado (30d)',      value: metricas?.iei30d != null && metricas.iei30d > 0 ? `S/ ${metricas.iei30d.toLocaleString('es-PE')}` : '—', color: metricas?.iei30d > 0 ? '#b91c1c' : undefined },
               ].map(r => (
                 <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '0.5px solid var(--border)' }}>
                   <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{r.label}</span>

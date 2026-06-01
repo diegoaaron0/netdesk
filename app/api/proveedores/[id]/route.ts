@@ -173,6 +173,38 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (tResolCount   > 0) tResolucionPromedio     = Math.round(tResolSum / tResolCount)
   } catch { /* skip */ }
 
+  // IEI acumulado 30d de todas las tiendas del proveedor
+  let iei30d = 0
+  try {
+    const { calcImpactoRow } = await import('@/lib/impacto-calc')
+    const ieiRows = await db.execute(sql`
+      SELECT
+        i.hora_registro, i.hora_fin, i.estado, i.tipo,
+        i.cont_hora_activacion, i.cont_hora_desactivacion, i.cont_rendimiento, i.cont_es_externo,
+        i.mov_hora_activacion,  i.mov_hora_desactivacion,  i.mov_rendimiento,
+        i.boleta_manual, i.boleta_rendimiento,
+        t.venta_hora_soles, t.venta_hora_fds_soles, t.cluster
+      FROM incidentes i
+      JOIN tiendas t ON i.tienda_id = t.id
+      WHERE i.proveedor_id = ${id}
+        AND i.estado = 'RESUELTO'
+        AND i.hora_registro >= ${thirtyDaysAgoStr}::timestamptz
+    `)
+    for (const r of ieiRows as any[]) {
+      iei30d += calcImpactoRow({
+        hora_registro: r.hora_registro, hora_fin: r.hora_fin,
+        estado: r.estado, tipo: r.tipo,
+        venta_hora_soles: r.venta_hora_soles, venta_hora_fds_soles: r.venta_hora_fds_soles,
+        cluster: r.cluster,
+        cont_hora_activacion: r.cont_hora_activacion, cont_hora_desactivacion: r.cont_hora_desactivacion,
+        cont_rendimiento: r.cont_rendimiento, cont_es_externo: r.cont_es_externo,
+        mov_hora_activacion: r.mov_hora_activacion, mov_hora_desactivacion: r.mov_hora_desactivacion,
+        mov_rendimiento: r.mov_rendimiento,
+        boleta_manual: r.boleta_manual, boleta_rendimiento: r.boleta_rendimiento,
+      }).impactoEstimado
+    }
+  } catch { /* skip */ }
+
   const contratoVigente = contratos.find(c => c.estadoCalc === 'VIGENTE' && !c.tiendaId)
 
   // Tiendas históricas: tienen incidentes con este proveedor pero ya no lo tienen asignado
@@ -237,6 +269,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       incidentes30d:           totalInc30d,
       tiendasCriticas,
       slaComprometido:         contratoVigente?.slaComprometido ?? null,
+      iei30d:                  Math.round(iei30d),
     },
     tiendasHistoricas,
   })

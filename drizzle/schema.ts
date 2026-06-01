@@ -219,6 +219,7 @@ export const incidentes = pgTable('incidentes', {
   evaluableProveedor:    boolean('evaluable_proveedor').default(true),
   // IEI — condiciones de venta durante el incidente
   boletaManual:          boolean('boleta_manual'),
+  boletaRendimiento:     text('boleta_rendimiento'),
   ventaParcial:          boolean('venta_parcial'),
   cajasAfectadas:        integer('cajas_afectadas'),
   cajasTotales:          integer('cajas_totales'),

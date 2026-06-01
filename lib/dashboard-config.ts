@@ -18,7 +18,11 @@ export const DASHBOARD_CONFIG = {
   },
 
   CLUSTER_FALLBACK_HORA: {
-    A: 931, B: 521, C: 348, D: 197,
+    A: 601, B: 360, C: 262, D: 153,
+  } as Record<string, number>,
+
+  CLUSTER_FALLBACK_HORA_FDS: {
+    A: 951, B: 562, C: 387, D: 231,
   } as Record<string, number>,
 
   SCORE_PROVEEDOR_PESOS: {

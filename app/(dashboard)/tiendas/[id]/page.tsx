@@ -145,6 +145,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
   const [contFormSaving, setContFormSaving] = useState(false)
   const [desactivandoContId, setDesactivandoContId] = useState<string | null>(null)
   const [incRecientes, setIncRecientes] = useState<any[]>([])
+  const [iei30d, setIei30d] = useState<number | null>(null)
   const [historialOpen, setHistorialOpen] = useState(false)
   const [ventasExpanded, setVentasExpanded] = useState(false)
   const [editingVentas, setEditingVentas] = useState(false)
@@ -171,7 +172,8 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
       setContList(Array.isArray(d) ? d : [])
     })
     fetch(`/api/tiendas/${id}/incidentes-recientes`).then(r => r.json()).then(d => {
-      setIncRecientes(Array.isArray(d) ? d : [])
+      setIncRecientes(Array.isArray(d?.incidentes) ? d.incidentes : [])
+      setIei30d(typeof d?.iei30d === 'number' ? d.iei30d : null)
     })
   }, [id])
 
@@ -354,6 +356,14 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               )}
               <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{ventasExpanded ? '▲' : '▼'}</span>
             </button>
+          )}
+          {iei30d !== null && (
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontWeight: 700, color: iei30d > 0 ? '#b91c1c' : '#16a34a', fontSize: '12px' }}>
+                {iei30d > 0 ? `S/ ${iei30d.toLocaleString('es-PE')}` : 'S/ 0'}
+              </div>
+              <div style={{ fontSize: '8px', color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>IEI 30d</div>
+            </div>
           )}
           <div style={{ padding: '3px 9px', borderRadius: '6px', background: contStatus.bg, textAlign: 'right' }}>
             <div style={{ fontWeight: 700, color: contStatus.color, fontSize: '12px' }}>{contStatus.label}</div>
@@ -982,7 +992,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
             <thead>
               <tr style={{ background: 'var(--muted)' }}>
-                {['Código', 'Fecha', 'Tipo', 'MTTR', 'Estado'].map(h => (
+                {['Código', 'Fecha', 'Tipo', 'MTTR', 'IEI est.', 'Estado'].map(h => (
                   <th key={h} style={{ padding: '7px 10px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
                 ))}
               </tr>
@@ -1000,6 +1010,13 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                     <td style={{ padding: '8px 10px', color: 'var(--muted-foreground)', fontSize: '11px' }}>{fmtTs(inc.hora_registro)}</td>
                     <td style={{ padding: '8px 10px', fontSize: '11px' }}>{tipoLabel(inc.tipo)}</td>
                     <td style={{ padding: '8px 10px', fontSize: '11px' }}>{inc.mttr_minutos ? `${inc.mttr_minutos}m` : '—'}</td>
+                    <td style={{ padding: '8px 10px', fontSize: '11px', fontFamily: 'monospace' }}>
+                      {inc.iei != null
+                        ? <span style={{ color: inc.iei > 0 ? '#b91c1c' : '#16a34a', fontWeight: 600 }}>
+                            {inc.iei > 0 ? `S/ ${inc.iei.toLocaleString('es-PE')}` : 'S/ 0'}
+                          </span>
+                        : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
+                    </td>
                     <td style={{ padding: '8px 10px' }}>
                       <span style={{ fontSize: '10px', fontWeight: 600, padding: '1px 6px', borderRadius: '4px', background: eb.bg, color: eb.color }}>{inc.estado}</span>
                     </td>
