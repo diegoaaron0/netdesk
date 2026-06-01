@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
+import { IEI_FACTOR, IEI_CLUSTER_FALLBACK } from '@/lib/iei-sql-expr'
 
 function esc(v: unknown): string {
   if (v == null) return ''
@@ -46,49 +47,7 @@ export async function GET(req: Request) {
           ))::int                                                                 AS t_resp_avg,
           COUNT(DISTINCT e2.incidente_id)::int                                   AS escalados_n2,
           COUNT(DISTINCT i.tienda_id)::int                                       AS tiendas_afectadas,
-          ROUND(SUM(COALESCE(t.venta_hora_soles,
-              CASE t.cluster WHEN 'A' THEN 931 WHEN 'B' THEN 521
-                WHEN 'C' THEN 348 WHEN 'D' THEN 197 ELSE 0 END)
-            * (COALESCE(i.mttr_minutos,0)::numeric/60) * 0.35
-            * CASE i.tipo
-                WHEN 'CAIDA_TOTAL' THEN
-                  CASE WHEN i.boleta_manual = true THEN 0.40
-                       WHEN i.cont_activado_por IS NOT NULL THEN
-                         CASE WHEN i.cont_rendimiento IN ('TOTAL','EFECTIVA')                          THEN 0.10
-                              WHEN i.cont_rendimiento IN ('PARCIAL','LIMITADA')                        THEN 0.30
-                              WHEN i.cont_rendimiento IN ('FALLIDA','NO_FUNCIONO','INOPERATIVA')       THEN 1.00
-                              ELSE 0.25 END
-                       WHEN i.venta_parcial = true THEN 0.50
-                       ELSE 1.00 END
-                WHEN 'INTERMITENCIA' THEN
-                  CASE WHEN i.cont_activado_por IS NOT NULL THEN
-                         CASE WHEN i.cont_rendimiento IN ('TOTAL','EFECTIVA')                          THEN 0.15
-                              WHEN i.cont_rendimiento IN ('PARCIAL','LIMITADA')                        THEN 0.25
-                              WHEN i.cont_rendimiento IN ('FALLIDA','NO_FUNCIONO','INOPERATIVA')       THEN 0.75
-                              ELSE 0.25 END
-                       WHEN i.venta_parcial = true THEN 0.35
-                       ELSE 0.75 END
-                WHEN 'LENTITUD' THEN
-                  CASE WHEN i.cont_activado_por IS NOT NULL THEN
-                         CASE WHEN i.cont_rendimiento IN ('TOTAL','EFECTIVA')                          THEN 0.10
-                              WHEN i.cont_rendimiento IN ('PARCIAL','LIMITADA')                        THEN 0.20
-                              WHEN i.cont_rendimiento IN ('FALLIDA','NO_FUNCIONO','INOPERATIVA')       THEN 0.30
-                              ELSE 0.20 END
-                       WHEN i.venta_parcial = true THEN 0.25
-                       ELSE 0.30 END
-                WHEN 'POS' THEN
-                  CASE WHEN i.cont_activado_por IS NOT NULL THEN
-                         CASE WHEN i.cont_rendimiento IN ('TOTAL','EFECTIVA')                          THEN 0.10
-                              WHEN i.cont_rendimiento IN ('PARCIAL','LIMITADA')                        THEN 0.20
-                              WHEN i.cont_rendimiento IN ('FALLIDA','NO_FUNCIONO','INOPERATIVA')       THEN 0.40
-                              ELSE 0.20 END
-                       ELSE 0.40 END
-                WHEN 'CORTE_ELECTRICO' THEN
-                  CASE WHEN i.boleta_manual = true AND COALESCE(i.boleta_rendimiento,'') = 'PARCIAL' THEN 0.30
-                       WHEN i.boleta_manual = true THEN 0.00
-                       ELSE 1.00 END
-                ELSE 0.30 END
-          ))::int                                                                 AS iei
+          ROUND(SUM(COALESCE(t.venta_hora_soles,${IEI_CLUSTER_FALLBACK})*(COALESCE(i.mttr_minutos,0)::numeric/60)*0.35*${IEI_FACTOR}))::int AS iei
         FROM incidentes i
         JOIN tiendas t ON i.tienda_id = t.id
         LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
@@ -129,49 +88,7 @@ export async function GET(req: Request) {
               WHEN 'LENTITUD'    THEN 240 WHEN 'POS' THEN 60 ELSE 120 END
             AND i.estado = 'RESUELTO') * 100.0 /
             NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'), 0))::int AS sla_pct,
-          ROUND(SUM(COALESCE(t.venta_hora_soles,
-              CASE t.cluster WHEN 'A' THEN 931 WHEN 'B' THEN 521
-                WHEN 'C' THEN 348 WHEN 'D' THEN 197 ELSE 0 END)
-            * (COALESCE(i.mttr_minutos,0)::numeric/60) * 0.35
-            * CASE i.tipo
-                WHEN 'CAIDA_TOTAL' THEN
-                  CASE WHEN i.boleta_manual = true THEN 0.40
-                       WHEN i.cont_activado_por IS NOT NULL THEN
-                         CASE WHEN i.cont_rendimiento IN ('TOTAL','EFECTIVA')                          THEN 0.10
-                              WHEN i.cont_rendimiento IN ('PARCIAL','LIMITADA')                        THEN 0.30
-                              WHEN i.cont_rendimiento IN ('FALLIDA','NO_FUNCIONO','INOPERATIVA')       THEN 1.00
-                              ELSE 0.25 END
-                       WHEN i.venta_parcial = true THEN 0.50
-                       ELSE 1.00 END
-                WHEN 'INTERMITENCIA' THEN
-                  CASE WHEN i.cont_activado_por IS NOT NULL THEN
-                         CASE WHEN i.cont_rendimiento IN ('TOTAL','EFECTIVA')                          THEN 0.15
-                              WHEN i.cont_rendimiento IN ('PARCIAL','LIMITADA')                        THEN 0.25
-                              WHEN i.cont_rendimiento IN ('FALLIDA','NO_FUNCIONO','INOPERATIVA')       THEN 0.75
-                              ELSE 0.25 END
-                       WHEN i.venta_parcial = true THEN 0.35
-                       ELSE 0.75 END
-                WHEN 'LENTITUD' THEN
-                  CASE WHEN i.cont_activado_por IS NOT NULL THEN
-                         CASE WHEN i.cont_rendimiento IN ('TOTAL','EFECTIVA')                          THEN 0.10
-                              WHEN i.cont_rendimiento IN ('PARCIAL','LIMITADA')                        THEN 0.20
-                              WHEN i.cont_rendimiento IN ('FALLIDA','NO_FUNCIONO','INOPERATIVA')       THEN 0.30
-                              ELSE 0.20 END
-                       WHEN i.venta_parcial = true THEN 0.25
-                       ELSE 0.30 END
-                WHEN 'POS' THEN
-                  CASE WHEN i.cont_activado_por IS NOT NULL THEN
-                         CASE WHEN i.cont_rendimiento IN ('TOTAL','EFECTIVA')                          THEN 0.10
-                              WHEN i.cont_rendimiento IN ('PARCIAL','LIMITADA')                        THEN 0.20
-                              WHEN i.cont_rendimiento IN ('FALLIDA','NO_FUNCIONO','INOPERATIVA')       THEN 0.40
-                              ELSE 0.20 END
-                       ELSE 0.40 END
-                WHEN 'CORTE_ELECTRICO' THEN
-                  CASE WHEN i.boleta_manual = true AND COALESCE(i.boleta_rendimiento,'') = 'PARCIAL' THEN 0.30
-                       WHEN i.boleta_manual = true THEN 0.00
-                       ELSE 1.00 END
-                ELSE 0.30 END
-          ))::int AS iei
+          ROUND(SUM(COALESCE(t.venta_hora_soles,${IEI_CLUSTER_FALLBACK})*(COALESCE(i.mttr_minutos,0)::numeric/60)*0.35*${IEI_FACTOR}))::int AS iei
         FROM incidentes i
         JOIN tiendas t ON i.tienda_id = t.id
         LEFT JOIN proveedores pi ON i.proveedor_id = pi.id

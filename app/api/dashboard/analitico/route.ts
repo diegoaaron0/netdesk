@@ -386,7 +386,7 @@ async function buildCards(
 
   // ── CARD 4: SLA ─────────────────────────────────────────────────────────
   type SlaProvAccum = {
-    ok: number; total: number
+    ok: number; total: number; respOk: number; resolOk: number
     excessRespSum: number; excessRespCount: number
     excessResolSum: number; excessResolCount: number
     scoreSum: number; scoreCount: number
