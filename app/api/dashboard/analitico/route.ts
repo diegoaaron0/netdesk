@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
       ?? slaFallback
   }
 
-  const result = await buildCards(incidentes, escalamientos, ventasDiarias, prevIncidentes, prevEscalamientos, getSlaParaIncidente)
+  const result = await buildCards(incidentes, escalamientos, ventasDiarias, prevIncidentes, prevEscalamientos, getSlaParaIncidente, totalTiendas)
 
   return NextResponse.json({
     periodo: { desde, hasta },
@@ -206,6 +206,7 @@ async function buildCards(
   prevIncs: RawIncidente[],
   prevEscs: RawEscalamiento[],
   getSlaParaIncidente: (proveedorId: string, tiendaId: string) => { respuestaMin: number; resolucionMin: number },
+  totalTiendas: number,
 ) {
   const escMap     = escsByIncidente(escs)
   const prevEscMap = escsByIncidente(prevEscs)
