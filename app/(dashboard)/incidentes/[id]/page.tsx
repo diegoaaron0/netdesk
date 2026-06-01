@@ -1425,33 +1425,6 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 </a>
               )}
             </div>
-            <div style={{ padding: '0 16px' }}>
-              {historial.length === 0 ? (
-                <div style={{ padding: '14px 0', fontSize: '11px', color: 'var(--muted-foreground)', textAlign: 'center' }}>Sin incidentes previos</div>
-              ) : historial.map((h: any, idx: number) => {
-                const mttr = h.mttrMinutos ? minToHM(h.mttrMinutos)
-                  : (h.horaFin ? minToHM(mttrFromHoras(h.horaRegistro, h.horaFin)) : null)
-                return (
-                  <div key={h.id} onClick={() => router.push(`/incidentes/${h.id}`)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 0', borderBottom: idx < historial.length - 1 ? '1px solid var(--border)' : 'none', cursor: 'pointer' }}>
-                    <div style={{ flexShrink: 0 }}><Badge variant={estadoToVariant(h.estado)} /></div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 600 }}>{h.codigo}</div>
-                      <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '1px' }}>
-                        {new Date(h.horaRegistro).toLocaleDateString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric' })}
-                        {' · '}{new Date(h.horaRegistro).toLocaleTimeString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </div>
-                    <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', textAlign: 'right', flexShrink: 0 }}>
-                      <div>{TIPO_LABELS[h.tipo] ?? h.tipo}</div>
-                      {mttr && <div style={{ color: 'var(--foreground)', fontWeight: 500 }}>{mttr}</div>}
-                    </div>
-                    <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', maxWidth: '70px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}>{h.agenteName ?? '—'}</div>
-                    <div style={{ color: 'var(--muted-foreground)', flexShrink: 0 }}><IcoArrow /></div>
-                  </div>
-                )
-              })}
-            </div>
           </div>
 
         </div>{/* end RIGHT */}
