@@ -32,12 +32,13 @@ const ROL_LABELS: Record<string, string> = {
   GERENCIA: 'Gerencia', INFRAESTRUCTURA: 'Infraestructura',
 }
 
+const PUEDE_APROBAR = new Set(['SUPERVISOR', 'GERENCIA'])
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function fmtDate(d: string | null | undefined) {
   if (!d) return null
-  const dt = new Date(d)
-  return dt.toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })
+  return new Date(d).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
 function fmtMttr(mins: number | string | null | undefined) {
@@ -54,14 +55,14 @@ function fmtPct(v: string | number | null | undefined) {
 
 function fmtIei(v: string | number | null | undefined) {
   if (v == null || v === '') return '—'
-  return `S/${Number(v).toFixed(2)}`
+  return `S/ ${Number(v).toLocaleString('es-PE')}`
 }
 
 function inp(): React.CSSProperties {
   return { width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', boxSizing: 'border-box' }
 }
 
-function DeltaBadge({ before, after, lowerBetter = false }: { before: string | number | null, after: string | number | null, lowerBetter?: boolean }) {
+function DeltaBadge({ before, after, lowerBetter = false }: { before: any, after: any, lowerBetter?: boolean }) {
   if (before == null || after == null || before === '' || after === '') return <span style={{ color: '#9ca3af' }}>—</span>
   const b = Number(before), a = Number(after)
   const improved = lowerBetter ? a < b : a > b
@@ -71,12 +72,13 @@ function DeltaBadge({ before, after, lowerBetter = false }: { before: string | n
   return <span style={{ color, fontWeight: 600 }}>{arrow}</span>
 }
 
-// ── Blank form ─────────────────────────────────────────────────────────────────
+// ── Blank forms ────────────────────────────────────────────────────────────────
 
 const BLANK_FORM = {
   tipo: '', titulo: '', motivo: '', descripcion: '',
-  tiendaId: '', proveedorId: '', fechaSeguimiento: '',
+  tiendaId: '', proveedorId: '', proveedorAnteriorId: '', fechaSeguimiento: '',
   snapSlaPct: '', snapMttrMinutos: '', snapIei: '', snapIncidentes: '', snapPeriodo: '',
+  snapDetalle: null as any,
 }
 
 const BLANK_EJECUTAR = {
@@ -91,7 +93,7 @@ export default function DecisionesPage() {
   const userRol    = (session?.user as any)?.rol ?? ''
   const canCrear   = can(session, 'decisiones.crear')
   const canVer     = can(session, 'decisiones.ver')
-  const canGerencia = userRol === 'GERENCIA'
+  const canAprobar = PUEDE_APROBAR.has(userRol)
 
   const [lista, setLista]         = useState<any[]>([])
   const [loading, setLoading]     = useState(true)
@@ -109,14 +111,18 @@ export default function DecisionesPage() {
   const [saving, setSaving]       = useState(false)
   const [saveError, setSaveError] = useState('')
 
+  // Auto-carga indicadores (CAMBIO_PROVEEDOR)
+  const [snapLoading, setSnapLoading] = useState(false)
+  const [snapData, setSnapData]       = useState<any | null>(null)
+
   // Tiendas y proveedores para selects
-  const [tiendas, setTiendas]       = useState<{ id: string; codigo: string; provincia: string | null; distrito: string | null }[]>([])
+  const [tiendas, setTiendas]       = useState<{ id: string; codigo: string; nombreCc: string | null; distrito: string | null; proveedorId: string | null; proveedorNombre: string | null }[]>([])
   const [proveedores, setProveedores] = useState<{ id: string; nombre: string }[]>([])
   const [tiendaQuery, setTiendaQuery] = useState('')
   const [showTiendaDrop, setShowTiendaDrop] = useState(false)
   const tiendaRef = useRef<HTMLDivElement>(null)
 
-  // Panel "marcar ejecutada"
+  // Panel "marcar ejecutada" (decisiones genéricas)
   const [ejecutarMode, setEjecutarMode] = useState(false)
   const [ejecutarForm, setEjecutarForm] = useState<any>(BLANK_EJECUTAR)
   const [savingAction, setSavingAction] = useState(false)
@@ -124,6 +130,16 @@ export default function DecisionesPage() {
   // Modal rechazo
   const [rechazarModal, setRechazarModal]   = useState(false)
   const [rechazarMotivo, setRechazarMotivo] = useState('')
+
+  // Confirmación doble para ejecutar cambio de proveedor
+  const [ejecutarCPConfirm, setEjecutarCPConfirm] = useState<'idle'|'confirming'|'error'>('idle')
+  const [ejecutarCPError, setEjecutarCPError]     = useState('')
+  const [fechaSeguimientoCP, setFechaSeguimientoCP] = useState('')
+
+  // Comparativa post-ejecución
+  const [comparativaOpen, setComparativaOpen] = useState(false)
+  const [comparativaData, setComparativaData] = useState<any | null>(null)
+  const [comparativaLoading, setComparativaLoading] = useState(false)
 
   // ── Fetch ────────────────────────────────────────────────────────────────────
 
@@ -133,10 +149,7 @@ export default function DecisionesPage() {
     if (filtros.estado) p.set('estado', filtros.estado)
     if (filtros.tipo)   p.set('tipo',   filtros.tipo)
     const res = await fetch(`/api/decisiones?${p}`)
-    if (res.ok) {
-      const data = await res.json()
-      setLista(Array.isArray(data) ? data : [])
-    }
+    if (res.ok) setLista(await res.json().then(d => Array.isArray(d) ? d : []))
     setLoading(false)
   }, [filtros.estado, filtros.tipo])
 
@@ -144,7 +157,11 @@ export default function DecisionesPage() {
 
   useEffect(() => {
     fetch('/api/tiendas').then(r => r.json()).then(d => {
-      if (Array.isArray(d)) setTiendas(d.map((t: any) => ({ id: t.id, codigo: t.codigo, provincia: t.provincia ?? null, distrito: t.distrito ?? null })))
+      if (Array.isArray(d)) setTiendas(d.map((t: any) => ({
+        id: t.id, codigo: t.codigo, nombreCc: t.nombreCc ?? null,
+        distrito: t.distrito ?? null, proveedorId: t.proveedorId ?? null,
+        proveedorNombre: t.proveedorNombre ?? null,
+      })))
     })
     fetch('/api/proveedores').then(r => r.json()).then(d => {
       if (Array.isArray(d)) setProveedores(d.map((p: any) => ({ id: p.id, nombre: p.nombre })))
@@ -158,6 +175,42 @@ export default function DecisionesPage() {
     setLoadingDet(false)
   }
 
+  // Auto-carga de indicadores al seleccionar tienda en CAMBIO_PROVEEDOR
+  async function loadSnapForTienda(tiendaId: string) {
+    if (!tiendaId) { setSnapData(null); return }
+    setSnapLoading(true)
+    try {
+      const res = await fetch(`/api/decisiones/snap?tiendaId=${tiendaId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setSnapData(data)
+        const tienda = tiendas.find(t => t.id === tiendaId)
+        setForm((f: any) => ({
+          ...f,
+          proveedorAnteriorId: data.tienda.proveedorId ?? tienda?.proveedorId ?? '',
+          snapDetalle: data.snap,
+          snapSlaPct:      data.snap.slaResolucionPct ?? '',
+          snapMttrMinutos: data.snap.mttrPromedio ?? '',
+          snapIei:         data.snap.ieiAcumulado ?? '',
+          snapIncidentes:  data.snap.totalIncidentes ?? '',
+          snapPeriodo:     data.snap.periodo,
+        }))
+      }
+    } finally {
+      setSnapLoading(false)
+    }
+  }
+
+  async function loadComparativa(tiendaId: string) {
+    setComparativaLoading(true)
+    try {
+      const res = await fetch(`/api/decisiones/snap?tiendaId=${tiendaId}`)
+      if (res.ok) setComparativaData(await res.json())
+    } finally {
+      setComparativaLoading(false)
+    }
+  }
+
   function openPanel(dec: any) {
     setSelected(dec)
     setPanelOpen(true)
@@ -165,6 +218,11 @@ export default function DecisionesPage() {
     setEjecutarForm(BLANK_EJECUTAR)
     setRechazarModal(false)
     setRechazarMotivo('')
+    setEjecutarCPConfirm('idle')
+    setEjecutarCPError('')
+    setFechaSeguimientoCP('')
+    setComparativaOpen(false)
+    setComparativaData(null)
     fetchDetalle(dec.id)
   }
 
@@ -173,6 +231,10 @@ export default function DecisionesPage() {
     setSelected(null)
     setDetalle(null)
     setEjecutarMode(false)
+    setEjecutarCPConfirm('idle')
+    setEjecutarCPError('')
+    setComparativaOpen(false)
+    setComparativaData(null)
   }
 
   // ── Actions ──────────────────────────────────────────────────────────────────
@@ -180,62 +242,82 @@ export default function DecisionesPage() {
   async function patchEstado(id: string, estado: string, extra?: Record<string, unknown>) {
     setSavingAction(true)
     await fetch(`/api/decisiones/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ estado, ...extra }),
     })
     setSavingAction(false)
-    fetchLista()
-    fetchDetalle(id)
+    fetchLista(); fetchDetalle(id)
   }
 
-  async function handleEjecutar() {
+  async function handleEjecutarGenerico() {
     if (!detalle) return
     setSavingAction(true)
     await fetch(`/api/decisiones/${detalle.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         estado: 'EJECUTADA',
         resultadoNota:   ejecutarForm.resultadoNota   || null,
         postSlaPct:      ejecutarForm.postSlaPct      || null,
         postMttrMinutos: ejecutarForm.postMttrMinutos ? Number(ejecutarForm.postMttrMinutos) : null,
         postIei:         ejecutarForm.postIei         || null,
-        postIncidentes:  ejecutarForm.postIncidentes  ? Number(ejecutarForm.postIncidentes) : null,
+        postIncidentes:  ejecutarForm.postIncidentes  ? Number(ejecutarForm.postIncidentes)  : null,
       }),
     })
     setSavingAction(false)
     setEjecutarMode(false)
-    fetchLista()
-    fetchDetalle(detalle.id)
+    fetchLista(); fetchDetalle(detalle.id)
+  }
+
+  async function handleEjecutarCambioProveedor() {
+    if (!detalle) return
+    setSavingAction(true)
+    setEjecutarCPError('')
+    try {
+      // Guardar fecha_seguimiento si se ingresó
+      if (fechaSeguimientoCP) {
+        await fetch(`/api/decisiones/${detalle.id}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fechaSeguimiento: fechaSeguimientoCP }),
+        })
+      }
+      const res = await fetch(`/api/decisiones/${detalle.id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ _action: 'ejecutar' }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setEjecutarCPError(data.error ?? `Error ${res.status}`)
+        setEjecutarCPConfirm('error')
+        return
+      }
+      setEjecutarCPConfirm('idle')
+      fetchLista(); fetchDetalle(detalle.id)
+    } finally {
+      setSavingAction(false)
+    }
   }
 
   async function handleAprobar() {
     if (!detalle) return
     setSavingAction(true)
     await fetch(`/api/decisiones/${detalle.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _action: 'aprobar' }),
     })
     setSavingAction(false)
-    fetchLista()
-    fetchDetalle(detalle.id)
+    fetchLista(); fetchDetalle(detalle.id)
   }
 
   async function handleRechazar() {
     if (!detalle || !rechazarMotivo.trim()) return
     setSavingAction(true)
     await fetch(`/api/decisiones/${detalle.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ _action: 'rechazar', rechazadoMotivo: rechazarMotivo }),
     })
     setSavingAction(false)
-    setRechazarModal(false)
-    setRechazarMotivo('')
-    fetchLista()
-    fetchDetalle(detalle.id)
+    setRechazarModal(false); setRechazarMotivo('')
+    fetchLista(); fetchDetalle(detalle.id)
   }
 
   function snapPayload(f: any) {
@@ -245,97 +327,75 @@ export default function DecisionesPage() {
       snapIei:         f.snapIei         ? Number(f.snapIei)         : null,
       snapIncidentes:  f.snapIncidentes  ? Number(f.snapIncidentes)  : null,
       snapPeriodo:     f.snapPeriodo     || null,
+      snapDetalle:     f.snapDetalle     ?? null,
     }
   }
 
   async function handleCreate() {
     if (!form.tipo || !form.titulo || !form.motivo) return
-    setSaving(true)
-    setSaveError('')
+    setSaving(true); setSaveError('')
     try {
       const res = await fetch('/api/decisiones', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
-          tiendaId:         form.tiendaId        || null,
-          proveedorId:      form.proveedorId      || null,
-          fechaSeguimiento: form.fechaSeguimiento || null,
+          tiendaId:            form.tiendaId            || null,
+          proveedorId:         form.proveedorId         || null,
+          proveedorAnteriorId: form.proveedorAnteriorId || null,
+          fechaSeguimiento:    null,
           ...snapPayload(form),
         }),
       })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        setSaveError(data.error ?? `Error ${res.status}`)
-        return
-      }
-      closeModal()
-      fetchLista()
-    } finally {
-      setSaving(false)
-    }
+      if (!res.ok) { const d = await res.json().catch(() => ({})); setSaveError(d.error ?? `Error ${res.status}`); return }
+      closeModal(); fetchLista()
+    } finally { setSaving(false) }
   }
 
   async function handleUpdate() {
     if (!form.tipo || !form.titulo || !form.motivo) return
-    setSaving(true)
-    setSaveError('')
+    setSaving(true); setSaveError('')
     try {
       const res = await fetch(`/api/decisiones/${editId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tipo:             form.tipo,
-          titulo:           form.titulo,
-          motivo:           form.motivo,
-          descripcion:      form.descripcion      || null,
-          tiendaId:         form.tiendaId         || null,
-          proveedorId:      form.proveedorId       || null,
-          fechaSeguimiento: form.fechaSeguimiento  || null,
+          tipo: form.tipo, titulo: form.titulo, motivo: form.motivo,
+          descripcion: form.descripcion || null,
+          tiendaId: form.tiendaId || null,
+          proveedorId: form.proveedorId || null,
+          proveedorAnteriorId: form.proveedorAnteriorId || null,
+          fechaSeguimiento: form.fechaSeguimiento || null,
           ...snapPayload(form),
         }),
       })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        setSaveError(data.error ?? `Error ${res.status}`)
-        return
-      }
-      closeModal()
-      fetchLista()
-      fetchDetalle(editId)
-    } finally {
-      setSaving(false)
-    }
+      if (!res.ok) { const d = await res.json().catch(() => ({})); setSaveError(d.error ?? `Error ${res.status}`); return }
+      closeModal(); fetchLista(); fetchDetalle(editId)
+    } finally { setSaving(false) }
   }
 
   function closeModal() {
-    setModal(false)
-    setEditMode(false)
-    setEditId('')
-    setForm(BLANK_FORM)
-    setTiendaQuery('')
-    setSaveError('')
+    setModal(false); setEditMode(false); setEditId('')
+    setForm(BLANK_FORM); setTiendaQuery(''); setSaveError('')
+    setSnapData(null)
   }
 
   function openEdit(dec: any) {
     setForm({
-      tipo:             dec.tipo             ?? '',
-      titulo:           dec.titulo           ?? '',
-      motivo:           dec.motivo           ?? '',
-      descripcion:      dec.descripcion      ?? '',
-      tiendaId:         dec.tiendaId         ?? '',
-      proveedorId:      dec.proveedorId      ?? '',
-      fechaSeguimiento: dec.fechaSeguimiento ?? '',
-      snapSlaPct:       dec.snapSlaPct       ?? '',
-      snapMttrMinutos:  dec.snapMttrMinutos  ?? '',
-      snapIei:          dec.snapIei          ?? '',
-      snapIncidentes:   dec.snapIncidentes   ?? '',
-      snapPeriodo:      dec.snapPeriodo      ?? '',
+      tipo:                dec.tipo                ?? '',
+      titulo:              dec.titulo              ?? '',
+      motivo:              dec.motivo              ?? '',
+      descripcion:         dec.descripcion         ?? '',
+      tiendaId:            dec.tiendaId            ?? '',
+      proveedorId:         dec.proveedorId         ?? '',
+      proveedorAnteriorId: dec.proveedorAnteriorId ?? '',
+      fechaSeguimiento:    dec.fechaSeguimiento    ?? '',
+      snapSlaPct:          dec.snapSlaPct          ?? '',
+      snapMttrMinutos:     dec.snapMttrMinutos     ?? '',
+      snapIei:             dec.snapIei             ?? '',
+      snapIncidentes:      dec.snapIncidentes      ?? '',
+      snapPeriodo:         dec.snapPeriodo         ?? '',
+      snapDetalle:         dec.snapDetalle         ?? null,
     })
-    setEditMode(true)
-    setEditId(dec.id)
-    setSaveError('')
-    setModal(true)
+    setEditMode(true); setEditId(dec.id); setSaveError(''); setModal(true)
   }
 
   // ── Filter ───────────────────────────────────────────────────────────────────
@@ -352,17 +412,15 @@ export default function DecisionesPage() {
     if (!tiendaQuery) return true
     const q = tiendaQuery.toLowerCase()
     return t.codigo.toLowerCase().includes(q) ||
-      (t.provincia ?? '').toLowerCase().includes(q) ||
+      (t.nombreCc ?? '').toLowerCase().includes(q) ||
       (t.distrito ?? '').toLowerCase().includes(q)
   }).slice(0, 10)
 
   const selectedTienda = tiendas.find(t => t.id === form.tiendaId)
   function tiendaLabel(t: typeof tiendas[0]) {
-    const loc = t.provincia || t.distrito || ''
-    return loc ? `${t.codigo}-${loc.toUpperCase()}` : t.codigo
+    return t.nombreCc ? `${t.codigo} — ${t.nombreCc}` : t.codigo
   }
 
-  // Close dropdown on outside click
   useEffect(() => {
     function handle(e: MouseEvent) {
       if (tiendaRef.current && !tiendaRef.current.contains(e.target as Node)) setShowTiendaDrop(false)
@@ -376,6 +434,8 @@ export default function DecisionesPage() {
       No tienes permiso para ver este módulo.
     </div>
   )
+
+  const esCambioProveedor = form.tipo === 'CAMBIO_PROVEEDOR'
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
@@ -394,7 +454,7 @@ export default function DecisionesPage() {
         </div>
         {canCrear && (
           <button
-            onClick={() => { setEditMode(false); setEditId(''); setForm(BLANK_FORM); setTiendaQuery(''); setSaveError(''); setModal(true) }}
+            onClick={() => { setEditMode(false); setEditId(''); setForm(BLANK_FORM); setTiendaQuery(''); setSaveError(''); setSnapData(null); setModal(true) }}
             style={{ padding: '8px 16px', fontSize: '12px', fontWeight: 600, background: '#185FA5', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
             + Nueva decisión
@@ -419,33 +479,20 @@ export default function DecisionesPage() {
 
       {/* ── Filters ────────────────────────────────────────────────────────── */}
       <div style={{ padding: '16px 28px', display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <select
-          value={filtros.estado}
-          onChange={e => setFiltros(f => ({ ...f, estado: e.target.value }))}
-          style={{ ...inp(), width: '160px' }}
-        >
+        <select value={filtros.estado} onChange={e => setFiltros(f => ({ ...f, estado: e.target.value }))} style={{ ...inp(), width: '160px' }}>
           <option value="">Todos los estados</option>
-          {Object.entries(ESTADO_STYLE).map(([k, v]) => (
-            <option key={k} value={k}>{v.label}</option>
-          ))}
+          {Object.entries(ESTADO_STYLE).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
         </select>
-
-        <select
-          value={filtros.tipo}
-          onChange={e => setFiltros(f => ({ ...f, tipo: e.target.value }))}
-          style={{ ...inp(), width: '200px' }}
-        >
+        <select value={filtros.tipo} onChange={e => setFiltros(f => ({ ...f, tipo: e.target.value }))} style={{ ...inp(), width: '200px' }}>
           <option value="">Todos los tipos</option>
           {TIPOS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
-
         <input
           placeholder="Buscar por título o motivo…"
           value={filtros.q}
           onChange={e => setFiltros(f => ({ ...f, q: e.target.value }))}
           style={{ ...inp(), width: '240px' }}
         />
-
         <span style={{ fontSize: '11px', color: '#9ca3af' }}>
           {visible.length} decisión{visible.length !== 1 ? 'es' : ''}
         </span>
@@ -456,9 +503,7 @@ export default function DecisionesPage() {
         {loading ? (
           <div style={{ padding: '48px', textAlign: 'center', color: '#9ca3af', fontSize: '13px' }}>Cargando…</div>
         ) : visible.length === 0 ? (
-          <div style={{ padding: '48px', textAlign: 'center', color: '#9ca3af', fontSize: '13px' }}>
-            No hay decisiones registradas.
-          </div>
+          <div style={{ padding: '48px', textAlign: 'center', color: '#9ca3af', fontSize: '13px' }}>No hay decisiones registradas.</div>
         ) : visible.map(dec => (
           <DecisionCard key={dec.id} dec={dec} onClick={() => openPanel(dec)} />
         ))}
@@ -467,20 +512,12 @@ export default function DecisionesPage() {
       {/* ── Side panel ─────────────────────────────────────────────────────── */}
       {panelOpen && (
         <>
-          <div
-            onClick={closePanel}
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 79 }}
-          />
-          <aside style={{
-            position: 'fixed', top: 0, right: 0, width: '420px', maxWidth: '95vw',
-            height: '100vh', background: 'var(--card)', borderLeft: '0.5px solid var(--border)',
-            zIndex: 80, overflowY: 'auto', display: 'flex', flexDirection: 'column',
-          }}>
+          <div onClick={closePanel} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 79 }} />
+          <aside style={{ position: 'fixed', top: 0, right: 0, width: '460px', maxWidth: '95vw', height: '100vh', background: 'var(--card)', borderLeft: '0.5px solid var(--border)', zIndex: 80, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
             <div style={{ padding: '18px 20px 12px', borderBottom: '0.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--foreground)' }}>Detalle de decisión</span>
               <button onClick={closePanel} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: '#9ca3af', lineHeight: 1 }}>×</button>
             </div>
-
             {loadingDet ? (
               <div style={{ padding: '40px', textAlign: 'center', color: '#9ca3af', fontSize: '13px' }}>Cargando…</div>
             ) : detalle ? (
@@ -488,17 +525,23 @@ export default function DecisionesPage() {
                 <DetailPanel
                   detalle={detalle}
                   canCrear={canCrear}
-                  canGerencia={canGerencia}
+                  canAprobar={canAprobar}
                   ejecutarMode={ejecutarMode}
                   ejecutarForm={ejecutarForm}
                   savingAction={savingAction}
                   rechazarModal={rechazarModal}
                   rechazarMotivo={rechazarMotivo}
+                  ejecutarCPConfirm={ejecutarCPConfirm}
+                  ejecutarCPError={ejecutarCPError}
+                  fechaSeguimientoCP={fechaSeguimientoCP}
+                  comparativaOpen={comparativaOpen}
+                  comparativaData={comparativaData}
+                  comparativaLoading={comparativaLoading}
                   onEjecutarForm={(k, v) => setEjecutarForm((f: any) => ({ ...f, [k]: v }))}
                   onEnEjecucion={() => patchEstado(detalle.id, 'EN_EJECUCION')}
                   onEjecutar={() => setEjecutarMode(true)}
                   onCancelEjecutar={() => setEjecutarMode(false)}
-                  onConfirmEjecutar={handleEjecutar}
+                  onConfirmEjecutar={handleEjecutarGenerico}
                   onCancelar={() => patchEstado(detalle.id, 'CANCELADA')}
                   onAprobar={handleAprobar}
                   onRechazarOpen={() => setRechazarModal(true)}
@@ -506,6 +549,12 @@ export default function DecisionesPage() {
                   onRechazarMotivoChange={setRechazarMotivo}
                   onConfirmRechazar={handleRechazar}
                   onEditar={() => detalle && openEdit(detalle)}
+                  onEjecutarCPStart={() => setEjecutarCPConfirm('confirming')}
+                  onEjecutarCPCancel={() => { setEjecutarCPConfirm('idle'); setEjecutarCPError('') }}
+                  onEjecutarCPConfirm={handleEjecutarCambioProveedor}
+                  onFechaSeguimientoCPChange={setFechaSeguimientoCP}
+                  onComparativaOpen={() => { setComparativaOpen(true); if (detalle.tiendaId) loadComparativa(detalle.tiendaId) }}
+                  onComparativaClose={() => { setComparativaOpen(false); setComparativaData(null) }}
                 />
               </div>
             ) : null}
@@ -513,15 +562,14 @@ export default function DecisionesPage() {
         </>
       )}
 
-      {/* ── Modal nueva decisión ────────────────────────────────────────────── */}
+      {/* ── Modal nueva / editar decisión ──────────────────────────────────── */}
       {modal && (
         <>
           <div onClick={closeModal} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 90 }} />
           <div style={{
             position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
-            width: '500px', maxWidth: '95vw', maxHeight: '92vh', overflowY: 'auto',
-            background: 'var(--card)', borderRadius: '14px', border: '0.5px solid var(--border)',
-            zIndex: 91, padding: '24px',
+            width: esCambioProveedor ? '560px' : '500px', maxWidth: '95vw', maxHeight: '92vh', overflowY: 'auto',
+            background: 'var(--card)', borderRadius: '14px', border: '0.5px solid var(--border)', zIndex: 91, padding: '24px',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--foreground)' }}>
@@ -534,133 +582,217 @@ export default function DecisionesPage() {
               {/* Tipo */}
               <div>
                 <label style={labelSt}>Tipo *</label>
-                <select value={form.tipo} onChange={e => setForm((f: any) => ({ ...f, tipo: e.target.value }))} style={inp()}>
+                <select
+                  value={form.tipo}
+                  onChange={e => {
+                    setForm((f: any) => ({ ...f, tipo: e.target.value, tiendaId: '', proveedorId: '', proveedorAnteriorId: '', snapDetalle: null }))
+                    setSnapData(null); setTiendaQuery('')
+                  }}
+                  style={inp()}
+                >
                   <option value="">Selecciona un tipo…</option>
                   {TIPOS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
               </div>
 
-              {/* Título */}
-              <div>
-                <label style={labelSt}>Título *</label>
-                <input value={form.titulo} onChange={e => setForm((f: any) => ({ ...f, titulo: e.target.value }))} placeholder="Título de la decisión" style={inp()} />
-              </div>
-
-              {/* Motivo */}
-              <div>
-                <label style={labelSt}>Motivo *</label>
-                <textarea
-                  value={form.motivo}
-                  onChange={e => setForm((f: any) => ({ ...f, motivo: e.target.value }))}
-                  placeholder="¿Por qué se toma esta decisión?"
-                  rows={3}
-                  style={{ ...inp(), resize: 'vertical' }}
-                />
-              </div>
-
-              {/* Descripción */}
-              <div>
-                <label style={labelSt}>Descripción</label>
-                <textarea
-                  value={form.descripcion}
-                  onChange={e => setForm((f: any) => ({ ...f, descripcion: e.target.value }))}
-                  placeholder="Detalle adicional opcional"
-                  rows={2}
-                  style={{ ...inp(), resize: 'vertical' }}
-                />
-              </div>
-
-              {/* Tienda autocomplete */}
-              <div ref={tiendaRef} style={{ position: 'relative' }}>
-                <label style={labelSt}>Tienda (opcional)</label>
-                {selectedTienda ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '12px', background: '#dbeafe', color: '#1e40af', borderRadius: '5px', padding: '3px 8px' }}>
-                      {tiendaLabel(selectedTienda)}
-                    </span>
-                    <button onClick={() => { setForm((f: any) => ({ ...f, tiendaId: '' })); setTiendaQuery('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: '14px' }}>×</button>
-                  </div>
-                ) : (
-                  <input
-                    value={tiendaQuery}
-                    onChange={e => { setTiendaQuery(e.target.value); setShowTiendaDrop(true) }}
-                    onFocus={() => setShowTiendaDrop(true)}
-                    placeholder="Buscar por código o nombre…"
-                    style={inp()}
-                  />
-                )}
-                {showTiendaDrop && !selectedTienda && tiendaOptions.length > 0 && (
-                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '8px', zIndex: 100, maxHeight: '180px', overflowY: 'auto', boxShadow: '0 4px 16px rgba(0,0,0,0.12)' }}>
-                    {tiendaOptions.map(t => (
-                      <div
-                        key={t.id}
-                        onMouseDown={() => { setForm((f: any) => ({ ...f, tiendaId: t.id })); setTiendaQuery(''); setShowTiendaDrop(false) }}
-                        style={{ padding: '8px 12px', fontSize: '12px', cursor: 'pointer', color: 'var(--foreground)', borderBottom: '0.5px solid var(--border)' }}
-                        onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'var(--background)'}
-                        onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                      >
-                        <strong>{tiendaLabel(t)}</strong>
+              {/* ── CAMBIO_PROVEEDOR: form estructurado ── */}
+              {esCambioProveedor ? (
+                <>
+                  {/* Tienda autocomplete */}
+                  <div ref={tiendaRef} style={{ position: 'relative' }}>
+                    <label style={labelSt}>Tienda *</label>
+                    {selectedTienda ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '12px', background: '#dbeafe', color: '#1e40af', borderRadius: '5px', padding: '3px 8px', fontWeight: 600 }}>
+                          {selectedTienda.codigo}
+                        </span>
+                        {selectedTienda.nombreCc && <span style={{ fontSize: '12px', color: '#6b7280' }}>{selectedTienda.nombreCc}</span>}
+                        <button onClick={() => { setForm((f: any) => ({ ...f, tiendaId: '', proveedorAnteriorId: '', snapDetalle: null })); setTiendaQuery(''); setSnapData(null) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: '14px', marginLeft: 'auto' }}>×</button>
                       </div>
-                    ))}
+                    ) : (
+                      <input
+                        value={tiendaQuery}
+                        onChange={e => { setTiendaQuery(e.target.value); setShowTiendaDrop(true) }}
+                        onFocus={() => setShowTiendaDrop(true)}
+                        placeholder="Buscar por código o nombre…"
+                        style={inp()}
+                      />
+                    )}
+                    {showTiendaDrop && !selectedTienda && tiendaOptions.length > 0 && (
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '8px', zIndex: 100, maxHeight: '180px', overflowY: 'auto', boxShadow: '0 4px 16px rgba(0,0,0,0.12)' }}>
+                        {tiendaOptions.map(t => (
+                          <div
+                            key={t.id}
+                            onMouseDown={() => {
+                              setForm((f: any) => ({ ...f, tiendaId: t.id }))
+                              setTiendaQuery(''); setShowTiendaDrop(false)
+                              loadSnapForTienda(t.id)
+                            }}
+                            style={{ padding: '8px 12px', fontSize: '12px', cursor: 'pointer', color: 'var(--foreground)', borderBottom: '0.5px solid var(--border)' }}
+                            onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'var(--background)'}
+                            onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                          >
+                            <strong>{t.codigo}</strong>{t.nombreCc ? ` — ${t.nombreCc}` : ''}{t.distrito ? ` · ${t.distrito}` : ''}
+                            {t.proveedorNombre && <span style={{ float: 'right', fontSize: '10px', color: '#9ca3af' }}>{t.proveedorNombre}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
 
-              {/* Proveedor */}
-              <div>
-                <label style={labelSt}>Proveedor (opcional)</label>
-                <select value={form.proveedorId} onChange={e => setForm((f: any) => ({ ...f, proveedorId: e.target.value }))} style={inp()}>
-                  <option value="">Sin proveedor</option>
-                  {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                </select>
-              </div>
+                  {/* Indicadores actuales (auto-cargados) */}
+                  {snapLoading && (
+                    <div style={{ fontSize: '12px', color: '#9ca3af', padding: '8px', background: '#f9fafb', borderRadius: '8px', textAlign: 'center' }}>
+                      Cargando indicadores…
+                    </div>
+                  )}
+                  {snapData && !snapLoading && (
+                    <div style={{ background: '#f0fdf4', border: '0.5px solid #bbf7d0', borderRadius: '10px', padding: '12px 14px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 600, color: '#15803d', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Indicadores actuales · {snapData.snap.periodo}</span>
+                        <span style={{ color: '#6b7280', fontWeight: 400 }}>Proveedor: {snapData.tienda.proveedorNombre ?? '—'}</span>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                        {[
+                          { label: 'SLA Respuesta', value: snapData.snap.slaRespuestaPct != null ? fmtPct(snapData.snap.slaRespuestaPct) : '—' },
+                          { label: 'SLA Resolución', value: snapData.snap.slaResolucionPct != null ? fmtPct(snapData.snap.slaResolucionPct) : '—' },
+                          { label: 'MTTR promedio', value: fmtMttr(snapData.snap.mttrPromedio) },
+                          { label: 'Incidentes', value: snapData.snap.totalIncidentes },
+                          { label: 'SLA vencidos', value: snapData.snap.incidentesSlaVencido },
+                          { label: 'IEI acumulado', value: snapData.snap.ieiAcumulado != null ? fmtIei(snapData.snap.ieiAcumulado) : '—' },
+                        ].map(({ label, value }) => (
+                          <div key={label} style={{ background: 'white', borderRadius: '6px', padding: '6px 8px', border: '0.5px solid #bbf7d0' }}>
+                            <div style={{ fontSize: '9px', color: '#9ca3af', marginBottom: '2px' }}>{label}</div>
+                            <div style={{ fontSize: '12px', fontWeight: 700 }}>{value}</div>
+                          </div>
+                        ))}
+                      </div>
+                      {snapData.snap.contratoSlaResolucion && (
+                        <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '6px' }}>
+                          Contrato vigente: SLA respuesta {snapData.snap.contratoSlaRespuesta}min · SLA resolución {snapData.snap.contratoSlaResolucion}min
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-              {/* Fecha seguimiento */}
-              <div>
-                <label style={labelSt}>Fecha de seguimiento</label>
-                <input type="date" value={form.fechaSeguimiento} onChange={e => setForm((f: any) => ({ ...f, fechaSeguimiento: e.target.value }))} style={inp()} />
-              </div>
+                  {/* Proveedor actual (auto-fill, readonly) */}
+                  <div>
+                    <label style={labelSt}>Proveedor actual</label>
+                    <input
+                      readOnly
+                      value={snapData?.tienda?.proveedorNombre ?? (tiendas.find(t => t.id === form.tiendaId)?.proveedorNombre ?? '—')}
+                      style={{ ...inp(), background: '#f9fafb', color: '#6b7280', cursor: 'default' }}
+                    />
+                  </div>
 
-              {/* Indicadores actuales (snap) */}
-              <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '12px' }}>
-                <label style={{ ...labelSt, marginBottom: '10px' }}>Indicadores actuales <span style={{ fontWeight: 400, textTransform: 'none', color: '#9ca3af' }}>(opcional — para comparar post-ejecución)</span></label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  {/* Proveedor al que migra */}
                   <div>
-                    <label style={labelSt}>SLA actual (%)</label>
-                    <input type="number" step="0.1" min="0" max="100" value={form.snapSlaPct} onChange={e => setForm((f: any) => ({ ...f, snapSlaPct: e.target.value }))} placeholder="ej. 72.5" style={inp()} />
+                    <label style={labelSt}>Proveedor al que migra <span style={{ fontWeight: 400, color: '#9ca3af', textTransform: 'none' }}>(opcional)</span></label>
+                    <select
+                      value={form.proveedorId}
+                      onChange={e => setForm((f: any) => ({ ...f, proveedorId: e.target.value }))}
+                      style={inp()}
+                    >
+                      <option value="">Seleccionar proveedor nuevo…</option>
+                      {proveedores
+                        .filter(p => p.id !== form.proveedorAnteriorId)
+                        .map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Justificación */}
+                  <div>
+                    <label style={labelSt}>Justificación / Motivo *</label>
+                    <textarea
+                      value={form.motivo}
+                      onChange={e => setForm((f: any) => ({ ...f, motivo: e.target.value }))}
+                      placeholder="¿Por qué se propone este cambio de proveedor?"
+                      rows={3}
+                      style={{ ...inp(), resize: 'vertical' }}
+                    />
+                  </div>
+
+                  {/* Título auto-sugerido o editable */}
+                  <div>
+                    <label style={labelSt}>Título *</label>
+                    <input
+                      value={form.titulo}
+                      onChange={e => setForm((f: any) => ({ ...f, titulo: e.target.value }))}
+                      placeholder={selectedTienda ? `Cambio de proveedor — ${selectedTienda.codigo}` : 'Título de la decisión'}
+                      style={inp()}
+                    />
+                  </div>
+                </>
+              ) : (
+                /* ── Otros tipos: form genérico ── */
+                <>
+                  <div>
+                    <label style={labelSt}>Título *</label>
+                    <input value={form.titulo} onChange={e => setForm((f: any) => ({ ...f, titulo: e.target.value }))} placeholder="Título de la decisión" style={inp()} />
                   </div>
                   <div>
-                    <label style={labelSt}>MTTR actual (min)</label>
-                    <input type="number" min="0" value={form.snapMttrMinutos} onChange={e => setForm((f: any) => ({ ...f, snapMttrMinutos: e.target.value }))} placeholder="ej. 95" style={inp()} />
+                    <label style={labelSt}>Motivo *</label>
+                    <textarea value={form.motivo} onChange={e => setForm((f: any) => ({ ...f, motivo: e.target.value }))} placeholder="¿Por qué se toma esta decisión?" rows={3} style={{ ...inp(), resize: 'vertical' }} />
                   </div>
                   <div>
-                    <label style={labelSt}>IEI actual (S/)</label>
-                    <input type="number" step="0.01" min="0" value={form.snapIei} onChange={e => setForm((f: any) => ({ ...f, snapIei: e.target.value }))} placeholder="ej. 1240" style={inp()} />
+                    <label style={labelSt}>Descripción</label>
+                    <textarea value={form.descripcion} onChange={e => setForm((f: any) => ({ ...f, descripcion: e.target.value }))} placeholder="Detalle adicional opcional" rows={2} style={{ ...inp(), resize: 'vertical' }} />
                   </div>
+
+                  {/* Tienda autocomplete */}
+                  <div ref={tiendaRef} style={{ position: 'relative' }}>
+                    <label style={labelSt}>Tienda (opcional)</label>
+                    {selectedTienda ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '12px', background: '#dbeafe', color: '#1e40af', borderRadius: '5px', padding: '3px 8px' }}>{tiendaLabel(selectedTienda)}</span>
+                        <button onClick={() => { setForm((f: any) => ({ ...f, tiendaId: '' })); setTiendaQuery('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: '14px' }}>×</button>
+                      </div>
+                    ) : (
+                      <input value={tiendaQuery} onChange={e => { setTiendaQuery(e.target.value); setShowTiendaDrop(true) }} onFocus={() => setShowTiendaDrop(true)} placeholder="Buscar por código o nombre…" style={inp()} />
+                    )}
+                    {showTiendaDrop && !selectedTienda && tiendaOptions.length > 0 && (
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '8px', zIndex: 100, maxHeight: '180px', overflowY: 'auto', boxShadow: '0 4px 16px rgba(0,0,0,0.12)' }}>
+                        {tiendaOptions.map(t => (
+                          <div key={t.id} onMouseDown={() => { setForm((f: any) => ({ ...f, tiendaId: t.id })); setTiendaQuery(''); setShowTiendaDrop(false) }} style={{ padding: '8px 12px', fontSize: '12px', cursor: 'pointer', color: 'var(--foreground)', borderBottom: '0.5px solid var(--border)' }} onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'var(--background)'} onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}>
+                            <strong>{t.codigo}</strong>{t.nombreCc ? ` — ${t.nombreCc}` : ''}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                   <div>
-                    <label style={labelSt}>Nº incidentes</label>
-                    <input type="number" min="0" value={form.snapIncidentes} onChange={e => setForm((f: any) => ({ ...f, snapIncidentes: e.target.value }))} placeholder="ej. 18" style={inp()} />
+                    <label style={labelSt}>Proveedor (opcional)</label>
+                    <select value={form.proveedorId} onChange={e => setForm((f: any) => ({ ...f, proveedorId: e.target.value }))} style={inp()}>
+                      <option value="">Sin proveedor</option>
+                      {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                    </select>
                   </div>
-                </div>
-                <div style={{ marginTop: '10px' }}>
-                  <label style={labelSt}>Período de referencia</label>
-                  <input value={form.snapPeriodo} onChange={e => setForm((f: any) => ({ ...f, snapPeriodo: e.target.value }))} placeholder="ej. Mayo 2026" style={inp()} />
-                </div>
-              </div>
+
+                  <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '12px' }}>
+                    <label style={{ ...labelSt, marginBottom: '10px' }}>Indicadores actuales <span style={{ fontWeight: 400, textTransform: 'none', color: '#9ca3af' }}>(opcional)</span></label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div><label style={labelSt}>SLA (%)</label><input type="number" step="0.1" min="0" max="100" value={form.snapSlaPct} onChange={e => setForm((f: any) => ({ ...f, snapSlaPct: e.target.value }))} style={inp()} /></div>
+                      <div><label style={labelSt}>MTTR (min)</label><input type="number" min="0" value={form.snapMttrMinutos} onChange={e => setForm((f: any) => ({ ...f, snapMttrMinutos: e.target.value }))} style={inp()} /></div>
+                      <div><label style={labelSt}>IEI (S/)</label><input type="number" step="0.01" min="0" value={form.snapIei} onChange={e => setForm((f: any) => ({ ...f, snapIei: e.target.value }))} style={inp()} /></div>
+                      <div><label style={labelSt}>Nº incidentes</label><input type="number" min="0" value={form.snapIncidentes} onChange={e => setForm((f: any) => ({ ...f, snapIncidentes: e.target.value }))} style={inp()} /></div>
+                    </div>
+                  </div>
+                </>
+              )}
 
               {saveError && (
-                <div style={{ fontSize: '12px', color: '#b91c1c', background: '#fee2e2', borderRadius: '6px', padding: '8px 10px' }}>
-                  {saveError}
-                </div>
+                <div style={{ fontSize: '12px', color: '#b91c1c', background: '#fee2e2', borderRadius: '6px', padding: '8px 10px' }}>{saveError}</div>
               )}
+
               <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
                 <button onClick={closeModal} style={{ flex: 1, padding: '9px', fontSize: '12px', background: 'transparent', border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'pointer', color: 'var(--foreground)' }}>
                   Cancelar
                 </button>
                 <button
                   onClick={editMode ? handleUpdate : handleCreate}
-                  disabled={saving || !form.tipo || !form.titulo || !form.motivo}
-                  style={{ flex: 2, padding: '9px', fontSize: '12px', fontWeight: 600, background: saving ? '#93c5fd' : '#185FA5', color: 'white', border: 'none', borderRadius: '8px', cursor: saving ? 'default' : 'pointer' }}
+                  disabled={saving || !form.tipo || !form.titulo || !form.motivo || (esCambioProveedor && !form.tiendaId)}
+                  style={{ flex: 2, padding: '9px', fontSize: '12px', fontWeight: 600, background: saving ? '#93c5fd' : '#185FA5', color: 'white', border: 'none', borderRadius: '8px', cursor: saving ? 'default' : 'pointer', opacity: (!form.tipo || !form.titulo || !form.motivo || (esCambioProveedor && !form.tiendaId)) ? 0.6 : 1 }}
                 >
                   {saving ? 'Guardando…' : editMode ? 'Guardar cambios' : 'Guardar decisión'}
                 </button>
@@ -681,54 +813,31 @@ const labelSt: React.CSSProperties = { fontSize: '11px', fontWeight: 600, color:
 function DecisionCard({ dec, onClick }: { dec: any; onClick: () => void }) {
   const est  = ESTADO_STYLE[dec.estado] ?? ESTADO_STYLE.PENDIENTE
   const tipo = TIPO_LABELS[dec.tipo] ?? dec.tipo
-  const hasSnap = dec.snapSlaPct != null || dec.snapMttrMinutos != null || dec.snapIei != null || dec.snapIncidentes != null
-  const hasPost = dec.postSlaPct != null
+  const esCambio = dec.tipo === 'CAMBIO_PROVEEDOR'
 
   return (
-    <div
-      onClick={onClick}
-      style={{
-        background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px',
-        padding: '14px 16px', cursor: 'pointer', transition: 'box-shadow 0.15s',
-        display: 'flex', flexDirection: 'column', gap: '8px',
-      }}
+    <div onClick={onClick} style={{ background: 'var(--card)', border: `0.5px solid ${dec.estado === 'PROPUESTO' ? '#fde047' : 'var(--border)'}`, borderRadius: '10px', padding: '14px 16px', cursor: 'pointer', transition: 'box-shadow 0.15s', display: 'flex', flexDirection: 'column', gap: '8px' }}
       onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 12px rgba(0,0,0,0.08)'}
       onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.boxShadow = 'none'}
     >
-      {/* Row 1: badges + date */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap' }}>
         <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '20px', background: est.bg, color: est.color }}>
-          {est.label}
+          {dec.estado === 'PROPUESTO' ? '⏳ Pendiente aprobación' : est.label}
         </span>
-        <span style={{ fontSize: '10px', fontWeight: 500, padding: '2px 8px', borderRadius: '20px', background: '#f3f4f6', color: '#374151' }}>
-          {tipo}
-        </span>
-        {dec.tiendaCodigo && (
-          <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '5px', background: '#e0f2fe', color: '#075985' }}>
-            {dec.tiendaCodigo}
+        <span style={{ fontSize: '10px', fontWeight: 500, padding: '2px 8px', borderRadius: '20px', background: '#f3f4f6', color: '#374151' }}>{tipo}</span>
+        {dec.tiendaCodigo && <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '5px', background: '#e0f2fe', color: '#075985' }}>{dec.tiendaCodigo}</span>}
+        {esCambio && dec.proveedorAnteriorNombre && dec.proveedorNombre && (
+          <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '5px', background: '#fef3c7', color: '#92400e' }}>
+            {dec.proveedorAnteriorNombre} → {dec.proveedorNombre}
           </span>
         )}
-        {dec.proveedorNombre && (
-          <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '5px', background: '#ede9fe', color: '#5b21b6' }}>
-            {dec.proveedorNombre}
-          </span>
-        )}
-        <span style={{ marginLeft: 'auto', fontSize: '10px', color: '#9ca3af', whiteSpace: 'nowrap' }}>
-          {fmtDate(dec.creadoEn)}
-        </span>
+        {!esCambio && dec.proveedorNombre && <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '5px', background: '#ede9fe', color: '#5b21b6' }}>{dec.proveedorNombre}</span>}
+        <span style={{ marginLeft: 'auto', fontSize: '10px', color: '#9ca3af', whiteSpace: 'nowrap' }}>{fmtDate(dec.creadoEn)}</span>
       </div>
 
-      {/* Row 2: title */}
-      <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--foreground)', lineHeight: 1.3 }}>
-        {dec.titulo}
-      </div>
+      <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--foreground)', lineHeight: 1.3 }}>{dec.titulo}</div>
+      <div style={{ fontSize: '12px', color: '#6b7280', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{dec.motivo}</div>
 
-      {/* Row 3: motivo */}
-      <div style={{ fontSize: '12px', color: '#6b7280', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-        {dec.motivo}
-      </div>
-
-      {/* Row 4: responsable + seguimiento */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
         <span style={{ fontSize: '11px', color: '#374151' }}>
           <span style={{ color: '#9ca3af' }}>Responsable: </span>
@@ -741,26 +850,6 @@ function DecisionCard({ dec, onClick }: { dec: any; onClick: () => void }) {
           </span>
         )}
       </div>
-
-      {/* Row 5: snapshot + comparativa */}
-      {hasSnap && (
-        <div style={{ fontSize: '11px', color: '#6b7280', background: '#f9fafb', borderRadius: '6px', padding: '6px 10px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-          {dec.snapSlaPct     != null && <span>SLA: <strong>{fmtPct(dec.snapSlaPct)}</strong></span>}
-          {dec.snapMttrMinutos != null && <span>MTTR: <strong>{fmtMttr(dec.snapMttrMinutos)}</strong></span>}
-          {dec.snapIei        != null && <span>IEI: <strong>{fmtIei(dec.snapIei)}</strong></span>}
-          {dec.snapIncidentes != null && <span>Inc: <strong>{dec.snapIncidentes}</strong></span>}
-          {dec.snapPeriodo && <span style={{ color: '#9ca3af' }}>{dec.snapPeriodo}</span>}
-          {hasPost && (
-            <>
-              <span style={{ color: '#d1d5db', margin: '0 2px' }}>·</span>
-              {dec.postSlaPct     != null && <span>SLA: {fmtPct(dec.snapSlaPct)} <DeltaBadge before={dec.snapSlaPct}     after={dec.postSlaPct}     /> {fmtPct(dec.postSlaPct)}</span>}
-              {dec.postMttrMinutos != null && <span>MTTR: {fmtMttr(dec.snapMttrMinutos)} <DeltaBadge before={dec.snapMttrMinutos} after={dec.postMttrMinutos} lowerBetter /> {fmtMttr(dec.postMttrMinutos)}</span>}
-              {dec.postIei        != null && <span>IEI: {fmtIei(dec.snapIei)} <DeltaBadge before={dec.snapIei}        after={dec.postIei}        lowerBetter /> {fmtIei(dec.postIei)}</span>}
-              {dec.postIncidentes != null && <span>Inc: {dec.snapIncidentes} <DeltaBadge before={dec.snapIncidentes}  after={dec.postIncidentes}  lowerBetter /> {dec.postIncidentes}</span>}
-            </>
-          )}
-        </div>
-      )}
     </div>
   )
 }
@@ -768,24 +857,39 @@ function DecisionCard({ dec, onClick }: { dec: any; onClick: () => void }) {
 // ── DetailPanel ────────────────────────────────────────────────────────────────
 
 function DetailPanel({
-  detalle, canCrear, canGerencia, ejecutarMode, ejecutarForm, savingAction,
+  detalle, canCrear, canAprobar, ejecutarMode, ejecutarForm, savingAction,
   rechazarModal, rechazarMotivo,
+  ejecutarCPConfirm, ejecutarCPError, fechaSeguimientoCP,
+  comparativaOpen, comparativaData, comparativaLoading,
   onEjecutarForm, onEnEjecucion, onEjecutar, onCancelEjecutar, onConfirmEjecutar, onCancelar,
-  onAprobar, onRechazarOpen, onRechazarClose, onRechazarMotivoChange, onConfirmRechazar,
-  onEditar,
+  onAprobar, onRechazarOpen, onRechazarClose, onRechazarMotivoChange, onConfirmRechazar, onEditar,
+  onEjecutarCPStart, onEjecutarCPCancel, onEjecutarCPConfirm, onFechaSeguimientoCPChange,
+  onComparativaOpen, onComparativaClose,
 }: {
-  detalle: any; canCrear: boolean; canGerencia: boolean; ejecutarMode: boolean; ejecutarForm: any; savingAction: boolean
+  detalle: any; canCrear: boolean; canAprobar: boolean
+  ejecutarMode: boolean; ejecutarForm: any; savingAction: boolean
   rechazarModal: boolean; rechazarMotivo: string
+  ejecutarCPConfirm: 'idle'|'confirming'|'error'; ejecutarCPError: string; fechaSeguimientoCP: string
+  comparativaOpen: boolean; comparativaData: any; comparativaLoading: boolean
   onEjecutarForm: (k: string, v: any) => void
   onEnEjecucion: () => void; onEjecutar: () => void; onCancelEjecutar: () => void; onConfirmEjecutar: () => void
   onCancelar: () => void
   onAprobar: () => void; onRechazarOpen: () => void; onRechazarClose: () => void
-  onRechazarMotivoChange: (v: string) => void; onConfirmRechazar: () => void
-  onEditar: () => void
+  onRechazarMotivoChange: (v: string) => void; onConfirmRechazar: () => void; onEditar: () => void
+  onEjecutarCPStart: () => void; onEjecutarCPCancel: () => void; onEjecutarCPConfirm: () => void
+  onFechaSeguimientoCPChange: (v: string) => void
+  onComparativaOpen: () => void; onComparativaClose: () => void
 }) {
-  const est  = ESTADO_STYLE[detalle.estado] ?? ESTADO_STYLE.PENDIENTE
-  const tipo = TIPO_LABELS[detalle.tipo] ?? detalle.tipo
-  const canAct = canCrear && detalle.estado !== 'CANCELADA' && detalle.estado !== 'EJECUTADA' && detalle.estado !== 'RECHAZADO'
+  const est     = ESTADO_STYLE[detalle.estado] ?? ESTADO_STYLE.PENDIENTE
+  const tipo    = TIPO_LABELS[detalle.tipo] ?? detalle.tipo
+  const esCambio = detalle.tipo === 'CAMBIO_PROVEEDOR'
+  const canAct  = canCrear && !['CANCELADA','EJECUTADA','RECHAZADO'].includes(detalle.estado)
+
+  // Comparativa habilitada si ejecutada hace más de 30 días
+  const diasDesdeEjecucion = detalle.ejecutadaEn
+    ? Math.floor((Date.now() - new Date(detalle.ejecutadaEn).getTime()) / (86400000))
+    : null
+  const comparativaHabilitada = esCambio && detalle.estado === 'EJECUTADA' && diasDesdeEjecucion != null && diasDesdeEjecucion >= 30
 
   function Row({ label, value }: { label: string; value?: string | null }) {
     if (!value) return null
@@ -799,9 +903,11 @@ function DetailPanel({
 
   return (
     <>
-      {/* Estado + tipo + editar */}
+      {/* Estado + tipo */}
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: est.bg, color: est.color }}>{est.label}</span>
+        <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: est.bg, color: est.color }}>
+          {detalle.estado === 'PROPUESTO' ? '⏳ Pendiente aprobación' : est.label}
+        </span>
         <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '20px', background: '#f3f4f6', color: '#374151' }}>{tipo}</span>
         {canCrear && detalle.estado === 'PROPUESTO' && (
           <button onClick={onEditar} style={{ marginLeft: 'auto', fontSize: '11px', padding: '3px 10px', borderRadius: '6px', border: '0.5px solid var(--border)', background: 'transparent', color: 'var(--foreground)', cursor: 'pointer' }}>
@@ -814,35 +920,45 @@ function DetailPanel({
       {detalle.estado === 'PROPUESTO' && (
         <div style={{ background: '#fefce8', border: '0.5px solid #fde047', borderRadius: '8px', padding: '10px 12px', fontSize: '12px', color: '#854d0e', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span>⏳</span>
-          <span>Pendiente de aprobación por Gerencia. Una vez aprobada pasará a ejecución.</span>
+          <span>Pendiente de aprobación por Supervisor o Gerencia.</span>
         </div>
       )}
 
       {/* Título */}
       <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--foreground)', lineHeight: 1.3 }}>{detalle.titulo}</div>
-
-      <Row label="Motivo" value={detalle.motivo} />
+      <Row label="Motivo / Justificación" value={detalle.motivo} />
       {detalle.descripcion && <Row label="Descripción" value={detalle.descripcion} />}
 
-      {/* Tienda / proveedor */}
+      {/* Tienda + proveedores */}
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
         {detalle.tiendaCodigo && (
           <div>
             <div style={{ fontSize: '10px', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>Tienda</div>
-            <span style={{ fontSize: '12px', background: '#e0f2fe', color: '#075985', borderRadius: '5px', padding: '2px 8px' }}>{detalle.tiendaCodigo}{detalle.tiendaNombre ? ` — ${detalle.tiendaNombre}` : ''}</span>
+            <span style={{ fontSize: '12px', background: '#e0f2fe', color: '#075985', borderRadius: '5px', padding: '2px 8px' }}>
+              {detalle.tiendaCodigo}{detalle.tiendaNombre ? ` — ${detalle.tiendaNombre}` : ''}
+            </span>
           </div>
         )}
-        {detalle.proveedorNombre && (
+        {esCambio ? (
           <div>
-            <div style={{ fontSize: '10px', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>Proveedor</div>
-            <span style={{ fontSize: '12px', background: '#ede9fe', color: '#5b21b6', borderRadius: '5px', padding: '2px 8px' }}>{detalle.proveedorNombre}</span>
+            <div style={{ fontSize: '10px', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>Cambio de proveedor</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '12px', background: '#fee2e2', color: '#b91c1c', borderRadius: '5px', padding: '2px 8px' }}>{detalle.proveedorAnteriorNombre ?? '—'}</span>
+              <span style={{ fontSize: '14px', color: '#9ca3af' }}>→</span>
+              <span style={{ fontSize: '12px', background: '#dcfce7', color: '#15803d', borderRadius: '5px', padding: '2px 8px' }}>{detalle.proveedorNombre ?? 'Por definir'}</span>
+            </div>
           </div>
+        ) : (
+          detalle.proveedorNombre && (
+            <div>
+              <div style={{ fontSize: '10px', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>Proveedor</div>
+              <span style={{ fontSize: '12px', background: '#ede9fe', color: '#5b21b6', borderRadius: '5px', padding: '2px 8px' }}>{detalle.proveedorNombre}</span>
+            </div>
+          )
         )}
       </div>
 
-      {/* Responsable */}
       <Row label="Responsable" value={`${detalle.responsableNombre} (${ROL_LABELS[detalle.responsableRol] ?? detalle.responsableRol})`} />
-      {detalle.responsableEmail && <Row label="Email responsable" value={detalle.responsableEmail} />}
 
       {/* Fechas */}
       <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
@@ -863,119 +979,194 @@ function DetailPanel({
         </div>
       )}
 
-      {/* Snapshot */}
-      {(detalle.snapSlaPct != null || detalle.snapMttrMinutos != null) && (
-        <div style={{ background: '#f9fafb', borderRadius: '8px', padding: '10px 12px' }}>
-          <div style={{ fontSize: '10px', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
-            Indicadores al momento de decidir {detalle.snapPeriodo ? `· ${detalle.snapPeriodo}` : ''}
+      {/* Snapshot indicadores */}
+      {(detalle.snapDetalle || detalle.snapSlaPct != null || detalle.snapMttrMinutos != null) && (() => {
+        const sd = detalle.snapDetalle
+        const pd = detalle.postDetalle
+        return (
+          <div style={{ background: '#f9fafb', borderRadius: '8px', padding: '10px 12px' }}>
+            <div style={{ fontSize: '10px', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
+              Indicadores al decidir {detalle.snapPeriodo ? `· ${detalle.snapPeriodo}` : ''}
+            </div>
+            {sd ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                {[
+                  { label: 'SLA Respuesta', snap: sd.slaRespuestaPct, post: pd?.slaRespuestaPct, fmt: fmtPct, lb: false },
+                  { label: 'SLA Resolución', snap: sd.slaResolucionPct, post: pd?.slaResolucionPct, fmt: fmtPct, lb: false },
+                  { label: 'MTTR', snap: sd.mttrPromedio, post: pd?.mttrPromedio, fmt: fmtMttr, lb: true },
+                  { label: 'Incidentes', snap: sd.totalIncidentes, post: pd?.totalIncidentes, fmt: (v: any) => v ?? '—', lb: true },
+                  { label: 'SLA vencidos', snap: sd.incidentesSlaVencido, post: pd?.incidentesSlaVencido, fmt: (v: any) => v ?? '—', lb: true },
+                  { label: 'IEI acum.', snap: sd.ieiAcumulado, post: pd?.ieiAcumulado, fmt: fmtIei, lb: true },
+                ].map(({ label, snap, post, fmt, lb }) => (
+                  <div key={label} style={{ background: 'white', border: '0.5px solid #e5e7eb', borderRadius: '6px', padding: '6px 8px' }}>
+                    <div style={{ fontSize: '9px', color: '#9ca3af', marginBottom: '2px' }}>{label}</div>
+                    <div style={{ fontSize: '12px', fontWeight: 700 }}>{fmt(snap)}</div>
+                    {post != null && (
+                      <div style={{ fontSize: '10px', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                        <DeltaBadge before={snap} after={post} lowerBetter={lb} />
+                        <span style={{ color: '#374151' }}>{fmt(post)}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <MetricBox label="SLA" value={fmtPct(detalle.snapSlaPct)} post={fmtPct(detalle.postSlaPct)} lowerBetter={false} raw={{ b: detalle.snapSlaPct, a: detalle.postSlaPct }} />
+                <MetricBox label="MTTR" value={fmtMttr(detalle.snapMttrMinutos)} post={fmtMttr(detalle.postMttrMinutos)} lowerBetter raw={{ b: detalle.snapMttrMinutos, a: detalle.postMttrMinutos }} />
+                <MetricBox label="IEI" value={fmtIei(detalle.snapIei)} post={fmtIei(detalle.postIei)} lowerBetter raw={{ b: detalle.snapIei, a: detalle.postIei }} />
+                <MetricBox label="Incidentes" value={detalle.snapIncidentes ?? '—'} post={detalle.postIncidentes ?? null} lowerBetter raw={{ b: detalle.snapIncidentes, a: detalle.postIncidentes }} />
+              </div>
+            )}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-            <MetricBox label="SLA" value={fmtPct(detalle.snapSlaPct)} post={fmtPct(detalle.postSlaPct)} lowerBetter={false} raw={{ b: detalle.snapSlaPct, a: detalle.postSlaPct }} />
-            <MetricBox label="MTTR" value={fmtMttr(detalle.snapMttrMinutos)} post={fmtMttr(detalle.postMttrMinutos)} lowerBetter raw={{ b: detalle.snapMttrMinutos, a: detalle.postMttrMinutos }} />
-            <MetricBox label="IEI" value={fmtIei(detalle.snapIei)} post={fmtIei(detalle.postIei)} lowerBetter raw={{ b: detalle.snapIei, a: detalle.postIei }} />
-            <MetricBox label="Incidentes" value={detalle.snapIncidentes ?? '—'} post={detalle.postIncidentes ?? null} lowerBetter raw={{ b: detalle.snapIncidentes, a: detalle.postIncidentes }} />
-          </div>
+        )
+      })()}
+
+      {detalle.resultadoNota && <Row label="Nota de resultado" value={detalle.resultadoNota} />}
+
+      {/* ── Comparativa post-ejecución (≥30 días) ─────────────────────────── */}
+      {esCambio && detalle.estado === 'EJECUTADA' && (
+        <div>
+          {comparativaHabilitada ? (
+            !comparativaOpen ? (
+              <button onClick={onComparativaOpen} style={{ width: '100%', padding: '9px', fontSize: '12px', fontWeight: 600, background: '#185FA5', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+                Ver comparativa con nuevo proveedor
+              </button>
+            ) : (
+              <div style={{ background: '#eff6ff', border: '0.5px solid #bfdbfe', borderRadius: '10px', padding: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#1e40af' }}>Comparativa — {detalle.proveedorAnteriorNombre ?? 'Anterior'} vs {detalle.proveedorNombre ?? 'Actual'}</div>
+                  <button onClick={onComparativaClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: '14px' }}>×</button>
+                </div>
+                {comparativaLoading ? (
+                  <div style={{ fontSize: '12px', color: '#9ca3af', textAlign: 'center', padding: '16px' }}>Cargando datos actuales…</div>
+                ) : comparativaData && detalle.snapDetalle ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                    {[
+                      { label: 'SLA Respuesta', old: detalle.snapDetalle?.slaRespuestaPct, now: comparativaData.snap?.slaRespuestaPct, fmt: fmtPct, lb: false },
+                      { label: 'SLA Resolución', old: detalle.snapDetalle?.slaResolucionPct, now: comparativaData.snap?.slaResolucionPct, fmt: fmtPct, lb: false },
+                      { label: 'MTTR', old: detalle.snapDetalle?.mttrPromedio, now: comparativaData.snap?.mttrPromedio, fmt: fmtMttr, lb: true },
+                      { label: 'Incidentes', old: detalle.snapDetalle?.totalIncidentes, now: comparativaData.snap?.totalIncidentes, fmt: (v: any) => v ?? '—', lb: true },
+                      { label: 'SLA vencidos', old: detalle.snapDetalle?.incidentesSlaVencido, now: comparativaData.snap?.incidentesSlaVencido, fmt: (v: any) => v ?? '—', lb: true },
+                      { label: 'IEI acum.', old: detalle.snapDetalle?.ieiAcumulado, now: comparativaData.snap?.ieiAcumulado, fmt: fmtIei, lb: true },
+                    ].map(({ label, old, now, fmt, lb }) => (
+                      <div key={label} style={{ background: 'white', border: '0.5px solid #bfdbfe', borderRadius: '6px', padding: '7px 8px' }}>
+                        <div style={{ fontSize: '9px', color: '#9ca3af', marginBottom: '3px' }}>{label}</div>
+                        <div style={{ fontSize: '10px', color: '#6b7280' }}>{fmt(old)}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '3px', marginTop: '1px' }}>
+                          <DeltaBadge before={old} after={now} lowerBetter={lb} />
+                          <span style={{ fontSize: '12px', fontWeight: 700 }}>{fmt(now)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '12px', color: '#6b7280', textAlign: 'center' }}>Sin datos disponibles para comparar.</div>
+                )}
+                <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '8px' }}>Período actual: {comparativaData?.snap?.periodo ?? 'Últimos 90 días'}</div>
+              </div>
+            )
+          ) : diasDesdeEjecucion != null && diasDesdeEjecucion < 30 ? (
+            <div style={{ fontSize: '11px', color: '#6b7280', background: '#f9fafb', borderRadius: '8px', padding: '8px 12px', textAlign: 'center' }}>
+              Comparativa disponible en {30 - diasDesdeEjecucion} día{30 - diasDesdeEjecucion !== 1 ? 's' : ''} (mínimo 30 días con el nuevo proveedor)
+            </div>
+          ) : null}
         </div>
       )}
 
-      {/* Resultado nota */}
-      {detalle.resultadoNota && <Row label="Nota de resultado" value={detalle.resultadoNota} />}
-
-      {/* ── Acciones aprobación (GERENCIA, solo PROPUESTO) ────────────────── */}
-      {canGerencia && detalle.estado === 'PROPUESTO' && !rechazarModal && (
+      {/* ── Aprobación (Supervisor o Gerencia, solo PROPUESTO) ────────────── */}
+      {canAprobar && detalle.estado === 'PROPUESTO' && !rechazarModal && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
           <div style={{ fontSize: '10px', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Aprobación</div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '8px' }}>
             <ActionBtn onClick={onAprobar} loading={savingAction} color="#15803d" label="Aprobar" />
             <ActionBtn onClick={onRechazarOpen} loading={false} color="#9d174d" label="Rechazar" outline />
           </div>
         </div>
       )}
 
-      {/* ── Modal rechazo inline ───────────────────────────────────────────── */}
+      {/* ── Modal rechazo inline ────────────────────────────────────────────── */}
       {rechazarModal && (
         <div style={{ background: '#fff1f2', border: '0.5px solid #fecdd3', borderRadius: '10px', padding: '14px' }}>
           <div style={{ fontSize: '12px', fontWeight: 600, color: '#9d174d', marginBottom: '10px' }}>Motivo del rechazo</div>
-          <textarea
-            value={rechazarMotivo}
-            onChange={e => onRechazarMotivoChange(e.target.value)}
-            placeholder="Explica por qué se rechaza esta decisión…"
-            rows={3}
-            style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid #fecdd3', borderRadius: '8px', background: 'white', outline: 'none', boxSizing: 'border-box', resize: 'vertical' }}
-          />
+          <textarea value={rechazarMotivo} onChange={e => onRechazarMotivoChange(e.target.value)} placeholder="Explica por qué se rechaza esta decisión…" rows={3} style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid #fecdd3', borderRadius: '8px', background: 'white', outline: 'none', boxSizing: 'border-box', resize: 'vertical' }} />
           <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-            <button onClick={onRechazarClose} style={{ flex: 1, padding: '8px', fontSize: '12px', background: 'transparent', border: '0.5px solid #fecdd3', borderRadius: '8px', cursor: 'pointer', color: '#9d174d' }}>
-              Atrás
-            </button>
-            <button
-              onClick={onConfirmRechazar}
-              disabled={savingAction || !rechazarMotivo.trim()}
-              style={{ flex: 2, padding: '8px', fontSize: '12px', fontWeight: 600, background: savingAction || !rechazarMotivo.trim() ? '#fbcfe8' : '#9d174d', color: 'white', border: 'none', borderRadius: '8px', cursor: savingAction || !rechazarMotivo.trim() ? 'default' : 'pointer' }}
-            >
+            <button onClick={onRechazarClose} style={{ flex: 1, padding: '8px', fontSize: '12px', background: 'transparent', border: '0.5px solid #fecdd3', borderRadius: '8px', cursor: 'pointer', color: '#9d174d' }}>Atrás</button>
+            <button onClick={onConfirmRechazar} disabled={savingAction || !rechazarMotivo.trim()} style={{ flex: 2, padding: '8px', fontSize: '12px', fontWeight: 600, background: savingAction || !rechazarMotivo.trim() ? '#fbcfe8' : '#9d174d', color: 'white', border: 'none', borderRadius: '8px', cursor: savingAction || !rechazarMotivo.trim() ? 'default' : 'pointer' }}>
               {savingAction ? 'Guardando…' : 'Confirmar rechazo'}
             </button>
           </div>
         </div>
       )}
 
-      {/* ── Acciones ──────────────────────────────────────────────────────── */}
-      {canAct && !ejecutarMode && !rechazarModal && (
+      {/* ── Acciones CAMBIO_PROVEEDOR: Actualizar decisión ──────────────────── */}
+      {esCambio && canAprobar && canAct && detalle.estado === 'PENDIENTE' && ejecutarCPConfirm !== 'confirming' && ejecutarCPConfirm !== 'error' && !rechazarModal && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+          <div style={{ fontSize: '10px', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Ejecutar cambio</div>
+          {/* Fecha seguimiento opcional */}
+          <div>
+            <label style={{ ...labelSt, marginBottom: '4px' }}>Fecha de seguimiento <span style={{ fontWeight: 400, textTransform: 'none', color: '#9ca3af' }}>(opcional)</span></label>
+            <input type="date" value={fechaSeguimientoCP} onChange={e => onFechaSeguimientoCPChange(e.target.value)} style={{ ...inp2(), width: '200px' }} />
+          </div>
+          <button onClick={onEjecutarCPStart} style={{ padding: '9px 18px', fontSize: '12px', fontWeight: 700, background: '#15803d', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', alignSelf: 'flex-start' }}>
+            Actualizar decisión →
+          </button>
+          <ActionBtn onClick={onCancelar} loading={savingAction} color="#b91c1c" label="Cancelar decisión" outline />
+        </div>
+      )}
+
+      {/* ── Confirmación doble CAMBIO_PROVEEDOR ─────────────────────────────── */}
+      {esCambio && (ejecutarCPConfirm === 'confirming' || ejecutarCPConfirm === 'error') && (
+        <div style={{ background: '#fef3c7', border: '0.5px solid #f59e0b', borderRadius: '10px', padding: '14px' }}>
+          <div style={{ fontSize: '12px', fontWeight: 700, color: '#92400e', marginBottom: '8px' }}>⚠ Confirmar cambio de proveedor</div>
+          <div style={{ fontSize: '12px', color: '#78350f', marginBottom: '12px', lineHeight: 1.5 }}>
+            Esto cambiará el proveedor de <strong>{detalle.tiendaCodigo}</strong> de <strong>{detalle.proveedorAnteriorNombre ?? '—'}</strong> a <strong>{detalle.proveedorNombre ?? '—'}</strong>. Esta acción no se puede deshacer.
+            <br />Los incidentes históricos quedarán atribuidos al proveedor anterior.
+          </div>
+          {ejecutarCPError && (
+            <div style={{ fontSize: '12px', color: '#b91c1c', background: '#fee2e2', borderRadius: '6px', padding: '8px 10px', marginBottom: '10px' }}>
+              {ejecutarCPError}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={onEjecutarCPCancel} style={{ flex: 1, padding: '8px', fontSize: '12px', background: 'transparent', border: '0.5px solid #f59e0b', borderRadius: '8px', cursor: 'pointer', color: '#92400e' }}>Cancelar</button>
+            <button onClick={onEjecutarCPConfirm} disabled={savingAction} style={{ flex: 2, padding: '8px', fontSize: '12px', fontWeight: 700, background: savingAction ? '#86efac' : '#15803d', color: 'white', border: 'none', borderRadius: '8px', cursor: savingAction ? 'default' : 'pointer' }}>
+              {savingAction ? 'Ejecutando…' : 'Confirmar cambio de proveedor'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Acciones genéricas (no CAMBIO_PROVEEDOR) ────────────────────────── */}
+      {!esCambio && canAct && !ejecutarMode && !rechazarModal && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
           <div style={{ fontSize: '10px', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Acciones</div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {detalle.estado === 'PENDIENTE' && (
-              <ActionBtn onClick={onEnEjecucion} loading={savingAction} color="#185FA5" label="Marcar en ejecución" />
-            )}
-            {(detalle.estado === 'PENDIENTE' || detalle.estado === 'EN_EJECUCION') && (
-              <ActionBtn onClick={onEjecutar} loading={false} color="#15803d" label="Marcar ejecutada" />
-            )}
+            {detalle.estado === 'PENDIENTE' && <ActionBtn onClick={onEnEjecucion} loading={savingAction} color="#185FA5" label="Marcar en ejecución" />}
+            {['PENDIENTE', 'EN_EJECUCION'].includes(detalle.estado) && <ActionBtn onClick={onEjecutar} loading={false} color="#15803d" label="Marcar ejecutada" />}
             <ActionBtn onClick={onCancelar} loading={savingAction} color="#b91c1c" label="Cancelar" outline />
           </div>
         </div>
       )}
 
-      {/* ── Form ejecutar ─────────────────────────────────────────────────── */}
-      {ejecutarMode && (
+      {/* ── Form ejecutar genérico ────────────────────────────────────────── */}
+      {!esCambio && ejecutarMode && (
         <div style={{ background: '#f0fdf4', border: '0.5px solid #bbf7d0', borderRadius: '10px', padding: '14px' }}>
-          <div style={{ fontSize: '12px', fontWeight: 600, color: '#15803d', marginBottom: '12px' }}>Registrar resultado de ejecución</div>
+          <div style={{ fontSize: '12px', fontWeight: 600, color: '#15803d', marginBottom: '12px' }}>Registrar resultado</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div>
               <label style={labelSt}>Nota de resultado</label>
-              <textarea
-                value={ejecutarForm.resultadoNota}
-                onChange={e => onEjecutarForm('resultadoNota', e.target.value)}
-                placeholder="Describe qué ocurrió al ejecutar la decisión…"
-                rows={3}
-                style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid #bbf7d0', borderRadius: '8px', background: 'white', outline: 'none', boxSizing: 'border-box', resize: 'vertical' }}
-              />
+              <textarea value={ejecutarForm.resultadoNota} onChange={e => onEjecutarForm('resultadoNota', e.target.value)} placeholder="Describe el resultado de la ejecución…" rows={3} style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid #bbf7d0', borderRadius: '8px', background: 'white', outline: 'none', boxSizing: 'border-box', resize: 'vertical' }} />
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div>
-                <label style={labelSt}>SLA post (%)</label>
-                <input type="number" step="0.1" value={ejecutarForm.postSlaPct} onChange={e => onEjecutarForm('postSlaPct', e.target.value)} placeholder="ej. 85.5" style={{ ...postInp() }} />
-              </div>
-              <div>
-                <label style={labelSt}>MTTR post (min)</label>
-                <input type="number" value={ejecutarForm.postMttrMinutos} onChange={e => onEjecutarForm('postMttrMinutos', e.target.value)} placeholder="ej. 120" style={{ ...postInp() }} />
-              </div>
-              <div>
-                <label style={labelSt}>IEI post (S/)</label>
-                <input type="number" step="0.01" value={ejecutarForm.postIei} onChange={e => onEjecutarForm('postIei', e.target.value)} placeholder="ej. 450.00" style={{ ...postInp() }} />
-              </div>
-              <div>
-                <label style={labelSt}>Incidentes post</label>
-                <input type="number" value={ejecutarForm.postIncidentes} onChange={e => onEjecutarForm('postIncidentes', e.target.value)} placeholder="ej. 8" style={{ ...postInp() }} />
-              </div>
+              <div><label style={labelSt}>SLA post (%)</label><input type="number" step="0.1" value={ejecutarForm.postSlaPct} onChange={e => onEjecutarForm('postSlaPct', e.target.value)} style={postInp()} /></div>
+              <div><label style={labelSt}>MTTR post (min)</label><input type="number" value={ejecutarForm.postMttrMinutos} onChange={e => onEjecutarForm('postMttrMinutos', e.target.value)} style={postInp()} /></div>
+              <div><label style={labelSt}>IEI post (S/)</label><input type="number" step="0.01" value={ejecutarForm.postIei} onChange={e => onEjecutarForm('postIei', e.target.value)} style={postInp()} /></div>
+              <div><label style={labelSt}>Incidentes post</label><input type="number" value={ejecutarForm.postIncidentes} onChange={e => onEjecutarForm('postIncidentes', e.target.value)} style={postInp()} /></div>
             </div>
-            <div style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
-              <button onClick={onCancelEjecutar} style={{ flex: 1, padding: '8px', fontSize: '12px', background: 'transparent', border: '0.5px solid #bbf7d0', borderRadius: '8px', cursor: 'pointer', color: '#15803d' }}>
-                Atrás
-              </button>
-              <button
-                onClick={onConfirmEjecutar}
-                disabled={savingAction}
-                style={{ flex: 2, padding: '8px', fontSize: '12px', fontWeight: 600, background: savingAction ? '#86efac' : '#16a34a', color: 'white', border: 'none', borderRadius: '8px', cursor: savingAction ? 'default' : 'pointer' }}
-              >
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={onCancelEjecutar} style={{ flex: 1, padding: '8px', fontSize: '12px', background: 'transparent', border: '0.5px solid #bbf7d0', borderRadius: '8px', cursor: 'pointer', color: '#15803d' }}>Atrás</button>
+              <button onClick={onConfirmEjecutar} disabled={savingAction} style={{ flex: 2, padding: '8px', fontSize: '12px', fontWeight: 600, background: savingAction ? '#86efac' : '#16a34a', color: 'white', border: 'none', borderRadius: '8px', cursor: savingAction ? 'default' : 'pointer' }}>
                 {savingAction ? 'Guardando…' : 'Confirmar ejecución'}
               </button>
             </div>
@@ -1008,17 +1199,7 @@ function MetricBox({ label, value, post, lowerBetter, raw }: { label: string; va
 
 function ActionBtn({ onClick, loading, color, label, outline }: { onClick: () => void; loading: boolean; color: string; label: string; outline?: boolean }) {
   return (
-    <button
-      onClick={onClick}
-      disabled={loading}
-      style={{
-        padding: '7px 14px', fontSize: '11px', fontWeight: 600, borderRadius: '7px', cursor: loading ? 'default' : 'pointer',
-        background: outline ? 'transparent' : color,
-        color: outline ? color : 'white',
-        border: outline ? `0.5px solid ${color}` : 'none',
-        opacity: loading ? 0.6 : 1,
-      }}
-    >
+    <button onClick={onClick} disabled={loading} style={{ padding: '7px 14px', fontSize: '11px', fontWeight: 600, borderRadius: '7px', cursor: loading ? 'default' : 'pointer', background: outline ? 'transparent' : color, color: outline ? color : 'white', border: outline ? `0.5px solid ${color}` : 'none', opacity: loading ? 0.6 : 1 }}>
       {loading ? '…' : label}
     </button>
   )
@@ -1028,6 +1209,10 @@ function ActionBtn({ onClick, loading, color, label, outline }: { onClick: () =>
 
 function postInp(): React.CSSProperties {
   return { width: '100%', padding: '6px 9px', fontSize: '12px', border: '0.5px solid #bbf7d0', borderRadius: '7px', background: 'white', outline: 'none', boxSizing: 'border-box' }
+}
+
+function inp2(): React.CSSProperties {
+  return { padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', boxSizing: 'border-box' }
 }
 
 function IcoCalendar() {

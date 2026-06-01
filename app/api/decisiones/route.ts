@@ -68,8 +68,8 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const {
     tipo, titulo, descripcion, motivo,
-    tiendaId, proveedorId, fechaSeguimiento,
-    snapSlaPct, snapMttrMinutos, snapIei, snapIncidentes, snapPeriodo,
+    tiendaId, proveedorId, proveedorAnteriorId, fechaSeguimiento,
+    snapSlaPct, snapMttrMinutos, snapIei, snapIncidentes, snapPeriodo, snapDetalle,
   } = body
 
   if (!tipo || !titulo || !motivo)
@@ -77,23 +77,26 @@ export async function POST(req: NextRequest) {
 
   const responsableId = (session.user as any).id
   const userRol       = (session.user as any).rol
-  const estadoInicial = userRol === 'GERENCIA' ? 'PENDIENTE' : 'PROPUESTO'
+  // SUPERVISOR y GERENCIA no necesitan aprobación externa
+  const estadoInicial = (userRol === 'GERENCIA' || userRol === 'SUPERVISOR') ? 'PENDIENTE' : 'PROPUESTO'
 
   const [dec] = await db.insert(decisiones).values({
     tipo,
     titulo,
-    descripcion:      descripcion      ?? null,
+    descripcion:         descripcion         ?? null,
     motivo,
-    estado:           estadoInicial    as any,
-    tiendaId:         tiendaId         ?? null,
-    proveedorId:      proveedorId      ?? null,
+    estado:              estadoInicial        as any,
+    tiendaId:            tiendaId            ?? null,
+    proveedorId:         proveedorId         ?? null,
+    proveedorAnteriorId: proveedorAnteriorId ?? null,
     responsableId,
-    fechaSeguimiento: fechaSeguimiento ?? null,
-    snapSlaPct:       snapSlaPct       ?? null,
-    snapMttrMinutos:  snapMttrMinutos  ?? null,
-    snapIei:          snapIei          ?? null,
-    snapIncidentes:   snapIncidentes   ?? null,
-    snapPeriodo:      snapPeriodo      ?? null,
+    fechaSeguimiento:    fechaSeguimiento    ?? null,
+    snapSlaPct:          snapSlaPct          ?? null,
+    snapMttrMinutos:     snapMttrMinutos     ?? null,
+    snapIei:             snapIei             ?? null,
+    snapIncidentes:      snapIncidentes      ?? null,
+    snapPeriodo:         snapPeriodo         ?? null,
+    snapDetalle:         snapDetalle         ?? null,
   }).returning()
 
   if (tiendaId) {

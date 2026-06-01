@@ -1,6 +1,6 @@
 import {
   pgTable, pgEnum, uuid, text, boolean,
-  timestamp, integer, numeric, date,
+  timestamp, integer, numeric, date, jsonb,
 } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
 
@@ -28,6 +28,8 @@ export const tipoDecisionEnum = pgEnum('tipo_decision', [
 export const estadoDecisionEnum = pgEnum('estado_decision', [
   'PROPUESTO', 'PENDIENTE', 'EN_EJECUCION', 'EJECUTADA', 'CANCELADA', 'RECHAZADO',
 ])
+// snapDetalle / postDetalle JSON shape (CAMBIO_PROVEEDOR):
+// { slaRespuestaPct, slaResolucionPct, mttrMin, totalIncidentes, incidentesSlaVencido, ieiAcumulado, contratoSlaObjetivo }
 
 export const usuarios = pgTable('usuarios', {
   id:       uuid('id').primaryKey().defaultRandom(),
@@ -305,7 +307,8 @@ export const decisiones = pgTable('decisiones', {
   motivo:           text('motivo').notNull(),
   estado:           estadoDecisionEnum('estado').default('PENDIENTE'),
   tiendaId:         uuid('tienda_id').references(() => tiendas.id),
-  proveedorId:      uuid('proveedor_id').references(() => proveedores.id),
+  proveedorId:         uuid('proveedor_id').references(() => proveedores.id),
+  proveedorAnteriorId: uuid('proveedor_anterior_id').references(() => proveedores.id),
   responsableId:    uuid('responsable_id').references(() => usuarios.id).notNull(),
   fechaSeguimiento: date('fecha_seguimiento'),
   snapSlaPct:       numeric('snap_sla_pct'),
@@ -313,12 +316,14 @@ export const decisiones = pgTable('decisiones', {
   snapIei:          numeric('snap_iei'),
   snapIncidentes:   integer('snap_incidentes'),
   snapPeriodo:      text('snap_periodo'),
+  snapDetalle:      jsonb('snap_detalle'),
   ejecutadaEn:      timestamp('ejecutada_en'),
   resultadoNota:    text('resultado_nota'),
   postSlaPct:       numeric('post_sla_pct'),
   postMttrMinutos:  integer('post_mttr_minutos'),
   postIei:          numeric('post_iei'),
   postIncidentes:   integer('post_incidentes'),
+  postDetalle:      jsonb('post_detalle'),
   aprobadoPorId:    uuid('aprobado_por_id').references(() => usuarios.id),
   aprobadoEn:       timestamp('aprobado_en'),
   rechazadoMotivo:  text('rechazado_motivo'),
@@ -401,7 +406,9 @@ export const tiendasHistorialRelations = relations(tiendasHistorial, ({ one }) =
 }))
 
 export const decisionesRelations = relations(decisiones, ({ one }) => ({
-  tienda:      one(tiendas,     { fields: [decisiones.tiendaId],      references: [tiendas.id] }),
-  proveedor:   one(proveedores, { fields: [decisiones.proveedorId],   references: [proveedores.id] }),
-  responsable: one(usuarios,    { fields: [decisiones.responsableId], references: [usuarios.id] }),
+  tienda:              one(tiendas,     { fields: [decisiones.tiendaId],              references: [tiendas.id] }),
+  proveedor:           one(proveedores, { fields: [decisiones.proveedorId],           references: [proveedores.id] }),
+  proveedorAnterior:   one(proveedores, { fields: [decisiones.proveedorAnteriorId],   references: [proveedores.id] }),
+  responsable:         one(usuarios,    { fields: [decisiones.responsableId],         references: [usuarios.id] }),
+  aprobadoPor:         one(usuarios,    { fields: [decisiones.aprobadoPorId],         references: [usuarios.id] }),
 }))
