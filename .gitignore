@@ -42,3 +42,10 @@ dev.log
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Claude Code local config (no va al repo)
+.claude/
+
+# Carpetas duplicadas / temporales
+netdesk/
+scripts/*.mjs
