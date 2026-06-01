@@ -156,6 +156,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   const escRef  = useRef<HTMLDivElement>(null)
 
   const [inc, setInc]               = useState<any>(null)
+  const [tick, setTick]             = useState(0)
   const [historial, setHistorial]   = useState<any[]>([])
   const [editForm, setEditForm]     = useState<any>({})
   const [saving, setSaving]         = useState(false)
@@ -244,6 +245,10 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   }, [id])
 
   useEffect(() => { fetchInc() }, [fetchInc])
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 1000)
+    return () => clearInterval(id)
+  }, [])
 
   useEffect(() => {
     if (!inc?.tiendaId) return
@@ -1453,36 +1458,104 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
       </div>{/* end main grid */}
 
       {/* ── Block IEI — Impacto Económico Estimado ── */}
-      {inc.ieiCalc && (
-        <div style={{ background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', marginTop: '16px' }}>
-          <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ fontSize: '13px', fontWeight: 600 }}>Impacto Económico Estimado (IEI)</div>
-            {!inc.ieiCalc.faltaInformacion && (
-              <div style={{ fontFamily: 'monospace', fontSize: '18px', fontWeight: 700, color: inc.ieiCalc.impactoEstimado > 0 ? '#b91c1c' : '#16a34a' }}>
-                {inc.ieiCalc.impactoEstimado > 0 ? `S/ ${inc.ieiCalc.impactoEstimado.toLocaleString('es-PE')}` : 'S/ 0'}
+      {(() => {
+        const esResuelto = inc.estado === 'RESUELTO'
+        const MARGEN = 0.35
+        const FACTOR_BASE: Record<string,number> = { CAIDA_TOTAL:1.00, INTERMITENCIA:0.50, LENTITUD:0.30, CORTE_ELECTRICO:1.00 }
+        const nC = (r:string|null|undefined) => { if(!r)return 0.20;const v=r.toUpperCase();if(v==='EFECTIVO'||v==='TOTAL'||v==='EFECTIVA')return 0.00;if(v==='PARCIAL'||v==='LIMITADA')return 0.20;return 1.00 }
+        const nB = (r:string|null|undefined) => { if(!r)return 0.10;const v=r.toUpperCase();if(v==='EFECTIVA')return 0.10;if(v==='PARCIAL')return 0.30;return 1.00 }
+        const tsMs = (v:any) => v ? new Date(v).getTime() : null
+
+        // Cálculo en curso (activo) usando Date.now()
+        let ieiEnCurso = 0
+        let ventaHoraEnCurso = 0
+        if (!esResuelto && inc.tiendaVentaHoraSoles) {
+          const nowMs  = Date.now()
+          void tick  // dependencia para re-render cada segundo
+          const dow = new Date(inc.horaRegistro).getDay()
+          const isFDS = dow===0||dow===5||dow===6
+          ventaHoraEnCurso = isFDS
+            ? Number(inc.tiendaVentaHoraFdsSoles ?? inc.tiendaVentaHoraSoles)
+            : Number(inc.tiendaVentaHoraSoles ?? inc.tiendaVentaHoraFdsSoles)
+          const startMs = new Date(inc.horaRegistro).getTime()
+          const contStartMs = tsMs(inc.contHoraActivacion)
+          const contEndMs   = tsMs(inc.contHoraDesactivacion)
+          const movStartMs  = tsMs(inc.movHoraActivacion)
+          const movEndMs    = tsMs(inc.movHoraDesactivacion)
+          const contF = contStartMs !== null ? nC(inc.contRendimiento) : null
+          const movF  = movStartMs  !== null ? nC(inc.movRendimiento)  : null
+          const bolF  = inc.boletaManual ? nB(inc.boletaRendimiento) : null
+          const bpSet = new Set([startMs, nowMs])
+          const addBp = (t:number|null) => { if(t&&t>startMs&&t<nowMs)bpSet.add(t) }
+          addBp(contStartMs);addBp(contEndMs);addBp(movStartMs);addBp(movEndMs)
+          const bps = Array.from(bpSet).sort((a,b)=>a-b)
+          for(let i=0;i<bps.length-1;i++){
+            const mid=(bps[i]+bps[i+1])/2, h=(bps[i+1]-bps[i])/3600000
+            const opts:number[]=[]
+            if(inc.tipo==='CORTE_ELECTRICO'){opts.push(bolF??1.00)}else{
+              if(contF!==null&&contStartMs!==null&&mid>=contStartMs&&(contEndMs===null||mid<contEndMs))opts.push(contF)
+              if(movF!==null&&movStartMs!==null&&mid>=movStartMs&&(movEndMs===null||mid<movEndMs))opts.push(movF)
+              if(bolF!==null)opts.push(bolF)
+              if(!opts.length)opts.push(FACTOR_BASE[inc.tipo]??1.00)
+            }
+            ieiEnCurso += ventaHoraEnCurso * h * MARGEN * Math.min(...opts)
+          }
+          ieiEnCurso = Math.round(ieiEnCurso)
+        }
+
+        const tieneIei = esResuelto ? !!inc.ieiCalc : !!inc.tiendaVentaHoraSoles
+        if (!tieneIei) return null
+
+        const fmtMs = (ms:number) => new Date(ms).toLocaleTimeString('es-PE',{timeZone:'America/Lima',hour:'2-digit',minute:'2-digit'})
+        const fmtH  = (h:number)  => h < 1 ? `${Math.round(h*60)}m` : `${h.toFixed(1)}h`
+
+        const displayIei    = esResuelto ? (inc.ieiCalc?.impactoEstimado ?? 0) : ieiEnCurso
+        const displayVH     = esResuelto ? inc.ieiCalc?.ventaHora : ventaHoraEnCurso
+        const displaySegs   = esResuelto ? (inc.ieiCalc?.segmentos ?? []) : []
+        const displayMotivo = esResuelto ? inc.ieiCalc?.motivoFactor : null
+        const faltaInfo     = esResuelto && inc.ieiCalc?.faltaInformacion
+
+        return (
+          <div style={{ background: 'var(--card)', borderRadius: '12px', border: `1px solid ${esResuelto ? 'var(--border)' : '#f59e0b'}`, marginTop: '16px' }}>
+            <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 600 }}>Impacto Económico Estimado (IEI)</div>
+                {!esResuelto && (
+                  <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', background: '#fef3c7', color: '#92400e', border: '0.5px solid #f59e0b' }}>
+                    En curso ⏱
+                  </span>
+                )}
+                {esResuelto && !faltaInfo && (
+                  <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', background: '#d1fae5', color: '#065f46', border: '0.5px solid #6ee7b7' }}>
+                    Calculado
+                  </span>
+                )}
               </div>
-            )}
-            {inc.ieiCalc.faltaInformacion && (
-              <div style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>Sin datos suficientes</div>
-            )}
-          </div>
-          <div style={{ padding: '14px 18px' }}>
-            {inc.ieiCalc.faltaInformacion ? (
-              <div style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>{inc.ieiCalc.motivoFactor}</div>
-            ) : (() => {
-              const segs: any[] = inc.ieiCalc.segmentos ?? []
-              const fmtMs = (ms: number) => new Date(ms).toLocaleTimeString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit' })
-              const fmtH = (h: number) => h < 1 ? `${Math.round(h * 60)}m` : `${h.toFixed(1)}h`
-              return (
+              {!faltaInfo && (
+                <div style={{ fontFamily: 'monospace', fontSize: '18px', fontWeight: 700, color: displayIei > 0 ? '#b91c1c' : '#16a34a' }}>
+                  {displayIei > 0 ? `S/ ${displayIei.toLocaleString('es-PE')}` : 'S/ 0'}
+                  {!esResuelto && <span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--muted-foreground)', marginLeft: '4px' }}>hasta ahora</span>}
+                </div>
+              )}
+              {faltaInfo && <div style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>Sin datos suficientes</div>}
+            </div>
+            <div style={{ padding: '14px 18px' }}>
+              {faltaInfo ? (
+                <div style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>{inc.ieiCalc?.motivoFactor}</div>
+              ) : (
                 <div>
-                  {/* KPIs fila */}
-                  <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', marginBottom: segs.length > 1 ? '14px' : '0' }}>
+                  <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', marginBottom: displaySegs.length > 1 ? '14px' : '0' }}>
                     {[
-                      { label: 'Venta/hora',      value: `S/ ${inc.ieiCalc.ventaHora?.toLocaleString('es-PE')}` },
-                      { label: 'Venta esperada',  value: `S/ ${inc.ieiCalc.ventaEsperadaAfectada?.toLocaleString('es-PE')}` },
-                      { label: 'Impacto bruto',   value: `S/ ${inc.ieiCalc.impactoEconomicoBruto?.toLocaleString('es-PE')}` },
-                      { label: 'Margen aplicado', value: `${(inc.ieiCalc.margenUsado * 100).toFixed(0)}%` },
-                      { label: 'Factor prom.',    value: inc.ieiCalc.factorAplicado.toFixed(2) },
+                      { label: 'Venta/hora',      value: displayVH ? `S/ ${Number(displayVH).toLocaleString('es-PE')}` : '—' },
+                      ...(esResuelto ? [
+                        { label: 'Venta esperada',  value: `S/ ${inc.ieiCalc?.ventaEsperadaAfectada?.toLocaleString('es-PE') ?? '—'}` },
+                        { label: 'Impacto bruto',   value: `S/ ${inc.ieiCalc?.impactoEconomicoBruto?.toLocaleString('es-PE') ?? '—'}` },
+                        { label: 'Margen aplicado', value: `${((inc.ieiCalc?.margenUsado ?? MARGEN) * 100).toFixed(0)}%` },
+                        { label: 'Factor prom.',    value: (inc.ieiCalc?.factorAplicado ?? 0).toFixed(2) },
+                      ] : [
+                        { label: 'Margen aplicado', value: '35%' },
+                        { label: 'Acumulado',       value: `${Math.round((Date.now() - new Date(inc.horaRegistro).getTime()) / 60000)}m desde inicio` },
+                      ]),
                     ].map(({ label, value }) => (
                       <div key={label}>
                         <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>{label}</div>
@@ -1491,8 +1564,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                     ))}
                   </div>
 
-                  {/* Tabla de segmentos — solo si hay más de 1 */}
-                  {segs.length > 1 && (
+                  {displaySegs.length > 1 && (
                     <div style={{ background: 'var(--muted)', borderRadius: '8px', overflow: 'hidden' }}>
                       <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '7px 12px', borderBottom: '0.5px solid var(--border)' }}>
                         Desglose por tramos
@@ -1500,13 +1572,13 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
                         <thead>
                           <tr style={{ background: 'var(--card)' }}>
-                            {['Desde', 'Hasta', 'Duración', 'Mitigación activa', 'Factor', 'IEI tramo'].map(h => (
+                            {['Desde','Hasta','Duración','Mitigación activa','Factor','IEI tramo'].map(h => (
                               <th key={h} style={{ padding: '5px 10px', textAlign: 'left', fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
-                          {segs.map((seg: any, i: number) => (
+                          {displaySegs.map((seg: any, i: number) => (
                             <tr key={i} style={{ borderTop: '0.5px solid var(--border)' }}>
                               <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{fmtMs(seg.desdeMs)}</td>
                               <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{fmtMs(seg.hastaMs)}</td>
@@ -1523,18 +1595,15 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                     </div>
                   )}
 
-                  {/* Motivo único cuando hay 1 solo segmento */}
-                  {segs.length <= 1 && (
-                    <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '6px' }}>
-                      {inc.ieiCalc.motivoFactor}
-                    </div>
+                  {(displaySegs.length <= 1 && displayMotivo) && (
+                    <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '6px' }}>{displayMotivo}</div>
                   )}
                 </div>
-              )
-            })()}
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* ── Block D.SLA — Métricas SLA del incidente ── */}
       {inc.slaMetrics?.evaluable && (
