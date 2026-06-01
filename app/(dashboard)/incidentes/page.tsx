@@ -527,7 +527,7 @@ export default function IncidentesPage() {
 
                   {/* Acciones */}
                   <td style={{ padding: '9px 12px' }}>
-                    {inc.estado === 'CANCELADO' && userRol === 'SUPERVISOR' && (
+                    {inc.estado === 'CANCELADO' && (userRol === 'SUPERVISOR' || userRol === 'DEMO') && (
                       <button
                         onClick={e => handleDelete(e, inc.id)}
                         title="Eliminar incidente"
