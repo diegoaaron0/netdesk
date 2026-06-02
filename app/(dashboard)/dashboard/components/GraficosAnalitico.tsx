@@ -322,17 +322,19 @@ function ChartSLARespuesta({ data }: { data: DashboardAnaliticoResponse }) {
         Columnas: SLA% · evaluables · T.prom respuesta · exceso prom sobre límite
       </div>
 
-      {/* Incidentes que fallaron */}
-      {fallaron.length > 0 && (
+      {/* Todos los evaluables con badge ✓/✗ */}
+      {sla.evaluables.length > 0 && (
         <>
-          <DLabel>Incidentes que superaron el límite ({fallaron.length})</DLabel>
-          {fallaron.map(i => (
+          <DLabel>Incidentes evaluables ({sla.evaluables.length}) — por T. respuesta</DLabel>
+          {[...sla.evaluables].sort((a, b) => (b.minRespuesta ?? 0) - (a.minRespuesta ?? 0)).map(i => (
             <IncidentLink key={i.id} id={i.id}>
-              <DRow
-                left={<><strong>{i.proveedor}</strong> · {i.tiendaCodigo} · {TIPO_LABELS[i.tipo] ?? i.tipo} · {i.fecha}</>}
-                right={<>{fmtMin(i.minRespuesta)} <span style={{ color: '#185FA5', marginLeft: '4px' }}>→</span></>}
-                rightColor="#dc2626"
-              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', fontSize: '10px', borderBottom: '0.5px solid var(--border)', gap: '6px' }}>
+                <span style={{ flex: 1, minWidth: 0 }}><strong>{i.proveedor}</strong> · {i.tiendaCodigo} · {TIPO_LABELS[i.tipo] ?? i.tipo} · {i.fecha}</span>
+                <span style={{ fontFamily: 'monospace', color: i.slaRespOk === false ? '#dc2626' : 'var(--muted-foreground)', flexShrink: 0 }}>{i.minRespuesta != null ? fmtMin(i.minRespuesta) : '—'}</span>
+                {i.slaRespOk === true  && <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: '#f0fdf4', color: '#15803d', fontWeight: 600, flexShrink: 0 }}>✓</span>}
+                {i.slaRespOk === false && <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: '#fef2f2', color: '#b91c1c', fontWeight: 600, flexShrink: 0 }}>✗</span>}
+                <span style={{ color: '#185FA5', fontSize: '11px', flexShrink: 0 }}>→</span>
+              </div>
             </IncidentLink>
           ))}
         </>
@@ -426,17 +428,19 @@ function ChartSLAResolucion({ data }: { data: DashboardAnaliticoResponse }) {
         Columnas: SLA% · evaluables · T.prom resolución · exceso prom sobre límite
       </div>
 
-      {/* Incidentes que fallaron */}
-      {fallaron.length > 0 && (
+      {/* Todos los evaluables con badge ✓/✗ */}
+      {sla.evaluables.length > 0 && (
         <>
-          <DLabel>Incidentes que no resolvieron en tiempo ({fallaron.length})</DLabel>
-          {fallaron.map(i => (
+          <DLabel>Incidentes evaluables ({sla.evaluables.length}) — por T. resolución</DLabel>
+          {[...sla.evaluables].sort((a, b) => (b.minSolucionDesdeCorreo ?? 0) - (a.minSolucionDesdeCorreo ?? 0)).map(i => (
             <IncidentLink key={i.id} id={i.id}>
-              <DRow
-                left={<><strong>{i.proveedor}</strong> · {i.tiendaCodigo} · {TIPO_LABELS[i.tipo] ?? i.tipo} · {i.fecha}</>}
-                right={<>{fmtMin(i.minSolucionDesdeCorreo)} <span style={{ color: '#185FA5', marginLeft: '4px' }}>→</span></>}
-                rightColor="#dc2626"
-              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', fontSize: '10px', borderBottom: '0.5px solid var(--border)', gap: '6px' }}>
+                <span style={{ flex: 1, minWidth: 0 }}><strong>{i.proveedor}</strong> · {i.tiendaCodigo} · {TIPO_LABELS[i.tipo] ?? i.tipo} · {i.fecha}</span>
+                <span style={{ fontFamily: 'monospace', color: i.slaResolOk === false ? '#dc2626' : 'var(--muted-foreground)', flexShrink: 0 }}>{i.minSolucionDesdeCorreo != null ? fmtMin(i.minSolucionDesdeCorreo) : '—'}</span>
+                {i.slaResolOk === true  && <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: '#f0fdf4', color: '#15803d', fontWeight: 600, flexShrink: 0 }}>✓</span>}
+                {i.slaResolOk === false && <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: '#fef2f2', color: '#b91c1c', fontWeight: 600, flexShrink: 0 }}>✗</span>}
+                <span style={{ color: '#185FA5', fontSize: '11px', flexShrink: 0 }}>→</span>
+              </div>
             </IncidentLink>
           ))}
         </>
