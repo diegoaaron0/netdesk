@@ -84,7 +84,16 @@ export async function GET(req: Request) {
           WHEN i.mttr_minutos <= ${slaLimiteCase('i.tipo')}
             THEN 'Cumplido'
           ELSE 'Incumplido'
-        END                                                                        AS sla_resolucion
+        END                                                                        AS sla_resolucion,
+
+        -- Reabertura
+        CASE WHEN i.motivo_reabertura IS NOT NULL THEN 'Sí' ELSE 'No' END         AS reabierto,
+        CASE
+          WHEN i.motivo_reabertura = 'TIENDA_SIN_INTERNET' THEN 'Tienda sin internet (proveedor)'
+          WHEN i.motivo_reabertura = 'ERROR_AGENTE'        THEN 'Error de gestión de agente'
+          ELSE ''
+        END                                                                        AS motivo_reabertura,
+        i.tiempo_acumulado_min                                                     AS mttr_acumulado_min
 
       FROM incidentes i
       JOIN tiendas t ON i.tienda_id = t.id
@@ -123,7 +132,8 @@ export async function GET(req: Request) {
       'Tipo incidente', 'Estado', 'Hora inicio', 'Hora resolución',
       'MTTR (min)', 'Límite resolución (min)', 'Exceso resolución (min)',
       'T. respuesta N1 (min)', 'Límite respuesta (min)', 'Exceso respuesta (min)',
-      'SLA Respuesta', 'SLA Resolución', 'Tipo de falla'
+      'SLA Respuesta', 'SLA Resolución', 'Tipo de falla',
+      'Reabierto', 'Motivo reabertura', 'MTTR acumulado (min)'
     )
     const dataRows = (rows as any[]).map(r =>
       row(
@@ -133,7 +143,8 @@ export async function GET(req: Request) {
         r.mttr_min ?? '', r.limite_resolucion_min, r.exceso_resolucion_min ?? '',
         r.t_respuesta_min ?? '', r.limite_respuesta_min,
         r.exceso_respuesta_min != null && r.exceso_respuesta_min > 0 ? r.exceso_respuesta_min : '',
-        r.sla_respuesta, r.sla_resolucion, r.tipo_falla
+        r.sla_respuesta, r.sla_resolucion, r.tipo_falla,
+        r.reabierto, r.motivo_reabertura ?? '', r.mttr_acumulado_min ?? ''
       )
     )
 

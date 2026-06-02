@@ -822,6 +822,15 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                           <SLABadge inc={inc} nowMs={nowM} />
                           {esInfra && <span style={{ display: 'block', marginTop: '2px', fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: '#EDE9FE', color: '#5B21B6', fontWeight: 600 }}>Infra{inc.infra_nombre ? `: ${inc.infra_nombre.split(' ')[0]}` : ''}</span>}
                           {inc.sinMovimiento && <span style={{ display: 'block', marginTop: '2px', fontSize: '9px', padding: '1px 4px', borderRadius: '999px', background: '#F1F5F9', color: '#475569' }}>⏸ {fmtMin(inc.sinMovimientoMin)}</span>}
+                          {(inc as any).motivo_reabertura && (
+                            <span
+                              title={(inc as any).motivo_reabertura === 'TIENDA_SIN_INTERNET' ? 'Reabierto — solución incorrecta del proveedor' : 'Reabierto — error de gestión de agente'}
+                              style={{ display: 'block', marginTop: '2px', fontSize: '9px', padding: '1px 5px', borderRadius: '999px', fontWeight: 700,
+                                background: (inc as any).motivo_reabertura === 'TIENDA_SIN_INTERNET' ? 'rgba(185,28,28,0.1)' : 'rgba(146,64,14,0.1)',
+                                color:      (inc as any).motivo_reabertura === 'TIENDA_SIN_INTERNET' ? '#b91c1c' : '#92400e' }}>
+                              ↩ reabierto
+                            </span>
+                          )}
                         </td>
                         <td style={{ padding: '6px 8px', whiteSpace: 'nowrap', fontSize: '10px' }}>{inc.agente_nombre ?? '—'}</td>
                         <td style={{ padding: '6px 8px', fontFamily: 'monospace', fontSize: '11px', fontWeight: 600, whiteSpace: 'nowrap', color: minutosTranscurridos >= 240 ? '#A32D2D' : minutosTranscurridos >= 120 ? '#C84B00' : 'var(--foreground)' }}>

@@ -24,11 +24,6 @@ function fmtMin(min: number | null) {
   const h = Math.floor(min / 60); const m = min % 60
   return h > 0 ? `${h}h ${m}m` : `${m}m`
 }
-function fmtMes(ym: string) {
-  const [y, m] = ym.split('-')
-  const names = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
-  return `${names[Number(m) - 1]} ${y}`
-}
 
 // Factor IEI — usa IEI_FACTOR de lib/iei-sql-expr.ts (sincronizado con impacto-calc.ts)
 const IEI_EXPR = sql`ROUND(SUM(COALESCE(t.venta_hora_soles,${IEI_CLUSTER_FALLBACK})*(COALESCE(i.mttr_minutos,0)::numeric/60)*0.35*${IEI_FACTOR}))::int`
@@ -51,7 +46,7 @@ export async function GET(req: Request) {
     const desdeAnt = new Date(new Date(desde).getTime() - durMs).toISOString()
 
     const totalTiendas = await getTotalTiendas()
-    const [tot, totAnt, porProv, top15, porTipo, reincidentes, porZona, slaTend] = await Promise.all([
+    const [tot, totAnt, porProv, top15, porTipo, reincidentes, porZona, reaperturas, supervisores, clusters] = await Promise.all([
 
       // ── Totales período actual ────────────────────────────────────────────────
       db.execute(sql`
@@ -59,8 +54,10 @@ export async function GET(req: Request) {
           COUNT(i.id)::int                                                        AS total,
           ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int  AS mttr_avg,
           ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= ${slaLimiteCase('i.tipo')}
-            AND i.estado = 'RESUELTO') * 100.0 /
-            NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'), 0))::int      AS sla_pct,
+            AND i.estado = 'RESUELTO'
+            AND i.evaluable_proveedor IS NOT FALSE AND i.tipo != 'CORTE_ELECTRICO') * 100.0 /
+            NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'
+            AND i.evaluable_proveedor IS NOT FALSE AND i.tipo != 'CORTE_ELECTRICO'), 0))::int AS sla_pct,
           COUNT(DISTINCT i.tienda_id)::int                                        AS tiendas,
           ${IEI_EXPR}                                                             AS iei_total,
           COUNT(*) FILTER (WHERE i.estado = 'ABIERTO')::int                      AS abiertos,
@@ -77,8 +74,10 @@ export async function GET(req: Request) {
           COUNT(i.id)::int                                                        AS total,
           ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int  AS mttr_avg,
           ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= ${slaLimiteCase('i.tipo')}
-            AND i.estado = 'RESUELTO') * 100.0 /
-            NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'), 0))::int      AS sla_pct,
+            AND i.estado = 'RESUELTO'
+            AND i.evaluable_proveedor IS NOT FALSE AND i.tipo != 'CORTE_ELECTRICO') * 100.0 /
+            NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'
+            AND i.evaluable_proveedor IS NOT FALSE AND i.tipo != 'CORTE_ELECTRICO'), 0))::int AS sla_pct,
           COUNT(DISTINCT i.tienda_id)::int                                        AS tiendas,
           ${IEI_EXPR}                                                             AS iei_total
         FROM incidentes i
@@ -93,11 +92,14 @@ export async function GET(req: Request) {
           COALESCE(pi.nombre, pt.nombre)                                         AS proveedor,
           COUNT(i.id)::int                                                        AS incidentes,
           COUNT(i.id) FILTER (WHERE i.estado = 'RESUELTO'
-            AND n1h.hora_correo_n1_val IS NOT NULL)::int                         AS evaluables_sla,
+            AND n1h.hora_correo_n1_val IS NOT NULL
+            AND i.evaluable_proveedor IS NOT FALSE AND i.tipo != 'CORTE_ELECTRICO')::int AS evaluables_sla,
           ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= ${slaLimiteCase('i.tipo')}
-            AND i.estado = 'RESUELTO') * 100.0 /
-            NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'), 0))::int      AS sla_pct,
-          -- SLA Respuesta: respondió en ≤60 min
+            AND i.estado = 'RESUELTO'
+            AND i.evaluable_proveedor IS NOT FALSE AND i.tipo != 'CORTE_ELECTRICO') * 100.0 /
+            NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'
+            AND i.evaluable_proveedor IS NOT FALSE AND i.tipo != 'CORTE_ELECTRICO'), 0))::int AS sla_pct,
+          -- SLA Respuesta: respondió en ≤60 min (denominator ya filtrado por N1 escalado)
           ROUND(COUNT(*) FILTER (
             WHERE n1h.hora_correo_n1_val IS NOT NULL
               AND resp.hora_primera_resp IS NOT NULL
@@ -105,12 +107,17 @@ export async function GET(req: Request) {
           ) * 100.0 / NULLIF(COUNT(*) FILTER (WHERE n1h.hora_correo_n1_val IS NOT NULL), 0))::int AS sla_respuesta_pct,
           -- SLA Resolución: resuelto dentro del límite por tipo
           ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= ${slaLimiteCase('i.tipo')}
-            AND i.estado = 'RESUELTO') * 100.0 /
-            NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO' AND n1h.hora_correo_n1_val IS NOT NULL), 0))::int AS sla_resolucion_pct,
+            AND i.estado = 'RESUELTO'
+            AND i.evaluable_proveedor IS NOT FALSE AND i.tipo != 'CORTE_ELECTRICO') * 100.0 /
+            NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'
+            AND n1h.hora_correo_n1_val IS NOT NULL
+            AND i.evaluable_proveedor IS NOT FALSE AND i.tipo != 'CORTE_ELECTRICO'), 0))::int AS sla_resolucion_pct,
           ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int  AS mttr_avg,
           ROUND(AVG(
             EXTRACT(EPOCH FROM (resp.hora_primera_resp - n1h.hora_correo_n1_val)) / 60
           ))::int                                                                 AS t_resp_prov_avg,
+          ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'
+            AND i.evaluable_proveedor IS NOT FALSE AND i.tipo != 'CORTE_ELECTRICO'))::int AS t_resol_prov_avg,
           COUNT(DISTINCT e2.incidente_id)::int                                   AS escalados_n2,
           COUNT(DISTINCT i.tienda_id)::int                                       AS tiendas_afectadas,
           ${IEI_EXPR}                                                             AS iei
@@ -188,7 +195,13 @@ export async function GET(req: Request) {
           COALESCE(pi.nombre, pt.nombre)  AS proveedor,
           COUNT(i.id)::int                AS incidentes,
           ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int AS mttr_avg,
-          ROUND(MAX(g.avg_dias), 1)       AS dias_entre_caidas
+          ROUND(MAX(g.avg_dias), 1)       AS dias_entre_caidas,
+          MODE() WITHIN GROUP (ORDER BY i.tipo) AS tipo_frecuente,
+          (SELECT COUNT(*) FROM incidentes i2
+           WHERE i2.tienda_id = t.id
+             AND i2.hora_registro >= ${desdeAnt}::timestamptz
+             AND i2.hora_registro <  ${desde}::timestamptz
+             AND i2.estado != 'CANCELADO')::int AS incidentes_prev
         FROM incidentes i
         JOIN tiendas t ON i.tienda_id = t.id
         LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
@@ -236,25 +249,56 @@ export async function GET(req: Request) {
         GROUP BY zona ORDER BY total DESC
       `),
 
-      // ── Tendencia SLA últimos 6 meses por proveedor (ventana fija) ────────────
+      // ── Reaperturas por proveedor ─────────────────────────────────────────────
       db.execute(sql`
-        SELECT TO_CHAR(i.hora_registro AT TIME ZONE 'America/Lima','YYYY-MM') AS mes,
-          COALESCE(pi.nombre, pt.nombre) AS proveedor,
-          COUNT(i.id)::int               AS total,
-          COUNT(*) FILTER (WHERE i.estado = 'RESUELTO')::int AS resueltos,
-          ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= ${slaLimiteCase('i.tipo')}
-            AND i.estado = 'RESUELTO') * 100.0 /
-            NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'), 0))::int AS sla_pct,
-          ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int AS mttr_avg
+        SELECT
+          COALESCE(pi.nombre, pt.nombre)                                             AS proveedor,
+          COUNT(i.id)::int                                                            AS total,
+          COUNT(*) FILTER (WHERE i.motivo_reabertura IS NOT NULL)::int               AS reaperturas,
+          ROUND(COUNT(*) FILTER (WHERE i.motivo_reabertura IS NOT NULL) * 100.0 /
+            NULLIF(COUNT(i.id), 0), 1)                                               AS tasa_reapertura,
+          COUNT(*) FILTER (WHERE i.motivo_reabertura = 'TIENDA_SIN_INTERNET')::int  AS motivo_proveedor,
+          COUNT(*) FILTER (WHERE i.motivo_reabertura = 'ERROR_AGENTE')::int         AS motivo_agente
         FROM incidentes i
         JOIN tiendas t ON i.tienda_id = t.id
         LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
         LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
-        WHERE i.hora_registro >= (NOW() AT TIME ZONE 'America/Lima' - INTERVAL '6 months')
+        WHERE i.hora_registro >= ${desde}::timestamptz AND i.hora_registro < ${hasta}::timestamptz
           AND i.estado != 'CANCELADO'
-        GROUP BY mes, COALESCE(pi.nombre, pt.nombre)
-        HAVING COUNT(*) FILTER (WHERE i.estado = 'RESUELTO') >= 2
-        ORDER BY mes, COALESCE(pi.nombre, pt.nombre)
+        GROUP BY COALESCE(pi.nombre, pt.nombre)
+        ORDER BY reaperturas DESC NULLS LAST
+      `),
+
+      // ── Supervisores ──────────────────────────────────────────────────────────
+      db.execute(sql`
+        SELECT
+          COALESCE(t.supervisor_nombre, 'Sin supervisor') AS supervisor,
+          COUNT(i.id)::int                                AS incidentes,
+          COUNT(DISTINCT i.tienda_id)::int                AS tiendas,
+          ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int AS mttr_avg,
+          ROUND(SUM(COALESCE(t.venta_hora_soles,${IEI_CLUSTER_FALLBACK})*(COALESCE(i.mttr_minutos,0)::numeric/60)*0.35*${IEI_FACTOR}))::int AS iei_total
+        FROM incidentes i
+        JOIN tiendas t ON i.tienda_id = t.id
+        WHERE i.hora_registro >= ${desde}::timestamptz AND i.hora_registro < ${hasta}::timestamptz
+          AND i.estado != 'CANCELADO'
+        GROUP BY COALESCE(t.supervisor_nombre, 'Sin supervisor')
+        ORDER BY incidentes DESC
+      `),
+
+      // ── Clusters ──────────────────────────────────────────────────────────────
+      db.execute(sql`
+        SELECT
+          COALESCE(t.cluster, 'Sin cluster')              AS cluster,
+          COUNT(i.id)::int                                AS incidentes,
+          COUNT(DISTINCT i.tienda_id)::int                AS tiendas_afectadas,
+          ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int AS mttr_avg,
+          ROUND(SUM(COALESCE(t.venta_hora_soles,${IEI_CLUSTER_FALLBACK})*(COALESCE(i.mttr_minutos,0)::numeric/60)*0.35*${IEI_FACTOR}))::int AS iei_total
+        FROM incidentes i
+        JOIN tiendas t ON i.tienda_id = t.id
+        WHERE i.hora_registro >= ${desde}::timestamptz AND i.hora_registro < ${hasta}::timestamptz
+          AND i.estado != 'CANCELADO'
+        GROUP BY COALESCE(t.cluster, 'Sin cluster')
+        ORDER BY cluster
       `),
     ])
 
@@ -265,7 +309,9 @@ export async function GET(req: Request) {
     const tipos    = porTipo      as any[]
     const reinc    = reincidentes as any[]
     const zonas    = porZona      as any[]
-    const tendRows = slaTend      as any[]
+    const reabRows = reaperturas  as any[]
+    const supRows  = supervisores as any[]
+    const clRows   = clusters     as any[]
 
     const totalTipos = tipos.reduce((s: number, r: any) => s + Number(r.total), 0)
 
@@ -321,15 +367,15 @@ export async function GET(req: Request) {
     // ── 2. Métricas por proveedor ────────────────────────────────────────────────
     add('2. MÉTRICAS POR PROVEEDOR')
     add('Proveedor', 'Incidentes', 'Evaluables SLA', 'SLA Respuesta %', 'SLA Resolución %', 'SLA Global %',
-      'MTTR prom (min)', 'T. respuesta N1 prom (min)', 'Escalados N2+',
+      'MTTR prom (min)', 'T. respuesta prom (min)', 'T. resolución prom (min)', 'Escalados N2+',
       'Tiendas afectadas', 'IEI est (S/)')
     for (const p of provs)
       add(p.proveedor, p.incidentes, p.evaluables_sla ?? 0,
         p.sla_respuesta_pct != null ? `${p.sla_respuesta_pct}%` : '—',
         p.sla_resolucion_pct != null ? `${p.sla_resolucion_pct}%` : '—',
         p.sla_pct != null ? `${p.sla_pct}%` : '—',
-        p.mttr_avg ?? '—', p.t_resp_prov_avg ?? '—', p.escalados_n2 ?? 0,
-        p.tiendas_afectadas, p.iei ?? 0)
+        p.mttr_avg ?? '—', p.t_resp_prov_avg ?? '—', p.t_resol_prov_avg ?? '—',
+        p.escalados_n2 ?? 0, p.tiendas_afectadas, p.iei ?? 0)
     blank()
 
     // ── 3. Top 15 tiendas más afectadas ─────────────────────────────────────────
@@ -358,10 +404,15 @@ export async function GET(req: Request) {
     if (reinc.length === 0) {
       add('Sin reincidencias en el período')
     } else {
-      add('#', 'Código', 'Nombre CC', 'Distrito', 'Proveedor', 'Incidentes', 'MTTR prom (min)', 'Días prom entre caídas')
-      reinc.forEach((r, idx) =>
+      add('#', 'Código', 'Nombre CC', 'Distrito', 'Proveedor', 'Incidentes', 'MTTR prom (min)', 'Días prom entre caídas', 'Tipo frecuente', 'Tendencia')
+      reinc.forEach((r, idx) => {
+        const tendencia = Number(r.incidentes_prev) >= 2
+          ? Number(r.incidentes) > Number(r.incidentes_prev) ? 'EMPEORA' : 'ESTABLE'
+          : 'NUEVO'
         add(idx + 1, r.codigo, r.nombre_cc ?? '', r.distrito ?? '', r.proveedor ?? '',
-          r.incidentes, r.mttr_avg ?? '—', r.dias_entre_caidas != null ? r.dias_entre_caidas : '—'))
+          r.incidentes, r.mttr_avg ?? '—', r.dias_entre_caidas != null ? r.dias_entre_caidas : '—',
+          r.tipo_frecuente ?? '—', tendencia)
+      })
     }
     blank()
 
@@ -375,29 +426,74 @@ export async function GET(req: Request) {
     }
     blank()
 
-    // ── 7. Tendencia SLA últimos 6 meses ─────────────────────────────────────────
-    add('7. TENDENCIA SLA — ÚLTIMOS 6 MESES (ventana fija, independiente del período)')
-    if (tendRows.length === 0) {
-      add('Sin datos suficientes')
+    // ── 7. Reaperturas ───────────────────────────────────────────────────────────
+    blank()
+    const totalReab = reabRows.reduce((s: number, r: any) => s + Number(r.reaperturas ?? 0), 0)
+    const totalIncReab = reabRows.reduce((s: number, r: any) => s + Number(r.total ?? 0), 0)
+    const tasaGlobal = totalIncReab > 0 ? Math.round(totalReab / totalIncReab * 1000) / 10 : 0
+    add('7. REAPERTURAS')
+    add('Total reaperturas en el período:', totalReab)
+    add('Tasa global de reapertura:', `${tasaGlobal}%`)
+    blank()
+    if (totalReab === 0) {
+      add('Sin reaperturas en el período')
     } else {
-      const meses     = [...new Set(tendRows.map((r: any) => r.mes as string))].sort()
-      const proveedoresTend = [...new Set(tendRows.map((r: any) => r.proveedor as string))].filter(Boolean)
-      const map: Record<string, Record<string, any>> = {}
-      for (const r of tendRows) {
-        if (!map[r.proveedor]) map[r.proveedor] = {}
-        map[r.proveedor][r.mes] = r
+      add('Proveedor', 'Total incidentes', 'Reaperturas', 'Tasa (%)', 'Motivo: proveedor (sin internet)', 'Motivo: error agente')
+      for (const r of reabRows)
+        add(r.proveedor ?? '—', r.total, r.reaperturas ?? 0,
+          r.tasa_reapertura != null ? `${r.tasa_reapertura}%` : '0%',
+          r.motivo_proveedor ?? 0, r.motivo_agente ?? 0)
+    }
+
+    // ── 8. Proveedor crítico ─────────────────────────────────────────────────────
+    blank()
+    add('8. PROVEEDOR CRÍTICO')
+    if (provs.length === 0) {
+      add('Sin datos de proveedores en el período')
+    } else {
+      const maxInc  = Math.max(...provs.map((p: any) => Number(p.incidentes) || 0), 1)
+      const maxMttr = Math.max(...provs.map((p: any) => Number(p.mttr_avg)   || 0), 1)
+      const scored = provs.map((p: any) => {
+        const inc    = Number(p.incidentes) || 0
+        const sla    = Number(p.sla_pct)    ?? 100
+        const mttr   = Number(p.mttr_avg)   || 0
+        const score  = Math.round((inc / maxInc) * 40 + ((100 - sla) / 100) * 40 + (mttr / maxMttr) * 20)
+        return { ...p, score }
+      }).sort((a: any, b: any) => b.score - a.score)
+      const top = scored[0]
+      add('Proveedor', 'Score riesgo (0-100)', 'Incidentes', 'SLA Global %', 'MTTR prom (min)', 'IEI est (S/)')
+      add(top.proveedor, top.score, top.incidentes, top.sla_pct != null ? `${top.sla_pct}%` : '—', top.mttr_avg ?? '—', top.iei ?? 0)
+      if (scored.length > 1) {
+        blank()
+        add('Ranking completo de proveedores por riesgo')
+        add('#', 'Proveedor', 'Score', 'Incidentes', 'SLA %', 'MTTR (min)', 'IEI (S/)')
+        scored.forEach((p: any, idx: number) =>
+          add(idx + 1, p.proveedor, p.score, p.incidentes, p.sla_pct != null ? `${p.sla_pct}%` : '—', p.mttr_avg ?? '—', p.iei ?? 0))
       }
-      // Header row: Proveedor + mes columns (SLA% / MTTR / Total)
-      add('Proveedor', ...meses.flatMap(m => [`SLA% ${fmtMes(m)}`, `MTTR (min) ${fmtMes(m)}`, `Incs ${fmtMes(m)}`]))
-      for (const prov of proveedoresTend) {
-        const cols: unknown[] = [prov]
-        for (const m of meses) {
-          const r = map[prov]?.[m]
-          cols.push(r?.sla_pct != null ? `${r.sla_pct}%` : '—')
-          cols.push(r?.mttr_avg ?? '—')
-          cols.push(r?.total ?? '—')
-        }
-        add(...cols)
+    }
+
+    // ── 9. Supervisores ──────────────────────────────────────────────────────────
+    blank()
+    add('9. CARGA POR SUPERVISOR')
+    if (supRows.length === 0) {
+      add('Sin datos de supervisores')
+    } else {
+      add('Supervisor', 'Incidentes', 'Tiendas afectadas', 'MTTR prom (min)', 'IEI total est (S/)')
+      for (const s of supRows)
+        add(s.supervisor, s.incidentes, s.tiendas, s.mttr_avg ?? '—', s.iei_total ?? 0)
+    }
+
+    // ── 10. Clusters ─────────────────────────────────────────────────────────────
+    blank()
+    add('10. DISTRIBUCIÓN POR CLUSTER')
+    if (clRows.length === 0) {
+      add('Sin datos de clusters')
+    } else {
+      const totalCluster = clRows.reduce((s: number, c: any) => s + Number(c.incidentes), 0)
+      add('Cluster', 'Incidentes', '% del total', 'Tiendas afectadas', 'MTTR prom (min)', 'IEI total est (S/)')
+      for (const c of clRows) {
+        const pct = totalCluster > 0 ? Math.round(Number(c.incidentes) / totalCluster * 100) : 0
+        add(c.cluster, c.incidentes, `${pct}%`, c.tiendas_afectadas, c.mttr_avg ?? '—', c.iei_total ?? 0)
       }
     }
 

@@ -494,6 +494,17 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   {inc.resueltoPor === 'AGENTE' ? 'Resuelto por Agente' : inc.resueltoPor === 'INFRAESTRUCTURA' ? 'Resuelto por Infraestructura' : 'Resuelto por Proveedor'}
                 </span>
               )}
+              {(inc as any).motivoReabertura && (
+                <span
+                  title={(inc as any).motivoReabertura === 'TIENDA_SIN_INTERNET' ? 'Reabierto — solución incorrecta del proveedor' : 'Reabierto — error de gestión de agente'}
+                  style={{
+                    fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px',
+                    background: (inc as any).motivoReabertura === 'TIENDA_SIN_INTERNET' ? 'rgba(185,28,28,0.25)' : 'rgba(146,64,14,0.25)',
+                    color:      (inc as any).motivoReabertura === 'TIENDA_SIN_INTERNET' ? '#fca5a5'              : '#fcd34d',
+                  }}>
+                  ↩ reabierto
+                </span>
+              )}
               <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.55)', padding: '2px 8px', borderRadius: '4px' }}>
                 {TIPO_LABELS[inc.tipo] ?? inc.tipo}
               </span>
@@ -1382,6 +1393,25 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '8px' }}>Tiempos del incidente</div>
                 <TimeRow label="Hora inicio" value={new Date(inc.horaRegistro).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} />
                 <TimeRow label="Tiempo total" value={inc.mttrMinutos ? minToHM(inc.mttrMinutos) : 'En curso'} />
+                {(inc as any).tiempoAcumuladoMin != null && (
+                  <TimeRow label="MTTR acumulado (prev.)" value={minToHM((inc as any).tiempoAcumuladoMin)} color="#d97706" />
+                )}
+                {(inc as any).motivoReabertura && (
+                  <>
+                    <div style={{ borderTop: '1px solid var(--border)', margin: '6px 0 4px' }} />
+                    <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Reabertura</div>
+                    <TimeRow
+                      label="Motivo"
+                      value={(inc as any).motivoReabertura === 'TIENDA_SIN_INTERNET' ? 'Tienda sin internet (proveedor)' : 'Error de gestión de agente'}
+                      color={(inc as any).motivoReabertura === 'TIENDA_SIN_INTERNET' ? '#b91c1c' : '#92400e'}
+                    />
+                    {(inc as any).justificacionReabertura && (
+                      <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '3px', lineHeight: 1.4, fontStyle: 'italic' }}>
+                        "{(inc as any).justificacionReabertura}"
+                      </div>
+                    )}
+                  </>
+                )}
                 {[...(inc.escalamientos ?? [])].sort((a: any, b: any) => a.nivel - b.nivel).map((esc: any) => {
                   const enviado = esc.horaEnvioCorreo
                     ? new Date(esc.horaEnvioCorreo).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })

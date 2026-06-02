@@ -36,16 +36,26 @@ export async function GET(req: Request) {
           COALESCE(pi.nombre, pt.nombre)                                         AS proveedor,
           COUNT(i.id)::int                                                        AS total,
           COUNT(i.id) FILTER (WHERE i.estado = 'RESUELTO' AND i.mttr_minutos IS NOT NULL
-            AND n1h.hora_correo_n1_val IS NOT NULL)::int                         AS evaluables_sla,
+            AND n1h.hora_correo_n1_val IS NOT NULL
+            AND i.evaluable_proveedor IS NOT FALSE AND i.tipo != 'CORTE_ELECTRICO')::int AS evaluables_sla,
           ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= ${slaLimiteCase('i.tipo')}
-            AND i.estado = 'RESUELTO') * 100.0 /
-            NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'), 0))::int      AS sla_pct,
+            AND i.estado = 'RESUELTO'
+            AND i.evaluable_proveedor IS NOT FALSE AND i.tipo != 'CORTE_ELECTRICO') * 100.0 /
+            NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'
+            AND i.evaluable_proveedor IS NOT FALSE AND i.tipo != 'CORTE_ELECTRICO'), 0))::int AS sla_pct,
           ROUND(AVG(i.mttr_minutos))::int                                        AS mttr_avg,
           ROUND(AVG(
             EXTRACT(EPOCH FROM (resp.hora_primera_resp - n1h.hora_correo_n1_val)) / 60
           ))::int                                                                 AS t_resp_avg,
+          ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'
+            AND i.evaluable_proveedor IS NOT FALSE AND i.tipo != 'CORTE_ELECTRICO'))::int AS t_resol_avg,
           COUNT(DISTINCT e2.incidente_id)::int                                   AS escalados_n2,
           COUNT(DISTINCT i.tienda_id)::int                                       AS tiendas_afectadas,
+          COUNT(*) FILTER (WHERE i.motivo_reabertura IS NOT NULL)::int           AS reaperturas,
+          ROUND(COUNT(*) FILTER (WHERE i.motivo_reabertura IS NOT NULL) * 100.0 /
+            NULLIF(COUNT(i.id), 0), 1)                                           AS tasa_reapertura,
+          MODE() WITHIN GROUP (ORDER BY i.motivo_reabertura)
+            FILTER (WHERE i.motivo_reabertura IS NOT NULL)                       AS motivo_frecuente,
           ROUND(SUM(COALESCE(t.venta_hora_soles,${IEI_CLUSTER_FALLBACK})*(COALESCE(i.mttr_minutos,0)::numeric/60)*0.35*${IEI_FACTOR}))::int AS iei
         FROM incidentes i
         JOIN tiendas t ON i.tienda_id = t.id
@@ -83,8 +93,11 @@ export async function GET(req: Request) {
           MODE() WITHIN GROUP (ORDER BY i.tipo)              AS tipo_frecuente,
           ROUND(AVG(i.mttr_minutos))::int                    AS mttr_avg,
           ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= ${slaLimiteCase('i.tipo')}
-            AND i.estado = 'RESUELTO') * 100.0 /
-            NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'), 0))::int AS sla_pct,
+            AND i.estado = 'RESUELTO'
+            AND i.evaluable_proveedor IS NOT FALSE AND i.tipo != 'CORTE_ELECTRICO') * 100.0 /
+            NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'
+            AND i.evaluable_proveedor IS NOT FALSE AND i.tipo != 'CORTE_ELECTRICO'), 0))::int AS sla_pct,
+          COUNT(*) FILTER (WHERE i.motivo_reabertura IS NOT NULL)::int           AS reaperturas,
           ROUND(SUM(COALESCE(t.venta_hora_soles,${IEI_CLUSTER_FALLBACK})*(COALESCE(i.mttr_minutos,0)::numeric/60)*0.35*${IEI_FACTOR}))::int AS iei
         FROM incidentes i
         JOIN tiendas t ON i.tienda_id = t.id
@@ -103,18 +116,26 @@ export async function GET(req: Request) {
 
     add('EVALUACIÓN DE PROVEEDORES — NETDESK')
     add('Proveedor', 'Total incidentes', 'Evaluables SLA', 'SLA %', 'MTTR prom (min)',
-      'T. respuesta prom (min)', 'Escalados N2+', 'Tiendas afectadas', 'IEI est (S/)')
-    for (const r of (resumen as any[]))
+      'T. respuesta prom (min)', 'T. resolución prom (min)', 'Escalados N2+', 'Tiendas afectadas',
+      'Reaperturas', 'Tasa reapertura (%)', 'Motivo frecuente reabertura', 'IEI est (S/)')
+    for (const r of (resumen as any[])) {
+      const motivoLabel = r.motivo_frecuente === 'TIENDA_SIN_INTERNET' ? 'Tienda sin internet (proveedor)'
+        : r.motivo_frecuente === 'ERROR_AGENTE' ? 'Error de gestión de agente'
+        : ''
       add(r.proveedor, r.total, r.evaluables_sla ?? '', r.sla_pct ?? '', r.mttr_avg ?? '',
-        r.t_resp_avg ?? '', r.escalados_n2 ?? 0, r.tiendas_afectadas, r.iei ?? 0)
+        r.t_resp_avg ?? '', r.t_resol_avg ?? '', r.escalados_n2 ?? 0, r.tiendas_afectadas,
+        r.reaperturas ?? 0, r.tasa_reapertura != null ? `${r.tasa_reapertura}%` : '0%',
+        motivoLabel, r.iei ?? 0)
+    }
 
     lines.push('')
     add('DETALLE POR TIENDA')
     add('Proveedor', 'Código tienda', 'Nombre CC', 'Distrito', 'Incidentes',
-      'Tipo más frecuente', 'MTTR prom (min)', 'SLA %', 'IEI est (S/)')
+      'Tipo más frecuente', 'MTTR prom (min)', 'SLA %', 'Reaperturas', 'IEI est (S/)')
     for (const r of (detalle as any[]))
       add(r.proveedor, r.tienda_codigo, r.tienda_nombre_cc ?? '', r.distrito ?? '',
-        r.incidentes, r.tipo_frecuente ?? '', r.mttr_avg ?? '', r.sla_pct ?? '', r.iei ?? 0)
+        r.incidentes, r.tipo_frecuente ?? '', r.mttr_avg ?? '', r.sla_pct ?? '',
+        r.reaperturas ?? 0, r.iei ?? 0)
 
     const csv = lines.join(CRLF)
     const desdeLabel = desde.slice(0, 10)

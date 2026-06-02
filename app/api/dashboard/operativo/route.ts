@@ -57,6 +57,7 @@ export async function GET(req: NextRequest) {
             AND e2.hora_envio_correo IS NOT NULL
             AND e2.hora_respuesta    IS NULL
         ) AS pendiente_proveedor,
+        i.motivo_reabertura,
         i.cont_activado_por,
         i.cont_hora_activacion,
         i.cont_hora_desactivacion,
