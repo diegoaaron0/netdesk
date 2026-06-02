@@ -181,6 +181,28 @@ export interface ProveedorCriticoCard {
   incidentesDetalle: IncidenteListItem[]
 }
 
+export interface SupervisorStats {
+  nombre: string
+  incidentes: number
+  tiendasAfectadas: number
+  ieiTotal: number
+  tiempoTotalMin: number
+  mttrPromedio: number | null
+  tiendas: Array<{
+    codigo: string
+    incidentes: number
+    tiempoTotalMin: number
+    ieiTotal: number
+  }>
+}
+
+export interface ClusterStats {
+  cluster: string
+  incidentes: number
+  tiendasAfectadas: number
+  ieiTotal: number
+}
+
 export interface DashboardAnaliticoResponse {
   periodo: { desde: string; hasta: string }
   proveedores: Array<{ id: string; nombre: string }>
@@ -192,5 +214,9 @@ export interface DashboardAnaliticoResponse {
     costoEstimado: CostoEstimadoCard
     reincidenciaCritica: ReincidenciaCriticaCard
     proveedorCritico: ProveedorCriticoCard | null
+  }
+  graficos: {
+    supervisores: SupervisorStats[]
+    clusters: ClusterStats[]
   }
 }

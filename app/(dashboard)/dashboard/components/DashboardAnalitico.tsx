@@ -1,8 +1,9 @@
 'use client'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import type { DashboardAnaliticoResponse, IncidenteListItem, SlaProveedor, MttrProveedor } from '@/types/dashboard'
 import { IncidentTimeline, fmtMin, type DrillIncidente } from './DrillPanel'
+import GraficosAnalitico from './GraficosAnalitico'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -615,6 +616,9 @@ export default function DashboardAnalitico() {
     }
   }, [desde, hasta, proveedorId])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchData() }, [])
+
   const handleCardClick = (id: string) => {
     setSelectedCard(prev => prev === id ? null : id)
     setExpandedIncId(null)
@@ -663,9 +667,7 @@ export default function DashboardAnalitico() {
       )}
       {!data && !loading && !error && (
         <div style={{ padding: '48px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '13px' }}>
-          <button onClick={fetchData} style={{ padding: '10px 24px', fontSize: '13px', fontWeight: 600, background: '#185FA5', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
-            Cargar datos analíticos
-          </button>
+          Preparando datos…
         </div>
       )}
       {loading && (
@@ -734,6 +736,9 @@ export default function DashboardAnalitico() {
           </div>
         </div>
       )}
+
+      {/* ── Gráficos analíticos ─────────────────────────────────────────── */}
+      {data && <GraficosAnalitico data={data} />}
 
       {/* ── Panel lateral ───────────────────────────────────────────────── */}
       {selectedCard && data && (

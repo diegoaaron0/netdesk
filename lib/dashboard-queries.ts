@@ -17,6 +17,7 @@ export interface RawIncidente {
   tienda_nombre: string | null
   tienda_distrito: string | null
   cluster: string | null
+  supervisor_nombre: string | null
   venta_hora_soles: number | null
   tiene_contingencia: boolean
   contingencia_activa: boolean
@@ -80,6 +81,7 @@ export async function fetchIncidentesPeriodo(
       t.nombre_cc AS tienda_nombre,
       t.distrito  AS tienda_distrito,
       t.cluster,
+      t.supervisor_nombre,
       t.venta_hora_soles::float                   AS venta_hora_soles,
       COALESCE(t.tiene_contingencia, false)        AS tiene_contingencia,
       COALESCE(t.contingencia_activa, false)       AS contingencia_activa,

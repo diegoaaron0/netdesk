@@ -79,12 +79,13 @@ export async function GET(req: NextRequest) {
       ?? slaFallback
   }
 
-  const result = await buildCards(incidentes, escalamientos, ventasDiarias, prevIncidentes, prevEscalamientos, getSlaParaIncidente, totalTiendas)
+  const { cards, graficos } = await buildCards(incidentes, escalamientos, ventasDiarias, prevIncidentes, prevEscalamientos, getSlaParaIncidente, totalTiendas)
 
   return NextResponse.json({
     periodo: { desde, hasta },
     proveedores: proveedoresList,
-    cards: result,
+    cards,
+    graficos,
   } satisfies DashboardAnaliticoResponse)
 }
 
@@ -733,64 +734,117 @@ async function buildCards(
     }
   }
 
+  // ── Supervisores ────────────────────────────────────────────────────────────
+  type SupTiendaAccum = { incidentes: number; tiempoTotalMin: number; ieiTotal: number }
+  const supMap = new Map<string, {
+    incidentes: number; tiendas: Map<string, SupTiendaAccum>
+    ieiTotal: number; mttrSum: number; mttrCount: number; tiempoTotalMin: number
+  }>()
+  for (const i of incs) {
+    const sup = i.supervisor_nombre?.trim() || 'Sin supervisor'
+    if (!supMap.has(sup)) supMap.set(sup, { incidentes: 0, tiendas: new Map(), ieiTotal: 0, mttrSum: 0, mttrCount: 0, tiempoTotalMin: 0 })
+    const s = supMap.get(sup)!
+    s.incidentes++
+    const iei = ieiMap.get(i.id) ?? 0
+    s.ieiTotal += iei
+    const mttrMin = i.mttr_minutos ?? 0
+    s.tiempoTotalMin += mttrMin
+    if (i.mttr_minutos) { s.mttrSum += i.mttr_minutos; s.mttrCount++ }
+    if (!s.tiendas.has(i.tienda_codigo)) s.tiendas.set(i.tienda_codigo, { incidentes: 0, tiempoTotalMin: 0, ieiTotal: 0 })
+    const t2 = s.tiendas.get(i.tienda_codigo)!
+    t2.incidentes++
+    t2.tiempoTotalMin += mttrMin
+    t2.ieiTotal += iei
+  }
+  const supervisores = [...supMap.entries()]
+    .map(([nombre, s]) => ({
+      nombre,
+      incidentes: s.incidentes,
+      tiendasAfectadas: s.tiendas.size,
+      ieiTotal: Math.round(s.ieiTotal),
+      tiempoTotalMin: s.tiempoTotalMin,
+      mttrPromedio: s.mttrCount > 0 ? Math.round(s.mttrSum / s.mttrCount) : null,
+      tiendas: [...s.tiendas.entries()]
+        .map(([codigo, t2]) => ({ codigo, incidentes: t2.incidentes, tiempoTotalMin: t2.tiempoTotalMin, ieiTotal: Math.round(t2.ieiTotal) }))
+        .sort((a, b) => b.incidentes - a.incidentes),
+    }))
+    .sort((a, b) => b.incidentes - a.incidentes)
+
+  // ── Clusters ─────────────────────────────────────────────────────────────
+  const clMap = new Map<string, { incidentes: number; tiendas: Set<string>; ieiTotal: number }>()
+  for (const i of incs) {
+    const cl = i.cluster ?? 'Sin cluster'
+    if (!clMap.has(cl)) clMap.set(cl, { incidentes: 0, tiendas: new Set(), ieiTotal: 0 })
+    const c = clMap.get(cl)!
+    c.incidentes++
+    c.tiendas.add(i.tienda_id)
+    c.ieiTotal += ieiMap.get(i.id) ?? 0
+  }
+  const clusters = [...clMap.entries()]
+    .map(([cluster, c]) => ({ cluster, incidentes: c.incidentes, tiendasAfectadas: c.tiendas.size, ieiTotal: Math.round(c.ieiTotal) }))
+    .sort((a, b) => a.cluster.localeCompare(b.cluster))
+
   return {
-    incidentes: {
-      total: incs.length,
-      deltaVsAnterior: dTotal,
-      lista: incs.map((i) => toListItem(
-        i,
-        tiendasDetailMap.get(i.tienda_id)?.count ?? 1,
-        slaMap.get(i.id) ?? null,
-        ieiMap.get(i.id) ?? 0,
-      )),
-      byDay,
+    cards: {
+      incidentes: {
+        total: incs.length,
+        deltaVsAnterior: dTotal,
+        lista: incs.map((i) => toListItem(
+          i,
+          tiendasDetailMap.get(i.tienda_id)?.count ?? 1,
+          slaMap.get(i.id) ?? null,
+          ieiMap.get(i.id) ?? 0,
+        )),
+        byDay,
+      },
+      tiendasAfectadas: {
+        total: tiendasDetailMap.size,
+        porcentajeRed: Math.round((tiendasDetailMap.size / totalTiendas) * 1000) / 10,
+        deltaVsAnterior: dTiendas,
+        lista: tiendasLista,
+      },
+      mttrPromedio: {
+        minutos: mttrActual,
+        deltaMinutos: dMttr,
+        porProveedor: mttrPorProveedor,
+        byDay: byDayMttr,
+      },
+      cumplimientoSLA: {
+        porcentaje: slaPct,
+        scoreEficiencia: (() => {
+          const scores = slaPorProveedor.map(p => p.scoreEficiencia).filter((s): s is number => s != null)
+          return scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null
+        })(),
+        slaRespuestaPct,
+        slaResolucionPct,
+        deltaRespuestaPct: dSlaRespuesta,
+        deltaResolucionPct: dSlaResolucion,
+        deltaVsAnterior: dSla,
+        porProveedor: slaPorProveedor,
+        evaluables,
+      },
+      costoEstimado: {
+        total: Math.round(costoTotal),
+        totalAgente: Math.round(costoAgente),
+        totalProveedor: Math.round(costoProveedor),
+        ventaAfectadaTotal: Math.round(ventaAfectadaTotal),
+        deltaVsAnterior: dCosto,
+        proveedorMayorImpacto: provCostoSorted.length > 0
+          ? { nombre: provCostoSorted[0][0], costo: Math.round(provCostoSorted[0][1]) }
+          : null,
+        tiendaMayorImpacto: tiendaCostoSorted.length > 0
+          ? { codigo: tiendaCostoSorted[0].codigo, costo: Math.round(tiendaCostoSorted[0].costo) }
+          : null,
+        proveedoresDesglose: provCostoSorted.map(([nombre, costo]) => ({ nombre, costo: Math.round(costo) })),
+        top5Tiendas,
+      },
+      reincidenciaCritica: {
+        total: reincidentes.length,
+        tiendas: reincidentes,
+      },
+      proveedorCritico,
     },
-    tiendasAfectadas: {
-      total: tiendasDetailMap.size,
-      porcentajeRed: Math.round((tiendasDetailMap.size / totalTiendas) * 1000) / 10,
-      deltaVsAnterior: dTiendas,
-      lista: tiendasLista,
-    },
-    mttrPromedio: {
-      minutos: mttrActual,
-      deltaMinutos: dMttr,
-      porProveedor: mttrPorProveedor,
-      byDay: byDayMttr,
-    },
-    cumplimientoSLA: {
-      porcentaje: slaPct,
-      scoreEficiencia: (() => {
-        const scores = slaPorProveedor.map(p => p.scoreEficiencia).filter((s): s is number => s != null)
-        return scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null
-      })(),
-      slaRespuestaPct,
-      slaResolucionPct,
-      deltaRespuestaPct: dSlaRespuesta,
-      deltaResolucionPct: dSlaResolucion,
-      deltaVsAnterior: dSla,
-      porProveedor: slaPorProveedor,
-      evaluables,
-    },
-    costoEstimado: {
-      total: Math.round(costoTotal),
-      totalAgente: Math.round(costoAgente),
-      totalProveedor: Math.round(costoProveedor),
-      ventaAfectadaTotal: Math.round(ventaAfectadaTotal),
-      deltaVsAnterior: dCosto,
-      proveedorMayorImpacto: provCostoSorted.length > 0
-        ? { nombre: provCostoSorted[0][0], costo: Math.round(provCostoSorted[0][1]) }
-        : null,
-      tiendaMayorImpacto: tiendaCostoSorted.length > 0
-        ? { codigo: tiendaCostoSorted[0].codigo, costo: Math.round(tiendaCostoSorted[0].costo) }
-        : null,
-      proveedoresDesglose: provCostoSorted.map(([nombre, costo]) => ({ nombre, costo: Math.round(costo) })),
-      top5Tiendas,
-    },
-    reincidenciaCritica: {
-      total: reincidentes.length,
-      tiendas: reincidentes,
-    },
-    proveedorCritico,
+    graficos: { supervisores, clusters },
   }
 }
 
