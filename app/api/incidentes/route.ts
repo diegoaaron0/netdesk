@@ -60,6 +60,7 @@ const COLS = {
   movActivadoPor:       incidentes.movActivadoPor,
   movHoraDesactivacion: incidentes.movHoraDesactivacion,
   boletaManual:         incidentes.boletaManual,
+  motivoReabertura:     incidentes.motivoReabertura,
 }
 
 export async function GET(req: NextRequest) {

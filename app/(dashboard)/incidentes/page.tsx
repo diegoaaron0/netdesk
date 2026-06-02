@@ -421,6 +421,20 @@ export default function IncidentesPage() {
                         </span>
                       </div>
                     )}
+                    {(inc as any).motivoReabertura && (
+                      <div style={{ marginTop: '2px' }}>
+                        <span
+                          title={(inc as any).motivoReabertura === 'TIENDA_SIN_INTERNET' ? 'Reabierto — tienda nuevamente sin internet' : 'Reabierto — error de gestión de agente'}
+                          style={{
+                            fontSize: '9px', fontWeight: 700, borderRadius: '3px', padding: '1px 5px',
+                            background: (inc as any).motivoReabertura === 'TIENDA_SIN_INTERNET' ? 'rgba(185,28,28,0.1)' : 'rgba(146,64,14,0.1)',
+                            color:      (inc as any).motivoReabertura === 'TIENDA_SIN_INTERNET' ? '#b91c1c' : '#92400e',
+                            border:     `1px solid ${(inc as any).motivoReabertura === 'TIENDA_SIN_INTERNET' ? 'rgba(185,28,28,0.3)' : 'rgba(146,64,14,0.3)'}`,
+                          }}>
+                          ↩ REABIERTO
+                        </span>
+                      </div>
+                    )}
                     {inc.ticketInvgate && (
                       <div style={{ fontSize: '10px', color: mutedColor, marginTop: '1px' }}>#{inc.ticketInvgate}</div>
                     )}

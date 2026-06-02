@@ -12,7 +12,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!can(session, 'incidentes.reabrir')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const body = await req.json()
-  const motivo: string = body.motivo ?? ''
+  const motivo: 'TIENDA_SIN_INTERNET' | 'ERROR_AGENTE' = body.motivo ?? 'ERROR_AGENTE'
+  const justificacion: string = body.justificacion?.trim() ?? ''
+
+  // Leer el incidente para acumular MTTR antes de reiniciar el reloj
+  const [inc] = await db.select({
+    mttrMinutos:        incidentes.mttrMinutos,
+    tiempoAcumuladoMin: incidentes.tiempoAcumuladoMin,
+  }).from(incidentes).where(eq(incidentes.id, id))
+
+  if (!inc) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+
+  // Tiempo acumulado = lo que ya estaba acumulado + MTTR de esta última resolución incorrecta
+  // El tiempo que estuvo "cerrado" entre resolución y reapertura NO se suma (no es responsabilidad del proveedor)
+  const tiempoAcumuladoMin = (inc.tiempoAcumuladoMin ?? 0) + (inc.mttrMinutos ?? 0)
 
   const horaLima = new Date().toLocaleString('es-PE', {
     timeZone: 'America/Lima',
@@ -20,16 +33,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     hour: '2-digit', minute: '2-digit',
   })
 
-  const reabiertaInfo = motivo.trim()
-    ? `Reabierto el ${horaLima} — ${motivo.trim()}`
-    : `Reabierto el ${horaLima}`
+  const motivoLabel = motivo === 'TIENDA_SIN_INTERNET'
+    ? 'Tienda nuevamente sin internet'
+    : 'Error de gestión de agente'
+
+  const reabiertaInfo = justificacion
+    ? `Reabierto el ${horaLima} · ${motivoLabel} — ${justificacion}`
+    : `Reabierto el ${horaLima} · ${motivoLabel}`
 
   const [updated] = await db.update(incidentes)
     .set({
       estado: 'ABIERTO',
       horaFin: null,
       mttrMinutos: null,
-      horaRegistro: new Date(),
+      horaRegistro: new Date(),     // reinicia el cronómetro desde ahora
+      tiempoAcumuladoMin,           // preserva el tiempo anterior (se sumará al resolver)
+      motivoReabertura: motivo,
+      justificacionReabertura: justificacion || null,
       reabiertaInfo,
       actualizadoEn: new Date(),
     })

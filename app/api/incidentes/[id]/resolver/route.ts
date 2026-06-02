@@ -17,18 +17,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const evaluableProveedor = body.evaluableProveedor ?? true
 
   const [inc] = await db.select({
-    horaRegistro:    incidentes.horaRegistro,
-    tiendaId:        incidentes.tiendaId,
-    contActivadoPor: incidentes.contActivadoPor,
+    horaRegistro:       incidentes.horaRegistro,
+    tiendaId:           incidentes.tiendaId,
+    contActivadoPor:    incidentes.contActivadoPor,
+    tiempoAcumuladoMin: incidentes.tiempoAcumuladoMin,
   }).from(incidentes).where(eq(incidentes.id, id))
   if (!inc) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
   const horaFin = new Date()
-  const mttrMinutos = Math.round((horaFin.getTime() - new Date(inc.horaRegistro).getTime()) / 60000)
+  // MTTR = tiempo desde la última apertura/reapertura + tiempos acumulados de aperturas anteriores
+  // No cuenta el tiempo que estuvo "cerrado" entre una resolución incorrecta y la reapertura
+  const mttrDesdeUltimaApertura = Math.round((horaFin.getTime() - new Date(inc.horaRegistro).getTime()) / 60000)
+  const mttrMinutos = mttrDesdeUltimaApertura + (inc.tiempoAcumuladoMin ?? 0)
 
   const resueltoPorUsuarioId = (session.user as any)?.id ?? null
   const [updated] = await db.update(incidentes)
-    .set({ estado: 'RESUELTO', horaFin, mttrMinutos, actualizadoEn: new Date(), resueltoPor, atribucionFinal, evaluableProveedor, resueltoPorUsuarioId })
+    .set({ estado: 'RESUELTO', horaFin, mttrMinutos, tiempoAcumuladoMin: null, actualizadoEn: new Date(), resueltoPor, atribucionFinal, evaluableProveedor, resueltoPorUsuarioId })
     .where(eq(incidentes.id, id))
     .returning()
 

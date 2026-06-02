@@ -166,7 +166,8 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   const [showReopenModal, setShowReopenModal] = useState(false)
   const [showReopenWarning, setShowReopenWarning] = useState(false)
   const [minutosDesdeResolucion, setMinutosDesdeResolucion] = useState(0)
-  const [reopenMotivo, setReopenMotivo] = useState('')
+  const [reopenMotivo, setReopenMotivo] = useState<'TIENDA_SIN_INTERNET' | 'ERROR_AGENTE' | null>(null)
+  const [reopenJustificacion, setReopenJustificacion] = useState('')
   const [reopening, setReopening]   = useState(false)
   const [showGuia, setShowGuia]       = useState(false)
   const [showResolverModal, setShowResolverModal] = useState(false)
@@ -404,9 +405,17 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   }
 
   async function handleReopen() {
+    if (!reopenMotivo) return
     setReopening(true)
-    await fetch(`/api/incidentes/${id}/reabrir`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motivo: reopenMotivo }) })
-    setReopening(false); setShowReopenModal(false); setReopenMotivo('')
+    await fetch(`/api/incidentes/${id}/reabrir`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ motivo: reopenMotivo, justificacion: reopenJustificacion }),
+    })
+    setReopening(false)
+    setShowReopenModal(false)
+    setReopenMotivo(null)
+    setReopenJustificacion('')
     fetchInc()
   }
 
@@ -545,20 +554,95 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
       {/* ── Reopen modal ── */}
       {showReopenModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '400px', margin: '16px' }}>
-            <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '6px' }}>Reabrir incidente</div>
-            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '16px' }}>El incidente volverá a estado ABIERTO y se restablecerá el cronómetro.</div>
-            <textarea value={reopenMotivo} onChange={e => setReopenMotivo(e.target.value)}
-              placeholder="¿Por qué se reabre este incidente?"
-              style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--muted)', color: 'var(--foreground)', outline: 'none', minHeight: '80px', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }} />
-            <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-              <button onClick={() => { setShowReopenModal(false); setReopenMotivo('') }}
-                style={{ flex: 1, padding: '8px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>Cancelar</button>
-              <button onClick={handleReopen} disabled={reopening}
-                style={{ flex: 1, padding: '8px', background: '#92400e', color: '#fde68a', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: reopening ? 'wait' : 'pointer' }}>
-                {reopening ? 'Reabriendo...' : 'Confirmar reapertura'}
-              </button>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '420px', margin: '16px' }}>
+            <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '4px' }}>Reabrir incidente</div>
+            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '20px', lineHeight: 1.5 }}>
+              El cronómetro se reinicia desde ahora. El tiempo activo anterior se acumula y se sumará al MTTR final.
             </div>
+
+            {/* Paso 1 — Seleccionar motivo */}
+            {!reopenMotivo && (
+              <>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>
+                  ¿Por qué se reabre?
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <button
+                    onClick={() => setReopenMotivo('TIENDA_SIN_INTERNET')}
+                    style={{ padding: '12px 14px', background: '#fef2f2', border: '1.5px solid #fca5a5', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
+                  >
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#b91c1c', marginBottom: '2px' }}>
+                      Tienda nuevamente sin internet
+                    </div>
+                    <div style={{ fontSize: '10px', color: '#991b1b' }}>
+                      El proveedor planteó una solución incorrecta — el servicio volvió a caer.
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setReopenMotivo('ERROR_AGENTE')}
+                    style={{ padding: '12px 14px', background: '#fffbeb', border: '1.5px solid #fde68a', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
+                  >
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#92400e', marginBottom: '2px' }}>
+                      Error de gestión de agente
+                    </div>
+                    <div style={{ fontSize: '10px', color: '#78350f' }}>
+                      El incidente se cerró por error — el servicio aún no estaba restablecido.
+                    </div>
+                  </button>
+                </div>
+                <button
+                  onClick={() => { setShowReopenModal(false); setReopenMotivo(null); setReopenJustificacion('') }}
+                  style={{ width: '100%', marginTop: '12px', padding: '8px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}
+                >
+                  Cancelar
+                </button>
+              </>
+            )}
+
+            {/* Paso 2 — Justificación */}
+            {reopenMotivo && (
+              <>
+                <div style={{
+                  padding: '8px 12px', borderRadius: '7px', marginBottom: '14px', fontSize: '11px', fontWeight: 600,
+                  background: reopenMotivo === 'TIENDA_SIN_INTERNET' ? '#fef2f2' : '#fffbeb',
+                  color: reopenMotivo === 'TIENDA_SIN_INTERNET' ? '#b91c1c' : '#92400e',
+                  border: `1px solid ${reopenMotivo === 'TIENDA_SIN_INTERNET' ? '#fca5a5' : '#fde68a'}`,
+                }}>
+                  {reopenMotivo === 'TIENDA_SIN_INTERNET' ? '🔴 Tienda nuevamente sin internet' : '⚠️ Error de gestión de agente'}
+                  <button
+                    onClick={() => setReopenMotivo(null)}
+                    style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: 'inherit', opacity: 0.6 }}
+                  >
+                    cambiar
+                  </button>
+                </div>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: '6px' }}>
+                  Justificación
+                </div>
+                <textarea
+                  value={reopenJustificacion}
+                  onChange={e => setReopenJustificacion(e.target.value)}
+                  placeholder="Describe brevemente la situación..."
+                  autoFocus
+                  style={{ width: '100%', padding: '8px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--muted)', color: 'var(--foreground)', outline: 'none', minHeight: '72px', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                />
+                <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
+                  <button
+                    onClick={() => { setShowReopenModal(false); setReopenMotivo(null); setReopenJustificacion('') }}
+                    style={{ flex: 1, padding: '8px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleReopen}
+                    disabled={reopening || !reopenJustificacion.trim()}
+                    style={{ flex: 1, padding: '8px', background: (!reopenJustificacion.trim() || reopening) ? 'var(--muted)' : '#92400e', color: (!reopenJustificacion.trim() || reopening) ? 'var(--muted-foreground)' : '#fde68a', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: (reopening || !reopenJustificacion.trim()) ? 'not-allowed' : 'pointer' }}
+                  >
+                    {reopening ? 'Reabriendo...' : 'Confirmar reapertura'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -576,7 +660,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               El servicio estuvo operativo durante ese tiempo. Según la política del equipo, esto se considera una <strong>nueva falla</strong> y debe registrarse como un incidente independiente.
             </div>
             <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '20px', padding: '8px 10px', background: 'var(--muted)', borderRadius: '8px' }}>
-              Reabrir infla el MTTR con el tiempo que el servicio estuvo OK. Un nuevo incidente mantiene los registros limpios.
+              Si el servicio estuvo operativo ese tiempo, esto es una nueva falla independiente. Un incidente nuevo mantiene los registros limpios y el análisis de proveedores preciso.
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <button onClick={() => { setShowReopenWarning(false); router.push(`/incidentes/nuevo?from=${id}`) }}

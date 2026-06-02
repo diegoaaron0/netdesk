@@ -180,7 +180,10 @@ export const incidentes = pgTable('incidentes', {
   horaFin:               timestamp('hora_fin'),
   mttrMinutos:           integer('mttr_minutos'),
   observaciones:         text('observaciones'),
-  reabiertaInfo:         text('reabrierta_info'),
+  reabiertaInfo:             text('reabrierta_info'),
+  motivoReabertura:          text('motivo_reabertura'),        // 'TIENDA_SIN_INTERNET' | 'ERROR_AGENTE'
+  justificacionReabertura:   text('justificacion_reabertura'),
+  tiempoAcumuladoMin:        integer('tiempo_acumulado_min'),  // MTTR acumulado de aperturas previas
   proveedorId:           uuid('proveedor_id').references(() => proveedores.id),
   tipoPersonalizado:     text('tipo_personalizado'),
   otrosClasificacion:    text('otros_clasificacion'),
