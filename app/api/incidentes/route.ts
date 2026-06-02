@@ -139,13 +139,7 @@ export async function POST(req: NextRequest) {
   const [tiendaRow] = await db.select({ proveedorId: tiendas.proveedorId })
     .from(tiendas).where(eq(tiendas.id, body.tiendaId))
 
-  const [{ codigo }] = await db.execute<{ codigo: string }>(sql`
-    SELECT lpad(nextval('netdesk_inc_seq')::text, 5, '0')
-        || chr(65 + floor(random()*26)::int) AS codigo
-  `)
-
-  const [inc] = await db.insert(incidentes).values({
-    codigo,
+  const values = {
     tiendaId:              body.tiendaId,
     registradoPorId:       user.id,
     nivelImpacto:          body.nivelImpacto,
@@ -163,7 +157,23 @@ export async function POST(req: NextRequest) {
     descartesRealizados:   body.descartesRealizados ?? null,
     solucionAplicada:      body.solucionAplicada ?? null,
     observaciones:         body.observaciones ?? null,
-  }).returning()
+  }
+
+  // Retry hasta 5 veces si hay colisión de código único (secuencia desfasada)
+  let inc: any
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const [{ codigo }] = await db.execute<{ codigo: string }>(sql`
+      SELECT lpad(nextval('netdesk_inc_seq')::text, 5, '0')
+          || chr(65 + floor(random()*26)::int) AS codigo
+    `)
+    try {
+      ;[inc] = await db.insert(incidentes).values({ codigo, ...values }).returning()
+      break
+    } catch (e: any) {
+      if (e?.code === '23505' && attempt < 4) continue
+      return NextResponse.json({ error: 'Error al generar código de incidente' }, { status: 500 })
+    }
+  }
 
   return NextResponse.json(inc, { status: 201 })
 }
