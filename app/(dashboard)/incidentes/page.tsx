@@ -501,6 +501,11 @@ export default function IncidentesPage() {
                         Datos
                       </span>
                     )}
+                    {inc.boletaManual && (
+                      <span style={{ display: 'inline-block', marginTop: '3px', fontSize: '10px', padding: '1px 6px', borderRadius: '999px', fontWeight: 600, background: isOpen ? 'rgba(180,83,9,0.15)' : '#FEF3C7', color: '#92400E', border: '1px solid #FCD34D' }}>
+                        Boleta
+                      </span>
+                    )}
                   </td>
 
                   {/* Cluster */}
@@ -527,7 +532,7 @@ export default function IncidentesPage() {
 
                   {/* Acciones */}
                   <td style={{ padding: '9px 12px' }}>
-                    {inc.estado === 'CANCELADO' && (userRol === 'SUPERVISOR' || userRol === 'DEMO') && (
+                    {((inc.estado === 'CANCELADO' && userRol === 'SUPERVISOR') || userRol === 'DEMO') && (
                       <button
                         onClick={e => handleDelete(e, inc.id)}
                         title="Eliminar incidente"

@@ -102,7 +102,8 @@ export async function fetchIncidentesPeriodo(
       contrato.sla_respuesta_override,
       contrato.sla_resolucion_override
     FROM incidentes i
-    JOIN tiendas t ON i.tienda_id = t.id
+    JOIN tiendas t    ON i.tienda_id          = t.id
+    JOIN usuarios u   ON i.registrado_por_id  = u.id
     LEFT JOIN proveedores p  ON i.proveedor_id = p.id
     LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
     LEFT JOIN LATERAL (
@@ -135,6 +136,7 @@ export async function fetchIncidentesPeriodo(
     WHERE i.hora_registro >= ${desde}::timestamptz
       AND i.hora_registro <  ${hasta}::timestamptz
       AND i.estado != 'CANCELADO'
+      AND u.rol != 'DEMO'
       ${proveedorNombre ? sql`AND COALESCE(p.nombre, pt.nombre) = ${proveedorNombre}` : sql``}
     ORDER BY i.hora_registro DESC
   `)
@@ -156,14 +158,16 @@ export async function fetchEscalamientosPeriodo(
       e.tiempo_respuesta_min,
       ne.tiempo_resp_sev1
     FROM escalamientos e
-    JOIN incidentes i ON e.incidente_id = i.id
-    JOIN tiendas t    ON i.tienda_id    = t.id
+    JOIN incidentes i ON e.incidente_id       = i.id
+    JOIN tiendas t    ON i.tienda_id          = t.id
+    JOIN usuarios u   ON i.registrado_por_id  = u.id
     LEFT JOIN proveedores p  ON i.proveedor_id = p.id
     LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
     LEFT JOIN niveles_escalamiento ne ON e.nivel_esc_id = ne.id
     WHERE i.hora_registro >= ${desde}::timestamptz
       AND i.hora_registro <  ${hasta}::timestamptz
       AND i.estado != 'CANCELADO'
+      AND u.rol != 'DEMO'
       ${proveedorNombre ? sql`AND COALESCE(p.nombre, pt.nombre) = ${proveedorNombre}` : sql``}
   `)
   return rows as unknown as RawEscalamiento[]

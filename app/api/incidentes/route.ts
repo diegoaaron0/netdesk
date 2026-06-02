@@ -59,6 +59,7 @@ const COLS = {
   infraApellido:     infraUser.apellido,
   movActivadoPor:       incidentes.movActivadoPor,
   movHoraDesactivacion: incidentes.movHoraDesactivacion,
+  boletaManual:         incidentes.boletaManual,
 }
 
 export async function GET(req: NextRequest) {

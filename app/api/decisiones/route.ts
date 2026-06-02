@@ -80,34 +80,39 @@ export async function POST(req: NextRequest) {
   // SUPERVISOR y GERENCIA no necesitan aprobación externa
   const estadoInicial = (userRol === 'GERENCIA' || userRol === 'SUPERVISOR') ? 'PENDIENTE' : 'PROPUESTO'
 
-  const [dec] = await db.insert(decisiones).values({
-    tipo,
-    titulo,
-    descripcion:         descripcion         ?? null,
-    motivo,
-    estado:              estadoInicial        as any,
-    tiendaId:            tiendaId            ?? null,
-    proveedorId:         proveedorId         ?? null,
-    proveedorAnteriorId: proveedorAnteriorId ?? null,
-    responsableId,
-    fechaSeguimiento:    fechaSeguimiento    ?? null,
-    snapSlaPct:          snapSlaPct          ?? null,
-    snapMttrMinutos:     snapMttrMinutos     ?? null,
-    snapIei:             snapIei             ?? null,
-    snapIncidentes:      snapIncidentes      ?? null,
-    snapPeriodo:         snapPeriodo         ?? null,
-    snapDetalle:         snapDetalle         ?? null,
-  }).returning()
+  try {
+    const [dec] = await db.insert(decisiones).values({
+      tipo,
+      titulo,
+      descripcion:         descripcion         ?? null,
+      motivo,
+      estado:              estadoInicial        as any,
+      tiendaId:            tiendaId            || null,
+      proveedorId:         proveedorId         || null,
+      proveedorAnteriorId: proveedorAnteriorId || null,
+      responsableId,
+      fechaSeguimiento:    fechaSeguimiento    || null,
+      snapSlaPct:          snapSlaPct          ?? null,
+      snapMttrMinutos:     snapMttrMinutos     ?? null,
+      snapIei:             snapIei             ?? null,
+      snapIncidentes:      snapIncidentes      ?? null,
+      snapPeriodo:         snapPeriodo         ?? null,
+      snapDetalle:         snapDetalle         ?? null,
+    }).returning()
 
-  if (tiendaId) {
-    await db.insert(tiendasHistorial).values({
-      tiendaId,
-      usuarioId:     responsableId,
-      campoEditado:  'Decisión estratégica',
-      valorAnterior: null,
-      valorNuevo:    `[${estadoInicial}] ${tipo}: ${titulo}`,
-    })
+    if (tiendaId) {
+      await db.insert(tiendasHistorial).values({
+        tiendaId,
+        usuarioId:     responsableId,
+        campoEditado:  'Decisión estratégica',
+        valorAnterior: null,
+        valorNuevo:    `[${estadoInicial}] ${tipo}: ${titulo}`,
+      })
+    }
+
+    return NextResponse.json(dec, { status: 201 })
+  } catch (err: any) {
+    console.error('[POST /api/decisiones]', err)
+    return NextResponse.json({ error: err?.message ?? 'Error interno al crear la decisión' }, { status: 500 })
   }
-
-  return NextResponse.json(dec, { status: 201 })
 }

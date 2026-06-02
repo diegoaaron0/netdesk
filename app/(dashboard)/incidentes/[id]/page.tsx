@@ -268,6 +268,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   const canEditB   = canManage || (isMyInc && !isClosed)
   const canEditA   = canManage && supervisorEdit
   const isSupervisor = (session?.user as any)?.rol === 'SUPERVISOR'
+  const canDelete  = can(session, 'incidentes.eliminar')
 
   function setEdit(k: string, v: any) { setEditForm((f: any) => ({ ...f, [k]: v })) }
 
@@ -396,6 +397,12 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
     fetchInc()
   }
 
+  async function handleEliminar() {
+    if (!confirm(`¿Eliminar permanentemente el incidente ${inc.codigo}? Esta acción no se puede deshacer.`)) return
+    const res = await fetch(`/api/incidentes/${id}`, { method: 'DELETE' })
+    if (res.ok) router.push('/incidentes')
+  }
+
   async function handleReopen() {
     setReopening(true)
     await fetch(`/api/incidentes/${id}/reabrir`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motivo: reopenMotivo }) })
@@ -510,6 +517,12 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
             )}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px', flexShrink: 0, marginLeft: '20px' }}>
+            {canDelete && (
+              <button onClick={handleEliminar} title="Eliminar incidente"
+                style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.4)', borderRadius: '6px', color: '#fca5a5', cursor: 'pointer', flexShrink: 0 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+              </button>
+            )}
             <div style={{ position: 'relative', alignSelf: 'flex-end' }}
               onMouseEnter={() => setShowGuia(true)}
               onMouseLeave={() => setShowGuia(false)}>
@@ -863,8 +876,8 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                             <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px', color: (!inc?.tiendaTieneContingencia && editForm.contActivadoPor) ? '#92400e' : 'var(--muted-foreground)' }}>
                               {(!inc?.tiendaTieneContingencia && editForm.contActivadoPor) ? 'Descripción de contingencia temporal *' : 'Observación'}
                             </label>
-                            <textarea disabled={!isSupervisor}
-                              style={{ ...taStyle(!isSupervisor), border: (!inc?.tiendaTieneContingencia && editForm.contActivadoPor && !editForm.contObservacion) ? '1.5px solid #f59e0b' : undefined }}
+                            <textarea disabled={!canEditB}
+                              style={{ ...taStyle(!canEditB), border: (!inc?.tiendaTieneContingencia && editForm.contActivadoPor && !editForm.contObservacion) ? '1.5px solid #f59e0b' : undefined }}
                               value={editForm.contObservacion ?? ''}
                               onChange={e => setEdit('contObservacion', e.target.value)}
                               placeholder={(!inc?.tiendaTieneContingencia && editForm.contActivadoPor) ? 'Ej: Router TP-Link portátil con chip Entel, instalado por técnico el 23/05...' : 'Describe el comportamiento de la contingencia...'} />
@@ -975,7 +988,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
             })()}
 
             {/* Bloque Boleta Manual — colapsable */}
-            {editForm.estadoOperacion === 'BOLETA_MANUAL' && (() => {
+            {(editForm.estadoOperacion === 'BOLETA_MANUAL' || !!inc.boletaManual) && (() => {
               const rend = editForm.contRendimiento
               const rendLabel: Record<string,string> = { TOTAL:'Total', PARCIAL:'Parcial', NULO:'Nulo' }
               const summary = [editForm.contHoraActivacion && 'Hora registrada', rend && rendLabel[rend]].filter(Boolean).join(' · ')
