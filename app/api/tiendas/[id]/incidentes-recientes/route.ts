@@ -4,10 +4,21 @@ import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { calcImpactoRow } from '@/lib/impacto-calc'
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
+  const { searchParams } = new URL(req.url)
+  const desdeParam = searchParams.get('desde')
+  const hastaParam = searchParams.get('hasta')
+
+  const hasta = hastaParam
+    ? new Date(hastaParam + 'T23:59:59-05:00').toISOString()
+    : new Date().toISOString()
+  const desde = desdeParam
+    ? new Date(desdeParam + 'T00:00:00-05:00').toISOString()
+    : (() => { const d = new Date(); d.setDate(1); d.setHours(5, 0, 0, 0); return d.toISOString() })()
 
   const rows = await db.execute(sql`
     SELECT
@@ -21,8 +32,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     JOIN tiendas t ON i.tienda_id = t.id
     WHERE i.tienda_id = ${id}
       AND i.estado != 'CANCELADO'
+      AND i.hora_registro >= ${desde}::timestamptz
+      AND i.hora_registro <  ${hasta}::timestamptz
     ORDER BY i.hora_registro DESC
-    LIMIT 10
   `)
 
   const result = (rows as any[]).map(r => {
@@ -41,9 +53,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       mov_hora_activacion:     r.mov_hora_activacion,
       mov_hora_desactivacion:  r.mov_hora_desactivacion,
       mov_rendimiento:         r.mov_rendimiento,
-      boleta_manual:            r.boleta_manual,
-      boleta_rendimiento:       r.boleta_rendimiento,
-      boleta_hora_activacion:   r.boleta_hora_activacion,
+      boleta_manual:           r.boleta_manual,
+      boleta_rendimiento:      r.boleta_rendimiento,
+      boleta_hora_activacion:  r.boleta_hora_activacion,
     })
     return {
       id:            r.id,
@@ -59,8 +71,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }
   })
 
-  // IEI acumulado últimos 30 días (todos los resueltos, no solo los 10 de la tabla)
-  const iei30dRows = await db.execute(sql`
+  // IEI acumulado del período (todos los resueltos en el rango)
+  const ieiRows = await db.execute(sql`
     SELECT
       i.id, i.codigo, i.hora_registro, i.hora_fin, i.estado, i.tipo, i.mttr_minutos,
       i.cont_hora_activacion, i.cont_hora_desactivacion, i.cont_rendimiento, i.cont_es_externo,
@@ -71,11 +83,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     JOIN tiendas t ON i.tienda_id = t.id
     WHERE i.tienda_id = ${id}
       AND i.estado = 'RESUELTO'
-      AND i.hora_registro >= NOW() - INTERVAL '30 days'
+      AND i.hora_registro >= ${desde}::timestamptz
+      AND i.hora_registro <  ${hasta}::timestamptz
   `)
 
-  let iei30d = 0
-  for (const r of iei30dRows as any[]) {
+  let ieiTotal = 0
+  for (const r of ieiRows as any[]) {
     const res = calcImpactoRow({
       hora_registro: r.hora_registro, hora_fin: r.hora_fin,
       estado: r.estado, tipo: r.tipo,
@@ -85,13 +98,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       cont_rendimiento: r.cont_rendimiento, cont_es_externo: r.cont_es_externo,
       mov_hora_activacion: r.mov_hora_activacion, mov_hora_desactivacion: r.mov_hora_desactivacion,
       mov_rendimiento: r.mov_rendimiento,
-      boleta_manual: r.boleta_manual, boleta_rendimiento: r.boleta_rendimiento, boleta_hora_activacion: r.boleta_hora_activacion,
+      boleta_manual: r.boleta_manual, boleta_rendimiento: r.boleta_rendimiento,
+      boleta_hora_activacion: r.boleta_hora_activacion,
     })
-    iei30d += res.impactoEstimado
+    ieiTotal += res.impactoEstimado
   }
 
-  // Lista completa para panel de desglose (todos los resueltos 30d con IEI)
-  const breakdown = (iei30dRows as any[])
+  const breakdown = (ieiRows as any[])
     .map(r => {
       const res = calcImpactoRow({
         hora_registro: r.hora_registro, hora_fin: r.hora_fin,
@@ -102,7 +115,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         cont_rendimiento: r.cont_rendimiento, cont_es_externo: r.cont_es_externo,
         mov_hora_activacion: r.mov_hora_activacion, mov_hora_desactivacion: r.mov_hora_desactivacion,
         mov_rendimiento: r.mov_rendimiento,
-        boleta_manual: r.boleta_manual, boleta_rendimiento: r.boleta_rendimiento, boleta_hora_activacion: r.boleta_hora_activacion,
+        boleta_manual: r.boleta_manual, boleta_rendimiento: r.boleta_rendimiento,
+        boleta_hora_activacion: r.boleta_hora_activacion,
       })
       return {
         id:           r.id,
@@ -117,5 +131,5 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .filter(r => r.iei > 0)
     .sort((a, b) => b.iei - a.iei)
 
-  return NextResponse.json({ incidentes: result, iei30d: Math.round(iei30d), iei30dBreakdown: breakdown })
+  return NextResponse.json({ incidentes: result, iei30d: Math.round(ieiTotal), iei30dBreakdown: breakdown })
 }

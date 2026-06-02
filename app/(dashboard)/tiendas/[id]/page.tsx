@@ -52,6 +52,12 @@ const CLASIFICACION_COLORS: Record<string, string> = {
   rojo: '#ef4444',
 }
 
+function todayStr() { return new Date().toISOString().slice(0, 10) }
+function firstOfMonthStr() {
+  const d = new Date()
+  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10)
+}
+
 function relTime(d: string) {
   const diff = Date.now() - new Date(d).getTime()
   const m = Math.floor(diff / 60000)
@@ -155,6 +161,19 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
   const [savingVenta, setSavingVenta] = useState(false)
   const [confirmVenta, setConfirmVenta] = useState<{ nuevaMensual: number; nuevaLJ: number; nuevaVD: number } | null>(null)
   const [pendingCluster, setPendingCluster] = useState<string | null>(null)
+  const [incDesde, setIncDesde] = useState(firstOfMonthStr)
+  const [incHasta, setIncHasta] = useState(todayStr)
+
+  const loadIncidentes = useCallback((desde: string, hasta: string) => {
+    if (!id) return
+    fetch(`/api/tiendas/${id}/incidentes-recientes?desde=${desde}&hasta=${hasta}`)
+      .then(r => r.json())
+      .then(d => {
+        setIncRecientes(Array.isArray(d?.incidentes) ? d.incidentes : [])
+        setIei30d(typeof d?.iei30d === 'number' ? d.iei30d : null)
+        setIei30dBreakdown(Array.isArray(d?.iei30dBreakdown) ? d.iei30dBreakdown : [])
+      })
+  }, [id])
 
   const loadData = useCallback(() => {
     if (!id) return
@@ -173,14 +192,10 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
     fetch(`/api/tiendas/${id}/contingencias`).then(r => r.json()).then(d => {
       setContList(Array.isArray(d) ? d : [])
     })
-    fetch(`/api/tiendas/${id}/incidentes-recientes`).then(r => r.json()).then(d => {
-      setIncRecientes(Array.isArray(d?.incidentes) ? d.incidentes : [])
-      setIei30d(typeof d?.iei30d === 'number' ? d.iei30d : null)
-      setIei30dBreakdown(Array.isArray(d?.iei30dBreakdown) ? d.iei30dBreakdown : [])
-    })
   }, [id])
 
   useEffect(() => { loadData() }, [loadData])
+  useEffect(() => { loadIncidentes(incDesde, incHasta) }, [incDesde, incHasta, loadIncidentes])
 
   function setF(k: string, v: any) { setForm((f: any) => ({ ...f, [k]: v })) }
 
@@ -366,7 +381,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               <div style={{ fontWeight: 700, color: iei30d > 0 ? '#b91c1c' : '#16a34a', fontSize: '12px' }}>
                 {iei30d > 0 ? `S/ ${iei30d.toLocaleString('es-PE')}` : 'S/ 0'}
               </div>
-              <div style={{ fontSize: '8px', color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>IEI 30d ↗</div>
+              <div style={{ fontSize: '8px', color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>IEI período ↗</div>
             </button>
           )}
           <div style={{ padding: '3px 9px', borderRadius: '6px', background: contStatus.bg, textAlign: 'right' }}>
@@ -896,7 +911,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderBottom: '0.5px solid var(--border)', background: 'var(--muted)', flexShrink: 0 }}>
           <div>
-            <div style={{ fontSize: '13px', fontWeight: 600 }}>IEI últimos 30 días — {tienda?.codigo}</div>
+            <div style={{ fontSize: '13px', fontWeight: 600 }}>IEI del período — {tienda?.codigo}</div>
             <div style={{ fontSize: '11px', color: iei30d && iei30d > 0 ? '#b91c1c' : 'var(--muted-foreground)', fontWeight: 600 }}>
               Total: {iei30d != null ? (iei30d > 0 ? `S/ ${iei30d.toLocaleString('es-PE')}` : 'S/ 0') : '—'}
             </div>
@@ -906,7 +921,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
           {iei30dBreakdown.length === 0 ? (
             <div style={{ textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px', padding: '32px 0' }}>
-              Sin incidentes con IEI en los últimos 30 días
+              Sin incidentes con IEI en el período
             </div>
           ) : (() => {
             const TIPO_LABEL: Record<string, string> = {
@@ -1046,10 +1061,21 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
-      {/* Últimos incidentes */}
+      {/* Incidentes con filtro de período */}
       <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', overflow: 'hidden', marginTop: '16px' }}>
-        <div style={{ padding: '12px 18px', borderBottom: '0.5px solid var(--border)' }}>
-          <div style={{ fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted-foreground)' }}>Últimos incidentes</div>
+        <div style={{ padding: '10px 18px', borderBottom: '0.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted-foreground)' }}>Incidentes</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <input
+              type="date" value={incDesde} onChange={e => setIncDesde(e.target.value)}
+              style={{ padding: '4px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', colorScheme: 'dark' }}
+            />
+            <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>—</span>
+            <input
+              type="date" value={incHasta} onChange={e => setIncHasta(e.target.value)}
+              style={{ padding: '4px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', colorScheme: 'dark' }}
+            />
+          </div>
         </div>
         {incRecientes.length === 0 ? (
           <div style={{ padding: '24px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Sin incidentes registrados</div>
