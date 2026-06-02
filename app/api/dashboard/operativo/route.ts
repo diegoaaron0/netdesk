@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   const [y, m, d]  = fechaLima.split('-').map(Number)
   const siguienteIso = new Date(Date.UTC(y, m - 1, d + 1, 5, 0, 0, 0)).toISOString()
 
-  const [activosRows, resueltoRows, agentesRows, incCreadosRows, escRows, respRows, resolRows, canceladosRows, cerradosRows, contRows, creadosHoyRows, contStandaloneRows, movRows, boletaRows] = await Promise.all([
+  const [activosRows, resueltoRows, agentesRows, incCreadosRows, escRows, respRows, resolRows, canceladosRows, cerradosRows, contRows, creadosHoyRows, contStandaloneRows, movRows, boletaRows, contActRows] = await Promise.all([
     db.execute(sql`
       SELECT
         i.id,
@@ -103,6 +103,7 @@ export async function GET(req: NextRequest) {
 
     db.execute(sql`
       SELECT
+        i.id,
         i.codigo,
         i.tipo,
         i.nivel_impacto,
@@ -179,6 +180,7 @@ export async function GET(req: NextRequest) {
       SELECT 'RESUELTO' AS tipo_evento, i.id, i.codigo,
              i.hora_fin AS hora,
              COALESCE(ur.nombre, u.nombre) AS actor,
+             i.resuelto_por,
              NULL::text AS proveedor_nombre, NULL::int AS nivel
       FROM incidentes i
       JOIN usuarios u ON i.registrado_por_id = u.id
@@ -308,6 +310,40 @@ export async function GET(req: NextRequest) {
         AND i.estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
       ORDER BY i.boleta_hora_activacion ASC
     `),
+
+    // ── Activaciones de contingencia (últimas 24h) para actividad reciente ──────
+    db.execute(sql`
+      SELECT tipo_evento, id, codigo, hora, actor, proveedor_nombre, NULL::int AS nivel FROM (
+        SELECT 'CONTINGENCIA'::text AS tipo_evento, i.id::text AS id, i.codigo,
+               i.cont_hora_activacion AS hora, i.cont_activado_por AS actor,
+               COALESCE(pi.nombre, pt.nombre) AS proveedor_nombre
+        FROM incidentes i
+        JOIN tiendas t ON i.tienda_id = t.id
+        LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
+        LEFT JOIN proveedores pt ON t.proveedor_id = pt.id
+        WHERE i.cont_hora_activacion IS NOT NULL
+          AND i.cont_hora_activacion >= NOW() - INTERVAL '24 hours'
+        UNION ALL
+        SELECT 'CONTINGENCIA'::text, i.id::text, i.codigo,
+               i.mov_hora_activacion, i.mov_activado_por,
+               COALESCE(pi.nombre, pt.nombre)
+        FROM incidentes i
+        JOIN tiendas t ON i.tienda_id = t.id
+        LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
+        LEFT JOIN proveedores pt ON t.proveedor_id = pt.id
+        WHERE i.mov_hora_activacion IS NOT NULL
+          AND i.mov_hora_activacion >= NOW() - INTERVAL '24 hours'
+        UNION ALL
+        SELECT 'CONTINGENCIA'::text, NULL::text, t.codigo,
+               c.hora_activacion, c.activado_por,
+               COALESCE(pt.nombre)
+        FROM contingencias c
+        JOIN tiendas t ON c.tienda_id = t.id
+        LEFT JOIN proveedores pt ON t.proveedor_id = pt.id
+        WHERE c.hora_activacion >= NOW() - INTERVAL '24 hours'
+      ) sub
+      ORDER BY hora DESC LIMIT 20
+    `),
   ])
 
   const activos  = activosRows as any[]
@@ -403,10 +439,11 @@ export async function GET(req: NextRequest) {
     ...(resolRows       as any[]),
     ...(canceladosRows  as any[]),
     ...(cerradosRows    as any[]),
+    ...(contActRows     as any[]),
   ]
     .filter((a) => a.hora != null)
     .sort((a, b) => new Date(b.hora).getTime() - new Date(a.hora).getTime())
-    .slice(0, 25)
+    .slice(0, 30)
 
   const creadosHoy = Number((creadosHoyRows as any[])[0]?.total ?? 0)
 

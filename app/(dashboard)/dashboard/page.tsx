@@ -482,7 +482,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
   const [provFiltro,      setProvFiltro]      = useState('Todos')
   const [cardFiltro,      setCardFiltro]      = useState<string | null>(null)
   const [asignarOpen,     setAsignarOpen]     = useState(false)
-  const [tabActividad,    setTabActividad]    = useState<'todos'|'escalados'|'resueltos'|'respuestas'|'cancelados'|'cerrados'>('todos')
+  const [tabActividad,    setTabActividad]    = useState<'todos'|'escalados'|'resueltos'|'respuestas'|'cancelados'|'cerrados'|'contingencias'>('todos')
   const [turnoInicio,     setTurnoInicio]     = useState('08:00')
   const [filtroHeredados, setFiltroHeredados] = useState(false)
   const [confirmarCont,   setConfirmarCont]   = useState<string | null>(null)
@@ -856,6 +856,60 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                       </tr>
                     )
                   })}
+
+                  {/* ── Resueltos hoy ── */}
+                  {(() => {
+                    let resFiltrados = (resoluciones ?? []) as any[]
+                    if (provFiltro !== 'Todos') resFiltrados = resFiltrados.filter((r: any) => r.proveedor_nombre === provFiltro)
+                    if (agenteFilter) resFiltrados = resFiltrados.filter((r: any) => r.agente_id === agenteFilter)
+                    if (resFiltrados.length === 0) return null
+                    return (
+                      <>
+                        <tr>
+                          <td colSpan={10} style={{ padding: '4px 8px', background: 'var(--muted)', fontSize: '9px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', borderTop: '0.5px solid var(--border)' }}>
+                            Resueltos hoy — {resFiltrados.length}
+                          </td>
+                        </tr>
+                        {resFiltrados.map((r: any) => {
+                          const imp = IMP_BADGE[r.nivel_impacto] ?? IMP_BADGE.BAJO
+                          return (
+                            <tr key={r.id} style={{ borderTop: '0.5px solid var(--border)', opacity: 0.75 }}>
+                              <td style={{ padding: '5px 8px', fontFamily: 'monospace', fontSize: '10px', color: 'var(--muted-foreground)' }}>{r.codigo}</td>
+                              <td style={{ padding: '5px 8px', whiteSpace: 'nowrap' }}>
+                                <div style={{ fontWeight: 600, fontSize: '11px' }}>{r.tienda_codigo}</div>
+                                <div style={{ fontSize: '9px', color: 'var(--muted-foreground)' }}>{r.tienda_nombre}</div>
+                              </td>
+                              <td style={{ padding: '5px 8px' }}>
+                                {r.proveedor_nombre
+                                  ? <span style={{ padding: '1px 7px', borderRadius: '999px', background: '#E6F1FB', color: '#185FA5', fontSize: '10px', fontWeight: 500 }}>{r.proveedor_nombre}</span>
+                                  : <span style={{ color: '#888', fontSize: '9px' }}>—</span>}
+                              </td>
+                              <td style={{ padding: '5px 8px', fontSize: '10px' }}>{TIPO_LABELS[r.tipo] ?? r.tipo}</td>
+                              <td style={{ padding: '5px 8px' }}>
+                                <span style={{ fontSize: '10px', fontWeight: 500, padding: '2px 6px', borderRadius: '4px', background: imp.bg, color: imp.color }}>{imp.label}</span>
+                              </td>
+                              <td style={{ padding: '5px 8px' }}>
+                                <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: '#DCFCE7', color: '#166534' }}>
+                                  Resuelto {r.resuelto_por === 'PROVEEDOR' ? '· Prov.' : r.resuelto_por === 'AGENTE' ? '· Agente' : ''}
+                                </span>
+                              </td>
+                              <td style={{ padding: '5px 8px', fontSize: '10px', color: 'var(--muted-foreground)' }}>{r.agente_nombre}</td>
+                              <td style={{ padding: '5px 8px', fontSize: '10px', color: 'var(--muted-foreground)' }}>
+                                {r.mttr_minutos ? fmtMin(r.mttr_minutos) : '—'}
+                              </td>
+                              <td style={{ padding: '5px 8px', fontSize: '10px', color: 'var(--muted-foreground)' }}>—</td>
+                              <td style={{ padding: '5px 8px' }}>
+                                <button onClick={() => router.push(`/incidentes/${r.id}`)}
+                                  style={{ padding: '3px 8px', fontSize: '10px', background: '#E6F1FB', color: '#185FA5', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 500 }}>
+                                  Ver →
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </>
+                    )
+                  })()}
                 </tbody>
               </table>
             </div>
@@ -1096,12 +1150,13 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
             </div>
             <div style={{ display: 'flex', gap: '3px', marginBottom: '7px', flexWrap: 'wrap' }}>
               {([
-                { key: 'todos',       label: 'Todos' },
-                { key: 'escalados',   label: 'Escalados' },
-                { key: 'resueltos',   label: 'Resueltos' },
-                { key: 'respuestas',  label: 'Resp. prov.' },
-                { key: 'cancelados',  label: 'Cancelados' },
-                { key: 'cerrados',    label: 'Cerrados' },
+                { key: 'todos',         label: 'Todos' },
+                { key: 'escalados',     label: 'Escalados' },
+                { key: 'resueltos',     label: 'Resueltos' },
+                { key: 'respuestas',    label: 'Resp. prov.' },
+                { key: 'contingencias', label: 'Contingencias' },
+                { key: 'cancelados',    label: 'Cancelados' },
+                { key: 'cerrados',      label: 'Cerrados' },
               ] as const).map(t => (
                 <button key={t.key} onClick={() => setTabActividad(t.key)}
                   style={{ padding: '2px 8px', fontSize: '9px', fontWeight: tabActividad === t.key ? 600 : 400, background: tabActividad === t.key ? 'hsl(221,83%,23%)' : 'var(--muted)', color: tabActividad === t.key ? 'white' : 'var(--foreground)', border: 'none', borderRadius: '999px', cursor: 'pointer' }}>
@@ -1111,11 +1166,12 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
             </div>
             {(() => {
               const actFiltrada = (actividadReciente ?? []).filter((ev: any) => {
-                if (tabActividad === 'escalados')  return ev.tipo_evento === 'ESCALADO'
-                if (tabActividad === 'resueltos')  return ev.tipo_evento === 'RESUELTO'
-                if (tabActividad === 'respuestas') return ev.tipo_evento === 'RESPUESTA_PROVEEDOR'
-                if (tabActividad === 'cancelados') return ev.tipo_evento === 'CANCELADO'
-                if (tabActividad === 'cerrados')   return ev.tipo_evento === 'CERRADO'
+                if (tabActividad === 'escalados')     return ev.tipo_evento === 'ESCALADO'
+                if (tabActividad === 'resueltos')     return ev.tipo_evento === 'RESUELTO'
+                if (tabActividad === 'respuestas')    return ev.tipo_evento === 'RESPUESTA_PROVEEDOR'
+                if (tabActividad === 'cancelados')    return ev.tipo_evento === 'CANCELADO'
+                if (tabActividad === 'cerrados')      return ev.tipo_evento === 'CERRADO'
+                if (tabActividad === 'contingencias') return ev.tipo_evento === 'CONTINGENCIA'
                 return true
               })
               return (
@@ -1130,15 +1186,17 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                       RESUELTO:            { icon: '✓', color: '#27500A' },
                       CANCELADO:           { icon: '✗', color: '#6B7280' },
                       CERRADO:             { icon: '⊘', color: '#6B7280' },
+                      CONTINGENCIA:        { icon: '⚡', color: '#B45309' },
                     }
                     const c = conf[ev.tipo_evento] ?? { icon: '●', color: '#888' }
                     let texto = ''
                     if (ev.tipo_evento === 'CREADO')                   texto = `${ev.codigo} abierto por ${ev.actor}`
                     else if (ev.tipo_evento === 'ESCALADO')            texto = `${ev.codigo} escalado N${ev.nivel ?? '?'} por ${ev.actor}${ev.proveedor_nombre ? ` · ${ev.proveedor_nombre}` : ''}`
                     else if (ev.tipo_evento === 'RESPUESTA_PROVEEDOR') texto = `Resp. ${ev.proveedor_nombre ?? 'prov.'} en ${ev.codigo}`
-                    else if (ev.tipo_evento === 'RESUELTO')            texto = `${ev.codigo} resuelto por ${ev.actor}`
+                    else if (ev.tipo_evento === 'RESUELTO')            texto = `${ev.codigo} resuelto por ${ev.resuelto_por === 'PROVEEDOR' ? 'Proveedor' : ev.actor}`
                     else if (ev.tipo_evento === 'CANCELADO')           texto = `${ev.codigo} cancelado por ${ev.actor}`
                     else if (ev.tipo_evento === 'CERRADO')             texto = `${ev.codigo} cerrado por ${ev.actor}`
+                    else if (ev.tipo_evento === 'CONTINGENCIA')        texto = `Contingencia activada — ${ev.codigo}${ev.actor ? ` · ${ev.actor}` : ''}`
                     else texto = ev.codigo ?? ''
                     const { text: horaText, isOld } = fmtHoraEvento(ev.hora)
                     return (
