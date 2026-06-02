@@ -1,5 +1,6 @@
 import NextAuth from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
+import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
 import { usuarios } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
@@ -15,11 +16,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: 'Contraseña', type: 'password' },
       },
       async authorize(credentials) {
-        if (!credentials?.email) return null
+        if (!credentials?.email || !credentials?.password) return null
         const [user] = await db.select().from(usuarios).where(eq(usuarios.email, credentials.email as string))
         if (!user || !user.activo || user.eliminadoEn) return null
-        const stored = user.password ?? 'S0p0rt3!?@#'
-        if (stored !== credentials.password) return null
+
+        const stored   = user.password ?? 'S0p0rt3!?@#'
+        const input    = credentials.password as string
+        const isHashed = stored.startsWith('$2b$') || stored.startsWith('$2a$')
+
+        let valid: boolean
+        if (isHashed) {
+          valid = await bcrypt.compare(input, stored)
+        } else {
+          // Contraseña legada en texto plano — comparar y migrar al hash en el mismo login
+          valid = stored === input
+          if (valid) {
+            const hashed = await bcrypt.hash(stored, 12)
+            await db.update(usuarios).set({ password: hashed }).where(eq(usuarios.id, user.id))
+          }
+        }
+
+        if (!valid) return null
         return { id: user.id, name: user.nombre, email: user.email, rol: user.rol, permisos: user.permisos ?? null }
       },
     }),

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
 import { usuarios } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
@@ -30,7 +31,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if ('apellido' in body) fields.apellido = body.apellido ?? null
   if ('email'    in body) fields.email    = body.email
   if ('celular'  in body) fields.celular  = body.celular ?? null
-  if ('password' in body) fields.password = body.password
+  if ('password' in body && body.password) fields.password = await bcrypt.hash(body.password, 12)
   if ('rol'      in body) fields.rol      = body.rol
   if ('cluster'  in body) fields.cluster  = body.cluster ?? null
   if ('permisos' in body) fields.permisos = body.permisos ?? null

@@ -14,6 +14,9 @@ const PROVEEDOR_COLORS: Record<string, { bg: string; color: string }> = {
 }
 
 export async function GET(req: NextRequest) {
+  const session = await auth()
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
   const { searchParams } = req.nextUrl
   const q           = searchParams.get('q') ?? ''
   const proveedorF  = searchParams.get('proveedor') ?? ''

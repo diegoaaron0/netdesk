@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
 import { usuarios } from '@/drizzle/schema'
 import { eq, isNull } from 'drizzle-orm'
@@ -31,12 +32,15 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   if (!body.nombre?.trim()) return NextResponse.json({ error: 'El nombre es obligatorio' }, { status: 400 })
   if (!body.email?.trim()) return NextResponse.json({ error: 'El correo es obligatorio' }, { status: 400 })
+  const rawPassword = body.password ?? 'S0p0rt3!?@#'
+  const hashedPassword = await bcrypt.hash(rawPassword, 12)
+
   const [user] = await db.insert(usuarios).values({
     nombre:   body.nombre,
     apellido: body.apellido ?? null,
     email:    body.email,
     celular:  body.celular ?? null,
-    password: body.password ?? 'S0p0rt3!?@#',
+    password: hashedPassword,
     rol:      body.rol ?? 'AGENTE',
     cluster:  body.cluster ?? null,
     permisos: body.permisos ?? null,
