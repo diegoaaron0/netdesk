@@ -44,24 +44,23 @@ export async function GET(req: NextRequest) {
   const prevHasta = desde
   const prevDesde = new Date(new Date(desde).getTime() - daysDiff * 86400000).toISOString()
 
-  const [incidentes, escalamientos, ventasDiarias, proveedoresList, prevIncidentes, totalTiendas] = await Promise.all([
+  type SlaLookup = { respuestaMin: number; resolucionMin: number }
+
+  const [incidentes, escalamientos, ventasDiarias, proveedoresList, prevIncidentes, totalTiendas, prevEscalamientos, allContratosVigentes] = await Promise.all([
     fetchIncidentesPeriodo(desde, hasta, proveedorId),
     fetchEscalamientosPeriodo(desde, hasta, proveedorId),
     fetchVentasDiarias(),
     fetchProveedoresList(),
     fetchIncidentesPeriodo(prevDesde, prevHasta, proveedorId),
     getTotalTiendas(),
+    fetchEscalamientosPeriodo(prevDesde, prevHasta, proveedorId),
+    db.select({
+      proveedorId:         contratosProveedor.proveedorId,
+      tiendaId:            contratosProveedor.tiendaId,
+      tiempoRespuestaSla:  contratosProveedor.tiempoRespuestaSla,
+      tiempoResolucionSla: contratosProveedor.tiempoResolucionSla,
+    }).from(contratosProveedor).where(eq(contratosProveedor.estado, 'VIGENTE')),
   ])
-
-  const prevEscalamientos = await fetchEscalamientosPeriodo(prevDesde, prevHasta, proveedorId)
-
-  type SlaLookup = { respuestaMin: number; resolucionMin: number }
-  const allContratosVigentes = await db.select({
-    proveedorId:        contratosProveedor.proveedorId,
-    tiendaId:           contratosProveedor.tiendaId,
-    tiempoRespuestaSla: contratosProveedor.tiempoRespuestaSla,
-    tiempoResolucionSla: contratosProveedor.tiempoResolucionSla,
-  }).from(contratosProveedor).where(eq(contratosProveedor.estado, 'VIGENTE'))
 
   const slaContratoMap = new Map<string, SlaLookup>()
   for (const c of allContratosVigentes) {

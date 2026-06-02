@@ -8,7 +8,6 @@ export async function GET() {
     id:     usuarios.id,
     nombre: usuarios.nombre,
     email:  usuarios.email,
-    rol:    usuarios.rol,
   }).from(usuarios).where(and(eq(usuarios.activo, true), isNull(usuarios.eliminadoEn))).orderBy(usuarios.nombre)
 
   return NextResponse.json(data)

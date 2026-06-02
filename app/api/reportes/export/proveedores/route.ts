@@ -131,6 +131,6 @@ export async function GET(req: Request) {
     })
   } catch (err: any) {
     console.error('[export/proveedores]', err)
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    return NextResponse.json({ error: "Error interno al generar el reporte" }, { status: 500 })
   }
 }

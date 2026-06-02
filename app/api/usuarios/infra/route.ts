@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { usuarios } from '@/drizzle/schema'
-import { eq, isNull } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import { auth } from '@/auth'
 
 export async function GET() {
@@ -16,7 +16,7 @@ export async function GET() {
     celular:  usuarios.celular,
   })
     .from(usuarios)
-    .where(eq(usuarios.rol, 'INFRAESTRUCTURA'))
+    .where(and(eq(usuarios.rol, 'INFRAESTRUCTURA'), eq(usuarios.activo, true), isNull(usuarios.eliminadoEn)))
 
   return NextResponse.json(data)
 }
