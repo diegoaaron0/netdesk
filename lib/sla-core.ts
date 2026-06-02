@@ -23,7 +23,11 @@
 /** Default tiempo de respuesta (min) cuando no hay contrato vigente */
 export const SLA_RESPUESTA_MIN = 60
 
-/** Default tiempo de resolución (min) cuando no hay contrato vigente */
+/**
+ * Default tiempo de resolución SLA (min) usado en calcSLARow cuando no hay contrato vigente.
+ * DISTINTO de SLA_MTTR_POR_TIPO: este aplica al tiempo proveedor→resolución (desde primer correo),
+ * mientras SLA_MTTR_POR_TIPO aplica al MTTR total (desde registro del incidente).
+ */
 export const SLA_RESOLUCION_DEFAULT_MIN = 90
 
 /**

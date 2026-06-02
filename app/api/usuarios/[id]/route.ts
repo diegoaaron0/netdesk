@@ -26,7 +26,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!can(session, 'usuarios.editar')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const body = await req.json()
-  const fields: any = {}
+  type UsuarioPatch = Partial<typeof usuarios.$inferInsert>
+  const fields: UsuarioPatch = {}
   if ('nombre'   in body) fields.nombre   = body.nombre
   if ('apellido' in body) fields.apellido = body.apellido ?? null
   if ('email'    in body) fields.email    = body.email
