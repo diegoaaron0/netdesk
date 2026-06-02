@@ -1,11 +1,12 @@
 'use client'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine,
   CartesianGrid, LineChart, Line,
 } from 'recharts'
-import type { DashboardAnaliticoResponse } from '@/types/dashboard'
+import type { DashboardAnaliticoResponse, IncidenteListItem } from '@/types/dashboard'
 import { fmtMin } from './DrillPanel'
 
 function fmtCosto(n: number) {
@@ -88,16 +89,69 @@ function DRow({ left, right, rightColor, muted }: { left: React.ReactNode; right
   )
 }
 
+// ─── Incident helpers ────────────────────────────────────────────────────────
+
+function IncidentMini({ item }: { item: IncidenteListItem }) {
+  const router = useRouter()
+  return (
+    <div
+      onClick={() => router.push(`/incidentes/${item.id}`)}
+      style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '5px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '10px',
+        gap: '6px', background: 'var(--background)', border: '0.5px solid var(--border)',
+        marginBottom: '3px', transition: 'background 0.1s',
+      }}
+      onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = '#eff6ff'}
+      onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'var(--background)'}
+    >
+      <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flex: 1, minWidth: 0, flexWrap: 'wrap' }}>
+        <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#185FA5' }}>{item.codigo}</span>
+        <span style={{ fontWeight: 600, color: 'var(--muted-foreground)' }}>{item.tiendaCodigo}</span>
+        <span style={{ color: 'var(--muted-foreground)' }}>{TIPO_LABELS[item.tipo] ?? item.tipo}</span>
+        <span style={{ color: 'var(--muted-foreground)', fontSize: '9px' }}>{item.horaInicio}</span>
+      </div>
+      <div style={{ display: 'flex', gap: '5px', alignItems: 'center', flexShrink: 0 }}>
+        {item.ieiEstimado > 0 && <span style={{ color: '#b45309', fontFamily: 'monospace' }}>{fmtCosto(item.ieiEstimado)}</span>}
+        {item.mttrMin != null && <span style={{ color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{fmtMin(item.mttrMin)}</span>}
+        <span style={{ color: '#185FA5', fontSize: '11px' }}>→</span>
+      </div>
+    </div>
+  )
+}
+
+// Wrapper para hacer una fila DRow navegable al incidente
+function IncidentLink({ id, children }: { id: string; children: React.ReactNode }) {
+  const router = useRouter()
+  return (
+    <div
+      onClick={() => router.push(`/incidentes/${id}`)}
+      style={{ cursor: 'pointer', borderRadius: '4px', transition: 'background 0.1s' }}
+      onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = '#eff6ff'}
+      onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+    >
+      {children}
+    </div>
+  )
+}
+
+// Convierte "DD/MM/YYYY" y "YYYY-MM-DD" para comparar si son el mismo día
+function mismodia(incFecha: string, day: string): boolean {
+  const [d, m, y] = incFecha.split('/')
+  const [dy, dm, dd] = day.split('-')
+  return y === dy && m === dm && d === dd
+}
+
 // ─── 1. Tendencia diaria ──────────────────────────────────────────────────────
 
 function ChartTendencia({ data }: { data: DashboardAnaliticoResponse }) {
+  const [selDay, setSelDay] = useState<string | null>(null)
   const byDay = data.cards.incidentes.byDay
   if (!byDay.length) return null
 
   const peak = byDay.reduce((a, b) => b.total > a.total ? b : a, byDay[0])
   const avg = Math.round(byDay.reduce((s, d) => s + d.total, 0) / byDay.length * 10) / 10
 
-  // Patrón por día de semana
   const dowMap: Record<number, { sum: number; count: number }> = {}
   for (const d of byDay) {
     const dow = new Date(d.dia + 'T00:00:00').getDay()
@@ -111,13 +165,46 @@ function ChartTendencia({ data }: { data: DashboardAnaliticoResponse }) {
     .sort((a, b) => b.avg - a.avg)
 
   const top3Days = [...byDay].sort((a, b) => b.total - a.total).slice(0, 3)
+  const incs = data.cards.incidentes.lista
+  const dayIncs = selDay ? incs.filter(i => mismodia(i.fecha, selDay)) : []
 
   const detail = (
     <>
       <DLabel>Top 3 días con más incidentes</DLabel>
-      {top3Days.map((d, i) => (
-        <DRow key={d.dia} left={<>{i + 1}. {fmtDia(d.dia)}</>} right={`${d.total} incidentes`} />
-      ))}
+      {top3Days.map((d, i) => {
+        const sel = selDay === d.dia
+        return (
+          <div key={d.dia}>
+            <div
+              onClick={() => setSelDay(sel ? null : d.dia)}
+              style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '4px 6px', borderRadius: '5px', cursor: 'pointer', fontSize: '10px',
+                background: sel ? '#eff6ff' : 'transparent',
+                border: `0.5px solid ${sel ? '#bfdbfe' : 'var(--border)'}`,
+                marginBottom: '2px',
+              }}
+              onMouseEnter={e => { if (!sel) (e.currentTarget as HTMLDivElement).style.background = 'var(--muted)' }}
+              onMouseLeave={e => { if (!sel) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
+            >
+              <span style={{ color: sel ? '#1e40af' : 'var(--foreground)', fontWeight: sel ? 600 : 400 }}>
+                {sel ? '▾' : '▸'} {i + 1}. {fmtDia(d.dia)}
+              </span>
+              <span style={{ color: sel ? '#1e40af' : 'var(--muted-foreground)', fontFamily: 'monospace', fontWeight: 600 }}>
+                {d.total} incidente{d.total !== 1 ? 's' : ''}
+              </span>
+            </div>
+            {sel && (
+              <div style={{ paddingLeft: '8px', paddingBottom: '4px' }}>
+                {dayIncs.length === 0
+                  ? <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', padding: '4px 0' }}>Sin incidentes registrados para este día.</div>
+                  : dayIncs.map(inc => <IncidentMini key={inc.id} item={inc} />)
+                }
+              </div>
+            )}
+          </div>
+        )
+      })}
       <div style={{ marginTop: '8px' }}>
         <DLabel>Promedio por día de semana</DLabel>
         {dowStats.slice(0, 4).map(d => (
@@ -187,12 +274,13 @@ function ChartSLARespuesta({ data }: { data: DashboardAnaliticoResponse }) {
         <>
           <DLabel>Incidentes que superaron el límite de respuesta</DLabel>
           {fallaron.map(i => (
-            <DRow
-              key={i.id}
-              left={<><strong>{i.proveedor}</strong> · {i.tiendaCodigo} · {i.fecha}</>}
-              right={fmtMin(i.minRespuesta)}
-              rightColor="#dc2626"
-            />
+            <IncidentLink key={i.id} id={i.id}>
+              <DRow
+                left={<><strong>{i.proveedor}</strong> · {i.tiendaCodigo} · {i.fecha}</>}
+                right={<>{fmtMin(i.minRespuesta)} <span style={{ color: '#185FA5', marginLeft: '4px' }}>→</span></>}
+                rightColor="#dc2626"
+              />
+            </IncidentLink>
           ))}
         </>
       )}
@@ -260,12 +348,13 @@ function ChartSLAResolucion({ data }: { data: DashboardAnaliticoResponse }) {
         <div style={{ marginTop: '8px' }}>
           <DLabel>Incidentes que más tardaron en resolverse</DLabel>
           {fallaron.map(i => (
-            <DRow
-              key={i.id}
-              left={<><strong>{i.proveedor}</strong> · {i.tiendaCodigo} · {i.fecha}</>}
-              right={fmtMin(i.minSolucionDesdeCorreo)}
-              rightColor="#dc2626"
-            />
+            <IncidentLink key={i.id} id={i.id}>
+              <DRow
+                left={<><strong>{i.proveedor}</strong> · {i.tiendaCodigo} · {i.fecha}</>}
+                right={<>{fmtMin(i.minSolucionDesdeCorreo)} <span style={{ color: '#185FA5', marginLeft: '4px' }}>→</span></>}
+                rightColor="#dc2626"
+              />
+            </IncidentLink>
           ))}
         </div>
       )}
@@ -323,12 +412,13 @@ function ChartMTTR({ data }: { data: DashboardAnaliticoResponse }) {
         <div style={{ marginTop: '8px' }}>
           <DLabel>Incidentes con mayor tiempo de resolución</DLabel>
           {peores.map(i => (
-            <DRow
-              key={i.id}
-              left={<><strong>{i.proveedor}</strong> · {i.tiendaCodigo} · {i.fecha}</>}
-              right={fmtMin(i.mttrMin)}
-              rightColor={mttrFill(i.mttrMin ?? 0)}
-            />
+            <IncidentLink key={i.id} id={i.id}>
+              <DRow
+                left={<><strong>{i.proveedor}</strong> · {i.tiendaCodigo} · {i.fecha}</>}
+                right={<>{fmtMin(i.mttrMin)} <span style={{ color: '#185FA5', marginLeft: '4px' }}>→</span></>}
+                rightColor={mttrFill(i.mttrMin ?? 0)}
+              />
+            </IncidentLink>
           ))}
         </div>
       )}
