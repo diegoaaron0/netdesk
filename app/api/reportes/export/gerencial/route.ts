@@ -455,7 +455,7 @@ export async function GET(req: Request) {
       const maxMttr = Math.max(...provs.map((p: any) => Number(p.mttr_avg)   || 0), 1)
       const scored = provs.map((p: any) => {
         const inc    = Number(p.incidentes) || 0
-        const sla    = Number(p.sla_pct)    ?? 100
+        const sla    = p.sla_pct != null ? Number(p.sla_pct) : 100
         const mttr   = Number(p.mttr_avg)   || 0
         const score  = Math.round((inc / maxInc) * 40 + ((100 - sla) / 100) * 40 + (mttr / maxMttr) * 20)
         return { ...p, score }

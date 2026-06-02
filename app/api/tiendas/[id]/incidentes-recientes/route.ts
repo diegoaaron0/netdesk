@@ -88,6 +88,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   `)
 
   let ieiTotal = 0
+  const breakdownAll: any[] = []
   for (const r of ieiRows as any[]) {
     const res = calcImpactoRow({
       hora_registro: r.hora_registro, hora_fin: r.hora_fin,
@@ -102,34 +103,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       boleta_hora_activacion: r.boleta_hora_activacion,
     })
     ieiTotal += res.impactoEstimado
-  }
-
-  const breakdown = (ieiRows as any[])
-    .map(r => {
-      const res = calcImpactoRow({
-        hora_registro: r.hora_registro, hora_fin: r.hora_fin,
-        estado: r.estado, tipo: r.tipo,
-        venta_hora_soles: r.venta_hora_soles, venta_hora_fds_soles: r.venta_hora_fds_soles,
-        cluster: r.cluster,
-        cont_hora_activacion: r.cont_hora_activacion, cont_hora_desactivacion: r.cont_hora_desactivacion,
-        cont_rendimiento: r.cont_rendimiento, cont_es_externo: r.cont_es_externo,
-        mov_hora_activacion: r.mov_hora_activacion, mov_hora_desactivacion: r.mov_hora_desactivacion,
-        mov_rendimiento: r.mov_rendimiento,
-        boleta_manual: r.boleta_manual, boleta_rendimiento: r.boleta_rendimiento,
-        boleta_hora_activacion: r.boleta_hora_activacion,
-      })
-      return {
-        id:           r.id,
-        codigo:       r.codigo,
-        tipo:         r.tipo,
-        mttrMinutos:  r.mttr_minutos,
-        horaRegistro: r.hora_registro,
-        iei:          res.impactoEstimado,
-        motivo:       res.motivoFactor,
-      }
+    breakdownAll.push({
+      id:           r.id,
+      codigo:       r.codigo,
+      tipo:         r.tipo,
+      mttrMinutos:  r.mttr_minutos,
+      horaRegistro: r.hora_registro,
+      iei:          res.impactoEstimado,
+      motivo:       res.motivoFactor,
     })
-    .filter(r => r.iei > 0)
-    .sort((a, b) => b.iei - a.iei)
+  }
+  const breakdown = breakdownAll.filter(r => r.iei > 0).sort((a, b) => b.iei - a.iei)
 
   return NextResponse.json({ incidentes: result, iei30d: Math.round(ieiTotal), iei30dBreakdown: breakdown })
 }

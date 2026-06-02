@@ -857,8 +857,9 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                     )
                   })}
 
-                  {/* ── Resueltos hoy ── */}
+                  {/* ── Resueltos hoy (oculto cuando hay cardFiltro activo) ── */}
                   {(() => {
+                    if (cardFiltro) return null
                     let resFiltrados = (resoluciones ?? []) as any[]
                     if (provFiltro !== 'Todos') resFiltrados = resFiltrados.filter((r: any) => r.proveedor_nombre === provFiltro)
                     if (agenteFilter) resFiltrados = resFiltrados.filter((r: any) => r.agente_id === agenteFilter)

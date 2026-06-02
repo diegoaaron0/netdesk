@@ -66,9 +66,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         COUNT(CASE WHEN cont_activado_por IS NOT NULL AND cont_es_externo IS TRUE THEN 1 END)::int AS cnt_router_externo,
         COUNT(CASE WHEN mov_activado_por IS NOT NULL THEN 1 END)::int AS cnt_datos_moviles,
 
-        BOOL_OR(cont_activado_por IS NOT NULL AND (cont_es_externo IS FALSE OR cont_es_externo IS NULL) AND cont_hora_desactivacion IS NULL AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')) AS activo_propio,
-        BOOL_OR(cont_activado_por IS NOT NULL AND cont_es_externo IS TRUE AND cont_hora_desactivacion IS NULL AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')) AS activo_externo,
-        BOOL_OR(mov_activado_por  IS NOT NULL AND mov_hora_desactivacion  IS NULL AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')) AS activo_mov
+        -- activo_* siempre refleja estado actual, sin filtro de período
+        (SELECT BOOL_OR(cont_activado_por IS NOT NULL AND (cont_es_externo IS FALSE OR cont_es_externo IS NULL) AND cont_hora_desactivacion IS NULL AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')) FROM incidentes WHERE tienda_id = ${id}) AS activo_propio,
+        (SELECT BOOL_OR(cont_activado_por IS NOT NULL AND cont_es_externo IS TRUE AND cont_hora_desactivacion IS NULL AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')) FROM incidentes WHERE tienda_id = ${id}) AS activo_externo,
+        (SELECT BOOL_OR(mov_activado_por IS NOT NULL AND mov_hora_desactivacion IS NULL AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')) FROM incidentes WHERE tienda_id = ${id}) AS activo_mov
 
       FROM incidentes
       WHERE tienda_id = ${id}
@@ -100,9 +101,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         COUNT(CASE WHEN tipo = 'ROUTER_PROPIO'  THEN 1 END)::int AS cnt_router_propio,
         COUNT(CASE WHEN tipo = 'ROUTER_EXTERNO' THEN 1 END)::int AS cnt_router_externo,
         COUNT(CASE WHEN tipo = 'DATOS_MOVILES'  THEN 1 END)::int AS cnt_datos_moviles,
-        BOOL_OR(tipo = 'ROUTER_PROPIO'  AND hora_desactivacion IS NULL) AS activo_propio,
-        BOOL_OR(tipo = 'ROUTER_EXTERNO' AND hora_desactivacion IS NULL) AS activo_externo,
-        BOOL_OR(tipo = 'DATOS_MOVILES'  AND hora_desactivacion IS NULL) AS activo_mov_std
+        -- activo_* sin filtro de período — estado actual
+        (SELECT BOOL_OR(tipo = 'ROUTER_PROPIO'  AND hora_desactivacion IS NULL) FROM contingencias WHERE tienda_id = ${id}) AS activo_propio,
+        (SELECT BOOL_OR(tipo = 'ROUTER_EXTERNO' AND hora_desactivacion IS NULL) FROM contingencias WHERE tienda_id = ${id}) AS activo_externo,
+        (SELECT BOOL_OR(tipo = 'DATOS_MOVILES'  AND hora_desactivacion IS NULL) FROM contingencias WHERE tienda_id = ${id}) AS activo_mov_std
       FROM contingencias
       WHERE tienda_id = ${id}
         AND hora_activacion >= ${desde}::timestamptz
