@@ -3,10 +3,21 @@ import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
+  const { searchParams } = new URL(req.url)
+  const desdeParam = searchParams.get('desde')
+  const hastaParam = searchParams.get('hasta')
+
+  const hasta = hastaParam
+    ? new Date(hastaParam + 'T23:59:59-05:00').toISOString()
+    : new Date().toISOString()
+  const desde = desdeParam
+    ? new Date(desdeParam + 'T00:00:00-05:00').toISOString()
+    : '1970-01-01T00:00:00Z'
 
   const [[fromInc], [fromStandalone]] = await Promise.all([
     db.execute<{
@@ -61,6 +72,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
       FROM incidentes
       WHERE tienda_id = ${id}
+        AND hora_registro >= ${desde}::timestamptz
+        AND hora_registro <  ${hasta}::timestamptz
     `),
 
     db.execute<{
@@ -92,6 +105,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         BOOL_OR(tipo = 'DATOS_MOVILES'  AND hora_desactivacion IS NULL) AS activo_mov_std
       FROM contingencias
       WHERE tienda_id = ${id}
+        AND hora_activacion >= ${desde}::timestamptz
+        AND hora_activacion <  ${hasta}::timestamptz
     `),
   ])
 

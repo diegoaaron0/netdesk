@@ -161,10 +161,10 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
   const [savingVenta, setSavingVenta] = useState(false)
   const [confirmVenta, setConfirmVenta] = useState<{ nuevaMensual: number; nuevaLJ: number; nuevaVD: number } | null>(null)
   const [pendingCluster, setPendingCluster] = useState<string | null>(null)
-  const [incDesde, setIncDesde] = useState(firstOfMonthStr)
-  const [incHasta, setIncHasta] = useState(todayStr)
+  const [filtroDesde, setFiltroDesde] = useState(firstOfMonthStr)
+  const [filtroHasta, setFiltroHasta] = useState(todayStr)
 
-  const loadIncidentes = useCallback((desde: string, hasta: string) => {
+  const loadPeriodData = useCallback((desde: string, hasta: string) => {
     if (!id) return
     fetch(`/api/tiendas/${id}/incidentes-recientes?desde=${desde}&hasta=${hasta}`)
       .then(r => r.json())
@@ -173,6 +173,10 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
         setIei30d(typeof d?.iei30d === 'number' ? d.iei30d : null)
         setIei30dBreakdown(Array.isArray(d?.iei30dBreakdown) ? d.iei30dBreakdown : [])
       })
+    fetch(`/api/tiendas/${id}/contingencia-stats?desde=${desde}&hasta=${hasta}`)
+      .then(r => r.json()).then(d => setContStats(d))
+    fetch(`/api/tiendas/${id}/contingencias?desde=${desde}&hasta=${hasta}`)
+      .then(r => r.json()).then(d => setContList(Array.isArray(d) ? d : []))
   }, [id])
 
   const loadData = useCallback(() => {
@@ -186,16 +190,10 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
     fetch('/api/proveedores').then(r => r.json()).then(d => {
       setProveedores(Array.isArray(d) ? d : [])
     })
-    fetch(`/api/tiendas/${id}/contingencia-stats`).then(r => r.json()).then(d => {
-      setContStats(d)
-    })
-    fetch(`/api/tiendas/${id}/contingencias`).then(r => r.json()).then(d => {
-      setContList(Array.isArray(d) ? d : [])
-    })
   }, [id])
 
   useEffect(() => { loadData() }, [loadData])
-  useEffect(() => { loadIncidentes(incDesde, incHasta) }, [incDesde, incHasta, loadIncidentes])
+  useEffect(() => { loadPeriodData(filtroDesde, filtroHasta) }, [filtroDesde, filtroHasta, loadPeriodData])
 
   function setF(k: string, v: any) { setForm((f: any) => ({ ...f, [k]: v })) }
 
@@ -240,6 +238,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
         setShowContForm(false)
         setContForm({ tipo: '', activadoPor: '', justificacion: '' })
         loadData()
+        loadPeriodData(filtroDesde, filtroHasta)
       }
     } finally {
       setContFormSaving(false)
@@ -250,7 +249,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
     setDesactivandoContId(contId)
     try {
       const res = await fetch(`/api/contingencias/${contId}`, { method: 'PATCH' })
-      if (res.ok) loadData()
+      if (res.ok) { loadData(); loadPeriodData(filtroDesde, filtroHasta) }
     } finally {
       setDesactivandoContId(null)
     }
@@ -313,6 +312,20 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+
+      {/* ── Filtro de período global ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', fontWeight: 500, flexShrink: 0 }}>Período</span>
+        <input
+          type="date" value={filtroDesde} onChange={e => setFiltroDesde(e.target.value)}
+          style={{ padding: '5px 9px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', colorScheme: 'dark' }}
+        />
+        <span style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>—</span>
+        <input
+          type="date" value={filtroHasta} onChange={e => setFiltroHasta(e.target.value)}
+          style={{ padding: '5px 9px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', colorScheme: 'dark' }}
+        />
+      </div>
 
       {/* ── Header strip ── */}
       <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1061,21 +1074,10 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
-      {/* Incidentes con filtro de período */}
+      {/* Incidentes del período */}
       <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', overflow: 'hidden', marginTop: '16px' }}>
-        <div style={{ padding: '10px 18px', borderBottom: '0.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-          <div style={{ fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted-foreground)' }}>Incidentes</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <input
-              type="date" value={incDesde} onChange={e => setIncDesde(e.target.value)}
-              style={{ padding: '4px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', colorScheme: 'dark' }}
-            />
-            <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>—</span>
-            <input
-              type="date" value={incHasta} onChange={e => setIncHasta(e.target.value)}
-              style={{ padding: '4px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', colorScheme: 'dark' }}
-            />
-          </div>
+        <div style={{ padding: '12px 18px', borderBottom: '0.5px solid var(--border)' }}>
+          <div style={{ fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted-foreground)' }}>Incidentes del período</div>
         </div>
         {incRecientes.length === 0 ? (
           <div style={{ padding: '24px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Sin incidentes registrados</div>
