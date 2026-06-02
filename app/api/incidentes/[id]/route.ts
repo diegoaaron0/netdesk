@@ -473,6 +473,13 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   if (!can(session, 'incidentes.eliminar')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
+  // Obtener tiendaId y si tiene contingencia router activa antes de borrar
+  const [inc] = await db.select({
+    tiendaId:              incidentes.tiendaId,
+    contActivadoPor:       incidentes.contActivadoPor,
+    contHoraDesactivacion: incidentes.contHoraDesactivacion,
+  }).from(incidentes).where(eq(incidentes.id, id))
+
   await db.delete(adjuntos).where(eq(adjuntos.incidenteId, id))
   const escs = await db.select({ id: escalamientos.id }).from(escalamientos).where(eq(escalamientos.incidenteId, id))
   for (const esc of escs) {
@@ -480,6 +487,22 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   }
   await db.delete(escalamientos).where(eq(escalamientos.incidenteId, id))
   await db.delete(incidentes).where(eq(incidentes.id, id))
+
+  // Si el incidente tenía contingencia router activa, limpiar flag de tienda
+  // solo si no quedan otros incidentes abiertos con contingencia activa para esa tienda
+  if (inc?.tiendaId && inc.contActivadoPor && !inc.contHoraDesactivacion) {
+    const [{ count }] = await db.execute<{ count: number }>(sql`
+      SELECT COUNT(*)::int AS count FROM incidentes
+      WHERE tienda_id = ${inc.tiendaId}
+        AND cont_activado_por IS NOT NULL
+        AND cont_hora_desactivacion IS NULL
+    `)
+    if (count === 0) {
+      await db.update(tiendas)
+        .set({ contingenciaActiva: false })
+        .where(eq(tiendas.id, inc.tiendaId))
+    }
+  }
 
   return NextResponse.json({ ok: true })
 }

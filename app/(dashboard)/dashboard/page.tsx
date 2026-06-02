@@ -489,8 +489,27 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
   const [desactivandoCont, setDesactivandoCont] = useState<string | null>(null)
   const [agenteFilter,    setAgenteFilter]    = useState<string | null>(null)
 
-  async function desactivarContingencia(id: string, tiendaId: string, fuente: 'INCIDENTE' | 'STANDALONE', tipoCont?: string) {
-    if (!id) { alert('Error: ID no disponible'); return }
+  async function desactivarContingencia(id: string, stateKey: string, fuente: 'INCIDENTE' | 'STANDALONE', tipoCont?: string, tiendaIdReal?: string) {
+    const tiendaId = stateKey
+    if (!id) {
+      // Contingencia huérfana: tienda tiene flag activo pero no hay incidente asociado
+      if (!tiendaIdReal) { alert('Error: ID no disponible'); return }
+      setDesactivandoCont(tiendaId)
+      try {
+        const res = await fetch(`/api/tiendas/${tiendaIdReal}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contingenciaActiva: false }),
+        })
+        if (res.ok) { setConfirmarCont(null); onRefresh() }
+        else { const e = await res.json().catch(() => ({})); alert(`Error ${res.status}: ${e.error ?? 'desconocido'}`) }
+      } catch (err) {
+        alert(`Error de red: ${err}`)
+      } finally {
+        setDesactivandoCont(null)
+      }
+      return
+    }
     setDesactivandoCont(tiendaId)
     try {
       let res: Response
@@ -669,6 +688,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                             c.tienda_id + '_' + ci,
                             c.fuente ?? 'INCIDENTE',
                             tipo,
+                            c.tienda_id,
                           )}
                           style={{ padding: '1px 5px', fontSize: '9px', fontWeight: 700, background: borderColor, color: 'white', border: 'none', borderRadius: '3px', cursor: desactivando ? 'default' : 'pointer', opacity: desactivando ? 0.6 : 1 }}>
                           {desactivando ? '…' : 'Sí'}
