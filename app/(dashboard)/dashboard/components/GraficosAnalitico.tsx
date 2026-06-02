@@ -28,6 +28,11 @@ function slaFill(pct: number) {
   if (pct >= 70) return '#d97706'
   return '#dc2626'
 }
+function slaBg(pct: number) {
+  if (pct >= 90) return '#f0fdf4'
+  if (pct >= 70) return '#fffbeb'
+  return '#fef2f2'
+}
 function mttrFill(min: number) {
   if (min < 120) return '#16a34a'
   if (min < 240) return '#d97706'
@@ -251,32 +256,80 @@ function ChartTendencia({ data }: { data: DashboardAnaliticoResponse }) {
 // ─── 2. SLA Respuesta por proveedor ──────────────────────────────────────────
 
 function ChartSLARespuesta({ data }: { data: DashboardAnaliticoResponse }) {
-  const provs = data.cards.cumplimientoSLA.porProveedor
+  const sla = data.cards.cumplimientoSLA
+  const provs = sla.porProveedor
   if (!provs.length) return null
 
   const chartData = provs.map(p => ({ nombre: p.nombre, pct: p.slaRespuestaPct }))
-
-  // Incidentes que fallaron SLA de respuesta, ordenados por tiempo de respuesta
-  const fallaron = [...data.cards.cumplimientoSLA.evaluables]
+  const fallaron = [...sla.evaluables]
     .filter(i => i.slaRespOk === false && i.minRespuesta != null)
     .sort((a, b) => (b.minRespuesta ?? 0) - (a.minRespuesta ?? 0))
-    .slice(0, 5)
-
-  const cumplieron = data.cards.cumplimientoSLA.evaluables.filter(i => i.slaRespOk === true).length
-  const total = data.cards.cumplimientoSLA.evaluables.length
+    .slice(0, 8)
+  const cumplieron = sla.evaluables.filter(i => i.slaRespOk === true).length
+  const total = sla.evaluables.length
+  const delta = sla.deltaRespuestaPct
 
   const detail = (
     <>
-      <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '8px' }}>
-        {cumplieron} de {total} incidentes evaluables respondidos en tiempo · Meta: 90%
+      {/* Resumen global con delta */}
+      <div style={{ background: 'var(--muted)', borderRadius: '7px', padding: '9px 12px', marginBottom: '10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+          <div>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--foreground)' }}>
+              {cumplieron} de {total} evaluables cumplieron
+            </span>
+            <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>
+              {total - cumplieron} incidente{total - cumplieron !== 1 ? 's' : ''} superaron el límite de primera respuesta · Meta: 90%
+            </div>
+          </div>
+          {delta != null && (
+            <span style={{
+              fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '999px', flexShrink: 0,
+              background: delta >= 0 ? '#f0fdf4' : '#fef2f2',
+              color: delta >= 0 ? '#15803d' : '#b91c1c',
+            }}>
+              {delta > 0 ? '+' : ''}{delta}pp vs anterior
+            </span>
+          )}
+        </div>
       </div>
+
+      {/* Tabla de proveedores: SLA% + evaluables + T.prom + exceso */}
+      <DLabel>Desglose por proveedor</DLabel>
+      <div style={{ border: '0.5px solid var(--border)', borderRadius: '7px', overflow: 'hidden', marginBottom: '10px' }}>
+        {[...provs].sort((a, b) => a.slaRespuestaPct - b.slaRespuestaPct).map((p, idx, arr) => (
+          <div key={p.nombre} style={{
+            display: 'grid', gridTemplateColumns: '1fr auto auto auto auto',
+            gap: '8px', alignItems: 'center', padding: '6px 10px', fontSize: '10px',
+            borderBottom: idx < arr.length - 1 ? '0.5px solid var(--border)' : 'none',
+          }}>
+            <span style={{ fontWeight: 600 }}>{p.nombre}</span>
+            <span style={{
+              padding: '1px 7px', borderRadius: '999px', fontWeight: 700,
+              background: slaBg(p.slaRespuestaPct), color: slaFill(p.slaRespuestaPct),
+            }}>{p.slaRespuestaPct}%</span>
+            <span style={{ color: 'var(--muted-foreground)', textAlign: 'right' }}>{p.evaluables} eval</span>
+            <span style={{ fontFamily: 'monospace', color: 'var(--muted-foreground)', textAlign: 'right' }}>
+              {p.tRespPromMin != null ? fmtMin(p.tRespPromMin) : '—'}
+            </span>
+            <span style={{ fontFamily: 'monospace', fontWeight: 700, textAlign: 'right', color: p.excessoRespuestaMin > 0 ? '#dc2626' : '#15803d', minWidth: '48px' }}>
+              {p.excessoRespuestaMin > 0 ? `+${fmtMin(p.excessoRespuestaMin)}` : '✓'}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', marginBottom: '8px', textAlign: 'right' }}>
+        Columnas: SLA% · evaluables · T.prom respuesta · exceso prom sobre límite
+      </div>
+
+      {/* Incidentes que fallaron */}
       {fallaron.length > 0 && (
         <>
-          <DLabel>Incidentes que superaron el límite de respuesta</DLabel>
+          <DLabel>Incidentes que superaron el límite ({fallaron.length})</DLabel>
           {fallaron.map(i => (
             <IncidentLink key={i.id} id={i.id}>
               <DRow
-                left={<><strong>{i.proveedor}</strong> · {i.tiendaCodigo} · {i.fecha}</>}
+                left={<><strong>{i.proveedor}</strong> · {i.tiendaCodigo} · {TIPO_LABELS[i.tipo] ?? i.tipo} · {i.fecha}</>}
                 right={<>{fmtMin(i.minRespuesta)} <span style={{ color: '#185FA5', marginLeft: '4px' }}>→</span></>}
                 rightColor="#dc2626"
               />
@@ -284,17 +337,6 @@ function ChartSLARespuesta({ data }: { data: DashboardAnaliticoResponse }) {
           ))}
         </>
       )}
-      <div style={{ marginTop: '8px' }}>
-        <DLabel>Tiempo promedio de respuesta por proveedor</DLabel>
-        {provs.map(p => (
-          <DRow
-            key={p.nombre}
-            left={p.nombre}
-            right={p.tRespPromMin != null ? fmtMin(p.tRespPromMin) : '—'}
-            muted
-          />
-        ))}
-      </div>
     </>
   )
 
@@ -318,45 +360,86 @@ function ChartSLARespuesta({ data }: { data: DashboardAnaliticoResponse }) {
 // ─── 3. SLA Resolución por proveedor ─────────────────────────────────────────
 
 function ChartSLAResolucion({ data }: { data: DashboardAnaliticoResponse }) {
-  const provs = data.cards.cumplimientoSLA.porProveedor
+  const sla = data.cards.cumplimientoSLA
+  const provs = sla.porProveedor
   if (!provs.length) return null
 
   const chartData = provs.map(p => ({ nombre: p.nombre, pct: p.slaResolucionPct }))
-
-  const fallaron = [...data.cards.cumplimientoSLA.evaluables]
+  const fallaron = [...sla.evaluables]
     .filter(i => i.slaResolOk === false && i.minSolucionDesdeCorreo != null)
     .sort((a, b) => (b.minSolucionDesdeCorreo ?? 0) - (a.minSolucionDesdeCorreo ?? 0))
-    .slice(0, 5)
-
-  const cumplieron = data.cards.cumplimientoSLA.evaluables.filter(i => i.slaResolOk === true).length
-  const total = data.cards.cumplimientoSLA.evaluables.length
+    .slice(0, 8)
+  const cumplieron = sla.evaluables.filter(i => i.slaResolOk === true).length
+  const total = sla.evaluables.length
+  const delta = sla.deltaResolucionPct
 
   const detail = (
     <>
-      <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '8px' }}>
-        {cumplieron} de {total} incidentes evaluables resueltos en tiempo · Meta: 90%
+      {/* Resumen global con delta */}
+      <div style={{ background: 'var(--muted)', borderRadius: '7px', padding: '9px 12px', marginBottom: '10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+          <div>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--foreground)' }}>
+              {cumplieron} de {total} evaluables cumplieron
+            </span>
+            <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>
+              {total - cumplieron} no resolvieron dentro del tiempo comprometido · Meta: 90%
+            </div>
+          </div>
+          {delta != null && (
+            <span style={{
+              fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '999px', flexShrink: 0,
+              background: delta >= 0 ? '#f0fdf4' : '#fef2f2',
+              color: delta >= 0 ? '#15803d' : '#b91c1c',
+            }}>
+              {delta > 0 ? '+' : ''}{delta}pp vs anterior
+            </span>
+          )}
+        </div>
       </div>
-      {provs.some(p => p.excessoResolucionMin > 0) && (
-        <>
-          <DLabel>Exceso promedio de tiempo por proveedor</DLabel>
-          {provs.filter(p => p.excessoResolucionMin > 0).sort((a, b) => b.excessoResolucionMin - a.excessoResolucionMin).map(p => (
-            <DRow key={p.nombre} left={p.nombre} right={`+${fmtMin(p.excessoResolucionMin)} sobre SLA`} rightColor="#dc2626" />
-          ))}
-        </>
-      )}
+
+      {/* Tabla de proveedores */}
+      <DLabel>Desglose por proveedor</DLabel>
+      <div style={{ border: '0.5px solid var(--border)', borderRadius: '7px', overflow: 'hidden', marginBottom: '10px' }}>
+        {[...provs].sort((a, b) => a.slaResolucionPct - b.slaResolucionPct).map((p, idx, arr) => (
+          <div key={p.nombre} style={{
+            display: 'grid', gridTemplateColumns: '1fr auto auto auto auto',
+            gap: '8px', alignItems: 'center', padding: '6px 10px', fontSize: '10px',
+            borderBottom: idx < arr.length - 1 ? '0.5px solid var(--border)' : 'none',
+          }}>
+            <span style={{ fontWeight: 600 }}>{p.nombre}</span>
+            <span style={{
+              padding: '1px 7px', borderRadius: '999px', fontWeight: 700,
+              background: slaBg(p.slaResolucionPct), color: slaFill(p.slaResolucionPct),
+            }}>{p.slaResolucionPct}%</span>
+            <span style={{ color: 'var(--muted-foreground)', textAlign: 'right' }}>{p.evaluables} eval</span>
+            <span style={{ fontFamily: 'monospace', color: 'var(--muted-foreground)', textAlign: 'right' }}>
+              {p.tResolPromMin != null ? fmtMin(p.tResolPromMin) : '—'}
+            </span>
+            <span style={{ fontFamily: 'monospace', fontWeight: 700, textAlign: 'right', color: p.excessoResolucionMin > 0 ? '#dc2626' : '#15803d', minWidth: '48px' }}>
+              {p.excessoResolucionMin > 0 ? `+${fmtMin(p.excessoResolucionMin)}` : '✓'}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', marginBottom: '8px', textAlign: 'right' }}>
+        Columnas: SLA% · evaluables · T.prom resolución · exceso prom sobre límite
+      </div>
+
+      {/* Incidentes que fallaron */}
       {fallaron.length > 0 && (
-        <div style={{ marginTop: '8px' }}>
-          <DLabel>Incidentes que más tardaron en resolverse</DLabel>
+        <>
+          <DLabel>Incidentes que no resolvieron en tiempo ({fallaron.length})</DLabel>
           {fallaron.map(i => (
             <IncidentLink key={i.id} id={i.id}>
               <DRow
-                left={<><strong>{i.proveedor}</strong> · {i.tiendaCodigo} · {i.fecha}</>}
+                left={<><strong>{i.proveedor}</strong> · {i.tiendaCodigo} · {TIPO_LABELS[i.tipo] ?? i.tipo} · {i.fecha}</>}
                 right={<>{fmtMin(i.minSolucionDesdeCorreo)} <span style={{ color: '#185FA5', marginLeft: '4px' }}>→</span></>}
                 rightColor="#dc2626"
               />
             </IncidentLink>
           ))}
-        </div>
+        </>
       )}
     </>
   )
@@ -393,8 +476,33 @@ function ChartMTTR({ data }: { data: DashboardAnaliticoResponse }) {
     .sort((a, b) => (b.mttrMin ?? 0) - (a.mttrMin ?? 0))
     .slice(0, 5)
 
+  const mttrGlobal = data.cards.mttrPromedio.minutos
+  const delta = data.cards.mttrPromedio.deltaMinutos
+  const tendenciaTxt = delta == null ? null : delta < 0 ? '↓ Mejorando' : delta > 0 ? '↑ Empeorando' : '→ Estable'
+  const tendenciaColor = delta == null ? '#6b7280' : delta < 0 ? '#15803d' : delta > 0 ? '#dc2626' : '#6b7280'
+
   const detail = (
     <>
+      {/* Resumen global con delta */}
+      <div style={{ background: 'var(--muted)', borderRadius: '7px', padding: '9px 12px', marginBottom: '10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+          <div>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: mttrFill(mttrGlobal ?? 0) }}>
+              MTTR global: {fmtMin(mttrGlobal)}
+            </span>
+            <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>
+              Referencia: &lt;2h = bueno · 2–4h = regular · &gt;4h = crítico
+            </div>
+          </div>
+          {tendenciaTxt && (
+            <span style={{ fontSize: '10px', fontWeight: 700, color: tendenciaColor, flexShrink: 0 }}>
+              {tendenciaTxt} {delta != null ? `(${delta > 0 ? '+' : ''}${delta}m vs anterior)` : ''}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Evolución diaria */}
       {sparkData.length > 2 && (
         <>
           <DLabel>Evolución MTTR diario (últimos 14 días)</DLabel>
@@ -408,31 +516,47 @@ function ChartMTTR({ data }: { data: DashboardAnaliticoResponse }) {
           </ResponsiveContainer>
         </>
       )}
+
+      {/* Tabla por proveedor: MTTR prom + delta + mejor + peor */}
+      <div style={{ marginTop: '8px' }}>
+        <DLabel>Desglose por proveedor</DLabel>
+        <div style={{ border: '0.5px solid var(--border)', borderRadius: '7px', overflow: 'hidden', marginBottom: '8px' }}>
+          {[...provs].sort((a, b) => b.mttrMinutos - a.mttrMinutos).map((p, idx, arr) => (
+            <div key={p.nombre} style={{
+              display: 'grid', gridTemplateColumns: '1fr auto auto auto',
+              gap: '8px', alignItems: 'center', padding: '6px 10px', fontSize: '10px',
+              borderBottom: idx < arr.length - 1 ? '0.5px solid var(--border)' : 'none',
+            }}>
+              <span style={{ fontWeight: 600 }}>{p.nombre}</span>
+              <span style={{ fontFamily: 'monospace', fontWeight: 700, color: mttrFill(p.mttrMinutos) }}>
+                {fmtMin(p.mttrMinutos)}
+              </span>
+              <span style={{ color: 'var(--muted-foreground)', fontSize: '9px', textAlign: 'right' }}>
+                ↓{fmtMin(p.mejorTiempo)} · ↑{fmtMin(p.peorTiempo)}
+              </span>
+              <span style={{ color: 'var(--muted-foreground)', fontSize: '9px', textAlign: 'right' }}>
+                {p.incidentesResueltos} resueltos
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Peores incidentes */}
       {peores.length > 0 && (
-        <div style={{ marginTop: '8px' }}>
-          <DLabel>Incidentes con mayor tiempo de resolución</DLabel>
+        <>
+          <DLabel>Incidentes con mayor MTTR ({peores.length})</DLabel>
           {peores.map(i => (
             <IncidentLink key={i.id} id={i.id}>
               <DRow
-                left={<><strong>{i.proveedor}</strong> · {i.tiendaCodigo} · {i.fecha}</>}
+                left={<><strong>{i.proveedor}</strong> · {i.tiendaCodigo} · {TIPO_LABELS[i.tipo] ?? i.tipo} · {i.fecha}</>}
                 right={<>{fmtMin(i.mttrMin)} <span style={{ color: '#185FA5', marginLeft: '4px' }}>→</span></>}
                 rightColor={mttrFill(i.mttrMin ?? 0)}
               />
             </IncidentLink>
           ))}
-        </div>
+        </>
       )}
-      <div style={{ marginTop: '8px' }}>
-        <DLabel>Mejor y peor tiempo por proveedor</DLabel>
-        {provs.map(p => (
-          <DRow
-            key={p.nombre}
-            left={p.nombre}
-            right={<>↓ {fmtMin(p.mejorTiempo)} · ↑ {fmtMin(p.peorTiempo)}</>}
-            muted
-          />
-        ))}
-      </div>
     </>
   )
 
