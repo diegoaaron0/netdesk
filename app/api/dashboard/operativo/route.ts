@@ -3,11 +3,11 @@ import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
-import { SLA_RESOLUCION_DEFAULT_MIN } from '@/lib/sla-core'
+import { getSlaLimitePorTipo } from '@/lib/sla-core'
 
 function getEstadoOp(tipo: string, horaRegistro: Date | string, pendienteProveedor: boolean, estadoDB: string, nowMs: number) {
   const minutos = (nowMs - new Date(horaRegistro).getTime()) / 60000
-  const slaLimite = SLA_RESOLUCION_DEFAULT_MIN
+  const slaLimite = getSlaLimitePorTipo(tipo)
   const pct = minutos / slaLimite
   let estadoOp: string
   if (pct >= 1.0) estadoOp = 'SLA_VENCIDO'

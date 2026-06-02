@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { calcImpactoRow } from '@/lib/impacto-calc'
+import { slaLimiteCase } from '@/lib/sla-sql'
 
 export async function GET(req: Request) {
   const session = await auth()
@@ -83,13 +84,7 @@ export async function GET(req: Request) {
         CASE
           WHEN i.estado != 'RESUELTO' OR i.mttr_minutos IS NULL
             THEN 'No aplica'
-          WHEN i.mttr_minutos <= CASE i.tipo
-              WHEN 'CAIDA_TOTAL'   THEN 60
-              WHEN 'INTERMITENCIA' THEN 120
-              WHEN 'LENTITUD'      THEN 240
-              WHEN 'POS'           THEN 60
-              ELSE 120
-            END
+          WHEN i.mttr_minutos <= ${slaLimiteCase('i.tipo')}
             THEN 'Cumplido'
           ELSE 'Incumplido'
         END                                                                            AS sla_resolucion,
@@ -104,13 +99,7 @@ export async function GET(req: Request) {
             n1.hora_envio_raw IS NOT NULL
             AND n1.hora_respuesta_raw IS NOT NULL
             AND EXTRACT(EPOCH FROM (n1.hora_respuesta_raw - n1.hora_envio_raw)) / 60 <= 60
-            AND i.mttr_minutos <= CASE i.tipo
-                WHEN 'CAIDA_TOTAL'   THEN 60
-                WHEN 'INTERMITENCIA' THEN 120
-                WHEN 'LENTITUD'      THEN 240
-                WHEN 'POS'           THEN 60
-                ELSE 120
-              END
+            AND i.mttr_minutos <= ${slaLimiteCase('i.tipo')}
           )
             THEN 'Sí'
           ELSE 'No'

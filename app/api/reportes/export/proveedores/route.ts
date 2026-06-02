@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { IEI_FACTOR, IEI_CLUSTER_FALLBACK } from '@/lib/iei-sql-expr'
+import { slaLimiteCase } from '@/lib/sla-sql'
 
 function esc(v: unknown): string {
   if (v == null) return ''
@@ -36,9 +37,7 @@ export async function GET(req: Request) {
           COUNT(i.id)::int                                                        AS total,
           COUNT(i.id) FILTER (WHERE i.estado = 'RESUELTO' AND i.mttr_minutos IS NOT NULL
             AND n1h.hora_correo_n1_val IS NOT NULL)::int                         AS evaluables_sla,
-          ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= CASE i.tipo
-              WHEN 'CAIDA_TOTAL' THEN 60 WHEN 'INTERMITENCIA' THEN 120
-              WHEN 'LENTITUD'    THEN 240 WHEN 'POS' THEN 60 ELSE 120 END
+          ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= ${slaLimiteCase('i.tipo')}
             AND i.estado = 'RESUELTO') * 100.0 /
             NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'), 0))::int      AS sla_pct,
           ROUND(AVG(i.mttr_minutos))::int                                        AS mttr_avg,
@@ -83,9 +82,7 @@ export async function GET(req: Request) {
           COUNT(i.id)::int                                   AS incidentes,
           MODE() WITHIN GROUP (ORDER BY i.tipo)              AS tipo_frecuente,
           ROUND(AVG(i.mttr_minutos))::int                    AS mttr_avg,
-          ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= CASE i.tipo
-              WHEN 'CAIDA_TOTAL' THEN 60 WHEN 'INTERMITENCIA' THEN 120
-              WHEN 'LENTITUD'    THEN 240 WHEN 'POS' THEN 60 ELSE 120 END
+          ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= ${slaLimiteCase('i.tipo')}
             AND i.estado = 'RESUELTO') * 100.0 /
             NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'), 0))::int AS sla_pct,
           ROUND(SUM(COALESCE(t.venta_hora_soles,${IEI_CLUSTER_FALLBACK})*(COALESCE(i.mttr_minutos,0)::numeric/60)*0.35*${IEI_FACTOR}))::int AS iei

@@ -3,6 +3,7 @@ import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
+import { slaLimiteCase } from '@/lib/sla-sql'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -59,13 +60,7 @@ export async function GET(req: NextRequest) {
             WHERE estado = 'RESUELTO'
               AND evaluable_proveedor = true
               AND mttr_minutos IS NOT NULL
-              AND mttr_minutos <= CASE tipo
-                WHEN 'CAIDA_TOTAL'   THEN 60
-                WHEN 'INTERMITENCIA' THEN 120
-                WHEN 'LENTITUD'      THEN 240
-                WHEN 'POS'           THEN 60
-                ELSE 120
-              END
+              AND mttr_minutos <= ${slaLimiteCase('tipo')}
           ) / NULLIF(COUNT(*) FILTER (
             WHERE estado = 'RESUELTO' AND evaluable_proveedor = true
           ), 0)
@@ -74,13 +69,7 @@ export async function GET(req: NextRequest) {
         -- Incidentes con SLA vencido (abiertos que ya superaron límite)
         COUNT(*) FILTER (
           WHERE estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
-            AND EXTRACT(EPOCH FROM (NOW() - hora_registro)) / 60 > CASE tipo
-              WHEN 'CAIDA_TOTAL'   THEN 60
-              WHEN 'INTERMITENCIA' THEN 120
-              WHEN 'LENTITUD'      THEN 240
-              WHEN 'POS'           THEN 60
-              ELSE 120
-            END
+            AND EXTRACT(EPOCH FROM (NOW() - hora_registro)) / 60 > ${slaLimiteCase('tipo')}
         )::int                                                             AS incidentes_sla_vencido,
 
         -- IEI acumulado (resueltos con cálculo)

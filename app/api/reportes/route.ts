@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
+import { slaLimiteCase } from '@/lib/sla-sql'
 
 export async function GET(req: Request) {
   const session = await auth()
@@ -29,12 +30,7 @@ export async function GET(req: Request) {
     db.execute(sql`
       SELECT COUNT(i.id)::int AS total,
         ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int AS mttr_avg,
-        ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= CASE i.tipo
-            WHEN 'CAIDA_TOTAL'   THEN 60
-            WHEN 'INTERMITENCIA' THEN 120
-            WHEN 'LENTITUD'      THEN 240
-            WHEN 'POS'           THEN 60
-            ELSE 120 END
+        ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= ${slaLimiteCase('i.tipo')}
           AND i.estado = 'RESUELTO') * 100.0 /
           NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'), 0))::int AS sla_pct,
         COUNT(DISTINCT i.tienda_id)::int AS tiendas,
@@ -62,12 +58,7 @@ export async function GET(req: Request) {
     db.execute(sql`
       SELECT COUNT(*)::int AS total,
         ROUND(AVG(mttr_minutos) FILTER (WHERE estado = 'RESUELTO'))::int AS mttr_avg,
-        ROUND(COUNT(*) FILTER (WHERE mttr_minutos <= CASE tipo
-            WHEN 'CAIDA_TOTAL'   THEN 60
-            WHEN 'INTERMITENCIA' THEN 120
-            WHEN 'LENTITUD'      THEN 240
-            WHEN 'POS'           THEN 60
-            ELSE 120 END
+        ROUND(COUNT(*) FILTER (WHERE mttr_minutos <= ${slaLimiteCase('tipo')}
           AND estado = 'RESUELTO') * 100.0 /
           NULLIF(COUNT(*) FILTER (WHERE estado = 'RESUELTO'), 0))::int AS sla_pct
       FROM incidentes
@@ -121,12 +112,7 @@ export async function GET(req: Request) {
     db.execute(sql`
       SELECT COALESCE(pi.nombre, pt.nombre) AS nombre,
         COUNT(i.id)::int AS total,
-        ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= CASE i.tipo
-            WHEN 'CAIDA_TOTAL'   THEN 60
-            WHEN 'INTERMITENCIA' THEN 120
-            WHEN 'LENTITUD'      THEN 240
-            WHEN 'POS'           THEN 60
-            ELSE 120 END
+        ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= ${slaLimiteCase('i.tipo')}
           AND i.estado = 'RESUELTO') * 100.0 /
           NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'), 0))::int AS sla_pct
       FROM incidentes i
@@ -227,12 +213,7 @@ export async function GET(req: Request) {
     db.execute(sql`
       SELECT TO_CHAR(i.hora_registro AT TIME ZONE 'America/Lima','YYYY-MM') AS mes,
         COALESCE(pi.nombre, pt.nombre) AS nombre,
-        ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= CASE i.tipo
-            WHEN 'CAIDA_TOTAL'   THEN 60
-            WHEN 'INTERMITENCIA' THEN 120
-            WHEN 'LENTITUD'      THEN 240
-            WHEN 'POS'           THEN 60
-            ELSE 120 END
+        ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= ${slaLimiteCase('i.tipo')}
           AND i.estado = 'RESUELTO') * 100.0 /
           NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'), 0))::int AS sla_pct,
         COUNT(i.id)::int AS total

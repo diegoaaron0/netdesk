@@ -5,6 +5,7 @@ import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { getTotalTiendas } from '@/lib/tiendas-stats'
 import { IEI_FACTOR, IEI_CLUSTER_FALLBACK } from '@/lib/iei-sql-expr'
+import { slaLimiteCase } from '@/lib/sla-sql'
 
 function esc(v: unknown): string {
   if (v == null) return ''
@@ -57,9 +58,7 @@ export async function GET(req: Request) {
         SELECT
           COUNT(i.id)::int                                                        AS total,
           ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int  AS mttr_avg,
-          ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= CASE i.tipo
-              WHEN 'CAIDA_TOTAL' THEN 60 WHEN 'INTERMITENCIA' THEN 120
-              WHEN 'LENTITUD'    THEN 240 WHEN 'POS' THEN 60 ELSE 120 END
+          ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= ${slaLimiteCase('i.tipo')}
             AND i.estado = 'RESUELTO') * 100.0 /
             NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'), 0))::int      AS sla_pct,
           COUNT(DISTINCT i.tienda_id)::int                                        AS tiendas,
@@ -77,9 +76,7 @@ export async function GET(req: Request) {
         SELECT
           COUNT(i.id)::int                                                        AS total,
           ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int  AS mttr_avg,
-          ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= CASE i.tipo
-              WHEN 'CAIDA_TOTAL' THEN 60 WHEN 'INTERMITENCIA' THEN 120
-              WHEN 'LENTITUD'    THEN 240 WHEN 'POS' THEN 60 ELSE 120 END
+          ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= ${slaLimiteCase('i.tipo')}
             AND i.estado = 'RESUELTO') * 100.0 /
             NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'), 0))::int      AS sla_pct,
           COUNT(DISTINCT i.tienda_id)::int                                        AS tiendas,
@@ -97,9 +94,7 @@ export async function GET(req: Request) {
           COUNT(i.id)::int                                                        AS incidentes,
           COUNT(i.id) FILTER (WHERE i.estado = 'RESUELTO'
             AND n1h.hora_correo_n1_val IS NOT NULL)::int                         AS evaluables_sla,
-          ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= CASE i.tipo
-              WHEN 'CAIDA_TOTAL' THEN 60 WHEN 'INTERMITENCIA' THEN 120
-              WHEN 'LENTITUD'    THEN 240 WHEN 'POS' THEN 60 ELSE 120 END
+          ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= ${slaLimiteCase('i.tipo')}
             AND i.estado = 'RESUELTO') * 100.0 /
             NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'), 0))::int      AS sla_pct,
           -- SLA Respuesta: respondió en ≤60 min
@@ -109,9 +104,7 @@ export async function GET(req: Request) {
               AND EXTRACT(EPOCH FROM (resp.hora_primera_resp - n1h.hora_correo_n1_val)) / 60 <= 60
           ) * 100.0 / NULLIF(COUNT(*) FILTER (WHERE n1h.hora_correo_n1_val IS NOT NULL), 0))::int AS sla_respuesta_pct,
           -- SLA Resolución: resuelto dentro del límite por tipo
-          ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= CASE i.tipo
-              WHEN 'CAIDA_TOTAL' THEN 60 WHEN 'INTERMITENCIA' THEN 120
-              WHEN 'LENTITUD'    THEN 240 WHEN 'POS' THEN 60 ELSE 120 END
+          ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= ${slaLimiteCase('i.tipo')}
             AND i.estado = 'RESUELTO') * 100.0 /
             NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO' AND n1h.hora_correo_n1_val IS NOT NULL), 0))::int AS sla_resolucion_pct,
           ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int  AS mttr_avg,
@@ -169,9 +162,7 @@ export async function GET(req: Request) {
         SELECT i.tipo, COUNT(i.id)::int AS total,
           ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int AS mttr_avg,
           COUNT(*) FILTER (WHERE i.estado = 'RESUELTO')::int                   AS resueltos,
-          COUNT(*) FILTER (WHERE i.mttr_minutos <= CASE i.tipo
-              WHEN 'CAIDA_TOTAL' THEN 60 WHEN 'INTERMITENCIA' THEN 120
-              WHEN 'LENTITUD'    THEN 240 WHEN 'POS' THEN 60 ELSE 120 END
+          COUNT(*) FILTER (WHERE i.mttr_minutos <= ${slaLimiteCase('i.tipo')}
             AND i.estado = 'RESUELTO')::int                                     AS dentro_sla
         FROM incidentes i
         WHERE i.hora_registro >= ${desde}::timestamptz AND i.hora_registro < ${hasta}::timestamptz
@@ -251,9 +242,7 @@ export async function GET(req: Request) {
           COALESCE(pi.nombre, pt.nombre) AS proveedor,
           COUNT(i.id)::int               AS total,
           COUNT(*) FILTER (WHERE i.estado = 'RESUELTO')::int AS resueltos,
-          ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= CASE i.tipo
-              WHEN 'CAIDA_TOTAL' THEN 60 WHEN 'INTERMITENCIA' THEN 120
-              WHEN 'LENTITUD'    THEN 240 WHEN 'POS' THEN 60 ELSE 120 END
+          ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= ${slaLimiteCase('i.tipo')}
             AND i.estado = 'RESUELTO') * 100.0 /
             NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'), 0))::int AS sla_pct,
           ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int AS mttr_avg

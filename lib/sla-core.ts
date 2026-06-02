@@ -26,6 +26,28 @@ export const SLA_RESPUESTA_MIN = 60
 /** Default tiempo de resolución (min) cuando no hay contrato vigente */
 export const SLA_RESOLUCION_DEFAULT_MIN = 90
 
+/**
+ * Límite de MTTR por tipo de incidente (min).
+ * Fuente única de verdad — usada en dashboard operativo, reportes SQL y analítico.
+ * Cambiar aquí propaga a todo el sistema.
+ */
+export const SLA_MTTR_POR_TIPO = {
+  CAIDA_TOTAL:     60,
+  INTERMITENCIA:  120,
+  LENTITUD:       240,
+  POS:             60,
+  OTROS:          120,
+  CORTE_ELECTRICO:120,
+} as const
+
+export type TipoIncidente = keyof typeof SLA_MTTR_POR_TIPO
+export const SLA_MTTR_DEFAULT_MIN = 120
+
+/** Devuelve el límite MTTR para un tipo de incidente dado */
+export function getSlaLimitePorTipo(tipo: string): number {
+  return SLA_MTTR_POR_TIPO[tipo as TipoIncidente] ?? SLA_MTTR_DEFAULT_MIN
+}
+
 // ─── Helpers de tiempo ────────────────────────────────────────────────────────
 
 export function diffMin(a: Date | string | null, b: Date | string | null): number | null {
