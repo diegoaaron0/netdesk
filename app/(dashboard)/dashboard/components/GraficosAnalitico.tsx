@@ -261,11 +261,8 @@ function ChartSLARespuesta({ data }: { data: DashboardAnaliticoResponse }) {
   if (!provs.length) return null
 
   const chartData = provs.map(p => ({ nombre: p.nombre, pct: p.slaRespuestaPct }))
-  const fallaron = [...sla.evaluables]
-    .filter(i => i.slaRespOk === false && i.minRespuesta != null)
-    .sort((a, b) => (b.minRespuesta ?? 0) - (a.minRespuesta ?? 0))
-    .slice(0, 8)
   const cumplieron = sla.evaluables.filter(i => i.slaRespOk === true).length
+  const incumplidos = sla.evaluables.length - cumplieron
   const total = sla.evaluables.length
   const delta = sla.deltaRespuestaPct
 
@@ -279,7 +276,7 @@ function ChartSLARespuesta({ data }: { data: DashboardAnaliticoResponse }) {
               {cumplieron} de {total} evaluables cumplieron
             </span>
             <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>
-              {total - cumplieron} incidente{total - cumplieron !== 1 ? 's' : ''} superaron el límite de primera respuesta · Meta: 90%
+              {incumplidos} incidente{incumplidos !== 1 ? 's' : ''} {incumplidos !== 1 ? 'superaron' : 'superó'} el límite de primera respuesta · Meta: 90%
             </div>
           </div>
           {delta != null && (
@@ -326,7 +323,13 @@ function ChartSLARespuesta({ data }: { data: DashboardAnaliticoResponse }) {
       {sla.evaluables.length > 0 && (
         <>
           <DLabel>Incidentes evaluables ({sla.evaluables.length}) — por T. respuesta</DLabel>
-          {[...sla.evaluables].sort((a, b) => (b.minRespuesta ?? 0) - (a.minRespuesta ?? 0)).map(i => (
+          {[...sla.evaluables].sort((a, b) => {
+              // Sin respuesta (null) va primero — es el peor caso
+              if (a.minRespuesta == null && b.minRespuesta == null) return 0
+              if (a.minRespuesta == null) return -1
+              if (b.minRespuesta == null) return 1
+              return b.minRespuesta - a.minRespuesta
+            }).map(i => (
             <IncidentLink key={i.id} id={i.id}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', fontSize: '10px', borderBottom: '0.5px solid var(--border)', gap: '6px' }}>
                 <span style={{ flex: 1, minWidth: 0 }}><strong>{i.proveedor}</strong> · {i.tiendaCodigo} · {TIPO_LABELS[i.tipo] ?? i.tipo} · {i.fecha}</span>
@@ -367,11 +370,8 @@ function ChartSLAResolucion({ data }: { data: DashboardAnaliticoResponse }) {
   if (!provs.length) return null
 
   const chartData = provs.map(p => ({ nombre: p.nombre, pct: p.slaResolucionPct }))
-  const fallaron = [...sla.evaluables]
-    .filter(i => i.slaResolOk === false && i.minSolucionDesdeCorreo != null)
-    .sort((a, b) => (b.minSolucionDesdeCorreo ?? 0) - (a.minSolucionDesdeCorreo ?? 0))
-    .slice(0, 8)
   const cumplieron = sla.evaluables.filter(i => i.slaResolOk === true).length
+  const incumplidos = sla.evaluables.length - cumplieron
   const total = sla.evaluables.length
   const delta = sla.deltaResolucionPct
 
@@ -385,7 +385,7 @@ function ChartSLAResolucion({ data }: { data: DashboardAnaliticoResponse }) {
               {cumplieron} de {total} evaluables cumplieron
             </span>
             <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>
-              {total - cumplieron} no resolvieron dentro del tiempo comprometido · Meta: 90%
+              {incumplidos} {incumplidos !== 1 ? 'no resolvieron' : 'no resolvió'} dentro del tiempo comprometido · Meta: 90%
             </div>
           </div>
           {delta != null && (
@@ -432,7 +432,12 @@ function ChartSLAResolucion({ data }: { data: DashboardAnaliticoResponse }) {
       {sla.evaluables.length > 0 && (
         <>
           <DLabel>Incidentes evaluables ({sla.evaluables.length}) — por T. resolución</DLabel>
-          {[...sla.evaluables].sort((a, b) => (b.minSolucionDesdeCorreo ?? 0) - (a.minSolucionDesdeCorreo ?? 0)).map(i => (
+          {[...sla.evaluables].sort((a, b) => {
+              if (a.minSolucionDesdeCorreo == null && b.minSolucionDesdeCorreo == null) return 0
+              if (a.minSolucionDesdeCorreo == null) return -1
+              if (b.minSolucionDesdeCorreo == null) return 1
+              return b.minSolucionDesdeCorreo - a.minSolucionDesdeCorreo
+            }).map(i => (
             <IncidentLink key={i.id} id={i.id}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', fontSize: '10px', borderBottom: '0.5px solid var(--border)', gap: '6px' }}>
                 <span style={{ flex: 1, minWidth: 0 }}><strong>{i.proveedor}</strong> · {i.tiendaCodigo} · {TIPO_LABELS[i.tipo] ?? i.tipo} · {i.fecha}</span>
