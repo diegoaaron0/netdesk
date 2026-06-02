@@ -437,35 +437,45 @@ function ChartClusters({ data }: { data: DashboardAnaliticoResponse }) {
 // ─── Main export ──────────────────────────────────────────────────────────────
 
 export default function GraficosAnalitico({ data }: { data: DashboardAnaliticoResponse }) {
+  const sinDatos = data.cards.incidentes.total === 0
+
   return (
     <div style={{ padding: '0 24px 32px' }}>
       <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', paddingTop: '4px' }}>
         Análisis visual
       </div>
 
-      {/* Tendencia: full width */}
-      <div style={{ marginBottom: '12px' }}>
-        <ChartTendencia data={data} />
-      </div>
+      {sinDatos ? (
+        <div style={{ background: 'var(--muted)', borderRadius: '10px', padding: '32px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>
+          Sin incidentes en este período. Amplía el rango de fechas para ver el análisis visual.
+        </div>
+      ) : (
+        <>
+          {/* Tendencia: full width */}
+          <div style={{ marginBottom: '12px' }}>
+            <ChartTendencia data={data} />
+          </div>
 
-      {/* SLA Respuesta + SLA Resolución */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-        <ChartSLARespuesta data={data} />
-        <ChartSLAResolucion data={data} />
-      </div>
+          {/* SLA Respuesta + SLA Resolución */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+            <ChartSLARespuesta data={data} />
+            <ChartSLAResolucion data={data} />
+          </div>
 
-      {/* MTTR + IEI */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-        <ChartMTTR data={data} />
-        <ChartIEI data={data} />
-      </div>
+          {/* MTTR + IEI */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+            <ChartMTTR data={data} />
+            <ChartIEI data={data} />
+          </div>
 
-      {/* Tipos + Supervisores + Clusters */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-        <ChartTipos data={data} />
-        <ChartSupervisores data={data} />
-        <ChartClusters data={data} />
-      </div>
+          {/* Tipos + Supervisores + Clusters */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+            <ChartTipos data={data} />
+            <ChartSupervisores data={data} />
+            <ChartClusters data={data} />
+          </div>
+        </>
+      )}
     </div>
   )
 }
