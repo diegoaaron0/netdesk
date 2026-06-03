@@ -93,6 +93,7 @@ function downloadCSV(activos: any[], resoluciones: any[], fecha?: string) {
     'Agente', 'Tipo Contingencia', 'Rendimiento Contingencia',
     'Fecha Registro', 'Hora Registro', 'Fecha Fin', 'Hora Fin',
     'MTTR (min)', 'SLA Respuesta', 'SLA Resolución', 'IEI est (S/)', 'Resuelto Por',
+    'Grupo Masivo',
   ]
 
   const nowMs = Date.now()
@@ -129,6 +130,7 @@ function downloadCSV(activos: any[], resoluciones: any[], fecha?: string) {
       csvFecha(i.hora_registro), csvHora(i.hora_registro),
       '', '',
       '', slaRespuestaLabel(i), '', '', '',
+      i.grupo_masivo_codigo ?? '',
     ]
   }
 
@@ -155,6 +157,7 @@ function downloadCSV(activos: any[], resoluciones: any[], fecha?: string) {
       r.mttr_minutos ?? '',
       slaRespuestaLabel(r), slaResolucionLabel(r),
       iei, r.resuelto_por ?? '',
+      r.grupo_masivo_codigo ?? '',
     ]
   }
 
