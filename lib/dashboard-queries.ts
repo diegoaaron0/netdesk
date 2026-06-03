@@ -27,8 +27,14 @@ export interface RawIncidente {
   inc_cont_activa: boolean            // cont_activado_por IS NOT NULL (nivel incidente, no tienda)
   cont_es_externo: boolean | null     // ROUTER_EXTERNO vs ROUTER_PROPIO
   cont_rendimiento: string | null
+  cont_hora_activacion: Date | null
+  cont_hora_desactivacion: Date | null
   mov_rendimiento: string | null
+  mov_hora_activacion: Date | null
+  mov_hora_desactivacion: Date | null
   boleta_manual: boolean | null
+  boleta_rendimiento: string | null
+  boleta_hora_activacion: Date | null
   venta_parcial: boolean | null
   cajas_afectadas: number | null
   cajas_totales: number | null
@@ -90,8 +96,14 @@ export async function fetchIncidentesPeriodo(
       (i.cont_activado_por IS NOT NULL)            AS inc_cont_activa,
       COALESCE(i.cont_es_externo, false)           AS cont_es_externo,
       i.cont_rendimiento,
+      i.cont_hora_activacion,
+      i.cont_hora_desactivacion,
       i.mov_rendimiento,
+      i.mov_hora_activacion,
+      i.mov_hora_desactivacion,
       i.boleta_manual,
+      i.boleta_rendimiento,
+      i.boleta_hora_activacion,
       i.venta_parcial,
       i.cajas_afectadas,
       i.cajas_totales,
