@@ -73,6 +73,9 @@ export async function GET(req: NextRequest) {
         i.hora_escalado_infra,
         infra_u.nombre AS infra_nombre,
         mov.ultimo_movimiento,
+        i.grupo_masivo_id,
+        gm.codigo  AS grupo_masivo_codigo,
+        gm.razon   AS grupo_masivo_razon,
         -- venta/hora según día de semana del incidente (0=dom,5=vie,6=sab = FDS)
         CASE
           WHEN EXTRACT(DOW FROM i.hora_registro AT TIME ZONE 'America/Lima') IN (0,5,6)
@@ -94,6 +97,7 @@ export async function GET(req: NextRequest) {
         FROM escalamientos e
         WHERE e.incidente_id = i.id
       ) mov ON true
+      LEFT JOIN grupos_masivos gm ON i.grupo_masivo_id = gm.id
       WHERE ${isToday
         ? sql`i.estado NOT IN ('RESUELTO','CANCELADO','CERRADO')`
         : sql`i.hora_registro >= ${diaIso}::timestamptz AND i.hora_registro < ${siguienteIso}::timestamptz AND i.estado NOT IN ('CANCELADO','CERRADO')`
@@ -388,6 +392,10 @@ export async function GET(req: NextRequest) {
     return { ...inc, ...d, sinMovimientoMin, sinMovimiento: sinMovimientoMin > 120 }
   })
 
+  // KPIs masivos
+  const masivosActivos = activosConEstado.filter((i: any) => i.grupo_masivo_id).length
+  const gruposMasivosActivos = new Set(activosConEstado.filter((i: any) => i.grupo_masivo_id).map((i: any) => i.grupo_masivo_id as string)).size
+
   // KPIs
   const resueltoHoy          = resueltos.length
   const resueltoHoyProveedor = resueltos.filter((r: any) => r.por_proveedor).length
@@ -464,6 +472,8 @@ export async function GET(req: NextRequest) {
       creadosHoy,
       agentesEnGestion: equipoStats.filter((a: any) => a.casosActivos > 0).length,
       totalAgentes:     agentes.length,
+      masivosActivos,
+      gruposMasivosActivos,
     },
   })
 }

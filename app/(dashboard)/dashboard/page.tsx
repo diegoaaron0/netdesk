@@ -569,6 +569,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
     if (cardFiltro === 'enRiesgo')    lista = lista.filter((i: any) => ['EN_RIESGO_SLA','SLA_VENCIDO'].includes(i.estadoOp))
     else if (cardFiltro === 'escalados')  lista = lista.filter((i: any) => i.estado.startsWith('ESCALADO'))
     else if (cardFiltro === 'pendientes') lista = lista.filter((i: any) => i.pendiente_proveedor)
+    else if (cardFiltro === 'masivos')    lista = lista.filter((i: any) => !!i.grupo_masivo_id)
 
     if (agenteFilter) lista = lista.filter((i: any) => i.agente_id === agenteFilter)
 
@@ -606,6 +607,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
     { icon: '🏢', label: 'Pendientes proveedor',   value: kpis.pendientesProveedor,  sub: undefined,                                filterKey: 'pendientes', colorIcon: '#5B21B6', bg: '#EEE8FF' },
     { icon: '✓',  label: 'Resueltos hoy',          value: kpis.resueltoHoy,          sub: `Agente ${kpis.resueltoHoyAgente} · Proveedor ${kpis.resueltoHoyProveedor}`, filterKey: null, colorIcon: '#27500A', bg: '#EAF3DE' },
     { icon: '👤', label: 'Agentes en gestión',     value: `${kpis.agentesEnGestion}/${kpis.totalAgentes}`, sub: undefined, filterKey: null, colorIcon: '#185FA5', bg: '#E6F1FB' },
+    ...(kpis.gruposMasivosActivos > 0 ? [{ icon: '⚡', label: 'Grupos masivos', value: kpis.gruposMasivosActivos, sub: `${kpis.masivosActivos} incidente${kpis.masivosActivos !== 1 ? 's' : ''}`, filterKey: 'masivos', colorIcon: '#92400E', bg: '#FEF3C7' }] : []),
     ...(decPendientes != null ? [{ icon: '📊', label: 'Decisiones propuestas', value: decPendientes, sub: 'Esperan aprobación', filterKey: null, colorIcon: '#7C3AED', bg: '#EDE9FE', link: '/decisiones' }] : []),
   ]
 
@@ -739,10 +741,11 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
             {/* Estado op. filter chips */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
               {([
-                { key: null,            label: 'Todos',         bg: 'var(--muted)',  fg: 'var(--foreground)', border: 'var(--border)' },
-                { key: 'enRiesgo',      label: 'SLA Vencido / En Riesgo', bg: '#FFF3E0', fg: '#C84B00', border: '#FDBA74' },
-                { key: 'escalados',     label: 'Escalado',       bg: '#FAEEDA',  fg: '#633806', border: '#F59E0B' },
-                { key: 'pendientes',    label: 'Pend. proveedor',bg: '#EEE8FF',  fg: '#5B21B6', border: '#C4B5FD' },
+                { key: null,            label: 'Todos',                   bg: 'var(--muted)', fg: 'var(--foreground)', border: 'var(--border)' },
+                { key: 'enRiesgo',      label: 'SLA Vencido / En Riesgo', bg: '#FFF3E0',      fg: '#C84B00',           border: '#FDBA74' },
+                { key: 'escalados',     label: 'Escalado',                bg: '#FAEEDA',      fg: '#633806',           border: '#F59E0B' },
+                { key: 'pendientes',    label: 'Pend. proveedor',         bg: '#EEE8FF',      fg: '#5B21B6',           border: '#C4B5FD' },
+                { key: 'masivos',       label: 'Masivos',                 bg: '#FEF3C7',      fg: '#92400E',           border: '#FCD34D' },
               ] as const).map(({ key, label, bg, fg, border }) => {
                 const active = cardFiltro === key
                 return (
@@ -821,6 +824,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                         <td style={{ padding: '6px 8px' }}>
                           <SLABadge inc={inc} nowMs={nowM} />
                           {esInfra && <span style={{ display: 'block', marginTop: '2px', fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: '#EDE9FE', color: '#5B21B6', fontWeight: 600 }}>Infra{inc.infra_nombre ? `: ${inc.infra_nombre.split(' ')[0]}` : ''}</span>}
+                          {inc.grupo_masivo_id && <span title={inc.grupo_masivo_razon ?? ''} style={{ display: 'block', marginTop: '2px', fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: '#FEF3C7', color: '#92400E', fontWeight: 700, cursor: 'help' }}>⚡ Masivo · {inc.grupo_masivo_codigo}</span>}
                           {inc.sinMovimiento && <span style={{ display: 'block', marginTop: '2px', fontSize: '9px', padding: '1px 4px', borderRadius: '999px', background: '#F1F5F9', color: '#475569' }}>⏸ {fmtMin(inc.sinMovimientoMin)}</span>}
                           {(inc as any).motivo_reabertura && (
                             <span
