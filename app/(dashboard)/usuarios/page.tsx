@@ -48,7 +48,7 @@ const PERMISOS_GRUPOS = [
   {
     key: 'ANÁLISIS',
     items: [
-      { key: 'dashboard.ver',     label: 'Ver dashboard operativo' },
+      { key: 'dashboard.ver',     label: 'Ver dashboards' },
       { key: 'reportes.ver',      label: 'Ver reportes' },
       { key: 'reportes.exportar', label: 'Exportar CSV de reportes' },
     ],
