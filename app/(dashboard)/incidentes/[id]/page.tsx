@@ -868,10 +868,10 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               const rendLabel: Record<string,string> = { EFECTIVO:'Efectivo', PARCIAL:'Parcial', NULO:'Sin cobertura', TOTAL:'Cubrió total', FALLIDA:'No funcionó' }
               const summary = [editForm.contActivadoPor && `Por: ${editForm.contActivadoPor}`, rend && rendLabel[rend]].filter(Boolean).join(' · ')
               const contSellada = !!inc.contHoraDesactivacion
-              // ROUTER_EXTERNO: no bloquear por sellado — se desactiva automáticamente al resolver
-              const contDis = !canEditB || (contSellada && !editForm.contEsExterno)
+              // Nunca bloquear por sellado — auto-deactivation handles it
+              const contDis = !canEditB
               return (
-                <div style={{ border: `1px solid ${(contSellada && !editForm.contEsExterno) ? 'rgba(100,116,139,0.4)' : 'var(--border)'}`, borderRadius: '10px', marginBottom: '14px', overflow: 'hidden' }}>
+                <div style={{ border: '1px solid var(--border)', borderRadius: '10px', marginBottom: '14px', overflow: 'hidden' }}>
                   <button type="button" onClick={() => setShowContBlock(v => !v)}
                     style={{ width:'100%', display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', background: 'var(--muted)', border:'none', cursor:'pointer', textAlign:'left' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
@@ -982,28 +982,8 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                         </div>
                       )}
 
-                      {(contSellada && !editForm.contEsExterno) ? (
-                        /* ROUTER_PROPIO: vista compacta de solo lectura al sellar */
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '11px' }}>
-                            <span><span style={{ color: 'var(--muted-foreground)' }}>Por: </span><strong>{editForm.contActivadoPor}</strong></span>
-                            {inc.contHoraActivacion && (
-                              <span style={{ fontFamily: 'monospace' }}>
-                                {toDatetimeLocal(inc.contHoraActivacion).slice(11,16)}
-                                {' → '}
-                                {inc.contHoraDesactivacion ? toDatetimeLocal(inc.contHoraDesactivacion).slice(11,16) : '—'}
-                              </span>
-                            )}
-                            {editForm.contRendimiento && (
-                              <span><span style={{ color: 'var(--muted-foreground)' }}>Rend: </span><strong>{({ EFECTIVO:'Efectivo 100%', PARCIAL:'Parcial 75%', NULO:'Nulo 0%' } as Record<string,string>)[editForm.contRendimiento] ?? editForm.contRendimiento}</strong></span>
-                            )}
-                          </div>
-                          {editForm.contObservacion && (
-                            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>{editForm.contObservacion}</div>
-                          )}
-                        </div>
-                      ) : (
-                        /* Form editable — siempre abierto para ROUTER_EXTERNO */
+                      {false ? null : (
+                        /* Form siempre editable */
                         <>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '10px' }}>
                             <div>
@@ -1034,14 +1014,15 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                               <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Auto-desactivado</span>
                             </div>
                           )}
-                          {/* ROUTER_PROPIO: botón manual Desactivar */}
-                          {canEditB && editForm.contActivadoPor && !editForm.contEsExterno && (
-                            <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <button type="button" onClick={handleDesactivarCont}
-                                style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 600, borderRadius: '7px', border: '1px solid #dc2626', background: 'rgba(220,38,38,0.07)', color: '#dc2626', cursor: 'pointer' }}>
-                                Desactivar
-                              </button>
-                              <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Sella la hora de fin y bloquea la edición.</span>
+                          {/* ROUTER_PROPIO: badge informativo cuando está sellado */}
+                          {!editForm.contEsExterno && contSellada && inc.contHoraActivacion && (
+                            <div style={{ marginBottom: '12px', display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 10px', background: 'rgba(100,116,139,0.08)', border: '0.5px solid rgba(100,116,139,0.3)', borderRadius: '6px', fontSize: '10px', color: 'var(--muted-foreground)' }}>
+                              <span>⏱</span>
+                              <span style={{ fontFamily: 'monospace' }}>
+                                {toDatetimeLocal(inc.contHoraActivacion).slice(11,16)}
+                                {' → '}
+                                {inc.contHoraDesactivacion ? toDatetimeLocal(inc.contHoraDesactivacion).slice(11,16) : '—'}
+                              </span>
                             </div>
                           )}
                           <div style={{ marginBottom: '10px' }}>
@@ -1077,9 +1058,9 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               const rendLabel: Record<string,string> = { EFECTIVO:'Efectivo', PARCIAL:'Parcial', NULO:'Sin cobertura', EFECTIVA:'Efectiva', LIMITADA:'Limitada', NO_FUNCIONO:'No funcionó' }
               const summary = [editForm.movActivadoPor && `Por: ${editForm.movActivadoPor}`, rend && rendLabel[rend]].filter(Boolean).join(' · ')
               const movSellada = !!inc.movHoraDesactivacion
-              const movDis = !canEditB || movSellada
+              const movDis = !canEditB
               return (
-                <div style={{ border: `1px solid ${movSellada ? 'rgba(100,116,139,0.4)' : 'var(--border)'}`, borderRadius: '10px', marginBottom: '14px', overflow: 'hidden' }}>
+                <div style={{ border: '1px solid var(--border)', borderRadius: '10px', marginBottom: '14px', overflow: 'hidden' }}>
                   <button type="button" onClick={() => setShowMovBlock(v => !v)}
                     style={{ width:'100%', display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', background:'var(--muted)', border:'none', cursor:'pointer', textAlign:'left' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
@@ -1098,28 +1079,8 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   </button>
                   {showMovBlock && (
                     <div style={{ padding:'14px', background:'var(--muted)' }}>
-                      {movSellada ? (
-                        /* Compact read-only after deactivation */
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '11px' }}>
-                            <span><span style={{ color: 'var(--muted-foreground)' }}>Por: </span><strong>{editForm.movActivadoPor}</strong></span>
-                            {inc.movHoraActivacion && (
-                              <span style={{ fontFamily: 'monospace' }}>
-                                {toDatetimeLocal(inc.movHoraActivacion).slice(11,16)}
-                                {' → '}
-                                {inc.movHoraDesactivacion ? toDatetimeLocal(inc.movHoraDesactivacion).slice(11,16) : '—'}
-                              </span>
-                            )}
-                            {editForm.movRendimiento && (
-                              <span><span style={{ color: 'var(--muted-foreground)' }}>Rend: </span><strong>{({ EFECTIVO:'Efectivo 100%', PARCIAL:'Parcial 75%', NULO:'Nulo 0%' } as Record<string,string>)[editForm.movRendimiento] ?? editForm.movRendimiento}</strong></span>
-                            )}
-                          </div>
-                          {editForm.movObservacion && (
-                            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>{editForm.movObservacion}</div>
-                          )}
-                        </div>
-                      ) : (
-                        /* Editable form */
+                      {false ? null : (
+                        /* Form siempre editable */
                         <>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '10px' }}>
                             <div>
@@ -1138,13 +1099,14 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                               <input type="datetime-local" disabled={movDis} style={iStyle(movDis)} value={editForm.movHoraActivacion ?? ''} onChange={e => setEdit('movHoraActivacion', e.target.value)} />
                             </div>
                           </div>
-                          {canEditB && editForm.movActivadoPor && (
-                            <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <button type="button" onClick={handleDesactivarMov}
-                                style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 600, borderRadius: '7px', border: '1px solid #2563eb', background: 'rgba(37,99,235,0.07)', color: '#2563eb', cursor: 'pointer' }}>
-                                Desactivar
-                              </button>
-                              <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Sella la hora de fin y bloquea la edición.</span>
+                          {movSellada && inc.movHoraActivacion && (
+                            <div style={{ marginBottom: '12px', display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 10px', background: 'rgba(100,116,139,0.08)', border: '0.5px solid rgba(100,116,139,0.3)', borderRadius: '6px', fontSize: '10px', color: 'var(--muted-foreground)' }}>
+                              <span>⏱</span>
+                              <span style={{ fontFamily: 'monospace' }}>
+                                {toDatetimeLocal(inc.movHoraActivacion).slice(11,16)}
+                                {' → '}
+                                {inc.movHoraDesactivacion ? toDatetimeLocal(inc.movHoraDesactivacion).slice(11,16) : '—'}
+                              </span>
                             </div>
                           )}
                           <div style={{ marginBottom: '10px' }}>
