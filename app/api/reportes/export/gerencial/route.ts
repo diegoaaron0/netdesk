@@ -61,7 +61,7 @@ export async function GET(req: Request) {
           COUNT(DISTINCT i.tienda_id)::int                                        AS tiendas,
           ${IEI_EXPR}                                                             AS iei_total,
           COUNT(*) FILTER (WHERE i.estado = 'ABIERTO')::int                      AS abiertos,
-          COUNT(*) FILTER (WHERE i.estado = 'EN_PROCESO')::int                   AS en_proceso
+          COUNT(*) FILTER (WHERE i.estado NOT IN ('ABIERTO','RESUELTO','CANCELADO','CERRADO'))::int AS en_proceso
         FROM incidentes i
         JOIN tiendas t ON i.tienda_id = t.id
         WHERE i.hora_registro >= ${desde}::timestamptz AND i.hora_registro < ${hasta}::timestamptz

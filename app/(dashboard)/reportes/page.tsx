@@ -162,13 +162,16 @@ export default function ReportesPage() {
     setDlErrors(e => ({ ...e, [id]: '' }))
     try {
       const res = await fetch(`${path}?desde=${desde}&hasta=${hasta}`)
-      if (!res.ok) throw new Error(`Error ${res.status}`)
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(`Error ${res.status}${body?.error ? ': ' + body.error : ''}`)
+      }
       const blob = await res.blob()
       const cd = res.headers.get('Content-Disposition') ?? ''
       const match = cd.match(/filename="([^"]+)"/)
       triggerBlob(blob, match ? match[1] : `reporte_${id}.csv`)
-    } catch {
-      setDlErrors(e => ({ ...e, [id]: 'Error al generar el reporte' }))
+    } catch (err: any) {
+      setDlErrors(e => ({ ...e, [id]: err?.message ?? 'Error al generar el reporte' }))
     } finally {
       setDlLoading(l => ({ ...l, [id]: false }))
     }
