@@ -159,7 +159,10 @@ function TrasladoModal({ router, onClose, onDone }: { router: any; onClose: () =
   const [error, setError] = useState('')
 
   useEffect(() => {
-    fetch('/api/tiendas').then(r => r.json()).then(setTiendas)
+    fetch('/api/tiendas')
+      .then(r => r.json())
+      .then(data => setTiendas(Array.isArray(data) ? data : []))
+      .catch(() => setTiendas([]))
   }, [])
 
   async function confirmar() {
@@ -227,7 +230,10 @@ export default function RoutersContingenciaTI() {
   const fetchRouters = useCallback(() => {
     setLoading(true)
     fetch('/api/routers-externos')
-      .then(r => r.json()).then(setRouters).finally(() => setLoading(false))
+      .then(r => r.json())
+      .then(data => setRouters(Array.isArray(data) ? data : []))
+      .catch(() => setRouters([]))
+      .finally(() => setLoading(false))
   }, [])
 
   useEffect(() => { fetchRouters() }, [fetchRouters])

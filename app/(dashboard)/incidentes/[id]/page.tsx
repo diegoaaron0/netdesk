@@ -251,12 +251,13 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   useEffect(() => { fetchInc() }, [fetchInc])
   useEffect(() => {
     fetch('/api/routers-externos')
-      .then(r => r.ok ? r.json() : [])
-      .then((rows: any[]) => {
-        const mapped = rows.map((r: any) => ({ id: r.id, codigo: r.codigo }))
-        setTodosRouters(mapped)
+      .then(r => r.json())
+      .then((data: any) => {
+        const rows = Array.isArray(data) ? data : []
+        setTodosRouters(rows.map((r: any) => ({ id: r.id, codigo: r.codigo })))
         setRoutersDisponibles(rows.filter((r: any) => r.estado === 'DISPONIBLE').map((r: any) => ({ id: r.id, codigo: r.codigo })))
       })
+      .catch(() => { setTodosRouters([]); setRoutersDisponibles([]) })
   }, [])
   useEffect(() => {
     const id = setInterval(() => setTick(t => t + 1), 1000)

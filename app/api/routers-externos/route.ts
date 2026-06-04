@@ -48,7 +48,7 @@ export async function GET() {
       WHERE r.activo = true
       ORDER BY r.codigo
     `)
-    return NextResponse.json(rows)
+    return NextResponse.json(Array.from(rows as any[]))
   } catch (err: unknown) {
     const msg = (err as any)?.cause?.message ?? (err as any)?.message ?? String(err)
     console.error('[routers-externos GET]', err)

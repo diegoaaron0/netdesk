@@ -191,9 +191,13 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
     fetch('/api/proveedores').then(r => r.json()).then(d => {
       setProveedores(Array.isArray(d) ? d : [])
     })
-    fetch('/api/routers-externos').then(r => r.json()).then((rows: any[]) => {
-      setRoutersTienda(rows.filter((r: any) => r.tienda_actual_id === id))
-    })
+    fetch('/api/routers-externos')
+      .then(r => r.json())
+      .then((data: any) => {
+        const rows = Array.isArray(data) ? data : []
+        setRoutersTienda(rows.filter((r: any) => r.tienda_actual_id === id))
+      })
+      .catch(() => setRoutersTienda([]))
   }, [id])
 
   useEffect(() => { loadData() }, [loadData])
