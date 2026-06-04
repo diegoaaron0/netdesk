@@ -309,13 +309,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!('horaFin' in allowedFields)) allowedFields.horaFin = new Date()
   }
 
-  // Validar: no se puede activar ROUTER_PROPIO si la tienda no tiene contingencia propia
+  // Validar: no se puede activar ROUTER_PROPIO si la tienda no tiene contingencia propia.
+  // Solo aplica cuando es una NUEVA activación (contActivadoPor era null en BD antes de este save).
   if (allowedFields.contActivadoPor && !allowedFields.contEsExterno) {
-    const [incData] = await db.select({ tieneContingencia: tiendas.tieneContingencia, tiendaId: incidentes.tiendaId })
+    const [prev] = await db.select({
+      contActivadoPor:  incidentes.contActivadoPor,
+      tieneContingencia: tiendas.tieneContingencia,
+    })
       .from(incidentes)
       .innerJoin(tiendas, eq(incidentes.tiendaId, tiendas.id))
       .where(eq(incidentes.id, id))
-    if (!incData?.tieneContingencia) {
+    if (!prev?.contActivadoPor && !prev?.tieneContingencia) {
       return NextResponse.json({ error: 'Esta tienda no tiene contingencia propia registrada. Solo puede usar Router externo.' }, { status: 409 })
     }
   }
