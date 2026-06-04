@@ -104,7 +104,7 @@ async function runSection<T>(label: string, fn: () => Promise<T>): Promise<T> {
     return await fn()
   } catch (err: any) {
     const pgMsg = (err?.cause as any)?.message ?? ''
-    const msg   = pgMsg || err?.message ?? String(err)
+    const msg   = pgMsg || (err?.message ?? String(err))
     throw new Error(`[sección: ${label}] ${msg}`)
   }
 }
