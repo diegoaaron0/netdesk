@@ -981,8 +981,38 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                         </div>
                       )}
 
-                      {false ? null : (
-                        /* Form siempre editable */
+                      {contSellada ? (
+                        /* Vista compacta sellada: timestamps + rendimiento + observación editables */
+                        <>
+                          {inc.contHoraActivacion && (
+                            <div style={{ marginBottom: '10px', display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 10px', background: 'rgba(100,116,139,0.08)', border: '0.5px solid rgba(100,116,139,0.3)', borderRadius: '6px', fontSize: '10px', color: 'var(--muted-foreground)' }}>
+                              <span>⏱</span>
+                              <span style={{ fontFamily: 'monospace' }}>
+                                {toDatetimeLocal(inc.contHoraActivacion).slice(11,16)}
+                                {' → '}
+                                {inc.contHoraDesactivacion ? toDatetimeLocal(inc.contHoraDesactivacion).slice(11,16) : '—'}
+                              </span>
+                              <span style={{ fontSize: '9px', color: 'var(--muted-foreground)' }}>Por: {editForm.contActivadoPor}</span>
+                            </div>
+                          )}
+                          <div style={{ marginBottom: '10px' }}>
+                            <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Rendimiento</label>
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                              {[{v:'EFECTIVO',l:'Efectivo 100%',bg:'#dcfce7',c:'#15803d'},{v:'PARCIAL',l:'Parcial 75%',bg:'#fef9c3',c:'#a16207'},{v:'NULO',l:'Nulo 0%',bg:'#fee2e2',c:'#b91c1c'}].map(({v,l,bg,c}) => {
+                                const sel = editForm.contRendimiento === v
+                                return <button key={v} type="button" disabled={contDis} onClick={() => setEdit('contRendimiento', v)} style={{ padding:'4px 10px',fontSize:'11px',borderRadius:'6px',border:`1px solid ${sel?c:'var(--border)'}`,cursor:contDis?'default':'pointer',background:sel?bg:'var(--card)',color:sel?c:'var(--muted-foreground)',fontWeight:sel?600:400 }}>{l}</button>
+                              })}
+                            </div>
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Observación</label>
+                            <textarea disabled={!canEditB} style={taStyle(!canEditB)}
+                              value={editForm.contObservacion ?? ''} onChange={e => setEdit('contObservacion', e.target.value)}
+                              placeholder="Describe el comportamiento de la contingencia..." />
+                          </div>
+                        </>
+                      ) : (
+                        /* Form completo cuando está activo */
                         <>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '10px' }}>
                             <div>
@@ -1001,29 +1031,6 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                               <input type="datetime-local" disabled={contDis} style={iStyle(contDis)} value={editForm.contHoraActivacion ?? ''} onChange={e => setEdit('contHoraActivacion', e.target.value)} />
                             </div>
                           </div>
-                          {/* ROUTER_EXTERNO: badge informativo cuando ya está sellado (auto-desactivado) */}
-                          {editForm.contEsExterno && contSellada && inc.contHoraActivacion && (
-                            <div style={{ marginBottom: '12px', display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 10px', background: 'rgba(100,116,139,0.08)', border: '0.5px solid rgba(100,116,139,0.3)', borderRadius: '6px', fontSize: '10px', color: 'var(--muted-foreground)' }}>
-                              <span>⏱</span>
-                              <span style={{ fontFamily: 'monospace' }}>
-                                {toDatetimeLocal(inc.contHoraActivacion).slice(11,16)}
-                                {' → '}
-                                {inc.contHoraDesactivacion ? toDatetimeLocal(inc.contHoraDesactivacion).slice(11,16) : '—'}
-                              </span>
-                              <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Auto-desactivado</span>
-                            </div>
-                          )}
-                          {/* ROUTER_PROPIO: badge informativo cuando está sellado */}
-                          {!editForm.contEsExterno && contSellada && inc.contHoraActivacion && (
-                            <div style={{ marginBottom: '12px', display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 10px', background: 'rgba(100,116,139,0.08)', border: '0.5px solid rgba(100,116,139,0.3)', borderRadius: '6px', fontSize: '10px', color: 'var(--muted-foreground)' }}>
-                              <span>⏱</span>
-                              <span style={{ fontFamily: 'monospace' }}>
-                                {toDatetimeLocal(inc.contHoraActivacion).slice(11,16)}
-                                {' → '}
-                                {inc.contHoraDesactivacion ? toDatetimeLocal(inc.contHoraDesactivacion).slice(11,16) : '—'}
-                              </span>
-                            </div>
-                          )}
                           <div style={{ marginBottom: '10px' }}>
                             <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Rendimiento</label>
                             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -1034,14 +1041,12 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                             </div>
                           </div>
                           <div>
-                            <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px', color: (!inc?.tiendaTieneContingencia && editForm.contActivadoPor) ? '#92400e' : 'var(--muted-foreground)' }}>
-                              {(!inc?.tiendaTieneContingencia && editForm.contActivadoPor) ? 'Descripción de contingencia temporal *' : 'Observación'}
-                            </label>
+                            <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px', color: 'var(--muted-foreground)' }}>Observación</label>
                             <textarea disabled={!canEditB}
-                              style={{ ...taStyle(!canEditB), border: (!inc?.tiendaTieneContingencia && editForm.contActivadoPor && !editForm.contObservacion) ? '1.5px solid #f59e0b' : undefined }}
+                              style={{ ...taStyle(!canEditB) }}
                               value={editForm.contObservacion ?? ''}
                               onChange={e => setEdit('contObservacion', e.target.value)}
-                              placeholder={(!inc?.tiendaTieneContingencia && editForm.contActivadoPor) ? 'Ej: Router TP-Link portátil con chip Entel, instalado por técnico el 23/05...' : 'Describe el comportamiento de la contingencia...'} />
+                              placeholder="Describe el comportamiento de la contingencia..." />
                           </div>
                         </>
                       )}
@@ -1078,8 +1083,36 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   </button>
                   {showMovBlock && (
                     <div style={{ padding:'14px', background:'var(--muted)' }}>
-                      {false ? null : (
-                        /* Form siempre editable */
+                      {movSellada ? (
+                        /* Vista compacta sellada: timestamps + rendimiento + observación editables */
+                        <>
+                          {inc.movHoraActivacion && (
+                            <div style={{ marginBottom: '10px', display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 10px', background: 'rgba(100,116,139,0.08)', border: '0.5px solid rgba(100,116,139,0.3)', borderRadius: '6px', fontSize: '10px', color: 'var(--muted-foreground)' }}>
+                              <span>⏱</span>
+                              <span style={{ fontFamily: 'monospace' }}>
+                                {toDatetimeLocal(inc.movHoraActivacion).slice(11,16)}
+                                {' → '}
+                                {inc.movHoraDesactivacion ? toDatetimeLocal(inc.movHoraDesactivacion).slice(11,16) : '—'}
+                              </span>
+                              <span style={{ fontSize: '9px', color: 'var(--muted-foreground)' }}>Por: {editForm.movActivadoPor}</span>
+                            </div>
+                          )}
+                          <div style={{ marginBottom: '10px' }}>
+                            <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Rendimiento</label>
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                              {[{v:'EFECTIVO',l:'Efectivo 100%',bg:'#dcfce7',c:'#15803d'},{v:'PARCIAL',l:'Parcial 75%',bg:'#fef9c3',c:'#a16207'},{v:'NULO',l:'Nulo 0%',bg:'#fee2e2',c:'#b91c1c'}].map(({v,l,bg,c}) => {
+                                const sel = editForm.movRendimiento === v
+                                return <button key={v} type="button" disabled={movDis} onClick={() => setEdit('movRendimiento', v)} style={{ padding:'4px 10px',fontSize:'11px',borderRadius:'6px',border:`1px solid ${sel?c:'var(--border)'}`,cursor:movDis?'default':'pointer',background:sel?bg:'var(--card)',color:sel?c:'var(--muted-foreground)',fontWeight:sel?600:400 }}>{l}</button>
+                              })}
+                            </div>
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Observación</label>
+                            <textarea disabled={!canEditB} style={taStyle(!canEditB)} value={editForm.movObservacion ?? ''} onChange={e => setEdit('movObservacion', e.target.value)} placeholder="Describe el comportamiento de los datos móviles..." />
+                          </div>
+                        </>
+                      ) : (
+                        /* Form completo cuando está activo */
                         <>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '10px' }}>
                             <div>
@@ -1098,16 +1131,6 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                               <input type="datetime-local" disabled={movDis} style={iStyle(movDis)} value={editForm.movHoraActivacion ?? ''} onChange={e => setEdit('movHoraActivacion', e.target.value)} />
                             </div>
                           </div>
-                          {movSellada && inc.movHoraActivacion && (
-                            <div style={{ marginBottom: '12px', display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 10px', background: 'rgba(100,116,139,0.08)', border: '0.5px solid rgba(100,116,139,0.3)', borderRadius: '6px', fontSize: '10px', color: 'var(--muted-foreground)' }}>
-                              <span>⏱</span>
-                              <span style={{ fontFamily: 'monospace' }}>
-                                {toDatetimeLocal(inc.movHoraActivacion).slice(11,16)}
-                                {' → '}
-                                {inc.movHoraDesactivacion ? toDatetimeLocal(inc.movHoraDesactivacion).slice(11,16) : '—'}
-                              </span>
-                            </div>
-                          )}
                           <div style={{ marginBottom: '10px' }}>
                             <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Rendimiento</label>
                             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
