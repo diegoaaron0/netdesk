@@ -868,9 +868,10 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               const rendLabel: Record<string,string> = { EFECTIVO:'Efectivo', PARCIAL:'Parcial', NULO:'Sin cobertura', TOTAL:'Cubrió total', FALLIDA:'No funcionó' }
               const summary = [editForm.contActivadoPor && `Por: ${editForm.contActivadoPor}`, rend && rendLabel[rend]].filter(Boolean).join(' · ')
               const contSellada = !!inc.contHoraDesactivacion
-              const contDis = !canEditB || contSellada
+              // ROUTER_EXTERNO: no bloquear por sellado — se desactiva automáticamente al resolver
+              const contDis = !canEditB || (contSellada && !editForm.contEsExterno)
               return (
-                <div style={{ border: `1px solid ${contSellada ? 'rgba(100,116,139,0.4)' : 'var(--border)'}`, borderRadius: '10px', marginBottom: '14px', overflow: 'hidden' }}>
+                <div style={{ border: `1px solid ${(contSellada && !editForm.contEsExterno) ? 'rgba(100,116,139,0.4)' : 'var(--border)'}`, borderRadius: '10px', marginBottom: '14px', overflow: 'hidden' }}>
                   <button type="button" onClick={() => setShowContBlock(v => !v)}
                     style={{ width:'100%', display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', background: 'var(--muted)', border:'none', cursor:'pointer', textAlign:'left' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
@@ -981,8 +982,8 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                         </div>
                       )}
 
-                      {contSellada ? (
-                        /* Compact read-only after deactivation */
+                      {(contSellada && !editForm.contEsExterno) ? (
+                        /* ROUTER_PROPIO: vista compacta de solo lectura al sellar */
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '11px' }}>
                             <span><span style={{ color: 'var(--muted-foreground)' }}>Por: </span><strong>{editForm.contActivadoPor}</strong></span>
@@ -1002,7 +1003,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                           )}
                         </div>
                       ) : (
-                        /* Editable form */
+                        /* Form editable — siempre abierto para ROUTER_EXTERNO */
                         <>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '10px' }}>
                             <div>
@@ -1021,7 +1022,20 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                               <input type="datetime-local" disabled={contDis} style={iStyle(contDis)} value={editForm.contHoraActivacion ?? ''} onChange={e => setEdit('contHoraActivacion', e.target.value)} />
                             </div>
                           </div>
-                          {canEditB && editForm.contActivadoPor && (
+                          {/* ROUTER_EXTERNO: badge informativo cuando ya está sellado (auto-desactivado) */}
+                          {editForm.contEsExterno && contSellada && inc.contHoraActivacion && (
+                            <div style={{ marginBottom: '12px', display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 10px', background: 'rgba(100,116,139,0.08)', border: '0.5px solid rgba(100,116,139,0.3)', borderRadius: '6px', fontSize: '10px', color: 'var(--muted-foreground)' }}>
+                              <span>⏱</span>
+                              <span style={{ fontFamily: 'monospace' }}>
+                                {toDatetimeLocal(inc.contHoraActivacion).slice(11,16)}
+                                {' → '}
+                                {inc.contHoraDesactivacion ? toDatetimeLocal(inc.contHoraDesactivacion).slice(11,16) : '—'}
+                              </span>
+                              <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Auto-desactivado</span>
+                            </div>
+                          )}
+                          {/* ROUTER_PROPIO: botón manual Desactivar */}
+                          {canEditB && editForm.contActivadoPor && !editForm.contEsExterno && (
                             <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                               <button type="button" onClick={handleDesactivarCont}
                                 style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 600, borderRadius: '7px', border: '1px solid #dc2626', background: 'rgba(220,38,38,0.07)', color: '#dc2626', cursor: 'pointer' }}>
