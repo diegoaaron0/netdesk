@@ -18,33 +18,64 @@ const ESTADO_BADGE: Record<string, { label: string; bg: string; color: string }>
   EN_TIENDA_INACTIVO: { label: 'En tienda',      bg: '#E0E7FF', color: '#3730A3' },
 }
 
-// ── Modal: historial de un router ─────────────────────────────────────────────
-function HistorialModal({ router, onClose }: { router: any; onClose: () => void }) {
-  const [detail, setDetail] = useState<any>(null)
+// ── Modal: historial + edición de un router ───────────────────────────────────
+function HistorialModal({ router, onClose, onSaved }: { router: any; onClose: () => void; onSaved: () => void }) {
+  const [detail, setDetail]   = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState(false)
+  const [form, setForm]       = useState<any>({})
+  const [saving, setSaving]   = useState(false)
+  const [saved, setSaved]     = useState(false)
 
   useEffect(() => {
     fetch(`/api/routers-externos/${router.id}`)
-      .then(r => r.json()).then(setDetail).finally(() => setLoading(false))
+      .then(r => r.json())
+      .then(d => { setDetail(d); setForm({ ip: d.ip ?? '', password: d.password ?? '', chip: d.chip ?? '', plan: d.plan ?? '', tipoConexion: d.tipo_conexion ?? '' }) })
+      .finally(() => setLoading(false))
   }, [router.id])
+
+  async function guardar() {
+    setSaving(true)
+    const res = await fetch(`/api/routers-externos/${router.id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    })
+    if (res.ok) { setSaved(true); setEditing(false); onSaved(); setTimeout(() => setSaved(false), 2000) }
+    setSaving(false)
+  }
+
+  const inp: React.CSSProperties = { width: '100%', padding: '6px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--background)', fontFamily: 'monospace', boxSizing: 'border-box' }
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.45)' }} onClick={onClose}>
       <div style={{ background: 'var(--card)', borderRadius: '14px', padding: '24px', width: '640px', maxHeight: '80vh', overflow: 'auto', boxShadow: '0 8px 40px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <div style={{ fontSize: '14px', fontWeight: 700 }}>{router.codigo} — Historial</div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--muted-foreground)' }}>✕</button>
+          <div style={{ fontSize: '14px', fontWeight: 700 }}>{router.codigo}</div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {saved && <span style={{ fontSize: '11px', color: '#166534', fontWeight: 600 }}>✓ Guardado</span>}
+            {!editing
+              ? <button onClick={() => setEditing(true)} style={{ padding: '4px 12px', fontSize: '11px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>Editar</button>
+              : <>
+                  <button onClick={() => setEditing(false)} style={{ padding: '4px 12px', fontSize: '11px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '6px', cursor: 'pointer' }}>Cancelar</button>
+                  <button onClick={guardar} disabled={saving} style={{ padding: '4px 12px', fontSize: '11px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, opacity: saving ? 0.6 : 1 }}>{saving ? 'Guardando…' : 'Guardar'}</button>
+                </>
+            }
+            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--muted-foreground)' }}>✕</button>
+          </div>
         </div>
         {loading ? (
           <div style={{ padding: '32px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Cargando...</div>
         ) : (
           <>
-            {/* Campos del router */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px', padding: '12px', background: 'var(--muted)', borderRadius: '8px' }}>
-              {[['IP', detail.ip], ['Chip/SIM', detail.chip], ['Plan', detail.plan], ['Tipo conexión', detail.tipo_conexion], ['Contraseña', detail.password]].map(([label, val]) => (
-                <div key={label as string}>
-                  <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
-                  <div style={{ fontSize: '11px', fontWeight: 600, fontFamily: label === 'Contraseña' || label === 'IP' ? 'monospace' : undefined }}>{val || '—'}</div>
+            {/* Campos del router — lectura o edición */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px', padding: '12px', background: 'var(--muted)', borderRadius: '8px' }}>
+              {([['IP', 'ip'], ['Chip/SIM', 'chip'], ['Plan', 'plan'], ['Tipo conexión', 'tipoConexion'], ['Contraseña', 'password']] as [string, string][]).map(([label, key]) => (
+                <div key={key}>
+                  <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: editing ? '4px' : '2px' }}>{label}</div>
+                  {editing
+                    ? <input value={form[key] ?? ''} onChange={e => setForm((f: any) => ({ ...f, [key]: e.target.value }))} style={inp} placeholder={`Ej: ${key === 'ip' ? '192.168.1.1' : key === 'password' ? 'admin123' : '…'}`} />
+                    : <div style={{ fontSize: '11px', fontWeight: 600, fontFamily: 'monospace' }}>{(detail[key === 'tipoConexion' ? 'tipo_conexion' : key]) || '—'}</div>
+                  }
                 </div>
               ))}
             </div>
@@ -390,7 +421,7 @@ export default function RoutersContingenciaTI() {
         </div>
       )}
 
-      {historialRouter && <HistorialModal router={historialRouter} onClose={() => setHistorialRouter(null)} />}
+      {historialRouter && <HistorialModal router={historialRouter} onClose={() => setHistorialRouter(null)} onSaved={fetchRouters} />}
       {retornoRouter   && <RetornoModal   router={retornoRouter}   onClose={() => setRetornoRouter(null)}   onDone={fetchRouters} />}
       {trasladoRouter  && <TrasladoModal  router={trasladoRouter}  onClose={() => setTrasladoRouter(null)}  onDone={fetchRouters} />}
     </div>
