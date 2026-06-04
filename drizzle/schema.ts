@@ -268,10 +268,8 @@ export const routerHistorial = pgTable('router_historial', {
   id:               uuid('id').primaryKey().defaultRandom(),
   routerId:         uuid('router_id').notNull().references(() => routersExternos.id, { onDelete: 'cascade' }),
   tiendaId:         uuid('tienda_id').references(() => tiendas.id),
-  incidenteId:      uuid('incidente_id').references(() => incidentes.id, { onDelete: 'set null' }),
   fechaIngreso:     timestamp('fecha_ingreso').defaultNow().notNull(),
   fechaRetorno:     timestamp('fecha_retorno'),
-  tiempoUsoMin:     integer('tiempo_uso_min'),
   accion:           text('accion').notNull(),
   almacenOrigen:    text('almacen_origen'),
   almacenDestino:   text('almacen_destino'),
@@ -439,7 +437,6 @@ export const routersExternosRelations = relations(routersExternos, ({ one, many 
 export const routerHistorialRelations = relations(routerHistorial, ({ one }) => ({
   router:        one(routersExternos, { fields: [routerHistorial.routerId],        references: [routersExternos.id] }),
   tienda:        one(tiendas,         { fields: [routerHistorial.tiendaId],        references: [tiendas.id] }),
-  incidente:     one(incidentes,      { fields: [routerHistorial.incidenteId],     references: [incidentes.id] }),
   registradoPor: one(usuarios,        { fields: [routerHistorial.registradoPorId], references: [usuarios.id] }),
 }))
 

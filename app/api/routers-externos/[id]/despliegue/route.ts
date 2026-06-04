@@ -31,20 +31,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const ahora  = new Date()
   const userId = (session.user as any)?.id ?? null
 
-  await db.insert(routerHistorial).values({
-    routerId:        id,
-    tiendaId:        tiendaDestinoId,
-    fechaIngreso:    ahora,
-    accion:          'DESPLIEGUE',
-    almacenOrigen:   router.almacenActual ?? null,
-    nota:            nota || null,
-    registradoPorId: userId,
+  const updated = await db.transaction(async (tx) => {
+    await tx.insert(routerHistorial).values({
+      routerId:        id,
+      tiendaId:        tiendaDestinoId,
+      fechaIngreso:    ahora,
+      accion:          'DESPLIEGUE',
+      almacenOrigen:   router.almacenActual ?? null,
+      nota:            nota || null,
+      registradoPorId: userId,
+    })
+    const [u] = await tx.update(routersExternos)
+      .set({ estado: 'EN_TIENDA_INACTIVO', tiendaActualId: tiendaDestinoId, almacenActual: null })
+      .where(eq(routersExternos.id, id))
+      .returning()
+    return u
   })
-
-  const [updated] = await db.update(routersExternos)
-    .set({ estado: 'EN_TIENDA_INACTIVO', tiendaActualId: tiendaDestinoId, almacenActual: null })
-    .where(eq(routersExternos.id, id))
-    .returning()
 
   return NextResponse.json(updated)
 }

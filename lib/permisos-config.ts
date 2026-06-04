@@ -12,7 +12,7 @@ const TODOS_LOS_PERMISOS = [
 
 export const PERMISOS_POR_ROL: Record<string, string[]> = {
   AGENTE: [
-    'incidentes.ver', 'incidentes.crear', 'incidentes.reabrir', 'incidentes.cancelar',
+    'incidentes.ver', 'incidentes.crear', 'incidentes.reabrir', 'incidentes.editar', 'incidentes.cancelar',
     'escalamientos.crear', 'escalamientos.envio', 'escalamientos.respuesta',
     'dashboard.ver',
     'mantenimiento.ver',

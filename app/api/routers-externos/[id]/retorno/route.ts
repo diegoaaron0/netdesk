@@ -22,25 +22,28 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   if (!router) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
   if (router.estado === 'DISPONIBLE') return NextResponse.json({ error: 'El router ya está disponible en TI' }, { status: 409 })
+  if (router.estado === 'EN_TIENDA_ACTIVO') return NextResponse.json({ error: 'El router está activo en un incidente. Desactiva la contingencia antes de retornarlo.' }, { status: 409 })
 
   const ahora  = new Date()
   const userId = (session.user as any)?.id ?? null
 
-  await db.insert(routerHistorial).values({
-    routerId:        id,
-    tiendaId:        router.tiendaActualId ?? null,
-    fechaIngreso:    ahora,
-    fechaRetorno:    ahora,
-    accion:          'RETORNO',
-    almacenDestino:  almacenDestino,
-    nota:            nota || null,
-    registradoPorId: userId,
+  const updated = await db.transaction(async (tx) => {
+    await tx.insert(routerHistorial).values({
+      routerId:        id,
+      tiendaId:        router.tiendaActualId ?? null,
+      fechaIngreso:    ahora,
+      fechaRetorno:    ahora,
+      accion:          'RETORNO',
+      almacenDestino:  almacenDestino,
+      nota:            nota || null,
+      registradoPorId: userId,
+    })
+    const [u] = await tx.update(routersExternos)
+      .set({ estado: 'DISPONIBLE', tiendaActualId: null, almacenActual: almacenDestino })
+      .where(eq(routersExternos.id, id))
+      .returning()
+    return u
   })
-
-  const [updated] = await db.update(routersExternos)
-    .set({ estado: 'DISPONIBLE', tiendaActualId: null, almacenActual: almacenDestino })
-    .where(eq(routersExternos.id, id))
-    .returning()
 
   // Limpiar contingencia_activa de la tienda origen si ya no quedan contingencias activas
   if (router.tiendaActualId) {

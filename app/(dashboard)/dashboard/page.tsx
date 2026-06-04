@@ -491,6 +491,14 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
   const [confirmarCont,   setConfirmarCont]   = useState<string | null>(null)
   const [desactivandoCont, setDesactivandoCont] = useState<string | null>(null)
   const [agenteFilter,    setAgenteFilter]    = useState<string | null>(null)
+  const [routersExt,      setRoutersExt]      = useState<any[]>([])
+
+  useEffect(() => {
+    fetch('/api/routers-externos')
+      .then(r => r.json())
+      .then(data => setRoutersExt(Array.isArray(data) ? data : []))
+      .catch(() => {})
+  }, [tick])
 
   async function desactivarContingencia(id: string, stateKey: string, fuente: 'INCIDENTE' | 'STANDALONE', tipoCont?: string, tiendaIdReal?: string) {
     const tiendaId = stateKey
@@ -712,6 +720,52 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                 </div>
               )
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Routers TI — ubicación en campo */}
+      {routersExt.some(r => r.estado !== 'DISPONIBLE') && (
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '7px 10px', marginBottom: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>📦 Routers TI en campo</span>
+            {routersExt.filter(r => r.estado === 'DISPONIBLE').length > 0 && (
+              <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', background: 'var(--muted)', padding: '1px 7px', borderRadius: '99px' }}>
+                {routersExt.filter(r => r.estado === 'DISPONIBLE').length} disponible{routersExt.filter(r => r.estado === 'DISPONIBLE').length !== 1 ? 's' : ''} en almacén
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            {routersExt
+              .filter(r => r.estado !== 'DISPONIBLE')
+              .sort((a, b) => (a.estado === 'EN_TIENDA_ACTIVO' ? 0 : 1) - (b.estado === 'EN_TIENDA_ACTIVO' ? 0 : 1))
+              .map((r: any) => {
+                const activo  = r.estado === 'EN_TIENDA_ACTIVO'
+                const bg      = activo ? '#FFF7ED' : '#EEF2FF'
+                const border  = activo ? '#F97316' : '#818CF8'
+                const color   = activo ? '#7C2D12' : '#3730A3'
+                const badgeBg = activo ? '#FED7AA' : '#E0E7FF'
+                const badgeC  = activo ? '#C2410C' : '#4338CA'
+                return (
+                  <div key={r.id} style={{ background: bg, border: `1px solid ${border}`, borderRadius: '7px', padding: '5px 10px', minWidth: '170px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                      <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '11px', color }}>{r.codigo}</span>
+                      <span style={{ fontSize: '9px', fontWeight: 600, padding: '1px 5px', borderRadius: '3px', background: badgeBg, color: badgeC }}>
+                        {activo ? 'activo' : 'en tienda'}
+                      </span>
+                    </div>
+                    {r.tienda_codigo ? (
+                      <>
+                        <div style={{ fontSize: '10px', fontWeight: 600, color }}>{r.tienda_codigo} — {r.tienda_nombre}</div>
+                        {r.tienda_distrito && <div style={{ fontSize: '9px', color, opacity: 0.7 }}>{r.tienda_distrito}</div>}
+                      </>
+                    ) : (
+                      <div style={{ fontSize: '9px', color, opacity: 0.6 }}>Sin tienda asignada</div>
+                    )}
+                  </div>
+                )
+              })
+            }
           </div>
         </div>
       )}

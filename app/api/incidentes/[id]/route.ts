@@ -258,8 +258,18 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  if (!can(session, 'incidentes.editar')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const body = await req.json()
+  const userRol = (session.user as any)?.rol ?? ''
+  if (!['SUPERVISOR', 'DEMO'].includes(userRol)) {
+    const [currentInc] = await db.select({ estado: incidentes.estado })
+      .from(incidentes).where(eq(incidentes.id, id))
+    if (currentInc && ['RESUELTO', 'CANCELADO', 'CERRADO'].includes(currentInc.estado)) {
+      return NextResponse.json({ error: 'Solo supervisores pueden editar incidentes cerrados' }, { status: 403 })
+    }
+  }
+
   const allowedFields: Record<string, any> = {}
   const editable = [
     'estado','nivelImpacto','usuariosAfectados','tipo','tipoPersonalizado','otrosClasificacion',
@@ -272,11 +282,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     'descEnergia','descRouter','descDns',
     'checkIpconfig','checkPingGw','checkPingInternet','checkTracert','checkDns','checkRenovarIp',
     'descartesDetallado','resueltoPor','atribucionFinal','evaluableProveedor',
-    'boletaManual','boletaRendimiento','ventaParcial','cajasAfectadas','cajasTotales',
+    'boletaManual','boletaRendimiento','boletaHoraActivacion','ventaParcial','cajasAfectadas','cajasTotales',
     'alcanceCorte','tuvoUps',
     'escaladoInfraId','horaEscaladoInfra','notaEscaladoInfra',
   ]
-  const dateFields = new Set(['horaRegistro','horaFin','contHoraActivacion','contHoraDesactivacion','movHoraActivacion','movHoraDesactivacion','horaEscaladoInfra'])
+  const dateFields = new Set(['horaRegistro','horaFin','contHoraActivacion','contHoraDesactivacion','movHoraActivacion','movHoraDesactivacion','horaEscaladoInfra','boletaHoraActivacion'])
   const intFields  = new Set(['cajasAfectadas','cajasTotales','mttrMinutos'])
   for (const k of editable) {
     if (k in body) {
@@ -355,11 +365,25 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (allowedFields.boletaManual === true) {
       const [prev] = await db.select({ boletaHoraActivacion: incidentes.boletaHoraActivacion })
         .from(incidentes).where(eq(incidentes.id, id))
-      if (!prev?.boletaHoraActivacion) {
+      if (!prev?.boletaHoraActivacion && !('boletaHoraActivacion' in allowedFields)) {
         allowedFields.boletaHoraActivacion = new Date()
       }
     } else if (allowedFields.boletaManual === false || allowedFields.boletaManual === null) {
       allowedFields.boletaHoraActivacion = null
+    }
+  }
+
+  // Prevalidar router externo ANTES de tocar el incidente para evitar inconsistencias
+  if (allowedFields.contActivadoPor && allowedFields.contEsExterno) {
+    const [prevIncR] = await db.select({ tiendaId: incidentes.tiendaId, routerExternoId: incidentes.routerExternoId })
+      .from(incidentes).where(eq(incidentes.id, id))
+    const routerIdCheck = allowedFields.routerExternoId ?? prevIncR?.routerExternoId
+    if (routerIdCheck) {
+      const [rCheck] = await db.select({ estado: routersExternos.estado, tiendaActualId: routersExternos.tiendaActualId })
+        .from(routersExternos).where(eq(routersExternos.id, routerIdCheck))
+      if (rCheck?.estado === 'EN_TIENDA_ACTIVO' && rCheck.tiendaActualId !== prevIncR?.tiendaId) {
+        return NextResponse.json({ error: 'Este router ya está activo en otro incidente. Debe desactivarse primero.' }, { status: 409 })
+      }
     }
   }
 
@@ -442,13 +466,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   // ── Gestión de estado del router externo ─────────────────────────────────
-  // Al activar contingencia externa → validar que no esté activo en otro incidente, luego EN_TIENDA_ACTIVO
+  // La validación de doble-activación ya se hizo arriba (antes del UPDATE) para evitar inconsistencias.
   if (allowedFields.contActivadoPor && allowedFields.contEsExterno && updated.routerExternoId) {
-    const [currentRouter] = await db.select({ estado: routersExternos.estado, tiendaActualId: routersExternos.tiendaActualId })
-      .from(routersExternos).where(eq(routersExternos.id, updated.routerExternoId))
-    if (currentRouter?.estado === 'EN_TIENDA_ACTIVO' && currentRouter.tiendaActualId !== updated.tiendaId) {
-      return NextResponse.json({ error: 'Este router ya está activo en otro incidente. Debe desactivarse primero.' }, { status: 409 })
-    }
     await db.update(routersExternos)
       .set({ estado: 'EN_TIENDA_ACTIVO', tiendaActualId: updated.tiendaId })
       .where(eq(routersExternos.id, updated.routerExternoId))
@@ -503,7 +522,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           AND cont_hora_desactivacion IS NULL
           AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
       `)
-      if (Number((rows[0] as any)?.cnt ?? 0) === 0) {
+      const contStdRows = await db.execute(sql`
+        SELECT COUNT(*)::int AS cnt FROM contingencias
+        WHERE tienda_id = ${updated.tiendaId} AND hora_desactivacion IS NULL
+      `)
+      if (Number((rows[0] as any)?.cnt ?? 0) + Number((contStdRows[0] as any)?.cnt ?? 0) === 0) {
         await db.update(tiendas)
           .set({ contingenciaActiva: false, contingenciaActivadaPor: null })
           .where(eq(tiendas.id, updated.tiendaId))
@@ -545,13 +568,18 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   // Si el incidente tenía contingencia router activa, limpiar flag de tienda
   // solo si no quedan otros incidentes abiertos con contingencia activa para esa tienda
   if (inc?.tiendaId && inc.contActivadoPor && !inc.contHoraDesactivacion) {
-    const [{ count }] = await db.execute<{ count: number }>(sql`
-      SELECT COUNT(*)::int AS count FROM incidentes
+    const [incRow] = await db.execute<{ cnt: number }>(sql`
+      SELECT COUNT(*)::int AS cnt FROM incidentes
       WHERE tienda_id = ${inc.tiendaId}
         AND cont_activado_por IS NOT NULL
         AND cont_hora_desactivacion IS NULL
+        AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
     `)
-    if (count === 0) {
+    const [stdRow] = await db.execute<{ cnt: number }>(sql`
+      SELECT COUNT(*)::int AS cnt FROM contingencias
+      WHERE tienda_id = ${inc.tiendaId} AND hora_desactivacion IS NULL
+    `)
+    if (Number((incRow as any)?.cnt ?? 0) + Number((stdRow as any)?.cnt ?? 0) === 0) {
       await db.update(tiendas)
         .set({ contingenciaActiva: false })
         .where(eq(tiendas.id, inc.tiendaId))

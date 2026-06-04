@@ -24,6 +24,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (router.estado === 'DISPONIBLE') {
     return NextResponse.json({ error: 'El router está en TI. Para activarlo, crea un incidente.' }, { status: 409 })
   }
+  if (router.estado === 'EN_TIENDA_ACTIVO') {
+    return NextResponse.json({ error: 'El router está activo en un incidente. Desactiva la contingencia antes de trasladarlo.' }, { status: 409 })
+  }
   if (router.tiendaActualId === tiendaDestinoId) {
     return NextResponse.json({ error: 'El router ya está en esa tienda' }, { status: 409 })
   }
@@ -34,21 +37,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const ahora  = new Date()
   const userId = (session.user as any)?.id ?? null
 
-  // Registrar traslado en historial (movimiento físico sin incidente)
-  await db.insert(routerHistorial).values({
-    routerId:        id,
-    tiendaId:        tiendaDestinoId,
-    fechaIngreso:    ahora,
-    accion:          'TRASLADO',
-    nota:            justificacion || null,
-    registradoPorId: userId,
+  const updated = await db.transaction(async (tx) => {
+    await tx.insert(routerHistorial).values({
+      routerId:        id,
+      tiendaId:        tiendaDestinoId,
+      fechaIngreso:    ahora,
+      accion:          'TRASLADO',
+      nota:            justificacion || null,
+      registradoPorId: userId,
+    })
+    const [u] = await tx.update(routersExternos)
+      .set({ estado: 'EN_TIENDA_INACTIVO', tiendaActualId: tiendaDestinoId })
+      .where(eq(routersExternos.id, id))
+      .returning()
+    return u
   })
-
-  // Actualizar router: EN_TIENDA_INACTIVO en nueva tienda
-  const [updated] = await db.update(routersExternos)
-    .set({ estado: 'EN_TIENDA_INACTIVO', tiendaActualId: tiendaDestinoId })
-    .where(eq(routersExternos.id, id))
-    .returning()
 
   return NextResponse.json(updated)
 }

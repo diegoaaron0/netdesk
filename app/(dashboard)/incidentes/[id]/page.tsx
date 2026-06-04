@@ -236,6 +236,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
       checkRenovarIp:      data.checkRenovarIp      ?? false,
       descartesDetallado:  data.descartesDetallado  ?? '',
       boletaManual:        data.boletaManual        ?? null,
+      boletaHoraActivacion: toDatetimeLocal(data.boletaHoraActivacion),
       ventaParcial:        data.ventaParcial        ?? null,
       cajasAfectadas:      data.cajasAfectadas      ?? null,
       cajasTotales:        data.cajasTotales        ?? null,
@@ -340,6 +341,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
     if ('movHoraActivacion'     in body) body.movHoraActivacion     = body.movHoraActivacion     ? fromDatetimeLocal(body.movHoraActivacion)     : null
     if ('contHoraDesactivacion' in body) body.contHoraDesactivacion = body.contHoraDesactivacion ? fromDatetimeLocal(body.contHoraDesactivacion) : null
     if ('movHoraDesactivacion'  in body) body.movHoraDesactivacion  = body.movHoraDesactivacion  ? fromDatetimeLocal(body.movHoraDesactivacion)  : null
+    if ('boletaHoraActivacion'  in body) body.boletaHoraActivacion  = body.boletaHoraActivacion  ? fromDatetimeLocal(body.boletaHoraActivacion)  : null
     // Factor operativo: EFECTIVO=100%, PARCIAL=75%, NULO=0% (más legacy)
     const rfUnif: Record<string, string> = {
       EFECTIVO: '1.00', PARCIAL: '0.75', NULO: '0.00',
@@ -1156,7 +1158,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
             {(editForm.estadoOperacion === 'BOLETA_MANUAL' || !!inc.boletaManual) && (() => {
               const rend = editForm.contRendimiento
               const rendLabel: Record<string,string> = { TOTAL:'Total', PARCIAL:'Parcial', NULO:'Nulo' }
-              const summary = [editForm.contHoraActivacion && 'Hora registrada', rend && rendLabel[rend]].filter(Boolean).join(' · ')
+              const summary = [editForm.boletaHoraActivacion && 'Hora registrada', rend && rendLabel[rend]].filter(Boolean).join(' · ')
               return (
                 <div style={{ border: '1px solid var(--border)', borderRadius: '10px', marginBottom: '14px', overflow: 'hidden' }}>
                   <button type="button" onClick={() => setShowBoletaBlock(v => !v)}
@@ -1171,7 +1173,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                     <div style={{ padding:'14px', background:'var(--muted)' }}>
                       <div style={{ marginBottom: '12px' }}>
                         <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Hora de activación manual</label>
-                        <input type="datetime-local" disabled={!canEditB} style={iStyle(!canEditB)} value={editForm.contHoraActivacion ?? ''} onChange={e => setEdit('contHoraActivacion', e.target.value)} />
+                        <input type="datetime-local" disabled={!canEditB} style={iStyle(!canEditB)} value={editForm.boletaHoraActivacion ?? ''} onChange={e => setEdit('boletaHoraActivacion', e.target.value)} />
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Rendimiento</label>
