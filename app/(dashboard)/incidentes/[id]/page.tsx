@@ -159,8 +159,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   const [tick, setTick]             = useState(0)
   const [historial, setHistorial]   = useState<any[]>([])
   const [editForm, setEditForm]     = useState<any>({})
-  const [routersDisponibles, setRoutersDisponibles] = useState<{ id: string; codigo: string }[]>([])
-  const [todosRouters, setTodosRouters] = useState<{ id: string; codigo: string }[]>([])
+  const [todosRouters, setTodosRouters] = useState<{ id: string; codigo: string; estado: string; tiendaActualId: string | null; tiendaCodigo: string | null; almacenActual: string | null }[]>([])
   const [saving, setSaving]         = useState(false)
   const [saveError, setSaveError]   = useState('')
   const [contNotice, setContNotice] = useState(false)
@@ -254,10 +253,16 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
       .then(r => r.json())
       .then((data: any) => {
         const rows = Array.isArray(data) ? data : []
-        setTodosRouters(rows.map((r: any) => ({ id: r.id, codigo: r.codigo })))
-        setRoutersDisponibles(rows.filter((r: any) => r.estado === 'DISPONIBLE').map((r: any) => ({ id: r.id, codigo: r.codigo })))
+        setTodosRouters(rows.map((r: any) => ({
+          id:            r.id,
+          codigo:        r.codigo,
+          estado:        r.estado,
+          tiendaActualId: r.tienda_actual_id ?? null,
+          tiendaCodigo:  r.tienda_codigo ?? null,
+          almacenActual: r.almacen_actual ?? null,
+        })))
       })
-      .catch(() => { setTodosRouters([]); setRoutersDisponibles([]) })
+      .catch(() => setTodosRouters([]))
   }, [])
   useEffect(() => {
     const id = setInterval(() => setTick(t => t + 1), 1000)
@@ -923,24 +928,51 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                       )}
 
                       {/* Selector de router externo — solo cuando contEsExterno y aún no activado */}
-                      {editForm.contEsExterno && !editForm.contActivadoPor && !contSellada && (
-                        <div style={{ marginBottom: '12px', padding: '8px 12px', background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: '8px' }}>
-                          <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Router externo a utilizar</label>
-                          <select
-                            disabled={contDis}
-                            value={editForm.routerExternoId ?? ''}
-                            onChange={e => setEdit('routerExternoId', e.target.value || null)}
-                            style={{ width: '100%', padding: '6px 9px', fontSize: '12px', border: '0.5px solid #FCD34D', borderRadius: '6px', background: 'white', color: '#92400E', fontFamily: 'monospace', fontWeight: 600 }}>
-                            <option value="">— Seleccionar router —</option>
-                            {routersDisponibles.map(r => (
-                              <option key={r.id} value={r.id}>{r.codigo}</option>
-                            ))}
-                          </select>
-                          {routersDisponibles.length === 0 && (
-                            <div style={{ fontSize: '10px', color: '#92400E', marginTop: '4px', opacity: 0.8 }}>Sin routers disponibles en TI</div>
-                          )}
-                        </div>
-                      )}
+                      {editForm.contEsExterno && !editForm.contActivadoPor && !contSellada && (() => {
+                        const enEstaTienda = todosRouters.filter(r => r.estado === 'EN_TIENDA_INACTIVO' && r.tiendaActualId === inc?.tiendaId)
+                        const enUso        = todosRouters.filter(r => r.estado === 'EN_TIENDA_ACTIVO')
+                        const otrosLugares = todosRouters.filter(r => r.estado !== 'EN_TIENDA_ACTIVO' && !(r.estado === 'EN_TIENDA_INACTIVO' && r.tiendaActualId === inc?.tiendaId))
+                        return (
+                          <div style={{ marginBottom: '12px', padding: '8px 12px', background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: '8px' }}>
+                            <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Router externo a utilizar</label>
+                            <select
+                              disabled={contDis}
+                              value={editForm.routerExternoId ?? ''}
+                              onChange={e => setEdit('routerExternoId', e.target.value || null)}
+                              style={{ width: '100%', padding: '6px 9px', fontSize: '12px', border: '0.5px solid #FCD34D', borderRadius: '6px', background: 'white', color: '#92400E', fontFamily: 'monospace', fontWeight: 600 }}>
+                              <option value="">— Seleccionar router —</option>
+                              {enEstaTienda.length > 0 && (
+                                <optgroup label={`En esta tienda — disponibles (${enEstaTienda.length})`}>
+                                  {enEstaTienda.map(r => (
+                                    <option key={r.id} value={r.id}>{r.codigo}</option>
+                                  ))}
+                                </optgroup>
+                              )}
+                              {enUso.length > 0 && (
+                                <optgroup label="En uso en otro incidente">
+                                  {enUso.map(r => (
+                                    <option key={r.id} value={r.id} disabled>{r.codigo} — {r.tiendaCodigo ?? 'en tienda'} (activo)</option>
+                                  ))}
+                                </optgroup>
+                              )}
+                              {otrosLugares.length > 0 && (
+                                <optgroup label="En almacén u otra tienda">
+                                  {otrosLugares.map(r => (
+                                    <option key={r.id} value={r.id} disabled>
+                                      {r.codigo} — {r.estado === 'DISPONIBLE' ? (r.almacenActual ?? 'Almacén TI') : `${r.tiendaCodigo ?? 'otra tienda'} (inactivo)`}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              )}
+                            </select>
+                            {enEstaTienda.length === 0 && (
+                              <div style={{ fontSize: '10px', color: '#92400E', marginTop: '4px', opacity: 0.8 }}>
+                                Sin routers en esta tienda. Primero despliega un router desde Routers Contingencia TI.
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })()}
                       {/* Router asignado (read-only cuando ya está activado) */}
                       {editForm.contEsExterno && editForm.contActivadoPor && inc?.routerExternoId && (
                         <div style={{ marginBottom: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: '6px' }}>

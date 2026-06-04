@@ -22,6 +22,8 @@ export async function GET() {
         r.activo,
         r.creado_en,
         r.tienda_actual_id,
+        r.fotos,
+        r.almacen_actual,
         t.codigo    AS tienda_codigo,
         t.nombre_cc AS tienda_nombre,
         t.distrito  AS tienda_distrito,

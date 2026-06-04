@@ -1,6 +1,8 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 
+const ALMACENES = ['Almacén Vulcano', 'Almacén Jiron']
+
 function fmtMin(min: number): string {
   if (!min || min < 0) return '0m'
   const h = Math.floor(min / 60); const m = min % 60
@@ -13,26 +15,40 @@ function fmtFecha(d: string | null): string {
 }
 
 const ESTADO_BADGE: Record<string, { label: string; bg: string; color: string }> = {
-  DISPONIBLE:         { label: 'Disponible',     bg: '#DCFCE7', color: '#166534' },
-  EN_TIENDA_ACTIVO:   { label: 'Activo',         bg: '#FEF3C7', color: '#92400E' },
-  EN_TIENDA_INACTIVO: { label: 'En tienda',      bg: '#E0E7FF', color: '#3730A3' },
+  DISPONIBLE:         { label: 'Disponible',  bg: '#DCFCE7', color: '#166534' },
+  EN_TIENDA_ACTIVO:   { label: 'Activo',      bg: '#FEF3C7', color: '#92400E' },
+  EN_TIENDA_INACTIVO: { label: 'En tienda',   bg: '#E0E7FF', color: '#3730A3' },
+}
+
+const ACCION_BADGE: Record<string, { bg: string; color: string }> = {
+  'DESPLIEGUE': { bg: '#E0E7FF', color: '#3730A3' },
+  'ACTIVACIÓN': { bg: '#FEF3C7', color: '#92400E' },
+  'TRASLADO':   { bg: '#F3E8FF', color: '#6B21A8' },
+  'RETORNO':    { bg: '#DCFCE7', color: '#166534' },
 }
 
 // ── Modal: historial + edición de un router ───────────────────────────────────
 function HistorialModal({ router, onClose, onSaved }: { router: any; onClose: () => void; onSaved: () => void }) {
-  const [detail, setDetail]   = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [editing, setEditing] = useState(false)
-  const [form, setForm]       = useState<any>({})
-  const [saving, setSaving]   = useState(false)
-  const [saved, setSaved]     = useState(false)
+  const [detail, setDetail]     = useState<any>(null)
+  const [loading, setLoading]   = useState(true)
+  const [editing, setEditing]   = useState(false)
+  const [form, setForm]         = useState<any>({})
+  const [saving, setSaving]     = useState(false)
+  const [saved, setSaved]       = useState(false)
+  const [nuevaFoto, setNuevaFoto] = useState('')
+  const [addingFoto, setAddingFoto] = useState(false)
 
-  useEffect(() => {
+  const fetchDetail = useCallback(() => {
     fetch(`/api/routers-externos/${router.id}`)
       .then(r => r.json())
-      .then(d => { setDetail(d); setForm({ ip: d.ip ?? '', password: d.password ?? '', chip: d.chip ?? '', plan: d.plan ?? '', tipoConexion: d.tipo_conexion ?? '' }) })
+      .then(d => {
+        setDetail(d)
+        setForm({ ip: d.ip ?? '', password: d.password ?? '', chip: d.chip ?? '', plan: d.plan ?? '', tipoConexion: d.tipo_conexion ?? '' })
+      })
       .finally(() => setLoading(false))
   }, [router.id])
+
+  useEffect(() => { fetchDetail() }, [fetchDetail])
 
   async function guardar() {
     setSaving(true)
@@ -44,11 +60,30 @@ function HistorialModal({ router, onClose, onSaved }: { router: any; onClose: ()
     setSaving(false)
   }
 
+  async function agregarFoto() {
+    if (!nuevaFoto.trim()) return
+    const fotos = [...(detail.fotos ?? []), nuevaFoto.trim()]
+    const res = await fetch(`/api/routers-externos/${router.id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fotos }),
+    })
+    if (res.ok) { setNuevaFoto(''); setAddingFoto(false); fetchDetail() }
+  }
+
+  async function eliminarFoto(url: string) {
+    const fotos = (detail.fotos ?? []).filter((f: string) => f !== url)
+    await fetch(`/api/routers-externos/${router.id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fotos }),
+    })
+    fetchDetail()
+  }
+
   const inp: React.CSSProperties = { width: '100%', padding: '6px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--background)', fontFamily: 'monospace', boxSizing: 'border-box' }
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.45)' }} onClick={onClose}>
-      <div style={{ background: 'var(--card)', borderRadius: '14px', padding: '24px', width: '640px', maxHeight: '80vh', overflow: 'auto', boxShadow: '0 8px 40px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
+      <div style={{ background: 'var(--card)', borderRadius: '14px', padding: '24px', width: '680px', maxHeight: '85vh', overflow: 'auto', boxShadow: '0 8px 40px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <div style={{ fontSize: '14px', fontWeight: 700 }}>{router.codigo}</div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -63,17 +98,18 @@ function HistorialModal({ router, onClose, onSaved }: { router: any; onClose: ()
             <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--muted-foreground)' }}>✕</button>
           </div>
         </div>
+
         {loading ? (
           <div style={{ padding: '32px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Cargando...</div>
         ) : (
           <>
-            {/* Campos del router — lectura o edición */}
+            {/* Campos del router */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px', padding: '12px', background: 'var(--muted)', borderRadius: '8px' }}>
               {([['IP', 'ip'], ['Chip/SIM', 'chip'], ['Plan', 'plan'], ['Tipo conexión', 'tipoConexion'], ['Contraseña', 'password']] as [string, string][]).map(([label, key]) => (
                 <div key={key}>
                   <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: editing ? '4px' : '2px' }}>{label}</div>
                   {editing
-                    ? <input value={form[key] ?? ''} onChange={e => setForm((f: any) => ({ ...f, [key]: e.target.value }))} style={inp} placeholder={`Ej: ${key === 'ip' ? '192.168.1.1' : key === 'password' ? 'admin123' : '…'}`} />
+                    ? <input value={form[key] ?? ''} onChange={e => setForm((f: any) => ({ ...f, [key]: e.target.value }))} style={inp} placeholder={`Ej: ${key === 'ip' ? '192.168.1.1' : '…'}`} />
                     : <div style={{ fontSize: '11px', fontWeight: 600, fontFamily: 'monospace' }}>{(detail[key === 'tipoConexion' ? 'tipo_conexion' : key]) || '—'}</div>
                   }
                 </div>
@@ -81,51 +117,87 @@ function HistorialModal({ router, onClose, onSaved }: { router: any; onClose: ()
             </div>
 
             {/* Fotos */}
-            {detail.fotos?.length > 0 && (
-              <div style={{ marginBottom: '14px' }}>
-                <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Fotos del equipo</div>
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Fotos del equipo</div>
+                {!addingFoto && (
+                  <button onClick={() => setAddingFoto(true)} style={{ padding: '3px 10px', fontSize: '10px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '5px', cursor: 'pointer', fontWeight: 500 }}>
+                    + Agregar foto
+                  </button>
+                )}
+              </div>
+
+              {addingFoto && (
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
+                  <input
+                    value={nuevaFoto} onChange={e => setNuevaFoto(e.target.value)}
+                    placeholder="https://... URL de la foto"
+                    autoFocus
+                    style={{ flex: 1, padding: '6px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--background)', boxSizing: 'border-box' }}
+                  />
+                  <button onClick={agregarFoto} disabled={!nuevaFoto.trim()} style={{ padding: '6px 12px', fontSize: '11px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, opacity: !nuevaFoto.trim() ? 0.5 : 1 }}>Guardar</button>
+                  <button onClick={() => { setAddingFoto(false); setNuevaFoto('') }} style={{ padding: '6px 10px', fontSize: '11px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '6px', cursor: 'pointer' }}>✕</button>
+                </div>
+              )}
+
+              {detail.fotos?.length > 0 ? (
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  {detail.fotos.map((f: any) => (
-                    <a key={f.id} href={f.url} target="_blank" rel="noopener noreferrer"
-                      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', padding: '6px 10px', background: 'var(--muted)', borderRadius: '6px', border: '0.5px solid var(--border)', textDecoration: 'none', color: 'var(--foreground)' }}>
-                      <span style={{ fontSize: '18px' }}>🖼</span>
-                      <span style={{ fontSize: '9px' }}>{f.descripcion || 'Foto'}</span>
-                    </a>
+                  {detail.fotos.map((url: string, i: number) => (
+                    <div key={i} style={{ position: 'relative' }}>
+                      <a href={url} target="_blank" rel="noopener noreferrer">
+                        <img src={url} alt={`Foto ${i + 1}`} style={{ width: '80px', height: '60px', objectFit: 'cover', borderRadius: '6px', border: '0.5px solid var(--border)', display: 'block' }}
+                          onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                      </a>
+                      <button
+                        onClick={() => eliminarFoto(url)}
+                        style={{ position: 'absolute', top: '-4px', right: '-4px', width: '16px', height: '16px', borderRadius: '50%', background: '#B91C1C', color: 'white', border: 'none', fontSize: '9px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
+                        ✕
+                      </button>
+                    </div>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Sin fotos registradas</div>
+              )}
+            </div>
 
             {/* Historial tabla */}
-            <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Historial de despliegues</div>
+            <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Historial</div>
             {!detail.historial?.length ? (
               <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Sin historial registrado</div>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
                 <thead>
                   <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
-                    {['Acción', 'Tienda', 'Ingreso', 'Retorno', 'Duración', 'Nota'].map(h => (
+                    {['Evento', 'Tienda', 'Ingreso', 'Activación', 'Desactivación', 'Duración', 'Ubicación'].map(h => (
                       <th key={h} style={{ padding: '5px 6px', textAlign: 'left', fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {detail.historial.map((h: any, i: number) => (
-                    <tr key={h.id} style={{ borderTop: i > 0 ? '0.5px solid var(--border)' : 'none' }}>
-                      <td style={{ padding: '5px 6px' }}>
-                        <span style={{ padding: '1px 6px', borderRadius: '999px', fontSize: '9px', fontWeight: 600,
-                          background: h.accion === 'DESPLIEGUE' ? '#FEF3C7' : h.accion === 'RETORNO' ? '#DCFCE7' : '#E0E7FF',
-                          color: h.accion === 'DESPLIEGUE' ? '#92400E' : h.accion === 'RETORNO' ? '#166534' : '#3730A3' }}>
-                          {h.accion}
-                        </span>
-                      </td>
-                      <td style={{ padding: '5px 6px', fontWeight: 600 }}>{h.tienda_codigo}</td>
-                      <td style={{ padding: '5px 6px', fontSize: '10px' }}>{fmtFecha(h.fecha_ingreso)}</td>
-                      <td style={{ padding: '5px 6px', fontSize: '10px' }}>{h.fecha_retorno ? fmtFecha(h.fecha_retorno) : <span style={{ color: 'var(--muted-foreground)' }}>activo</span>}</td>
-                      <td style={{ padding: '5px 6px', fontFamily: 'monospace' }}>{h.tiempo_uso_min ? fmtMin(h.tiempo_uso_min) : '—'}</td>
-                      <td style={{ padding: '5px 6px', fontSize: '10px', color: 'var(--muted-foreground)' }}>{h.nota || '—'}</td>
-                    </tr>
-                  ))}
+                  {detail.historial.map((h: any, i: number) => {
+                    const badgeStyle = ACCION_BADGE[h.accion] ?? { bg: '#F3F4F6', color: '#374151' }
+                    const ubicacion = h.almacen_destino
+                      ? h.almacen_destino
+                      : h.almacen_origen
+                        ? `${h.tienda_codigo ?? '—'} (desde ${h.almacen_origen})`
+                        : h.tienda_codigo ?? '—'
+                    return (
+                      <tr key={i} style={{ borderTop: i > 0 ? '0.5px solid var(--border)' : 'none' }}>
+                        <td style={{ padding: '5px 6px' }}>
+                          <span style={{ padding: '1px 6px', borderRadius: '999px', fontSize: '9px', fontWeight: 600, background: badgeStyle.bg, color: badgeStyle.color }}>
+                            {h.accion}
+                          </span>
+                        </td>
+                        <td style={{ padding: '5px 6px', fontWeight: 600 }}>{h.tienda_codigo ?? '—'}</td>
+                        <td style={{ padding: '5px 6px', fontSize: '10px' }}>{fmtFecha(h.fecha_ingreso)}</td>
+                        <td style={{ padding: '5px 6px', fontSize: '10px' }}>{h.accion === 'ACTIVACIÓN' ? fmtFecha(h.fecha_ingreso) : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}</td>
+                        <td style={{ padding: '5px 6px', fontSize: '10px' }}>{h.accion === 'ACTIVACIÓN' ? fmtFecha(h.fecha_retorno) : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}</td>
+                        <td style={{ padding: '5px 6px', fontFamily: 'monospace' }}>{h.tiempo_uso_min ? fmtMin(h.tiempo_uso_min) : '—'}</td>
+                        <td style={{ padding: '5px 6px', fontSize: '10px', color: 'var(--muted-foreground)' }}>{ubicacion}</td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             )}
@@ -136,17 +208,85 @@ function HistorialModal({ router, onClose, onSaved }: { router: any; onClose: ()
   )
 }
 
-// ── Modal: retorno ─────────────────────────────────────────────────────────────
-function RetornoModal({ router, onClose, onDone }: { router: any; onClose: () => void; onDone: () => void }) {
-  const [nota, setNota] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [ok, setOk] = useState(false)
+// ── Modal: despliegue (DISPONIBLE → tienda) ───────────────────────────────────
+function DespliegueModal({ router, onClose, onDone }: { router: any; onClose: () => void; onDone: () => void }) {
+  const [tiendas, setTiendas]       = useState<any[]>([])
+  const [tiendaId, setTiendaId]     = useState('')
+  const [nota, setNota]             = useState('')
+  const [saving, setSaving]         = useState(false)
+  const [ok, setOk]                 = useState(false)
+  const [error, setError]           = useState('')
+
+  useEffect(() => {
+    fetch('/api/tiendas')
+      .then(r => r.json())
+      .then(data => setTiendas(Array.isArray(data) ? data : []))
+      .catch(() => setTiendas([]))
+  }, [])
 
   async function confirmar() {
+    if (!tiendaId) return
+    setSaving(true); setError('')
+    const res = await fetch(`/api/routers-externos/${router.id}/despliegue`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tiendaId, nota }),
+    })
+    if (res.ok) { setOk(true); setTimeout(() => { onClose(); onDone() }, 1200) }
+    else {
+      const data = await res.json().catch(() => ({}))
+      setError(data.error ?? 'Error al desplegar')
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.45)' }} onClick={onClose}>
+      <div style={{ background: 'var(--card)', borderRadius: '14px', padding: '24px', width: '400px' }} onClick={e => e.stopPropagation()}>
+        <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>Desplegar {router.codigo} a tienda</div>
+        {ok ? (
+          <div style={{ textAlign: 'center', color: '#3730A3', fontWeight: 600, padding: '16px 0' }}>✓ Router desplegado en tienda</div>
+        ) : (
+          <>
+            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '12px' }}>
+              El router quedará en la tienda como inactivo. Para activarlo deberás crear un incidente y seleccionarlo ahí.
+            </div>
+            <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '4px' }}>Tienda destino</label>
+            <select value={tiendaId} onChange={e => setTiendaId(e.target.value)}
+              style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--background)', marginBottom: '12px', boxSizing: 'border-box' }}>
+              <option value="">— Seleccionar —</option>
+              {tiendas.map((t: any) => <option key={t.id} value={t.id}>{t.codigo} — {t.nombre_cc}</option>)}
+            </select>
+            <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '4px' }}>Nota (opcional)</label>
+            <input value={nota} onChange={e => setNota(e.target.value)} placeholder="Motivo del despliegue"
+              style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--background)', boxSizing: 'border-box', marginBottom: '16px' }} />
+            {error && <div style={{ fontSize: '11px', color: '#b91c1c', background: '#fee2e2', borderRadius: '6px', padding: '6px 10px', marginBottom: '12px' }}>{error}</div>}
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button onClick={onClose} style={{ padding: '7px 16px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={confirmar} disabled={saving || !tiendaId}
+                style={{ padding: '7px 16px', fontSize: '12px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: 600, opacity: saving || !tiendaId ? 0.6 : 1 }}>
+                {saving ? 'Desplegando...' : 'Confirmar despliegue'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Modal: retorno ─────────────────────────────────────────────────────────────
+function RetornoModal({ router, onClose, onDone }: { router: any; onClose: () => void; onDone: () => void }) {
+  const [almacen, setAlmacen]   = useState('')
+  const [nota, setNota]         = useState('')
+  const [saving, setSaving]     = useState(false)
+  const [ok, setOk]             = useState(false)
+
+  async function confirmar() {
+    if (!almacen) return
     setSaving(true)
     const res = await fetch(`/api/routers-externos/${router.id}/retorno`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nota }),
+      body: JSON.stringify({ almacenDestino: almacen, nota }),
     })
     if (res.ok) { setOk(true); setTimeout(() => { onClose(); onDone() }, 1200) }
     else setSaving(false)
@@ -157,19 +297,28 @@ function RetornoModal({ router, onClose, onDone }: { router: any; onClose: () =>
       <div style={{ background: 'var(--card)', borderRadius: '14px', padding: '24px', width: '380px' }} onClick={e => e.stopPropagation()}>
         <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>Marcar retorno — {router.codigo}</div>
         {ok ? (
-          <div style={{ textAlign: 'center', color: '#166534', fontWeight: 600, padding: '16px 0' }}>✓ Router marcado como disponible en TI</div>
+          <div style={{ textAlign: 'center', color: '#166534', fontWeight: 600, padding: '16px 0' }}>✓ Router marcado como disponible en {almacen}</div>
         ) : (
           <>
             <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '12px' }}>
-              El router volverá a estar disponible. Se sellará el tiempo de uso en {router.tienda_codigo || 'la tienda'}.
+              Selecciona el almacén al que regresa el equipo.
+            </div>
+            <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '6px' }}>Almacén destino</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
+              {ALMACENES.map(a => (
+                <button key={a} onClick={() => setAlmacen(a)}
+                  style={{ padding: '9px 14px', fontSize: '12px', textAlign: 'left', border: almacen === a ? '2px solid hsl(221,83%,23%)' : '0.5px solid var(--border)', borderRadius: '8px', background: almacen === a ? 'hsl(221,83%,95%)' : 'var(--muted)', cursor: 'pointer', fontWeight: almacen === a ? 700 : 400, color: almacen === a ? 'hsl(221,83%,23%)' : 'var(--foreground)' }}>
+                  {a}
+                </button>
+              ))}
             </div>
             <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '4px' }}>Nota (opcional)</label>
             <input value={nota} onChange={e => setNota(e.target.value)} placeholder="Ej: Proveedor restableció fibra, se retiró equipo"
               style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--background)', boxSizing: 'border-box', marginBottom: '16px' }} />
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button onClick={onClose} style={{ padding: '7px 16px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', cursor: 'pointer' }}>Cancelar</button>
-              <button onClick={confirmar} disabled={saving}
-                style={{ padding: '7px 16px', fontSize: '12px', background: '#166534', color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: 600, opacity: saving ? 0.6 : 1 }}>
+              <button onClick={confirmar} disabled={saving || !almacen}
+                style={{ padding: '7px 16px', fontSize: '12px', background: '#166534', color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: 600, opacity: saving || !almacen ? 0.6 : 1 }}>
                 {saving ? 'Guardando...' : 'Confirmar retorno'}
               </button>
             </div>
@@ -182,12 +331,12 @@ function RetornoModal({ router, onClose, onDone }: { router: any; onClose: () =>
 
 // ── Modal: traslado ────────────────────────────────────────────────────────────
 function TrasladoModal({ router, onClose, onDone }: { router: any; onClose: () => void; onDone: () => void }) {
-  const [tiendas, setTiendas] = useState<any[]>([])
-  const [tiendaId, setTiendaId] = useState('')
+  const [tiendas, setTiendas]         = useState<any[]>([])
+  const [tiendaId, setTiendaId]       = useState('')
   const [justificacion, setJustificacion] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [ok, setOk] = useState(false)
-  const [error, setError] = useState('')
+  const [saving, setSaving]           = useState(false)
+  const [ok, setOk]                   = useState(false)
+  const [error, setError]             = useState('')
 
   useEffect(() => {
     fetch('/api/tiendas')
@@ -248,14 +397,15 @@ function TrasladoModal({ router, onClose, onDone }: { router: any; onClose: () =
 
 // ── Componente principal ───────────────────────────────────────────────────────
 export default function RoutersContingenciaTI() {
-  const [routers, setRouters]         = useState<any[]>([])
-  const [loading, setLoading]         = useState(true)
-  const [historialRouter, setHistorialRouter] = useState<any | null>(null)
-  const [retornoRouter, setRetornoRouter]     = useState<any | null>(null)
-  const [trasladoRouter, setTrasladoRouter]   = useState<any | null>(null)
-  const [addOpen, setAddOpen]         = useState(false)
-  const [newCodigo, setNewCodigo]     = useState('')
-  const [saving, setSaving]           = useState(false)
+  const [routers, setRouters]             = useState<any[]>([])
+  const [loading, setLoading]             = useState(true)
+  const [historialRouter, setHistorialRouter]   = useState<any | null>(null)
+  const [retornoRouter, setRetornoRouter]       = useState<any | null>(null)
+  const [trasladoRouter, setTrasladoRouter]     = useState<any | null>(null)
+  const [despliegueRouter, setDespliegueRouter] = useState<any | null>(null)
+  const [addOpen, setAddOpen]             = useState(false)
+  const [newCodigo, setNewCodigo]         = useState('')
+  const [saving, setSaving]               = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<any | null>(null)
 
   const fetchRouters = useCallback(() => {
@@ -289,8 +439,8 @@ export default function RoutersContingenciaTI() {
     }
   }
 
-  const disponibles  = routers.filter(r => r.estado === 'DISPONIBLE')
-  const enUso        = routers.filter(r => r.estado !== 'DISPONIBLE')
+  const disponibles = routers.filter(r => r.estado === 'DISPONIBLE')
+  const enUso       = routers.filter(r => r.estado !== 'DISPONIBLE')
 
   return (
     <div>
@@ -316,10 +466,21 @@ export default function RoutersContingenciaTI() {
             <div style={{ padding: '48px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>No hay routers registrados</div>
           )}
           {routers.map(r => {
-            const badge = ESTADO_BADGE[r.estado] ?? ESTADO_BADGE.DISPONIBLE
+            const badge      = ESTADO_BADGE[r.estado] ?? ESTADO_BADGE.DISPONIBLE
             const tiempoTotal = Number(r.tiempo_total_min ?? 0)
+            const fotoUrl    = r.fotos?.[0] ?? null
             return (
               <div key={r.id} style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {/* Foto miniatura */}
+                {fotoUrl ? (
+                  <img src={fotoUrl} alt={r.codigo} style={{ width: '44px', height: '34px', objectFit: 'cover', borderRadius: '5px', border: '0.5px solid var(--border)', flexShrink: 0 }}
+                    onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                ) : (
+                  <div style={{ width: '44px', height: '34px', borderRadius: '5px', border: '0.5px solid var(--border)', background: 'var(--muted)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', color: 'var(--muted-foreground)' }}>
+                    📷
+                  </div>
+                )}
+
                 {/* Código + estado */}
                 <div style={{ minWidth: '80px' }}>
                   <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '14px' }}>{r.codigo}</div>
@@ -338,7 +499,9 @@ export default function RoutersContingenciaTI() {
                       </div>
                     </>
                   ) : (
-                    <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>En área TI</div>
+                    <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
+                      {r.almacen_actual ?? 'En área TI'}
+                    </div>
                   )}
                 </div>
 
@@ -356,23 +519,29 @@ export default function RoutersContingenciaTI() {
                     style={{ padding: '4px 10px', fontSize: '10px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '5px', cursor: 'pointer', fontWeight: 500 }}>
                     Historial
                   </button>
-                  {r.estado !== 'DISPONIBLE' && (
+                  {r.estado === 'DISPONIBLE' && (
+                    <>
+                      <button onClick={() => setDespliegueRouter(r)}
+                        style={{ padding: '4px 10px', fontSize: '10px', background: '#E0E7FF', border: '0.5px solid #A5B4FC', borderRadius: '5px', cursor: 'pointer', fontWeight: 600, color: '#3730A3' }}>
+                        Desplegar
+                      </button>
+                      <button onClick={() => setDeleteConfirm(r)}
+                        style={{ padding: '4px 10px', fontSize: '10px', background: '#FEE2E2', border: '0.5px solid #FCA5A5', borderRadius: '5px', cursor: 'pointer', fontWeight: 500, color: '#B91C1C' }}>
+                        Eliminar
+                      </button>
+                    </>
+                  )}
+                  {r.estado === 'EN_TIENDA_INACTIVO' && (
                     <>
                       <button onClick={() => setRetornoRouter(r)}
                         style={{ padding: '4px 10px', fontSize: '10px', background: '#DCFCE7', border: '0.5px solid #86EFAC', borderRadius: '5px', cursor: 'pointer', fontWeight: 600, color: '#166534' }}>
                         Retorno
                       </button>
                       <button onClick={() => setTrasladoRouter(r)}
-                        style={{ padding: '4px 10px', fontSize: '10px', background: '#E0E7FF', border: '0.5px solid #A5B4FC', borderRadius: '5px', cursor: 'pointer', fontWeight: 600, color: '#3730A3' }}>
+                        style={{ padding: '4px 10px', fontSize: '10px', background: '#F3E8FF', border: '0.5px solid #D8B4FE', borderRadius: '5px', cursor: 'pointer', fontWeight: 600, color: '#6B21A8' }}>
                         Traslado
                       </button>
                     </>
-                  )}
-                  {r.estado === 'DISPONIBLE' && (
-                    <button onClick={() => setDeleteConfirm(r)}
-                      style={{ padding: '4px 10px', fontSize: '10px', background: '#FEE2E2', border: '0.5px solid #FCA5A5', borderRadius: '5px', cursor: 'pointer', fontWeight: 500, color: '#B91C1C' }}>
-                      Eliminar
-                    </button>
                   )}
                 </div>
               </div>
@@ -391,7 +560,7 @@ export default function RoutersContingenciaTI() {
               placeholder="RE-003" autoFocus
               style={{ width: '100%', padding: '8px 10px', fontSize: '13px', fontFamily: 'monospace', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--background)', boxSizing: 'border-box', marginBottom: '6px' }} />
             <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '16px' }}>
-              Los demás campos (IP, chip, plan, etc.) se pueden completar después desde el historial.
+              Los demás campos (IP, chip, plan, fotos, etc.) se pueden completar después desde el historial.
             </div>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button onClick={() => setAddOpen(false)} style={{ padding: '7px 16px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', cursor: 'pointer' }}>Cancelar</button>
@@ -421,9 +590,10 @@ export default function RoutersContingenciaTI() {
         </div>
       )}
 
-      {historialRouter && <HistorialModal router={historialRouter} onClose={() => setHistorialRouter(null)} onSaved={fetchRouters} />}
-      {retornoRouter   && <RetornoModal   router={retornoRouter}   onClose={() => setRetornoRouter(null)}   onDone={fetchRouters} />}
-      {trasladoRouter  && <TrasladoModal  router={trasladoRouter}  onClose={() => setTrasladoRouter(null)}  onDone={fetchRouters} />}
+      {historialRouter  && <HistorialModal  router={historialRouter}  onClose={() => setHistorialRouter(null)}  onSaved={fetchRouters} />}
+      {retornoRouter    && <RetornoModal    router={retornoRouter}    onClose={() => setRetornoRouter(null)}    onDone={fetchRouters} />}
+      {trasladoRouter   && <TrasladoModal   router={trasladoRouter}   onClose={() => setTrasladoRouter(null)}   onDone={fetchRouters} />}
+      {despliegueRouter && <DespliegueModal router={despliegueRouter} onClose={() => setDespliegueRouter(null)} onDone={fetchRouters} />}
     </div>
   )
 }

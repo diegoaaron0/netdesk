@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { routersExternos, adjuntos } from '@/drizzle/schema'
+import { routersExternos } from '@/drizzle/schema'
 import { eq, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 
@@ -12,19 +12,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const [router] = await db.select().from(routersExternos).where(eq(routersExternos.id, id))
   if (!router) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
-  const fotos = await db.select({
-    id:          adjuntos.id,
-    url:         adjuntos.url,
-    nombre:      adjuntos.nombre,
-    descripcion: adjuntos.contexto,
-    tamanoBytes: adjuntos.tamanoBytes,
-    creadoEn:    adjuntos.creadoEn,
-  }).from(adjuntos).where(eq(adjuntos.routerExternoId, id))
-
-  // Historial combinado: despliegues desde incidentes + retornos/traslados desde router_historial
+  // Historial combinado: activaciones desde incidentes + movimientos físicos desde router_historial
   const historial = await db.execute(sql`
     SELECT
-      'DESPLIEGUE'               AS accion,
+      'ACTIVACIÓN'               AS accion,
       t.codigo                   AS tienda_codigo,
       t.nombre_cc                AS tienda_nombre,
       i.cont_hora_activacion     AS fecha_ingreso,
@@ -35,7 +26,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         ELSE ROUND(EXTRACT(EPOCH FROM (NOW() - i.cont_hora_activacion)) / 60)::int
       END                        AS tiempo_uso_min,
       i.cont_rendimiento         AS nota,
-      i.codigo                   AS incidente_codigo
+      i.codigo                   AS incidente_codigo,
+      NULL                       AS almacen_origen,
+      NULL                       AS almacen_destino
     FROM incidentes i
     JOIN tiendas t ON i.tienda_id = t.id
     WHERE i.router_externo_id = ${id}
@@ -45,21 +38,23 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
     SELECT
       h.accion,
-      t.codigo        AS tienda_codigo,
-      t.nombre_cc     AS tienda_nombre,
+      t.codigo                   AS tienda_codigo,
+      t.nombre_cc                AS tienda_nombre,
       h.fecha_ingreso,
       h.fecha_retorno,
       h.tiempo_uso_min,
       h.nota,
-      NULL            AS incidente_codigo
+      NULL                       AS incidente_codigo,
+      h.almacen_origen,
+      h.almacen_destino
     FROM router_historial h
-    JOIN tiendas t ON h.tienda_id = t.id
+    LEFT JOIN tiendas t ON h.tienda_id = t.id
     WHERE h.router_id = ${id}
 
-    ORDER BY fecha_ingreso DESC
+    ORDER BY fecha_ingreso DESC NULLS LAST
   `)
 
-  return NextResponse.json({ ...router, fotos, historial: Array.from(historial as any[]) })
+  return NextResponse.json({ ...router, historial: Array.from(historial as any[]) })
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -69,7 +64,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const body = await req.json()
   const patch: Record<string, any> = {}
-  const allowed = ['ip', 'password', 'chip', 'plan', 'tipoConexion', 'codigo']
+  const allowed = ['ip', 'password', 'chip', 'plan', 'tipoConexion', 'codigo', 'fotos']
   for (const k of allowed) {
     if (k in body) patch[k] = body[k] ?? null
   }
