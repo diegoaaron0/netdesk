@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { incidentes, tiendas } from '@/drizzle/schema'
+import { incidentes, tiendas, routersExternos } from '@/drizzle/schema'
 import { eq, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
@@ -21,6 +21,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     tiendaId:           incidentes.tiendaId,
     contActivadoPor:    incidentes.contActivadoPor,
     tiempoAcumuladoMin: incidentes.tiempoAcumuladoMin,
+    routerExternoId:    incidentes.routerExternoId,
   }).from(incidentes).where(eq(incidentes.id, id))
   if (!inc) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
@@ -53,6 +54,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       await db.update(tiendas)
         .set({ contingenciaActiva: false, contingenciaActivadaPor: null })
         .where(eq(tiendas.id, inc.tiendaId))
+    }
+  }
+
+  // Router externo: al resolver → EN_TIENDA_INACTIVO (físicamente sigue en tienda)
+  if (inc.routerExternoId) {
+    const [router] = await db.select({ estado: routersExternos.estado })
+      .from(routersExternos).where(eq(routersExternos.id, inc.routerExternoId))
+    if (router?.estado === 'EN_TIENDA_ACTIVO') {
+      await db.update(routersExternos)
+        .set({ estado: 'EN_TIENDA_INACTIVO' })
+        .where(eq(routersExternos.id, inc.routerExternoId))
+      await db.execute(sql`
+        UPDATE router_historial
+        SET fecha_retorno = ${horaFin.toISOString()}::timestamptz,
+            tiempo_uso_min = ROUND(EXTRACT(EPOCH FROM (${horaFin.toISOString()}::timestamptz - fecha_ingreso)) / 60)::int
+        WHERE router_id = ${inc.routerExternoId}
+          AND fecha_retorno IS NULL AND accion = 'DESPLIEGUE'
+      `)
     }
   }
 

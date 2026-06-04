@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import RoutersContingenciaTI from './RoutersCont'
 
 const PROVEEDOR_COLORS: Record<string, { bg: string; color: string }> = {
   BITEL:             { bg: '#dbeafe', color: '#1e40af' },
@@ -117,6 +118,7 @@ export default function TiendasPage() {
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; codigo: string; step: 1 | 2 } | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [tab, setTab] = useState<'tiendas' | 'routers'>('tiendas')
 
   // Import state
   const [showImport, setShowImport] = useState(false)
@@ -295,11 +297,20 @@ export default function TiendasPage() {
     <div>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-        <div>
-          <h1 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Tiendas</h1>
-          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>
-            {filtered.length} de {tiendas.length} tiendas
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '4px', background: 'var(--muted)', borderRadius: '10px', padding: '4px', width: 'fit-content' }}>
+            {(['tiendas', 'routers'] as const).map(t => (
+              <button key={t} onClick={() => setTab(t)}
+                style={{ padding: '6px 16px', fontSize: '12px', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: tab === t ? 600 : 400, background: tab === t ? 'hsl(221,83%,23%)' : 'transparent', color: tab === t ? 'white' : 'var(--foreground)', whiteSpace: 'nowrap' }}>
+                {t === 'tiendas' ? 'Tiendas' : 'Routers Contingencia TI'}
+              </button>
+            ))}
           </div>
+          {tab === 'tiendas' && (
+            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
+              {filtered.length} de {tiendas.length} tiendas
+            </div>
+          )}
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           {canEdit && (
@@ -326,6 +337,9 @@ export default function TiendasPage() {
         </div>
       </div>
 
+      {tab === 'routers' && <RoutersContingenciaTI />}
+
+      {tab === 'tiendas' && <>
       {/* Metric cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '10px', marginBottom: '16px' }}>
         <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
@@ -783,6 +797,7 @@ export default function TiendasPage() {
           </div>
         </div>
       )}
+      </>}
     </div>
   )
 }

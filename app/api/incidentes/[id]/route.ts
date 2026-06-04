@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { incidentes, tiendas, proveedores, usuarios, escalamientos, nivelesEscalamiento, adjuntos, atcLlamadas, tiendasHistorial, gruposMasivos } from '@/drizzle/schema'
+import { incidentes, tiendas, proveedores, usuarios, escalamientos, nivelesEscalamiento, adjuntos, atcLlamadas, tiendasHistorial, gruposMasivos, routersExternos, routerHistorial } from '@/drizzle/schema'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
@@ -90,6 +90,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     alcanceCorte:        incidentes.alcanceCorte,
     tuvoUps:             incidentes.tuvoUps,
     grupoMasivoId:       incidentes.grupoMasivoId,
+    routerExternoId:     incidentes.routerExternoId,
     // Escalamiento infra interna
     escaladoInfraId:      incidentes.escaladoInfraId,
     horaEscaladoInfra:    incidentes.horaEscaladoInfra,
@@ -265,7 +266,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     'descripcionInicial','ticketInvgate','ticketProveedor','descartesRealizados','solucionAplicada',
     'observaciones','horaRegistro','horaFin','mttrMinutos',
     'estadoOperacion','operacionManual','tipoOperacionManual','factorOperativo',
-    'contActivadoPor','contHoraActivacion','contHoraDesactivacion','contRendimiento','contObservacion','contEsExterno',
+    'contActivadoPor','contHoraActivacion','contHoraDesactivacion','contRendimiento','contObservacion','contEsExterno','routerExternoId',
     'movActivadoPor','movHoraActivacion','movHoraDesactivacion','movRendimiento','movObservacion',
     'descEnergia','descRouter','descDns',
     'checkIpconfig','checkPingGw','checkPingInternet','checkTracert','checkDns','checkRenovarIp',
@@ -422,6 +423,59 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           WHERE tienda_id = ${updated.tiendaId} AND hora_desactivacion IS NULL
         )
     `)
+  }
+
+  // ── Gestión de estado del router externo ─────────────────────────────────
+  // Al activar contingencia externa con router seleccionado → EN_TIENDA_ACTIVO
+  if (allowedFields.contActivadoPor && allowedFields.contEsExterno && updated.routerExternoId) {
+    const userId = (session.user as any)?.id ?? null
+    await db.update(routersExternos)
+      .set({ estado: 'EN_TIENDA_ACTIVO', tiendaActualId: updated.tiendaId })
+      .where(eq(routersExternos.id, updated.routerExternoId))
+    await db.insert(routerHistorial).values({
+      routerId:        updated.routerExternoId,
+      tiendaId:        updated.tiendaId!,
+      incidenteId:     id,
+      accion:          'DESPLIEGUE',
+      registradoPorId: userId,
+    })
+  }
+
+  // Al sellar contHoraDesactivacion manualmente → EN_TIENDA_INACTIVO
+  if ('contHoraDesactivacion' in allowedFields && allowedFields.contHoraDesactivacion && updated.routerExternoId) {
+    const [router] = await db.select({ estado: routersExternos.estado })
+      .from(routersExternos).where(eq(routersExternos.id, updated.routerExternoId))
+    if (router?.estado === 'EN_TIENDA_ACTIVO') {
+      await db.update(routersExternos)
+        .set({ estado: 'EN_TIENDA_INACTIVO' })
+        .where(eq(routersExternos.id, updated.routerExternoId))
+      // Sellar entrada de historial
+      await db.execute(sql`
+        UPDATE router_historial
+        SET fecha_retorno = ${new Date().toISOString()}::timestamptz,
+            tiempo_uso_min = ROUND(EXTRACT(EPOCH FROM (NOW() - fecha_ingreso)) / 60)::int
+        WHERE router_id = ${updated.routerExternoId}
+          AND fecha_retorno IS NULL AND accion = 'DESPLIEGUE'
+      `)
+    }
+  }
+
+  // Al cerrar/cancelar/resolver incidente con router → EN_TIENDA_INACTIVO
+  if (estadoCierra && updated.routerExternoId) {
+    const [router] = await db.select({ estado: routersExternos.estado })
+      .from(routersExternos).where(eq(routersExternos.id, updated.routerExternoId))
+    if (router?.estado === 'EN_TIENDA_ACTIVO') {
+      await db.update(routersExternos)
+        .set({ estado: 'EN_TIENDA_INACTIVO' })
+        .where(eq(routersExternos.id, updated.routerExternoId))
+      await db.execute(sql`
+        UPDATE router_historial
+        SET fecha_retorno = ${new Date().toISOString()}::timestamptz,
+            tiempo_uso_min = ROUND(EXTRACT(EPOCH FROM (NOW() - fecha_ingreso)) / 60)::int
+        WHERE router_id = ${updated.routerExternoId}
+          AND fecha_retorno IS NULL AND accion = 'DESPLIEGUE'
+      `)
+    }
   }
 
   // Auto-sync tiendas.contingencia_activa desde el estado de contingencia del incidente.

@@ -143,6 +143,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
   const [proveedores, setProveedores] = useState<{ id: string; nombre: string }[]>([])
   const [contStats, setContStats] = useState<any>(null)
   const [contList, setContList] = useState<any[]>([])
+  const [routersTienda, setRoutersTienda] = useState<any[]>([])
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<any>({})
   const [saving, setSaving] = useState(false)
@@ -189,6 +190,9 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
     })
     fetch('/api/proveedores').then(r => r.json()).then(d => {
       setProveedores(Array.isArray(d) ? d : [])
+    })
+    fetch('/api/routers-externos').then(r => r.json()).then((rows: any[]) => {
+      setRoutersTienda(rows.filter((r: any) => r.tienda_actual_id === id))
     })
   }, [id])
 
@@ -803,6 +807,36 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
           </div>
 
           {/* Contingencias autónomas activas */}
+          {/* Routers externos en esta tienda */}
+          {routersTienda.length > 0 && (
+            <div style={{ background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: '10px', padding: '12px 14px' }}>
+              <SectionTitle>Router{routersTienda.length > 1 ? 's' : ''} externo{routersTienda.length > 1 ? 's' : ''} en tienda</SectionTitle>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {routersTienda.map((r: any) => {
+                  const activo = r.estado === 'EN_TIENDA_ACTIVO'
+                  return (
+                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', background: 'white', borderRadius: '7px', border: `0.5px solid ${activo ? '#F59E0B' : '#E5E7EB'}` }}>
+                      <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '14px', color: '#92400E' }}>{r.codigo}</span>
+                      <span style={{ fontSize: '9px', fontWeight: 700, padding: '2px 7px', borderRadius: '999px', background: activo ? '#FEF3C7' : '#E0E7FF', color: activo ? '#92400E' : '#3730A3' }}>
+                        {activo ? 'ACTIVO' : 'inactivo'}
+                      </span>
+                      {r.fecha_ingreso_actual && (
+                        <span style={{ fontSize: '10px', color: '#92400E', opacity: 0.75 }}>
+                          Desde {new Date(r.fecha_ingreso_actual).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', timeZone: 'America/Lima' })}
+                        </span>
+                      )}
+                      {!activo && (
+                        <span style={{ fontSize: '10px', color: '#6B7280', flex: 1, textAlign: 'right' }}>
+                          Para activar, crea un incidente y selecciona este router
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {contList.filter((c: any) => !c.horaDesactivacion).length > 0 && (() => {
             const activas = contList.filter((c: any) => !c.horaDesactivacion)
             const TIPO_LABEL: Record<string, string> = { ROUTER_PROPIO: '📶 Router propio', ROUTER_EXTERNO: '📦 Router externo', DATOS_MOVILES: 'Datos móviles' }

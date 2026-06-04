@@ -234,6 +234,8 @@ export const incidentes = pgTable('incidentes', {
   tuvoUps:               boolean('tuvo_ups'),
   // Incidente masivo
   grupoMasivoId:         uuid('grupo_masivo_id'),
+  // Router externo de contingencia TI
+  routerExternoId:       uuid('router_externo_id').references(() => routersExternos.id, { onDelete: 'set null' }),
   // Escalamiento a Infraestructura interna
   escaladoInfraId:       uuid('escalado_infra_id').references(() => usuarios.id, { onDelete: 'set null' }),
   horaEscaladoInfra:     timestamp('hora_escalado_infra'),
@@ -242,6 +244,45 @@ export const incidentes = pgTable('incidentes', {
   canceladoPorId:        uuid('cancelado_por_id').references(() => usuarios.id, { onDelete: 'set null' }),
   cerradoPorId:          uuid('cerrado_por_id').references(() => usuarios.id, { onDelete: 'set null' }),
   resueltoPorUsuarioId:  uuid('resuelto_por_usuario_id').references(() => usuarios.id, { onDelete: 'set null' }),
+})
+
+// ── Routers externos (contingencia TI) ───────────────────────────────────────
+
+export const routersExternos = pgTable('routers_externos', {
+  id:             uuid('id').primaryKey().defaultRandom(),
+  codigo:         text('codigo').unique().notNull(),
+  ip:             text('ip'),
+  password:       text('password'),
+  chip:           text('chip'),
+  plan:           text('plan'),
+  tipoConexion:   text('tipo_conexion'),
+  estado:         text('estado').notNull().default('DISPONIBLE'),
+  tiendaActualId: uuid('tienda_actual_id').references(() => tiendas.id, { onDelete: 'set null' }),
+  activo:         boolean('activo').notNull().default(true),
+  creadoEn:       timestamp('creado_en').defaultNow().notNull(),
+})
+
+export const routerHistorial = pgTable('router_historial', {
+  id:               uuid('id').primaryKey().defaultRandom(),
+  routerId:         uuid('router_id').notNull().references(() => routersExternos.id, { onDelete: 'cascade' }),
+  tiendaId:         uuid('tienda_id').notNull().references(() => tiendas.id),
+  incidenteId:      uuid('incidente_id').references(() => incidentes.id, { onDelete: 'set null' }),
+  fechaIngreso:     timestamp('fecha_ingreso').defaultNow().notNull(),
+  fechaRetorno:     timestamp('fecha_retorno'),
+  tiempoUsoMin:     integer('tiempo_uso_min'),
+  accion:           text('accion').notNull(),
+  nota:             text('nota'),
+  registradoPorId:  uuid('registrado_por_id').references(() => usuarios.id, { onDelete: 'set null' }),
+  creadoEn:         timestamp('creado_en').defaultNow().notNull(),
+})
+
+export const routerFotos = pgTable('router_fotos', {
+  id:           uuid('id').primaryKey().defaultRandom(),
+  routerId:     uuid('router_id').notNull().references(() => routersExternos.id, { onDelete: 'cascade' }),
+  url:          text('url').notNull(),
+  descripcion:  text('descripcion'),
+  tamanoBytes:  integer('tamano_bytes'),
+  creadoEn:     timestamp('creado_en').defaultNow().notNull(),
 })
 
 export const gruposMasivos = pgTable('grupos_masivos', {
@@ -384,12 +425,30 @@ export const gruposMasivosRelations = relations(gruposMasivos, ({ one, many }) =
 }))
 
 export const incidentesRelations = relations(incidentes, ({ one, many }) => ({
-  tienda:        one(tiendas,       { fields: [incidentes.tiendaId],       references: [tiendas.id] }),
-  registradoPor: one(usuarios,      { fields: [incidentes.registradoPorId], references: [usuarios.id] }),
-  proveedor:     one(proveedores,   { fields: [incidentes.proveedorId],    references: [proveedores.id] }),
-  grupoMasivo:   one(gruposMasivos, { fields: [incidentes.grupoMasivoId],  references: [gruposMasivos.id] }),
-  escalamientos: many(escalamientos),
-  adjuntos:      many(adjuntos),
+  tienda:         one(tiendas,          { fields: [incidentes.tiendaId],        references: [tiendas.id] }),
+  registradoPor:  one(usuarios,         { fields: [incidentes.registradoPorId],  references: [usuarios.id] }),
+  proveedor:      one(proveedores,      { fields: [incidentes.proveedorId],     references: [proveedores.id] }),
+  grupoMasivo:    one(gruposMasivos,    { fields: [incidentes.grupoMasivoId],   references: [gruposMasivos.id] }),
+  routerExterno:  one(routersExternos,  { fields: [incidentes.routerExternoId], references: [routersExternos.id] }),
+  escalamientos:  many(escalamientos),
+  adjuntos:       many(adjuntos),
+}))
+
+export const routersExternosRelations = relations(routersExternos, ({ one, many }) => ({
+  tiendaActual: one(tiendas, { fields: [routersExternos.tiendaActualId], references: [tiendas.id] }),
+  historial:    many(routerHistorial),
+  fotos:        many(routerFotos),
+}))
+
+export const routerHistorialRelations = relations(routerHistorial, ({ one }) => ({
+  router:        one(routersExternos, { fields: [routerHistorial.routerId],        references: [routersExternos.id] }),
+  tienda:        one(tiendas,         { fields: [routerHistorial.tiendaId],        references: [tiendas.id] }),
+  incidente:     one(incidentes,      { fields: [routerHistorial.incidenteId],     references: [incidentes.id] }),
+  registradoPor: one(usuarios,        { fields: [routerHistorial.registradoPorId], references: [usuarios.id] }),
+}))
+
+export const routerFotosRelations = relations(routerFotos, ({ one }) => ({
+  router: one(routersExternos, { fields: [routerFotos.routerId], references: [routersExternos.id] }),
 }))
 
 export const escalamientosRelations = relations(escalamientos, ({ one, many }) => ({

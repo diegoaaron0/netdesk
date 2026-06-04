@@ -828,6 +828,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                           <SLABadge inc={inc} nowMs={nowM} />
                           {esInfra && <span style={{ display: 'block', marginTop: '2px', fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: '#EDE9FE', color: '#5B21B6', fontWeight: 600 }}>Infra{inc.infra_nombre ? `: ${inc.infra_nombre.split(' ')[0]}` : ''}</span>}
                           {inc.grupo_masivo_id && <span title={inc.grupo_masivo_razon ?? ''} style={{ display: 'block', marginTop: '2px', fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: '#FEF3C7', color: '#92400E', fontWeight: 700, cursor: 'help' }}>⚡ Masivo · {inc.grupo_masivo_codigo}</span>}
+                          {inc.router_externo_id && !inc.cont_hora_desactivacion && <span style={{ display: 'block', marginTop: '2px', fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: '#FEF3C7', color: '#92400E', fontWeight: 700, fontFamily: 'monospace' }}>📦 {inc.router_externo_codigo}</span>}
                           {inc.sinMovimiento && <span style={{ display: 'block', marginTop: '2px', fontSize: '9px', padding: '1px 4px', borderRadius: '999px', background: '#F1F5F9', color: '#475569' }}>⏸ {fmtMin(inc.sinMovimientoMin)}</span>}
                           {(inc as any).motivo_reabertura && (
                             <span

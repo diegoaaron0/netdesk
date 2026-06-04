@@ -159,6 +159,8 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   const [tick, setTick]             = useState(0)
   const [historial, setHistorial]   = useState<any[]>([])
   const [editForm, setEditForm]     = useState<any>({})
+  const [routersDisponibles, setRoutersDisponibles] = useState<{ id: string; codigo: string }[]>([])
+  const [todosRouters, setTodosRouters] = useState<{ id: string; codigo: string }[]>([])
   const [saving, setSaving]         = useState(false)
   const [saveError, setSaveError]   = useState('')
   const [contNotice, setContNotice] = useState(false)
@@ -223,6 +225,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
       movObservacion:      data.movObservacion      ?? '',
       contHoraDesactivacion: toDatetimeLocal(data.contHoraDesactivacion),
       movHoraDesactivacion:  toDatetimeLocal(data.movHoraDesactivacion),
+      routerExternoId:       data.routerExternoId ?? null,
       descEnergia:         data.descEnergia         ?? null,
       descRouter:          data.descRouter          ?? null,
       descDns:             data.descDns             ?? null,
@@ -246,6 +249,15 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   }, [id])
 
   useEffect(() => { fetchInc() }, [fetchInc])
+  useEffect(() => {
+    fetch('/api/routers-externos')
+      .then(r => r.ok ? r.json() : [])
+      .then((rows: any[]) => {
+        const mapped = rows.map((r: any) => ({ id: r.id, codigo: r.codigo }))
+        setTodosRouters(mapped)
+        setRoutersDisponibles(rows.filter((r: any) => r.estado === 'DISPONIBLE').map((r: any) => ({ id: r.id, codigo: r.codigo })))
+      })
+  }, [])
   useEffect(() => {
     const id = setInterval(() => setTick(t => t + 1), 1000)
     return () => clearInterval(id)
@@ -906,6 +918,33 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                               {editForm.contEsExterno ? 'Se llevó equipo externo a esta tienda' : 'La tienda usó su contingencia propia'}
                             </div>
                           </div>
+                        </div>
+                      )}
+
+                      {/* Selector de router externo — solo cuando contEsExterno y aún no activado */}
+                      {editForm.contEsExterno && !editForm.contActivadoPor && !contSellada && (
+                        <div style={{ marginBottom: '12px', padding: '8px 12px', background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: '8px' }}>
+                          <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Router externo a utilizar</label>
+                          <select
+                            disabled={contDis}
+                            value={editForm.routerExternoId ?? ''}
+                            onChange={e => setEdit('routerExternoId', e.target.value || null)}
+                            style={{ width: '100%', padding: '6px 9px', fontSize: '12px', border: '0.5px solid #FCD34D', borderRadius: '6px', background: 'white', color: '#92400E', fontFamily: 'monospace', fontWeight: 600 }}>
+                            <option value="">— Seleccionar router —</option>
+                            {routersDisponibles.map(r => (
+                              <option key={r.id} value={r.id}>{r.codigo}</option>
+                            ))}
+                          </select>
+                          {routersDisponibles.length === 0 && (
+                            <div style={{ fontSize: '10px', color: '#92400E', marginTop: '4px', opacity: 0.8 }}>Sin routers disponibles en TI</div>
+                          )}
+                        </div>
+                      )}
+                      {/* Router asignado (read-only cuando ya está activado) */}
+                      {editForm.contEsExterno && editForm.contActivadoPor && inc?.routerExternoId && (
+                        <div style={{ marginBottom: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: '6px' }}>
+                          <span style={{ fontSize: '9px', fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Router</span>
+                          <span style={{ fontSize: '12px', fontWeight: 700, fontFamily: 'monospace', color: '#92400E' }}>{todosRouters.find(r => r.id === inc.routerExternoId)?.codigo ?? 'RE-???'}</span>
                         </div>
                       )}
 

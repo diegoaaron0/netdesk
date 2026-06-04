@@ -76,6 +76,8 @@ export async function GET(req: NextRequest) {
         i.grupo_masivo_id,
         gm.codigo  AS grupo_masivo_codigo,
         gm.razon   AS grupo_masivo_razon,
+        i.router_externo_id,
+        re.codigo  AS router_externo_codigo,
         -- venta/hora según día de semana del incidente (0=dom,5=vie,6=sab = FDS)
         CASE
           WHEN EXTRACT(DOW FROM i.hora_registro AT TIME ZONE 'America/Lima') IN (0,5,6)
@@ -98,6 +100,7 @@ export async function GET(req: NextRequest) {
         WHERE e.incidente_id = i.id
       ) mov ON true
       LEFT JOIN grupos_masivos gm ON i.grupo_masivo_id = gm.id
+      LEFT JOIN routers_externos re ON i.router_externo_id = re.id
       WHERE ${isToday
         ? sql`i.estado NOT IN ('RESUELTO','CANCELADO','CERRADO')`
         : sql`i.hora_registro >= ${diaIso}::timestamptz AND i.hora_registro < ${siguienteIso}::timestamptz AND i.estado NOT IN ('RESUELTO','CANCELADO','CERRADO')`
