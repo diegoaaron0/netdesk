@@ -100,7 +100,7 @@ export async function GET(req: NextRequest) {
       LEFT JOIN grupos_masivos gm ON i.grupo_masivo_id = gm.id
       WHERE ${isToday
         ? sql`i.estado NOT IN ('RESUELTO','CANCELADO','CERRADO')`
-        : sql`i.hora_registro >= ${diaIso}::timestamptz AND i.hora_registro < ${siguienteIso}::timestamptz AND i.estado NOT IN ('CANCELADO','CERRADO')`
+        : sql`i.hora_registro >= ${diaIso}::timestamptz AND i.hora_registro < ${siguienteIso}::timestamptz AND i.estado NOT IN ('RESUELTO','CANCELADO','CERRADO')`
       }
       ORDER BY i.hora_registro ASC
     `),
