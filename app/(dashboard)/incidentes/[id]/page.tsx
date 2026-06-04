@@ -892,18 +892,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   </button>
                   {showContBlock && (
                     <div style={{ padding:'14px', background:'var(--muted)' }}>
-                      {!inc?.tiendaTieneContingencia && editForm.contActivadoPor && (
-                        <div style={{ background: '#fffbeb', border: '1.5px solid #f59e0b', borderRadius: '8px', padding: '10px 12px', marginBottom: '14px' }}>
-                          <div style={{ fontSize: '12px', fontWeight: 700, color: '#92400e', marginBottom: '3px' }}>
-                            ⚠ Esta tienda no tiene enlace de contingencia permanente registrado
-                          </div>
-                          <div style={{ fontSize: '11px', color: '#78350f', lineHeight: 1.5 }}>
-                            Describe en <strong>Observación</strong> qué se instaló (router portátil, chip, equipo prestado, etc.)
-                            para que quede registrado en la ficha de la tienda y sea visible al equipo.
-                          </div>
-                        </div>
-                      )}
-                      {/* Tipo: badge fijo si ya activado, toggle si aún no */}
+                      {/* Tipo: badge fijo si ya activado; selector si aún no */}
                       {editForm.contActivadoPor ? (
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '6px', marginBottom: '12px' }}>
                           <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tipo</span>
@@ -911,7 +900,8 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                             {editForm.contEsExterno ? 'Router externo' : 'Router propio'}
                           </span>
                         </div>
-                      ) : (
+                      ) : inc?.tiendaTieneContingencia ? (
+                        /* Tienda con contingencia propia: toggle propio ↔ externo */
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', padding: '8px 12px', background: 'rgba(0,0,0,0.03)', borderRadius: '8px', border: '1px solid var(--border)' }}>
                           <button type="button" disabled={contDis} onClick={() => setEdit('contEsExterno', !editForm.contEsExterno)}
                             style={{ width:'36px', height:'20px', borderRadius:'10px', border:'none', cursor: contDis ? 'default' : 'pointer', background: editForm.contEsExterno ? 'hsl(221,83%,23%)' : '#d1d5db', position:'relative', flexShrink:0, transition:'background 0.2s' }}>
@@ -925,6 +915,12 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                               {editForm.contEsExterno ? 'Se llevó equipo externo a esta tienda' : 'La tienda usó su contingencia propia'}
                             </div>
                           </div>
+                        </div>
+                      ) : (
+                        /* Tienda sin contingencia propia: solo externo disponible */
+                        <div style={{ marginBottom: '12px', padding: '7px 10px', background: 'rgba(0,0,0,0.03)', borderRadius: '8px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--foreground)' }}>Router externo</span>
+                          <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>— La tienda no tiene contingencia propia registrada</span>
                         </div>
                       )}
 
@@ -940,7 +936,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                               disabled={contDis}
                               value={editForm.routerExternoId ?? ''}
                               onChange={e => setEdit('routerExternoId', e.target.value || null)}
-                              style={{ width: '100%', padding: '6px 9px', fontSize: '12px', border: '0.5px solid #FCD34D', borderRadius: '6px', background: 'white', color: '#92400E', fontFamily: 'monospace', fontWeight: 600 }}>
+                              style={{ width: '100%', padding: '6px 9px', fontSize: '12px', border: '0.5px solid #FCD34D', borderRadius: '6px', background: 'white', color: '#92400E' }}>
                               <option value="">— Seleccionar router —</option>
                               {enEstaTienda.length > 0 && (
                                 <optgroup label={`En esta tienda — disponibles (${enEstaTienda.length})`}>
