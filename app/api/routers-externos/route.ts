@@ -26,21 +26,21 @@ export async function GET() {
         t.nombre_cc AS tienda_nombre,
         t.distrito  AS tienda_distrito,
         COALESCE((
-          SELECT SUM(
-            CASE
-              WHEN h.fecha_retorno IS NOT NULL THEN h.tiempo_uso_min
-              ELSE ROUND(EXTRACT(EPOCH FROM (NOW() - h.fecha_ingreso)) / 60)::int
-            END
-          )
-          FROM router_historial h
-          WHERE h.router_id = r.id AND h.accion = 'DESPLIEGUE'
-        ), 0)::int AS tiempo_total_min,
+          SELECT ROUND(EXTRACT(EPOCH FROM SUM(
+            COALESCE(i2.cont_hora_desactivacion, NOW()) - i2.cont_hora_activacion
+          )) / 60)::int
+          FROM incidentes i2
+          WHERE i2.router_externo_id = r.id
+            AND i2.cont_hora_activacion IS NOT NULL
+        ), 0) AS tiempo_total_min,
         (
-          SELECT h2.fecha_ingreso
-          FROM router_historial h2
-          WHERE h2.router_id = r.id AND h2.fecha_retorno IS NULL
-            AND h2.accion IN ('DESPLIEGUE','TRASLADO')
-          ORDER BY h2.fecha_ingreso DESC
+          SELECT i3.cont_hora_activacion
+          FROM incidentes i3
+          WHERE i3.router_externo_id = r.id
+            AND i3.cont_hora_activacion IS NOT NULL
+            AND i3.cont_hora_desactivacion IS NULL
+            AND i3.estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
+          ORDER BY i3.cont_hora_activacion DESC
           LIMIT 1
         ) AS fecha_ingreso_actual
       FROM routers_externos r

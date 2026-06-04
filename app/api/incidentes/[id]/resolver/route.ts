@@ -65,13 +65,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       await db.update(routersExternos)
         .set({ estado: 'EN_TIENDA_INACTIVO' })
         .where(eq(routersExternos.id, inc.routerExternoId))
-      await db.execute(sql`
-        UPDATE router_historial
-        SET fecha_retorno = ${horaFin.toISOString()}::timestamptz,
-            tiempo_uso_min = ROUND(EXTRACT(EPOCH FROM (${horaFin.toISOString()}::timestamptz - fecha_ingreso)) / 60)::int
-        WHERE router_id = ${inc.routerExternoId}
-          AND fecha_retorno IS NULL AND accion = 'DESPLIEGUE'
-      `)
     }
   }
 

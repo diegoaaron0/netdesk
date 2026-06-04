@@ -276,15 +276,6 @@ export const routerHistorial = pgTable('router_historial', {
   creadoEn:         timestamp('creado_en').defaultNow().notNull(),
 })
 
-export const routerFotos = pgTable('router_fotos', {
-  id:           uuid('id').primaryKey().defaultRandom(),
-  routerId:     uuid('router_id').notNull().references(() => routersExternos.id, { onDelete: 'cascade' }),
-  url:          text('url').notNull(),
-  descripcion:  text('descripcion'),
-  tamanoBytes:  integer('tamano_bytes'),
-  creadoEn:     timestamp('creado_en').defaultNow().notNull(),
-})
-
 export const gruposMasivos = pgTable('grupos_masivos', {
   id:          uuid('id').primaryKey().defaultRandom(),
   codigo:      text('codigo').unique().notNull(),
@@ -337,10 +328,11 @@ export const adjuntos = pgTable('adjuntos', {
   nombre:         text('nombre').notNull(),
   tipo:           text('tipo'),
   tamanoBytes:    integer('tamano_bytes'),
-  incidenteId:    uuid('incidente_id').references(() => incidentes.id),
-  escalamientoId: uuid('escalamiento_id').references(() => escalamientos.id),
-  contexto:       text('contexto'),
-  creadoEn:       timestamp('creado_en').defaultNow(),
+  incidenteId:      uuid('incidente_id').references(() => incidentes.id),
+  escalamientoId:   uuid('escalamiento_id').references(() => escalamientos.id),
+  routerExternoId:  uuid('router_externo_id').references(() => routersExternos.id, { onDelete: 'set null' }),
+  contexto:         text('contexto'),
+  creadoEn:         timestamp('creado_en').defaultNow(),
 })
 
 export const decisiones = pgTable('decisiones', {
@@ -435,9 +427,9 @@ export const incidentesRelations = relations(incidentes, ({ one, many }) => ({
 }))
 
 export const routersExternosRelations = relations(routersExternos, ({ one, many }) => ({
-  tiendaActual: one(tiendas, { fields: [routersExternos.tiendaActualId], references: [tiendas.id] }),
+  tiendaActual: one(tiendas,         { fields: [routersExternos.tiendaActualId], references: [tiendas.id] }),
   historial:    many(routerHistorial),
-  fotos:        many(routerFotos),
+  fotos:        many(adjuntos),
 }))
 
 export const routerHistorialRelations = relations(routerHistorial, ({ one }) => ({
@@ -447,9 +439,6 @@ export const routerHistorialRelations = relations(routerHistorial, ({ one }) => 
   registradoPor: one(usuarios,        { fields: [routerHistorial.registradoPorId], references: [usuarios.id] }),
 }))
 
-export const routerFotosRelations = relations(routerFotos, ({ one }) => ({
-  router: one(routersExternos, { fields: [routerFotos.routerId], references: [routersExternos.id] }),
-}))
 
 export const escalamientosRelations = relations(escalamientos, ({ one, many }) => ({
   incidente: one(incidentes,        { fields: [escalamientos.incidenteId], references: [incidentes.id] }),
@@ -458,8 +447,9 @@ export const escalamientosRelations = relations(escalamientos, ({ one, many }) =
 }))
 
 export const adjuntosRelations = relations(adjuntos, ({ one }) => ({
-  incidente:    one(incidentes,    { fields: [adjuntos.incidenteId],    references: [incidentes.id] }),
-  escalamiento: one(escalamientos, { fields: [adjuntos.escalamientoId], references: [escalamientos.id] }),
+  incidente:     one(incidentes,       { fields: [adjuntos.incidenteId],     references: [incidentes.id] }),
+  escalamiento:  one(escalamientos,    { fields: [adjuntos.escalamientoId],  references: [escalamientos.id] }),
+  routerExterno: one(routersExternos,  { fields: [adjuntos.routerExternoId], references: [routersExternos.id] }),
 }))
 
 export const tiendasHistorialRelations = relations(tiendasHistorial, ({ one }) => ({

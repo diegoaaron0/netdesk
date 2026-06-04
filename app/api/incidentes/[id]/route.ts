@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { incidentes, tiendas, proveedores, usuarios, escalamientos, nivelesEscalamiento, adjuntos, atcLlamadas, tiendasHistorial, gruposMasivos, routersExternos, routerHistorial } from '@/drizzle/schema'
+import { incidentes, tiendas, proveedores, usuarios, escalamientos, nivelesEscalamiento, adjuntos, atcLlamadas, tiendasHistorial, gruposMasivos, routersExternos } from '@/drizzle/schema'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
@@ -426,19 +426,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   // ── Gestión de estado del router externo ─────────────────────────────────
-  // Al activar contingencia externa con router seleccionado → EN_TIENDA_ACTIVO
+  // Al activar contingencia externa → EN_TIENDA_ACTIVO (solo estado, el historial lo da incidentes)
   if (allowedFields.contActivadoPor && allowedFields.contEsExterno && updated.routerExternoId) {
-    const userId = (session.user as any)?.id ?? null
     await db.update(routersExternos)
       .set({ estado: 'EN_TIENDA_ACTIVO', tiendaActualId: updated.tiendaId })
       .where(eq(routersExternos.id, updated.routerExternoId))
-    await db.insert(routerHistorial).values({
-      routerId:        updated.routerExternoId,
-      tiendaId:        updated.tiendaId!,
-      incidenteId:     id,
-      accion:          'DESPLIEGUE',
-      registradoPorId: userId,
-    })
   }
 
   // Al sellar contHoraDesactivacion manualmente → EN_TIENDA_INACTIVO
@@ -449,18 +441,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       await db.update(routersExternos)
         .set({ estado: 'EN_TIENDA_INACTIVO' })
         .where(eq(routersExternos.id, updated.routerExternoId))
-      // Sellar entrada de historial
-      await db.execute(sql`
-        UPDATE router_historial
-        SET fecha_retorno = ${new Date().toISOString()}::timestamptz,
-            tiempo_uso_min = ROUND(EXTRACT(EPOCH FROM (NOW() - fecha_ingreso)) / 60)::int
-        WHERE router_id = ${updated.routerExternoId}
-          AND fecha_retorno IS NULL AND accion = 'DESPLIEGUE'
-      `)
     }
   }
 
-  // Al cerrar/cancelar/resolver incidente con router → EN_TIENDA_INACTIVO
+  // Al cerrar/cancelar/resolver → EN_TIENDA_INACTIVO
   if (estadoCierra && updated.routerExternoId) {
     const [router] = await db.select({ estado: routersExternos.estado })
       .from(routersExternos).where(eq(routersExternos.id, updated.routerExternoId))
@@ -468,13 +452,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       await db.update(routersExternos)
         .set({ estado: 'EN_TIENDA_INACTIVO' })
         .where(eq(routersExternos.id, updated.routerExternoId))
-      await db.execute(sql`
-        UPDATE router_historial
-        SET fecha_retorno = ${new Date().toISOString()}::timestamptz,
-            tiempo_uso_min = ROUND(EXTRACT(EPOCH FROM (NOW() - fecha_ingreso)) / 60)::int
-        WHERE router_id = ${updated.routerExternoId}
-          AND fecha_retorno IS NULL AND accion = 'DESPLIEGUE'
-      `)
     }
   }
 

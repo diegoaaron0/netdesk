@@ -23,31 +23,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const ahora = new Date()
   const userId = (session.user as any)?.id ?? null
 
-  // Sellar entrada abierta en historial
-  const rows = await db.execute(sql`
-    SELECT id, fecha_ingreso FROM router_historial
-    WHERE router_id = ${id} AND fecha_retorno IS NULL
-    ORDER BY fecha_ingreso DESC
-    LIMIT 1
-  `)
-  const entrada = (rows as any[])[0]
-  if (entrada) {
-    const tiempoUsoMin = Math.round((ahora.getTime() - new Date(entrada.fecha_ingreso).getTime()) / 60000)
-    await db.execute(sql`
-      UPDATE router_historial
-      SET fecha_retorno = ${ahora.toISOString()}::timestamptz,
-          tiempo_uso_min = ${tiempoUsoMin}
-      WHERE id = ${entrada.id}
-    `)
-  }
-
-  // Registrar acción de retorno
+  // Registrar acción de retorno en historial (movimiento físico sin incidente)
   await db.insert(routerHistorial).values({
     routerId:        id,
     tiendaId:        router.tiendaActualId!,
     fechaIngreso:    ahora,
     fechaRetorno:    ahora,
-    tiempoUsoMin:    0,
     accion:          'RETORNO',
     nota:            nota || null,
     registradoPorId: userId,

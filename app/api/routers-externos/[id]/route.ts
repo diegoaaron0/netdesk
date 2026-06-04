@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { routersExternos, routerFotos } from '@/drizzle/schema'
+import { routersExternos, adjuntos } from '@/drizzle/schema'
 import { eq, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 
@@ -12,23 +12,54 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const [router] = await db.select().from(routersExternos).where(eq(routersExternos.id, id))
   if (!router) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
-  const fotos = await db.select().from(routerFotos).where(eq(routerFotos.routerId, id))
+  const fotos = await db.select({
+    id:          adjuntos.id,
+    url:         adjuntos.url,
+    nombre:      adjuntos.nombre,
+    descripcion: adjuntos.contexto,
+    tamanoBytes: adjuntos.tamanoBytes,
+    creadoEn:    adjuntos.creadoEn,
+  }).from(adjuntos).where(eq(adjuntos.routerExternoId, id))
 
+  // Historial combinado: despliegues desde incidentes + retornos/traslados desde router_historial
   const historial = await db.execute(sql`
     SELECT
-      h.id, h.accion, h.fecha_ingreso, h.fecha_retorno, h.tiempo_uso_min, h.nota,
-      t.codigo AS tienda_codigo, t.nombre_cc AS tienda_nombre,
-      u.nombre AS registrado_por,
-      i.codigo AS incidente_codigo
+      'DESPLIEGUE'               AS accion,
+      t.codigo                   AS tienda_codigo,
+      t.nombre_cc                AS tienda_nombre,
+      i.cont_hora_activacion     AS fecha_ingreso,
+      i.cont_hora_desactivacion  AS fecha_retorno,
+      CASE
+        WHEN i.cont_hora_desactivacion IS NOT NULL
+          THEN ROUND(EXTRACT(EPOCH FROM (i.cont_hora_desactivacion - i.cont_hora_activacion)) / 60)::int
+        ELSE ROUND(EXTRACT(EPOCH FROM (NOW() - i.cont_hora_activacion)) / 60)::int
+      END                        AS tiempo_uso_min,
+      i.cont_rendimiento         AS nota,
+      i.codigo                   AS incidente_codigo
+    FROM incidentes i
+    JOIN tiendas t ON i.tienda_id = t.id
+    WHERE i.router_externo_id = ${id}
+      AND i.cont_hora_activacion IS NOT NULL
+
+    UNION ALL
+
+    SELECT
+      h.accion,
+      t.codigo        AS tienda_codigo,
+      t.nombre_cc     AS tienda_nombre,
+      h.fecha_ingreso,
+      h.fecha_retorno,
+      h.tiempo_uso_min,
+      h.nota,
+      NULL            AS incidente_codigo
     FROM router_historial h
     JOIN tiendas t ON h.tienda_id = t.id
-    LEFT JOIN usuarios u ON h.registrado_por_id = u.id
-    LEFT JOIN incidentes i ON h.incidente_id = i.id
     WHERE h.router_id = ${id}
-    ORDER BY h.fecha_ingreso DESC
+
+    ORDER BY fecha_ingreso DESC
   `)
 
-  return NextResponse.json({ ...router, fotos, historial })
+  return NextResponse.json({ ...router, fotos, historial: Array.from(historial as any[]) })
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
