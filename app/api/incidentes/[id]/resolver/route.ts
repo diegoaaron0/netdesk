@@ -20,6 +20,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     horaRegistro:       incidentes.horaRegistro,
     tiendaId:           incidentes.tiendaId,
     contActivadoPor:    incidentes.contActivadoPor,
+    contEsExterno:      incidentes.contEsExterno,
     tiempoAcumuladoMin: incidentes.tiempoAcumuladoMin,
     routerExternoId:    incidentes.routerExternoId,
   }).from(incidentes).where(eq(incidentes.id, id))
@@ -37,12 +38,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .where(eq(incidentes.id, id))
     .returning()
 
-  // Si el incidente NO usó contingencia: auto-limpiar el flag de la tienda
-  // si no hay otros incidentes abiertos con contingencia.
-  // Si el incidente SÍ usó contingencia (router físico sigue instalado):
-  // NO limpiar — el supervisor lo desactivará manualmente desde la ficha de la
-  // tienda cuando el proveedor restituya el servicio permanente.
-  if (inc.tiendaId && !inc.contActivadoPor) {
+  // Limpiar flag de contingencia_activa:
+  // - Siempre si el incidente no usó contingencia
+  // - También para ROUTER_EXTERNO: al resolver el incidente la tienda ya no necesita el flag
+  // - NO limpiar para ROUTER_PROPIO: el router físico sigue instalado hasta que TI lo retire manualmente
+  if (inc.tiendaId && (!inc.contActivadoPor || inc.contEsExterno)) {
     const rows = await db.execute(sql`
       SELECT COUNT(*)::int AS cnt FROM incidentes
       WHERE tienda_id = ${inc.tiendaId}
@@ -68,5 +68,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
-  return NextResponse.json({ ...updated, contingenciaMantieneActiva: !!inc.contActivadoPor })
+  return NextResponse.json({ ...updated, contingenciaMantieneActiva: !!inc.contActivadoPor && !inc.contEsExterno })
 }

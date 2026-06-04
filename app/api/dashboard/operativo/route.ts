@@ -240,7 +240,9 @@ export async function GET(req: NextRequest) {
         i.cont_hora_activacion,
         i.cont_rendimiento,
         i.cont_observacion,
-        i.cont_es_externo
+        i.cont_es_externo,
+        i.router_externo_id,
+        re.codigo          AS router_externo_codigo
       FROM tiendas t
       LEFT JOIN incidentes i ON i.tienda_id = t.id
         AND i.cont_activado_por IS NOT NULL
@@ -248,6 +250,7 @@ export async function GET(req: NextRequest) {
         AND i.estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
       LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
       LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
+      LEFT JOIN routers_externos re ON i.router_externo_id = re.id
       WHERE t.contingencia_activa = true
       ORDER BY t.id, i.cont_hora_activacion ASC NULLS LAST
     `),
@@ -360,7 +363,8 @@ export async function GET(req: NextRequest) {
   const contInc = (contRows as any[]).map((c: any) => ({
     ...c,
     fuente: 'INCIDENTE',
-    tipo_contingencia: c.cont_es_externo ? 'ROUTER_EXTERNO' : 'ROUTER_PROPIO',
+    tipo_contingencia:   c.cont_es_externo ? 'ROUTER_EXTERNO' : 'ROUTER_PROPIO',
+    router_externo_codigo: c.router_externo_codigo ?? null,
   }))
   const contMov = (movRows as any[]).map((c: any) => ({
     ...c,

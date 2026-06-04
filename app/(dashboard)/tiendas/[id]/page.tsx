@@ -830,8 +830,8 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                         </span>
                       )}
                       {!activo && (
-                        <span style={{ fontSize: '10px', color: '#6B7280', flex: 1, textAlign: 'right' }}>
-                          Para activar, crea un incidente y selecciona este router
+                        <span style={{ fontSize: '9px', color: '#6B7280', flex: 1, textAlign: 'right', fontStyle: 'italic' }}>
+                          Inactivo · actívalo desde el incidente
                         </span>
                       )}
                     </div>
@@ -841,8 +841,8 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
             </div>
           )}
 
-          {contList.filter((c: any) => !c.horaDesactivacion).length > 0 && (() => {
-            const activas = contList.filter((c: any) => !c.horaDesactivacion)
+          {contList.filter((c: any) => !c.horaDesactivacion && c.tipo !== 'ROUTER_EXTERNO').length > 0 && (() => {
+            const activas = contList.filter((c: any) => !c.horaDesactivacion && c.tipo !== 'ROUTER_EXTERNO')
             const TIPO_LABEL: Record<string, string> = { ROUTER_PROPIO: '📶 Router propio', ROUTER_EXTERNO: '📦 Router externo', DATOS_MOVILES: 'Datos móviles' }
             return (
               <div style={{ background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: '10px', padding: '12px 14px' }}>

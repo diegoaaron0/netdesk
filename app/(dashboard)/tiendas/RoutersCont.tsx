@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 
 const ALMACENES = ['Almacén Vulcano', 'Almacén Jiron']
 
@@ -20,6 +20,52 @@ const ESTADO_BADGE: Record<string, { label: string; bg: string; color: string }>
   EN_TIENDA_INACTIVO: { label: 'En tienda',   bg: '#E0E7FF', color: '#3730A3' },
 }
 
+// ── Combobox con búsqueda para tiendas ────────────────────────────────────────
+function TiendaCombobox({ tiendas, value, onChange, placeholder }: { tiendas: any[]; value: string; onChange: (id: string) => void; placeholder?: string }) {
+  const [query, setQuery]     = useState('')
+  const [open, setOpen]       = useState(false)
+  const ref                   = useRef<HTMLDivElement>(null)
+
+  const selected = tiendas.find(t => t.id === value)
+  const filtered = tiendas.filter(t =>
+    !query || `${t.codigo} ${t.nombre_cc}`.toLowerCase().includes(query.toLowerCase())
+  )
+
+  useEffect(() => {
+    function handler(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  return (
+    <div ref={ref} style={{ position: 'relative', width: '100%', marginBottom: '12px' }}>
+      <input
+        value={open ? query : (selected ? `${selected.codigo} — ${selected.nombre_cc}` : '')}
+        onChange={e => { setQuery(e.target.value); setOpen(true); if (!e.target.value) onChange('') }}
+        onFocus={() => { setOpen(true); setQuery('') }}
+        placeholder={placeholder ?? '— Buscar tienda —'}
+        style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: `0.5px solid ${value ? 'hsl(221,83%,23%)' : 'var(--border)'}`, borderRadius: '7px', background: 'var(--background)', boxSizing: 'border-box', fontFamily: value && !open ? 'monospace' : 'inherit', fontWeight: value && !open ? 600 : 400 }}
+      />
+      {open && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '7px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', maxHeight: '220px', overflowY: 'auto', marginTop: '2px' }}>
+          {filtered.length === 0 ? (
+            <div style={{ padding: '8px 12px', fontSize: '11px', color: 'var(--muted-foreground)' }}>Sin resultados</div>
+          ) : filtered.map(t => (
+            <div key={t.id}
+              onMouseDown={() => { onChange(t.id); setOpen(false); setQuery('') }}
+              style={{ padding: '7px 12px', fontSize: '12px', cursor: 'pointer', fontFamily: 'monospace', fontWeight: t.id === value ? 700 : 400, background: t.id === value ? 'var(--muted)' : 'transparent' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
+              onMouseLeave={e => (e.currentTarget.style.background = t.id === value ? 'var(--muted)' : 'transparent')}>
+              <span style={{ fontWeight: 700 }}>{t.codigo}</span>
+              <span style={{ fontWeight: 400, color: 'var(--muted-foreground)', marginLeft: '6px', fontSize: '11px' }}>{t.nombre_cc}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const ACCION_BADGE: Record<string, { bg: string; color: string }> = {
   'DESPLIEGUE': { bg: '#E0E7FF', color: '#3730A3' },
   'ACTIVACIÓN': { bg: '#FEF3C7', color: '#92400E' },
@@ -36,7 +82,6 @@ function HistorialModal({ router, onClose, onSaved }: { router: any; onClose: ()
   const [saving, setSaving]     = useState(false)
   const [saved, setSaved]       = useState(false)
   const [nuevaFoto, setNuevaFoto] = useState('')
-  const [addingFoto, setAddingFoto] = useState(false)
 
   const fetchDetail = useCallback(() => {
     fetch(`/api/routers-externos/${router.id}`)
@@ -120,23 +165,24 @@ function HistorialModal({ router, onClose, onSaved }: { router: any; onClose: ()
             <div style={{ marginBottom: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Fotos del equipo</div>
-                {!addingFoto && (
-                  <button onClick={() => setAddingFoto(true)} style={{ padding: '3px 10px', fontSize: '10px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '5px', cursor: 'pointer', fontWeight: 500 }}>
-                    + Agregar foto
-                  </button>
-                )}
+                <label style={{ padding: '3px 10px', fontSize: '10px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '5px', cursor: 'pointer', fontWeight: 500 }}>
+                  + Agregar foto
+                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    const reader = new FileReader()
+                    reader.onload = ev => { setNuevaFoto(ev.target?.result as string) }
+                    reader.readAsDataURL(file)
+                    e.target.value = ''
+                  }} />
+                </label>
               </div>
 
-              {addingFoto && (
-                <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
-                  <input
-                    value={nuevaFoto} onChange={e => setNuevaFoto(e.target.value)}
-                    placeholder="https://... URL de la foto"
-                    autoFocus
-                    style={{ flex: 1, padding: '6px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--background)', boxSizing: 'border-box' }}
-                  />
-                  <button onClick={agregarFoto} disabled={!nuevaFoto.trim()} style={{ padding: '6px 12px', fontSize: '11px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, opacity: !nuevaFoto.trim() ? 0.5 : 1 }}>Guardar</button>
-                  <button onClick={() => { setAddingFoto(false); setNuevaFoto('') }} style={{ padding: '6px 10px', fontSize: '11px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '6px', cursor: 'pointer' }}>✕</button>
+              {nuevaFoto && (
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', alignItems: 'flex-end' }}>
+                  <img src={nuevaFoto} alt="preview" style={{ width: '60px', height: '46px', objectFit: 'cover', borderRadius: '5px', border: '0.5px solid var(--border)' }} />
+                  <button onClick={agregarFoto} style={{ padding: '6px 12px', fontSize: '11px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>Guardar</button>
+                  <button onClick={() => setNuevaFoto('')} style={{ padding: '6px 10px', fontSize: '11px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '6px', cursor: 'pointer' }}>✕</button>
                 </div>
               )}
 
@@ -251,11 +297,7 @@ function DespliegueModal({ router, onClose, onDone }: { router: any; onClose: ()
               El router quedará en la tienda como inactivo. Para activarlo deberás crear un incidente y seleccionarlo ahí.
             </div>
             <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '4px' }}>Tienda destino</label>
-            <select value={tiendaId} onChange={e => setTiendaId(e.target.value)}
-              style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--background)', marginBottom: '12px', boxSizing: 'border-box' }}>
-              <option value="">— Seleccionar —</option>
-              {tiendas.map((t: any) => <option key={t.id} value={t.id}>{t.codigo} — {t.nombre_cc}</option>)}
-            </select>
+            <TiendaCombobox tiendas={tiendas} value={tiendaId} onChange={setTiendaId} placeholder="— Buscar tienda —" />
             <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '4px' }}>Nota (opcional)</label>
             <input value={nota} onChange={e => setNota(e.target.value)} placeholder="Motivo del despliegue"
               style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--background)', boxSizing: 'border-box', marginBottom: '16px' }} />
@@ -372,11 +414,7 @@ function TrasladoModal({ router, onClose, onDone }: { router: any; onClose: () =
               Para activar el router en la tienda destino, deberás crear un incidente y seleccionarlo ahí.
             </div>
             <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '4px' }}>Tienda destino</label>
-            <select value={tiendaId} onChange={e => setTiendaId(e.target.value)}
-              style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--background)', marginBottom: '12px', boxSizing: 'border-box' }}>
-              <option value="">— Seleccionar —</option>
-              {tiendas.map((t: any) => <option key={t.id} value={t.id}>{t.codigo} — {t.nombre_cc}</option>)}
-            </select>
+            <TiendaCombobox tiendas={tiendas} value={tiendaId} onChange={setTiendaId} placeholder="— Buscar tienda —" />
             <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '4px' }}>Justificación</label>
             <input value={justificacion} onChange={e => setJustificacion(e.target.value)} placeholder="Motivo del traslado"
               style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--background)', boxSizing: 'border-box', marginBottom: '16px' }} />

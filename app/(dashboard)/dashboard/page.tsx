@@ -671,7 +671,12 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                       <span style={{ fontSize: '10px', fontFamily: 'monospace', fontWeight: 700, color: borderColor, flexShrink: 0, marginLeft: '6px' }}>{durStr}</span>
                     )}
                   </div>
-                  <div style={{ fontSize: '9px', fontWeight: 700, color: borderColor, marginTop: '2px' }}>{tipoLabel}</div>
+                  <div style={{ fontSize: '9px', fontWeight: 700, color: borderColor, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    {tipoLabel}
+                    {esExterno && c.router_externo_codigo && (
+                      <span style={{ fontFamily: 'monospace', background: '#FED7AA', color: '#7C2D12', padding: '0px 5px', borderRadius: '4px' }}>{c.router_externo_codigo}</span>
+                    )}
+                  </div>
                   <div style={{ fontSize: '9px', color: textColor, display: 'flex', gap: '5px', marginTop: '1px', opacity: 0.8 }}>
                     {c.tienda_distrito && <span>{c.tienda_distrito}</span>}
                     {c.proveedor_nombre && <span>· {c.proveedor_nombre}</span>}
