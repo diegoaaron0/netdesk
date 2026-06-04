@@ -1651,7 +1651,8 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
             ? Number(inc.tiendaVentaHoraFdsSoles ?? inc.tiendaVentaHoraSoles)
             : Number(inc.tiendaVentaHoraSoles ?? inc.tiendaVentaHoraFdsSoles)
           const startMs = new Date(inc.horaRegistro).getTime()
-          const contStartMs = tsMs(inc.contHoraActivacion)
+          // contHoraActivacion es compartido por BOLETA_MANUAL — solo aplica como router si contActivadoPor está seteado
+          const contStartMs = inc.contActivadoPor ? tsMs(inc.contHoraActivacion) : null
           const contEndMs   = tsMs(inc.contHoraDesactivacion)
           const movStartMs  = tsMs(inc.movHoraActivacion)
           const movEndMs    = tsMs(inc.movHoraDesactivacion)

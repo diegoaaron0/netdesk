@@ -219,7 +219,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       venta_hora_soles:        inc.tiendaVentaHoraSoles,
       venta_hora_fds_soles:    inc.tiendaVentaHoraFdsSoles,
       cluster:                 inc.tiendaCluster,
-      cont_hora_activacion:    inc.contHoraActivacion,
+      // contHoraActivacion es compartido con BOLETA_MANUAL — solo pasar como router si contActivadoPor está seteado
+      cont_hora_activacion:    inc.contActivadoPor ? inc.contHoraActivacion : null,
       cont_hora_desactivacion: inc.contHoraDesactivacion,
       cont_rendimiento:        inc.contRendimiento,
       cont_es_externo:         inc.contEsExterno,
