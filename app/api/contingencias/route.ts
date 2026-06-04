@@ -18,6 +18,15 @@ export async function POST(req: NextRequest) {
 
   const userId = (session.user as any)?.id ?? null
 
+  // Validar que no haya otra contingencia standalone activa para esta tienda
+  const [activa] = await db.execute<{ cnt: number }>(sql`
+    SELECT COUNT(*)::int AS cnt FROM contingencias
+    WHERE tienda_id = ${tiendaId} AND hora_desactivacion IS NULL
+  `)
+  if (Number((activa as any).cnt ?? 0) > 0) {
+    return NextResponse.json({ error: 'Ya hay una contingencia activa para esta tienda. Desactívala primero.' }, { status: 409 })
+  }
+
   const [created] = await db.insert(contingencias).values({
     tiendaId,
     tipo,

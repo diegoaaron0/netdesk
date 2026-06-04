@@ -758,12 +758,26 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Crear incidente
               </a>
-              {!showContForm ? (
-                <button onClick={() => setShowContForm(true)}
-                  style={{ padding: '9px 12px', background: 'rgba(245,158,11,0.08)', border: '0.5px solid rgba(245,158,11,0.5)', borderRadius: '7px', fontSize: '12px', fontWeight: 500, color: '#92400e', cursor: 'pointer', textAlign: 'center' }}>
-                  Activar contingencia
-                </button>
-              ) : (() => {
+              {(() => {
+                const yaHayActiva = contList.some((c: any) => !c.horaDesactivacion)
+                if (yaHayActiva && !showContForm) {
+                  return (
+                    <div style={{ padding: '8px 10px', background: 'rgba(245,158,11,0.08)', border: '0.5px solid rgba(245,158,11,0.4)', borderRadius: '7px', fontSize: '11px', color: '#92400e', textAlign: 'center' }}>
+                      Ya hay una contingencia activa
+                    </div>
+                  )
+                }
+                if (!showContForm) {
+                  return (
+                    <button onClick={() => setShowContForm(true)}
+                      style={{ padding: '9px 12px', background: 'rgba(245,158,11,0.08)', border: '0.5px solid rgba(245,158,11,0.5)', borderRadius: '7px', fontSize: '12px', fontWeight: 500, color: '#92400e', cursor: 'pointer', textAlign: 'center' }}>
+                      Activar contingencia
+                    </button>
+                  )
+                }
+                return null
+              })()}
+              {showContForm && (() => {
                 const tipos = tienda.tieneContingencia
                   ? [{ v: 'ROUTER_PROPIO', l: '📶 Router propio' }, { v: 'DATOS_MOVILES', l: 'Datos móviles' }, { v: 'ROUTER_EXTERNO', l: '📦 Router externo' }]
                   : [{ v: 'ROUTER_EXTERNO', l: '📦 Router externo' }]

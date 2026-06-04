@@ -1201,8 +1201,15 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                       CANCELADO:           { icon: '✗', color: '#6B7280' },
                       CERRADO:             { icon: '⊘', color: '#6B7280' },
                       CONTINGENCIA:        { icon: '⚡', color: '#B45309' },
+                      CONTINGENCIA_FIN:    { icon: '○', color: '#6B7280' },
                     }
                     const c = conf[ev.tipo_evento] ?? { icon: '●', color: '#888' }
+                    const tipoContLabel: Record<string, string> = {
+                      ROUTER_PROPIO:  'Router propio',
+                      ROUTER_EXTERNO: 'Router externo',
+                      DATOS_MOVILES:  'Datos móviles',
+                    }
+                    const tipoLabel = tipoContLabel[ev.tipo_contingencia] ?? 'Contingencia'
                     let texto = ''
                     if (ev.tipo_evento === 'CREADO')                   texto = `${ev.codigo} abierto por ${ev.actor}`
                     else if (ev.tipo_evento === 'ESCALADO')            texto = `${ev.codigo} escalado N${ev.nivel ?? '?'} por ${ev.actor}${ev.proveedor_nombre ? ` · ${ev.proveedor_nombre}` : ''}`
@@ -1210,7 +1217,8 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                     else if (ev.tipo_evento === 'RESUELTO')            texto = `${ev.codigo} resuelto por ${ev.resuelto_por === 'PROVEEDOR' ? 'Proveedor' : ev.actor}`
                     else if (ev.tipo_evento === 'CANCELADO')           texto = `${ev.codigo} cancelado por ${ev.actor}`
                     else if (ev.tipo_evento === 'CERRADO')             texto = `${ev.codigo} cerrado por ${ev.actor}`
-                    else if (ev.tipo_evento === 'CONTINGENCIA')        texto = `Contingencia activada — ${ev.codigo}${ev.actor ? ` · ${ev.actor}` : ''}`
+                    else if (ev.tipo_evento === 'CONTINGENCIA')        texto = `${tipoLabel} activado — ${ev.codigo}${ev.actor ? ` · ${ev.actor}` : ''}`
+                    else if (ev.tipo_evento === 'CONTINGENCIA_FIN')    texto = `${tipoLabel} desactivado — ${ev.codigo}`
                     else texto = ev.codigo ?? ''
                     const { text: horaText, isOld } = fmtHoraEvento(ev.hora)
                     return (

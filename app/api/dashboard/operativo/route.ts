@@ -244,7 +244,7 @@ export async function GET(req: NextRequest) {
         i.router_externo_id,
         re.codigo          AS router_externo_codigo
       FROM tiendas t
-      LEFT JOIN incidentes i ON i.tienda_id = t.id
+      INNER JOIN incidentes i ON i.tienda_id = t.id
         AND i.cont_activado_por IS NOT NULL
         AND i.cont_hora_desactivacion IS NULL
         AND i.estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
@@ -321,12 +321,14 @@ export async function GET(req: NextRequest) {
       ORDER BY i.boleta_hora_activacion ASC
     `),
 
-    // ── Activaciones de contingencia (últimas 24h) para actividad reciente ──────
+    // ── Activaciones y desactivaciones de contingencia (últimas 24h) ───────────
     db.execute(sql`
-      SELECT tipo_evento, id, codigo, hora, actor, proveedor_nombre, NULL::int AS nivel FROM (
-        SELECT 'CONTINGENCIA'::text AS tipo_evento, i.id::text AS id, i.codigo,
+      SELECT tipo_evento, id, codigo, hora, actor, proveedor_nombre, NULL::int AS nivel, tipo_contingencia FROM (
+        -- Activaciones de contingencia router (incidentes)
+        SELECT 'CONTINGENCIA'::text AS tipo_evento, i.id::text AS id, t.codigo,
                i.cont_hora_activacion AS hora, i.cont_activado_por AS actor,
-               COALESCE(pi.nombre, pt.nombre) AS proveedor_nombre
+               COALESCE(pi.nombre, pt.nombre) AS proveedor_nombre,
+               CASE WHEN i.cont_es_externo THEN 'ROUTER_EXTERNO' ELSE 'ROUTER_PROPIO' END AS tipo_contingencia
         FROM incidentes i
         JOIN tiendas t ON i.tienda_id = t.id
         LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
@@ -334,9 +336,22 @@ export async function GET(req: NextRequest) {
         WHERE i.cont_hora_activacion IS NOT NULL
           AND i.cont_hora_activacion >= NOW() - INTERVAL '24 hours'
         UNION ALL
-        SELECT 'CONTINGENCIA'::text, i.id::text, i.codigo,
+        -- Desactivaciones de contingencia router (incidentes)
+        SELECT 'CONTINGENCIA_FIN'::text, i.id::text, t.codigo,
+               i.cont_hora_desactivacion, i.cont_activado_por,
+               COALESCE(pi.nombre, pt.nombre),
+               CASE WHEN i.cont_es_externo THEN 'ROUTER_EXTERNO' ELSE 'ROUTER_PROPIO' END
+        FROM incidentes i
+        JOIN tiendas t ON i.tienda_id = t.id
+        LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
+        LEFT JOIN proveedores pt ON t.proveedor_id = pt.id
+        WHERE i.cont_hora_desactivacion IS NOT NULL
+          AND i.cont_hora_desactivacion >= NOW() - INTERVAL '24 hours'
+        UNION ALL
+        -- Activaciones datos móviles
+        SELECT 'CONTINGENCIA'::text, i.id::text, t.codigo,
                i.mov_hora_activacion, i.mov_activado_por,
-               COALESCE(pi.nombre, pt.nombre)
+               COALESCE(pi.nombre, pt.nombre), 'DATOS_MOVILES'::text
         FROM incidentes i
         JOIN tiendas t ON i.tienda_id = t.id
         LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
@@ -344,15 +359,37 @@ export async function GET(req: NextRequest) {
         WHERE i.mov_hora_activacion IS NOT NULL
           AND i.mov_hora_activacion >= NOW() - INTERVAL '24 hours'
         UNION ALL
-        SELECT 'CONTINGENCIA'::text, NULL::text, t.codigo,
+        -- Desactivaciones datos móviles
+        SELECT 'CONTINGENCIA_FIN'::text, i.id::text, t.codigo,
+               i.mov_hora_desactivacion, i.mov_activado_por,
+               COALESCE(pi.nombre, pt.nombre), 'DATOS_MOVILES'::text
+        FROM incidentes i
+        JOIN tiendas t ON i.tienda_id = t.id
+        LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
+        LEFT JOIN proveedores pt ON t.proveedor_id = pt.id
+        WHERE i.mov_hora_desactivacion IS NOT NULL
+          AND i.mov_hora_desactivacion >= NOW() - INTERVAL '24 hours'
+        UNION ALL
+        -- Activaciones standalone
+        SELECT 'CONTINGENCIA'::text, c.id::text, t.codigo,
                c.hora_activacion, c.activado_por,
-               COALESCE(pt.nombre)
+               pt.nombre, c.tipo
         FROM contingencias c
         JOIN tiendas t ON c.tienda_id = t.id
         LEFT JOIN proveedores pt ON t.proveedor_id = pt.id
         WHERE c.hora_activacion >= NOW() - INTERVAL '24 hours'
+        UNION ALL
+        -- Desactivaciones standalone
+        SELECT 'CONTINGENCIA_FIN'::text, c.id::text, t.codigo,
+               c.hora_desactivacion, c.activado_por,
+               pt.nombre, c.tipo
+        FROM contingencias c
+        JOIN tiendas t ON c.tienda_id = t.id
+        LEFT JOIN proveedores pt ON t.proveedor_id = pt.id
+        WHERE c.hora_desactivacion IS NOT NULL
+          AND c.hora_desactivacion >= NOW() - INTERVAL '24 hours'
       ) sub
-      ORDER BY hora DESC LIMIT 20
+      ORDER BY hora DESC LIMIT 30
     `),
   ])
 
