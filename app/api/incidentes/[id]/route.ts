@@ -426,8 +426,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   // ── Gestión de estado del router externo ─────────────────────────────────
-  // Al activar contingencia externa → EN_TIENDA_ACTIVO (solo estado, el historial lo da incidentes)
+  // Al activar contingencia externa → validar que no esté activo en otro incidente, luego EN_TIENDA_ACTIVO
   if (allowedFields.contActivadoPor && allowedFields.contEsExterno && updated.routerExternoId) {
+    const [currentRouter] = await db.select({ estado: routersExternos.estado, tiendaActualId: routersExternos.tiendaActualId })
+      .from(routersExternos).where(eq(routersExternos.id, updated.routerExternoId))
+    if (currentRouter?.estado === 'EN_TIENDA_ACTIVO' && currentRouter.tiendaActualId !== updated.tiendaId) {
+      return NextResponse.json({ error: 'Este router ya está activo en otro incidente. Debe desactivarse primero.' }, { status: 409 })
+    }
     await db.update(routersExternos)
       .set({ estado: 'EN_TIENDA_ACTIVO', tiendaActualId: updated.tiendaId })
       .where(eq(routersExternos.id, updated.routerExternoId))
@@ -465,7 +470,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         .set({
           contingenciaActiva: true,
           contingenciaActivadaPor: String(updated.contActivadoPor),
-          contingenciaDescripcion: (updated.contObservacion as string | null) ?? null,
         })
         .where(eq(tiendas.id, updated.tiendaId))
       await db.insert(tiendasHistorial).values({
