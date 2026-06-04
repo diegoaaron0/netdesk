@@ -103,7 +103,9 @@ async function runSection<T>(label: string, fn: () => Promise<T>): Promise<T> {
   try {
     return await fn()
   } catch (err: any) {
-    throw new Error(`[sección: ${label}] ${err?.message ?? String(err)}`)
+    const pgMsg = (err?.cause as any)?.message ?? ''
+    const msg   = pgMsg || err?.message ?? String(err)
+    throw new Error(`[sección: ${label}] ${msg}`)
   }
 }
 
@@ -426,7 +428,7 @@ export async function GET(req: Request) {
         // 10. Distribución por cluster
         runSection('clusters', () => db.execute(sql`
           SELECT
-            COALESCE(t.cluster, 'Sin cluster')                                                    AS cluster,
+            COALESCE(t.cluster::text, 'Sin cluster')                                              AS cluster,
             COUNT(i.id)::int                                                                       AS incidentes,
             COUNT(DISTINCT i.tienda_id)::int                                                      AS tiendas_afectadas,
             ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int                AS mttr_avg,
@@ -436,7 +438,7 @@ export async function GET(req: Request) {
           WHERE i.hora_registro >= ${desde}::timestamptz
             AND i.hora_registro <  ${hasta}::timestamptz
             AND i.estado != 'CANCELADO'
-          GROUP BY COALESCE(t.cluster, 'Sin cluster')
+          GROUP BY COALESCE(t.cluster::text, 'Sin cluster')
           ORDER BY cluster
         `)),
       ])
