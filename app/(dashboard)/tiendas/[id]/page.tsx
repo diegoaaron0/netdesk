@@ -316,7 +316,9 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
   }
 
   const prov = provColor(tienda.proveedorNombre)
-  const contStatus = contingenciaStatus(tienda)
+  // contingencia_activa puede ser de ROUTER_EXTERNO — en ese caso no se muestra como propia de la tienda
+  const hayRouterExternoActivo = routersTienda.some((r: any) => r.estado === 'EN_TIENDA_ACTIVO')
+  const contStatus = contingenciaStatus({ ...tienda, contingenciaActiva: tienda.contingenciaActiva && !hayRouterExternoActivo })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -356,9 +358,14 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
           {tienda.cidServicio && (
             <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>CID {tienda.cidServicio}</span>
           )}
-          {tienda.contingenciaActiva && (
+          {tienda.contingenciaActiva && !hayRouterExternoActivo && (
             <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 7px', borderRadius: '4px', background: '#fef3c7', color: '#92400e', border: '0.5px solid #f59e0b' }}>
               Contingencia activa
+            </span>
+          )}
+          {hayRouterExternoActivo && (
+            <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 7px', borderRadius: '4px', background: '#FFF7ED', color: '#C2410C', border: '0.5px solid #FDBA74' }}>
+              Router externo activo
             </span>
           )}
         </div>
@@ -683,8 +690,8 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
             </div>
           </div>
 
-          {/* Card D: Contingencia + Extras */}
-          <div style={{ background: tienda.contingenciaActiva ? '#fffbeb' : 'var(--card)', border: `0.5px solid ${tienda.contingenciaActiva ? '#f59e0b' : 'var(--border)'}`, borderRadius: '10px', padding: '12px 14px' }}>
+          {/* Card D: Contingencia propia + Extras (no se muestra activada si la única activa es ROUTER_EXTERNO) */}
+          <div style={{ background: (tienda.contingenciaActiva && !hayRouterExternoActivo) ? '#fffbeb' : 'var(--card)', border: `0.5px solid ${(tienda.contingenciaActiva && !hayRouterExternoActivo) ? '#f59e0b' : 'var(--border)'}`, borderRadius: '10px', padding: '12px 14px' }}>
             <SectionTitle>Contingencia</SectionTitle>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
@@ -706,10 +713,10 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                   </div>
                 )}
               </div>
-              {/* Estado */}
+              {/* Estado — solo muestra Activada si es contingencia propia (ROUTER_PROPIO) */}
               <div style={{ marginBottom: '8px' }}>
                 <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '3px' }}>Estado</div>
-                {tienda.contingenciaActiva
+                {(tienda.contingenciaActiva && !hayRouterExternoActivo)
                   ? <span style={{ fontSize: '11px', fontWeight: 700, color: '#92400e', background: '#fef3c7', padding: '2px 7px', borderRadius: '4px' }}>Activada</span>
                   : <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Desactivada</span>}
               </div>
@@ -717,7 +724,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               <Field label="Paquete" value={form.contingenciaPaquete ?? ''} editing={editing} onChange={v => setF('contingenciaPaquete', v)} />
             </div>
 
-            {tienda.contingenciaActiva && (
+            {(tienda.contingenciaActiva && !hayRouterExternoActivo) && (
               <div style={{ marginBottom: '8px' }}>
                 {tienda.contingenciaDescripcion && (
                   <div style={{ fontSize: '11px', color: '#78350f', lineHeight: 1.5, background: '#fef3c7', padding: '6px 8px', borderRadius: '6px', marginBottom: '4px' }}>
@@ -819,20 +826,27 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                 {routersTienda.map((r: any) => {
                   const activo = r.estado === 'EN_TIENDA_ACTIVO'
                   return (
-                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', background: 'white', borderRadius: '7px', border: `0.5px solid ${activo ? '#F59E0B' : '#E5E7EB'}` }}>
-                      <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '14px', color: '#92400E' }}>{r.codigo}</span>
-                      <span style={{ fontSize: '9px', fontWeight: 700, padding: '2px 7px', borderRadius: '999px', background: activo ? '#FEF3C7' : '#E0E7FF', color: activo ? '#92400E' : '#3730A3' }}>
-                        {activo ? 'ACTIVO' : 'inactivo'}
-                      </span>
-                      {r.fecha_ingreso_actual && (
-                        <span style={{ fontSize: '10px', color: '#92400E', opacity: 0.75 }}>
-                          Desde {new Date(r.fecha_ingreso_actual).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', timeZone: 'America/Lima' })}
+                    <div key={r.id} style={{ padding: '8px 10px', background: 'white', borderRadius: '7px', border: `0.5px solid ${activo ? '#F59E0B' : '#E5E7EB'}` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '14px', color: '#92400E' }}>{r.codigo}</span>
+                        <span style={{ fontSize: '9px', fontWeight: 700, padding: '2px 7px', borderRadius: '999px', background: activo ? '#FEF3C7' : '#E0E7FF', color: activo ? '#92400E' : '#3730A3' }}>
+                          {activo ? 'ACTIVO' : 'inactivo'}
                         </span>
-                      )}
-                      {!activo && (
-                        <span style={{ fontSize: '9px', color: '#6B7280', flex: 1, textAlign: 'right', fontStyle: 'italic' }}>
-                          Inactivo · actívalo desde el incidente
-                        </span>
+                        {r.fecha_ingreso_actual && (
+                          <span style={{ fontSize: '10px', color: '#92400E', opacity: 0.75 }}>
+                            Desde {new Date(r.fecha_ingreso_actual).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', timeZone: 'America/Lima' })}
+                          </span>
+                        )}
+                        {!activo && (
+                          <span style={{ fontSize: '9px', color: '#6B7280', flex: 1, textAlign: 'right', fontStyle: 'italic' }}>
+                            Inactivo · actívalo desde el incidente
+                          </span>
+                        )}
+                      </div>
+                      {activo && r.cont_observacion_actual && (
+                        <div style={{ marginTop: '5px', fontSize: '10px', color: '#78350F', background: '#FEF3C7', borderRadius: '5px', padding: '4px 7px', lineHeight: 1.4 }}>
+                          {r.cont_observacion_actual}
+                        </div>
                       )}
                     </div>
                   )

@@ -112,7 +112,7 @@ function HistorialModal({ router, onClose, onSaved }: { router: any; onClose: ()
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fotos }),
     })
-    if (res.ok) { setNuevaFoto(''); setAddingFoto(false); fetchDetail() }
+    if (res.ok) { setNuevaFoto(''); fetchDetail() }
   }
 
   async function eliminarFoto(url: string) {
@@ -212,40 +212,36 @@ function HistorialModal({ router, onClose, onSaved }: { router: any; onClose: ()
             {!detail.historial?.length ? (
               <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Sin historial registrado</div>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
-                <thead>
-                  <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
-                    {['Evento', 'Tienda', 'Ingreso', 'Activación', 'Desactivación', 'Duración', 'Ubicación'].map(h => (
-                      <th key={h} style={{ padding: '5px 6px', textAlign: 'left', fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {detail.historial.map((h: any, i: number) => {
-                    const badgeStyle = ACCION_BADGE[h.accion] ?? { bg: '#F3F4F6', color: '#374151' }
-                    const ubicacion = h.almacen_destino
-                      ? h.almacen_destino
-                      : h.almacen_origen
-                        ? `${h.tienda_codigo ?? '—'} (desde ${h.almacen_origen})`
-                        : h.tienda_codigo ?? '—'
-                    return (
-                      <tr key={i} style={{ borderTop: i > 0 ? '0.5px solid var(--border)' : 'none' }}>
-                        <td style={{ padding: '5px 6px' }}>
-                          <span style={{ padding: '1px 6px', borderRadius: '999px', fontSize: '9px', fontWeight: 600, background: badgeStyle.bg, color: badgeStyle.color }}>
-                            {h.accion}
-                          </span>
-                        </td>
-                        <td style={{ padding: '5px 6px', fontWeight: 600 }}>{h.tienda_codigo ?? '—'}</td>
-                        <td style={{ padding: '5px 6px', fontSize: '10px' }}>{fmtFecha(h.fecha_ingreso)}</td>
-                        <td style={{ padding: '5px 6px', fontSize: '10px' }}>{h.accion === 'ACTIVACIÓN' ? fmtFecha(h.fecha_ingreso) : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}</td>
-                        <td style={{ padding: '5px 6px', fontSize: '10px' }}>{h.accion === 'ACTIVACIÓN' ? fmtFecha(h.fecha_retorno) : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}</td>
-                        <td style={{ padding: '5px 6px', fontFamily: 'monospace' }}>{h.tiempo_uso_min ? fmtMin(h.tiempo_uso_min) : '—'}</td>
-                        <td style={{ padding: '5px 6px', fontSize: '10px', color: 'var(--muted-foreground)' }}>{ubicacion}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+              <div style={{ maxHeight: '220px', overflowY: 'auto', border: '0.5px solid var(--border)', borderRadius: '7px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                  <thead style={{ position: 'sticky', top: 0, background: 'var(--card)', zIndex: 1 }}>
+                    <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
+                      {['Evento', 'Tienda', 'Ingreso', 'Activación', 'Desactivación', 'Duración'].map(h => (
+                        <th key={h} style={{ padding: '5px 6px', textAlign: 'left', fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detail.historial.map((h: any, i: number) => {
+                      const badgeStyle = ACCION_BADGE[h.accion] ?? { bg: '#F3F4F6', color: '#374151' }
+                      return (
+                        <tr key={i} style={{ borderTop: i > 0 ? '0.5px solid var(--border)' : 'none' }}>
+                          <td style={{ padding: '5px 6px' }}>
+                            <span style={{ padding: '1px 6px', borderRadius: '999px', fontSize: '9px', fontWeight: 600, background: badgeStyle.bg, color: badgeStyle.color }}>
+                              {h.accion}
+                            </span>
+                          </td>
+                          <td style={{ padding: '5px 6px', fontWeight: 600 }}>{h.tienda_codigo ?? '—'}</td>
+                          <td style={{ padding: '5px 6px', fontSize: '10px' }}>{fmtFecha(h.fecha_ingreso)}</td>
+                          <td style={{ padding: '5px 6px', fontSize: '10px' }}>{h.accion === 'ACTIVACIÓN' ? fmtFecha(h.fecha_ingreso) : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}</td>
+                          <td style={{ padding: '5px 6px', fontSize: '10px' }}>{h.accion === 'ACTIVACIÓN' ? fmtFecha(h.fecha_retorno) : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}</td>
+                          <td style={{ padding: '5px 6px', fontFamily: 'monospace' }}>{h.tiempo_uso_min ? fmtMin(h.tiempo_uso_min) : '—'}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </>
         )}

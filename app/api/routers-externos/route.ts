@@ -44,7 +44,17 @@ export async function GET() {
             AND i3.estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
           ORDER BY i3.cont_hora_activacion DESC
           LIMIT 1
-        ) AS fecha_ingreso_actual
+        ) AS fecha_ingreso_actual,
+        (
+          SELECT i4.cont_observacion
+          FROM incidentes i4
+          WHERE i4.router_externo_id = r.id
+            AND i4.cont_hora_activacion IS NOT NULL
+            AND i4.cont_hora_desactivacion IS NULL
+            AND i4.estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
+          ORDER BY i4.cont_hora_activacion DESC
+          LIMIT 1
+        ) AS cont_observacion_actual
       FROM routers_externos r
       LEFT JOIN tiendas t ON r.tienda_actual_id = t.id
       WHERE r.activo = true
