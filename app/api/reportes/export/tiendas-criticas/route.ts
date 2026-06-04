@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
-import { IEI_FACTOR, IEI_CLUSTER_FALLBACK } from '@/lib/iei-sql-expr'
+import { ieiPerRow, pgErrMsg } from '@/lib/report-sql'
 
 function esc(v: unknown): string {
   if (v == null) return ''
@@ -40,7 +40,7 @@ export async function GET(req: Request) {
           i.mttr_minutos,
           i.hora_registro,
           COALESCE(t.tiene_contingencia, false)   AS tiene_contingencia,
-          COALESCE(t.venta_hora_soles,${IEI_CLUSTER_FALLBACK})*(COALESCE(i.mttr_minutos,0)::numeric/60)*0.35*${IEI_FACTOR} AS iei_row
+          ${sql.raw(ieiPerRow())}                                                        AS iei_row
         FROM incidentes i
         JOIN tiendas t ON i.tienda_id = t.id
         LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
@@ -71,7 +71,7 @@ export async function GET(req: Request) {
           COUNT(*)::int                                    AS incidentes,
           MODE() WITHIN GROUP (ORDER BY b.tipo)            AS tipo_frecuente,
           ROUND(AVG(b.mttr_minutos))::int                  AS mttr_avg,
-          ROUND(MAX(g.avg_dias), 1)                        AS dias_entre_caidas,
+          ROUND(MAX(g.avg_dias)::numeric, 1)               AS dias_entre_caidas,
           ROUND(SUM(b.iei_row))::int                       AS iei_acumulado,
           BOOL_OR(b.tiene_contingencia)                    AS contingencia
         FROM base b
@@ -102,8 +102,8 @@ export async function GET(req: Request) {
         'Content-Disposition': `attachment; filename="netdesk_tiendas_criticas_${desdeLabel}_${hastaLabel}.csv"`,
       },
     })
-  } catch (err: any) {
-    console.error('[export/tiendas-criticas]', err)
-    return NextResponse.json({ error: "Error interno al generar el reporte" }, { status: 500 })
+  } catch (err: unknown) {
+    console.error('[export/tiendas-criticas]', (err as any)?.cause ?? err)
+    return NextResponse.json({ error: pgErrMsg(err) }, { status: 500 })
   }
 }

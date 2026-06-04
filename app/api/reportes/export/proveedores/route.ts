@@ -3,8 +3,7 @@ import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
-import { IEI_FACTOR, IEI_CLUSTER_FALLBACK } from '@/lib/iei-sql-expr'
-import { slaLimiteCase } from '@/lib/sla-sql'
+import { slaCase, ieiSum, pgErrMsg } from '@/lib/report-sql'
 
 function esc(v: unknown): string {
   if (v == null) return ''
@@ -38,7 +37,7 @@ export async function GET(req: Request) {
           COUNT(i.id) FILTER (WHERE i.estado = 'RESUELTO' AND i.mttr_minutos IS NOT NULL
             AND n1h.hora_correo_n1_val IS NOT NULL
             AND i.evaluable_proveedor IS NOT FALSE AND i.tipo != 'CORTE_ELECTRICO')::int AS evaluables_sla,
-          ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= ${slaLimiteCase('i.tipo')}
+          ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= ${sql.raw(slaCase())}
             AND i.estado = 'RESUELTO'
             AND i.evaluable_proveedor IS NOT FALSE AND i.tipo != 'CORTE_ELECTRICO') * 100.0 /
             NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'
@@ -56,7 +55,7 @@ export async function GET(req: Request) {
             NULLIF(COUNT(i.id), 0), 1)                                           AS tasa_reapertura,
           MODE() WITHIN GROUP (ORDER BY i.motivo_reabertura)
             FILTER (WHERE i.motivo_reabertura IS NOT NULL)                       AS motivo_frecuente,
-          ROUND(SUM(COALESCE(t.venta_hora_soles,${IEI_CLUSTER_FALLBACK})*(COALESCE(i.mttr_minutos,0)::numeric/60)*0.35*${IEI_FACTOR}))::int AS iei
+          ${sql.raw(ieiSum())}                                                              AS iei
         FROM incidentes i
         JOIN tiendas t ON i.tienda_id = t.id
         LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
@@ -92,13 +91,13 @@ export async function GET(req: Request) {
           COUNT(i.id)::int                                   AS incidentes,
           MODE() WITHIN GROUP (ORDER BY i.tipo)              AS tipo_frecuente,
           ROUND(AVG(i.mttr_minutos))::int                    AS mttr_avg,
-          ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= ${slaLimiteCase('i.tipo')}
+          ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= ${sql.raw(slaCase())}
             AND i.estado = 'RESUELTO'
             AND i.evaluable_proveedor IS NOT FALSE AND i.tipo != 'CORTE_ELECTRICO') * 100.0 /
             NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'
             AND i.evaluable_proveedor IS NOT FALSE AND i.tipo != 'CORTE_ELECTRICO'), 0))::int AS sla_pct,
           COUNT(*) FILTER (WHERE i.motivo_reabertura IS NOT NULL)::int           AS reaperturas,
-          ROUND(SUM(COALESCE(t.venta_hora_soles,${IEI_CLUSTER_FALLBACK})*(COALESCE(i.mttr_minutos,0)::numeric/60)*0.35*${IEI_FACTOR}))::int AS iei
+          ${sql.raw(ieiSum())}                                                              AS iei
         FROM incidentes i
         JOIN tiendas t ON i.tienda_id = t.id
         LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
@@ -147,8 +146,8 @@ export async function GET(req: Request) {
         'Content-Disposition': `attachment; filename="netdesk_proveedores_${desdeLabel}_${hastaLabel}.csv"`,
       },
     })
-  } catch (err: any) {
-    console.error('[export/proveedores]', err)
-    return NextResponse.json({ error: "Error interno al generar el reporte" }, { status: 500 })
+  } catch (err: unknown) {
+    console.error('[export/proveedores]', (err as any)?.cause ?? err)
+    return NextResponse.json({ error: pgErrMsg(err) }, { status: 500 })
   }
 }

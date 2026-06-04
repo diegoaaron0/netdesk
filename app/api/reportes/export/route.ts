@@ -4,7 +4,7 @@ import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { calcImpactoRow } from '@/lib/impacto-calc'
-import { slaLimiteCase } from '@/lib/sla-sql'
+import { slaCase, pgErrMsg } from '@/lib/report-sql'
 
 export async function GET(req: Request) {
   const session = await auth()
@@ -84,7 +84,7 @@ export async function GET(req: Request) {
         CASE
           WHEN i.estado != 'RESUELTO' OR i.mttr_minutos IS NULL
             THEN 'No aplica'
-          WHEN i.mttr_minutos <= ${slaLimiteCase('i.tipo')}
+          WHEN i.mttr_minutos <= ${sql.raw(slaCase())}
             THEN 'Cumplido'
           ELSE 'Incumplido'
         END                                                                            AS sla_resolucion,
@@ -99,7 +99,7 @@ export async function GET(req: Request) {
             n1.hora_envio_raw IS NOT NULL
             AND n1.hora_respuesta_raw IS NOT NULL
             AND EXTRACT(EPOCH FROM (n1.hora_respuesta_raw - n1.hora_envio_raw)) / 60 <= 60
-            AND i.mttr_minutos <= ${slaLimiteCase('i.tipo')}
+            AND i.mttr_minutos <= ${sql.raw(slaCase())}
           )
             THEN 'Sí'
           ELSE 'No'
@@ -249,8 +249,8 @@ export async function GET(req: Request) {
         'Content-Disposition': `attachment; filename="netdesk_incidentes_operativos_${desdeLabel}_${hastaLabel}.csv"`,
       },
     })
-  } catch (err: any) {
-    console.error('[export] Error:', err)
-    return NextResponse.json({ error: "Error interno al generar el reporte" }, { status: 500 })
+  } catch (err: unknown) {
+    console.error('[export/operativos]', (err as any)?.cause ?? err)
+    return NextResponse.json({ error: pgErrMsg(err) }, { status: 500 })
   }
 }
