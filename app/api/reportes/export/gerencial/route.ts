@@ -195,7 +195,7 @@ export async function GET(req: Request) {
           COALESCE(pi.nombre, pt.nombre)  AS proveedor,
           COUNT(i.id)::int                AS incidentes,
           ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int AS mttr_avg,
-          ROUND(MAX(g.avg_dias), 1)       AS dias_entre_caidas,
+          ROUND(MAX(g.avg_dias)::numeric, 1) AS dias_entre_caidas,
           MODE() WITHIN GROUP (ORDER BY i.tipo) AS tipo_frecuente,
           (SELECT COUNT(*) FROM incidentes i2
            WHERE i2.tienda_id = t.id
@@ -509,6 +509,7 @@ export async function GET(req: Request) {
     })
   } catch (err: any) {
     console.error('[export/gerencial]', err)
-    return NextResponse.json({ error: "Error interno al generar el reporte" }, { status: 500 })
+    const msg = err?.message ?? 'Error interno al generar el reporte'
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
