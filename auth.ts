@@ -53,6 +53,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async session({ session, token }) {
       if (session.user) {
+        ;(session.user as any).id       = token.sub   // UUID del usuario — requerido por todas las rutas
+        ;(session.user as any).nombre   = token.name
         ;(session.user as any).rol      = token.rol
         ;(session.user as any).permisos = token.permisos ?? null
       }

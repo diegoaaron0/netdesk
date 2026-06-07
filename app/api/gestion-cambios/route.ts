@@ -111,7 +111,8 @@ export async function POST(req: NextRequest) {
   if (alcance !== 'ZONA' && !tiendaId)
     return NextResponse.json({ error: 'tiendaId requerido para alcance TIENDA' }, { status: 400 })
 
-  const creadoPorId = (session.user as any).id
+  const creadoPorId = (session.user as any)?.id ?? (session.user as any)?.sub ?? null
+  if (!creadoPorId) return NextResponse.json({ error: 'No se pudo identificar al usuario de la sesión' }, { status: 401 })
 
   try {
   // Auto-generar código de forma segura

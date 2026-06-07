@@ -8,6 +8,8 @@ export default {
   callbacks: {
     async session({ session, token }) {
       if (session.user) {
+        ;(session.user as any).id       = token.sub
+        ;(session.user as any).nombre   = token.name
         ;(session.user as any).rol      = token.rol
         ;(session.user as any).permisos = token.permisos ?? null
       }
