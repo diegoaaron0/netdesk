@@ -78,7 +78,7 @@ const NAV = [
     items: [
       { href: '/dashboard',  label: 'Dashboard',  icon: <IcoDashboard />,    color: '#1D9E75', permiso: 'dashboard.ver' },
       { href: '/reportes',   label: 'Reportes',   icon: <IcoReportes />,     color: '#7F77DD', permiso: 'reportes.ver' },
-      { href: '/decisiones', label: 'Decisiones', icon: <IcoDecisiones />,   color: '#F59E0B', permiso: 'decisiones.ver' },
+      { href: '/gestion-cambios', label: 'Gestión de Cambios', icon: <IcoDecisiones />, color: '#F59E0B', permiso: 'gestion-cambios.ver' },
     ],
   },
   {

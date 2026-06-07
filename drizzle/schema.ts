@@ -465,3 +465,137 @@ export const decisionesRelations = relations(decisiones, ({ one }) => ({
   responsable:         one(usuarios,    { fields: [decisiones.responsableId],         references: [usuarios.id] }),
   aprobadoPor:         one(usuarios,    { fields: [decisiones.aprobadoPorId],         references: [usuarios.id] }),
 }))
+
+// ── Gestión de Cambios ────────────────────────────────────────────────────────
+
+export const tipoAccionEnum = pgEnum('tipo_accion', [
+  'CAMBIO_PROVEEDOR', 'RENEGOCIACION_CONTRATO', 'ACTUALIZACION_PLAN',
+  'AUDITORIA_PROVEEDOR', 'ADQUISICION_EQUIPO', 'PLAN_MEJORA',
+])
+export const estadoAccionEnum = pgEnum('estado_accion', [
+  'BORRADOR', 'PROPUESTO', 'APROBADO', 'EN_EJECUCION',
+  'EJECUTADO', 'EN_EVALUACION', 'COMPLETADO', 'RECHAZADO', 'CANCELADO',
+])
+export const alcanceAccionEnum = pgEnum('alcance_accion', ['TIENDA', 'ZONA'])
+
+// snapDetalle / eval*Detalle JSONB shape:
+// { slaRespuestaPct, slaResolucionPct, mttrMin, totalIncidentes, incidentesSlaVencido, ieiAcumulado, penalidadEstimada, porTienda?: [...] }
+
+export const accionesGestion = pgTable('acciones_gestion', {
+  id:                       uuid('id').primaryKey().defaultRandom(),
+  codigo:                   text('codigo').unique().notNull(),              // AC-001
+  tipo:                     tipoAccionEnum('tipo').notNull(),
+  estado:                   estadoAccionEnum('estado').notNull().default('BORRADOR'),
+  alcance:                  alcanceAccionEnum('alcance').notNull().default('TIENDA'),
+
+  // Descripción
+  titulo:                   text('titulo').notNull(),
+  descripcion:              text('descripcion'),
+  motivo:                   text('motivo').notNull(),
+  zonaDescripcion:          text('zona_descripcion'),
+
+  // Scope — tienda única (alcance TIENDA)
+  tiendaId:                 uuid('tienda_id').references(() => tiendas.id),
+
+  // Proveedores
+  proveedorAnteriorId:      uuid('proveedor_anterior_id').references(() => proveedores.id),
+  proveedorNuevoId:         uuid('proveedor_nuevo_id').references(() => proveedores.id),
+
+  // Contrato previo (RENEGOCIACION_CONTRATO)
+  contratoAnteriorId:       uuid('contrato_anterior_id').references(() => contratosProveedor.id),
+
+  // Router vinculado (ADQUISICION_EQUIPO)
+  routerExternoId:          uuid('router_externo_id').references(() => routersExternos.id, { onDelete: 'set null' }),
+
+  // Personas
+  creadoPorId:              uuid('creado_por_id').references(() => usuarios.id).notNull(),
+  aprobadoPorId:            uuid('aprobado_por_id').references(() => usuarios.id),
+  ejecutadoPorId:           uuid('ejecutado_por_id').references(() => usuarios.id),
+
+  // Timestamps
+  creadoEn:                 timestamp('creado_en').defaultNow().notNull(),
+  actualizadoEn:            timestamp('actualizado_en').defaultNow().notNull(),
+
+  // Planificación
+  fechaEjecucionPlanificada: date('fecha_ejecucion_planificada'),
+
+  // Aprobación
+  aprobadoEn:               timestamp('aprobado_en'),
+  notasAprobacion:          text('notas_aprobacion'),
+  rechazadoMotivo:          text('rechazado_motivo'),
+
+  // Ejecución
+  ejecutadoEn:              timestamp('ejecutado_en'),
+  notasEjecucion:           text('notas_ejecucion'),
+
+  // Ventanas de evaluación (se calculan al ejecutar)
+  fechaEval30:              date('fecha_eval_30'),
+  fechaEval90:              date('fecha_eval_90'),
+
+  // Snapshot ANTES (capturado al proponer / al guardar)
+  snapPeriodoDias:          integer('snap_periodo_dias').default(90),
+  snapSlaPct:               numeric('snap_sla_pct'),
+  snapMttrMin:              integer('snap_mttr_min'),
+  snapIei:                  numeric('snap_iei'),
+  snapNincidentes:          integer('snap_nincidentes'),
+  snapDetalle:              jsonb('snap_detalle'),
+
+  // Evaluación 30 días
+  eval30Completada:         boolean('eval30_completada').default(false),
+  eval30Fecha:              timestamp('eval30_fecha'),
+  eval30SlaPct:             numeric('eval30_sla_pct'),
+  eval30MttrMin:            integer('eval30_mttr_min'),
+  eval30Iei:                numeric('eval30_iei'),
+  eval30Nincidentes:        integer('eval30_nincidentes'),
+  eval30Detalle:            jsonb('eval30_detalle'),
+  eval30Nota:               text('eval30_nota'),
+
+  // Evaluación 90 días
+  eval90Completada:         boolean('eval90_completada').default(false),
+  eval90Fecha:              timestamp('eval90_fecha'),
+  eval90SlaPct:             numeric('eval90_sla_pct'),
+  eval90MttrMin:            integer('eval90_mttr_min'),
+  eval90Iei:                numeric('eval90_iei'),
+  eval90Nincidentes:        integer('eval90_nincidentes'),
+  eval90Detalle:            jsonb('eval90_detalle'),
+  eval90Nota:               text('eval90_nota'),
+
+  // Penalidad SLA (base para nota de crédito)
+  penalidadEstimada:        numeric('penalidad_estimada'),
+
+  // Input del administrador de tienda (fase futura)
+  inputTienda:              text('input_tienda'),
+})
+
+// Tiendas en scope para acciones de alcance ZONA (múltiples tiendas)
+export const accionesGestionTiendas = pgTable('acciones_gestion_tiendas', {
+  id:                   uuid('id').primaryKey().defaultRandom(),
+  accionId:             uuid('accion_id').notNull().references(() => accionesGestion.id, { onDelete: 'cascade' }),
+  tiendaId:             uuid('tienda_id').notNull().references(() => tiendas.id),
+  proveedorAnteriorId:  uuid('proveedor_anterior_id').references(() => proveedores.id),
+  proveedorNuevoId:     uuid('proveedor_nuevo_id').references(() => proveedores.id),
+  snapDetalle:          jsonb('snap_detalle'),
+  eval30Detalle:        jsonb('eval30_detalle'),
+  eval90Detalle:        jsonb('eval90_detalle'),
+  ejecutada:            boolean('ejecutada').default(false),
+  creadoEn:             timestamp('creado_en').defaultNow().notNull(),
+})
+
+export const accionesGestionRelations = relations(accionesGestion, ({ one, many }) => ({
+  tienda:           one(tiendas,            { fields: [accionesGestion.tiendaId],            references: [tiendas.id] }),
+  proveedorAnterior: one(proveedores,       { fields: [accionesGestion.proveedorAnteriorId], references: [proveedores.id] }),
+  proveedorNuevo:   one(proveedores,        { fields: [accionesGestion.proveedorNuevoId],    references: [proveedores.id] }),
+  contratoAnterior: one(contratosProveedor, { fields: [accionesGestion.contratoAnteriorId],  references: [contratosProveedor.id] }),
+  routerExterno:    one(routersExternos,    { fields: [accionesGestion.routerExternoId],     references: [routersExternos.id] }),
+  creadoPor:        one(usuarios,           { fields: [accionesGestion.creadoPorId],         references: [usuarios.id] }),
+  aprobadoPor:      one(usuarios,           { fields: [accionesGestion.aprobadoPorId],       references: [usuarios.id] }),
+  ejecutadoPor:     one(usuarios,           { fields: [accionesGestion.ejecutadoPorId],      references: [usuarios.id] }),
+  tiendas:          many(accionesGestionTiendas),
+}))
+
+export const accionesGestionTiendasRelations = relations(accionesGestionTiendas, ({ one }) => ({
+  accion:            one(accionesGestion, { fields: [accionesGestionTiendas.accionId],            references: [accionesGestion.id] }),
+  tienda:            one(tiendas,         { fields: [accionesGestionTiendas.tiendaId],            references: [tiendas.id] }),
+  proveedorAnterior: one(proveedores,     { fields: [accionesGestionTiendas.proveedorAnteriorId], references: [proveedores.id] }),
+  proveedorNuevo:    one(proveedores,     { fields: [accionesGestionTiendas.proveedorNuevoId],    references: [proveedores.id] }),
+}))

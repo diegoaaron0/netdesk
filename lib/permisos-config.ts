@@ -5,6 +5,7 @@ const TODOS_LOS_PERMISOS = [
   'proveedores.ver', 'proveedores.editar',
   'dashboard.ver', 'reportes.ver', 'reportes.exportar',
   'decisiones.ver', 'decisiones.crear',
+  'gestion-cambios.ver', 'gestion-cambios.crear', 'gestion-cambios.aprobar',
   'usuarios.ver', 'usuarios.editar', 'usuarios.crear',
   'contingencias.gestionar',
   'grupos.gestionar',
@@ -26,6 +27,7 @@ export const PERMISOS_POR_ROL: Record<string, string[]> = {
     'dashboard.ver', 'reportes.ver', 'reportes.exportar',
     'proveedores.ver', 'proveedores.editar',
     'decisiones.ver', 'decisiones.crear',
+    'gestion-cambios.ver', 'gestion-cambios.crear',
     'usuarios.ver',
   ],
   SUPERVISOR: [
@@ -37,6 +39,7 @@ export const PERMISOS_POR_ROL: Record<string, string[]> = {
     'usuarios.ver', 'usuarios.editar', 'usuarios.crear',
     'proveedores.ver', 'proveedores.editar',
     'decisiones.ver', 'decisiones.crear',
+    'gestion-cambios.ver', 'gestion-cambios.crear',
     'contingencias.gestionar', 'grupos.gestionar',
   ],
   GERENCIA: [
@@ -46,6 +49,7 @@ export const PERMISOS_POR_ROL: Record<string, string[]> = {
     'proveedores.ver',
     'usuarios.ver',
     'decisiones.ver', 'decisiones.crear',
+    'gestion-cambios.ver', 'gestion-cambios.aprobar',
   ],
   DEMO: TODOS_LOS_PERMISOS,
 }
