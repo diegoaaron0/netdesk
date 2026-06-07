@@ -113,9 +113,11 @@ export async function POST(req: NextRequest) {
 
   const creadoPorId = (session.user as any).id
 
-  // Auto-generar código
-  const [{ n }] = await db.execute(sql`SELECT COUNT(*)::int AS n FROM acciones_gestion`) as any[]
-  const codigo = `AC-${String((n ?? 0) + 1).padStart(3, '0')}`
+  try {
+  // Auto-generar código de forma segura
+  const countResult = await db.execute(sql`SELECT COUNT(*)::int AS n FROM acciones_gestion`)
+  const n = Number((countResult as any[])[0]?.n ?? 0)
+  const codigo = `AC-${String(n + 1).padStart(3, '0')}`
 
   const [accion] = await db.insert(accionesGestion).values({
     codigo,
@@ -154,4 +156,8 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json(accion, { status: 201 })
+  } catch (err: any) {
+    console.error('[gestion-cambios POST]', err)
+    return NextResponse.json({ error: err?.message ?? 'Error interno al crear la acción' }, { status: 500 })
+  }
 }

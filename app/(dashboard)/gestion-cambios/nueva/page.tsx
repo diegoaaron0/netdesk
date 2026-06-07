@@ -51,13 +51,19 @@ export default function NuevaAccionPage() {
     fetch('/api/proveedores').then(r => r.json()).then(d => setProveedores(Array.isArray(d) ? d : []))
   }, [])
 
-  // Auto-cargar snapshot cuando se selecciona tienda
+  // Auto-cargar snapshot cuando se selecciona tienda y auto-rellenar proveedor anterior
   useEffect(() => {
     if (!tiendaId || alcance !== 'TIENDA') { setSnap(null); return }
     setSnapLoading(true)
     fetch(`/api/gestion-cambios/snap?tiendaId=${tiendaId}&dias=90`)
       .then(r => r.json())
-      .then(d => setSnap(d))
+      .then(d => {
+        setSnap(d)
+        // Auto-rellenar proveedor anterior si aplica
+        if (d.proveedorId && TIPOS_CON_PROVEEDOR.has(tipo) && !provAntId) {
+          setProvAntId(d.proveedorId)
+        }
+      })
       .catch(() => setSnap(null))
       .finally(() => setSnapLoading(false))
   }, [tiendaId, alcance])
@@ -174,23 +180,43 @@ export default function NuevaAccionPage() {
               {snapLoading && <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '6px' }}>Cargando métricas de la tienda…</div>}
               {snap && !snapLoading && (
                 <div style={{ marginTop: '10px', background: 'var(--muted)', borderRadius: '8px', padding: '12px', fontSize: '11px' }}>
-                  <div style={{ fontWeight: 700, marginBottom: '6px', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted-foreground)' }}>Snapshot automático — {snap.periodoEvaluado}</div>
+                  {/* Proveedor actual y contrato */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px', flexWrap: 'wrap', gap: '6px' }}>
+                    <div>
+                      <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Proveedor actual</span>
+                      <div style={{ fontWeight: 700, fontSize: '13px', marginTop: '1px' }}>{snap.proveedorNombre ?? '—'}</div>
+                      {snap.contratoPlan && <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{snap.contratoPlan}</div>}
+                    </div>
+                    {(snap.contratoSlaRespuestaMin || snap.contratoSlaResolucionMin) && (
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>SLA contractual</span>
+                        <div style={{ fontSize: '11px', fontWeight: 600, marginTop: '1px' }}>
+                          {snap.contratoSlaRespuestaMin && <span>Respuesta: {snap.contratoSlaRespuestaMin} min</span>}
+                          {snap.contratoSlaResolucionMin && <span style={{ marginLeft: '8px' }}>Resolución: {snap.contratoSlaResolucionMin} min</span>}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {/* Métricas del período */}
+                  <div style={{ fontWeight: 700, marginBottom: '6px', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted-foreground)' }}>
+                    Desempeño — {snap.periodoEvaluado}
+                  </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px' }}>
                     {[
-                      { label: 'SLA cumplido', value: `${snap.slaRespuestaPct}%` },
-                      { label: 'MTTR prom.', value: snap.mttrMin != null ? `${snap.mttrMin} min` : '—' },
-                      { label: 'IEI acumulado', value: snap.ieiAcumulado > 0 ? `S/ ${snap.ieiAcumulado.toLocaleString('es-PE', { minimumFractionDigits: 0 })}` : '—' },
-                      { label: 'Incidentes', value: snap.totalIncidentes },
-                    ].map(({ label, value }) => (
-                      <div key={label} style={{ background: 'var(--card)', borderRadius: '6px', padding: '8px 10px' }}>
-                        <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>{label}</div>
-                        <div style={{ fontWeight: 700, fontSize: '13px' }}>{value}</div>
+                      { label: 'SLA cumplido',  value: `${snap.slaRespuestaPct}%`,     alert: snap.slaRespuestaPct < 80 },
+                      { label: 'MTTR prom.',     value: snap.mttrMin != null ? `${snap.mttrMin} min` : '—', alert: snap.mttrMin != null && snap.mttrMin > 90 },
+                      { label: 'IEI acumulado',  value: snap.ieiAcumulado > 0 ? `S/ ${Number(snap.ieiAcumulado).toLocaleString('es-PE', { maximumFractionDigits: 0 })}` : '—', alert: false },
+                      { label: 'Incidentes',     value: snap.totalIncidentes, alert: false },
+                    ].map(({ label, value, alert }) => (
+                      <div key={label} style={{ background: 'var(--card)', borderRadius: '6px', padding: '8px 10px', border: alert ? '1px solid #FCA5A5' : 'none' }}>
+                        <div style={{ fontSize: '9px', color: alert ? '#991B1B' : 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>{label}</div>
+                        <div style={{ fontWeight: 700, fontSize: '13px', color: alert ? '#991B1B' : 'var(--foreground)' }}>{value}</div>
                       </div>
                     ))}
                   </div>
                   {snap.penalidadEstimada > 0 && (
                     <div style={{ marginTop: '8px', fontSize: '11px', color: '#B45309', background: '#FFFBEB', borderRadius: '6px', padding: '6px 10px' }}>
-                      Penalidad estimada por SLA vencido: <strong>S/ {snap.penalidadEstimada.toLocaleString('es-PE', { minimumFractionDigits: 2 })}</strong>
+                      Penalidad por SLA vencido (base nota de crédito): <strong>S/ {Number(snap.penalidadEstimada).toLocaleString('es-PE', { minimumFractionDigits: 2 })}</strong>
                     </div>
                   )}
                 </div>

@@ -5,6 +5,7 @@ import { eq, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { getSlaLimitePorTipo } from '@/lib/sla-core'
+import { calcImpactoRow } from '@/lib/impacto-calc'
 
 // Calcula métricas de un período para una o varias tiendas
 async function calcMetrics(tiendaIds: string[], desde: Date, hasta: Date) {
@@ -60,7 +61,7 @@ async function calcMetrics(tiendaIds: string[], desde: Date, hasta: Date) {
       slaVencidoCount++
       // IEI del incidente para penalidad
       try {
-        const { calcImpactoRow } = await import('@/lib/impacto-calc')
+        // calcImpactoRow imported statically at top
         const iei = calcImpactoRow({
           hora_registro:           r.hora_registro,
           hora_fin:                r.hora_fin,
