@@ -72,7 +72,13 @@ export async function GET(req: NextRequest) {
     })
   }
   const slaFallback: SlaLookup = { respuestaMin: SLA_RESPUESTA_MIN, resolucionMin: SLA_RESOLUCION_DEFAULT_MIN }
-  function getSlaParaIncidente(proveedorId: string, tiendaId: string): SlaLookup {
+  function getSlaParaIncidente(proveedorId: string, tiendaId: string, overrideResp?: number | null, overrideResol?: number | null): SlaLookup {
+    if (overrideResp != null || overrideResol != null) {
+      return {
+        respuestaMin: overrideResp ?? SLA_RESPUESTA_MIN,
+        resolucionMin: overrideResol ?? SLA_RESOLUCION_DEFAULT_MIN,
+      }
+    }
     return slaContratoMap.get(`${proveedorId}:${tiendaId}`)
       ?? slaContratoMap.get(`${proveedorId}:marco`)
       ?? slaFallback
@@ -225,7 +231,7 @@ function buildByDay(incs: RawIncidente[]) {
 
 function getRazon(
   incs: RawIncidente[],
-  getSla: (proveedorId: string, tiendaId: string) => { respuestaMin: number; resolucionMin: number },
+  getSla: (inc: RawIncidente) => { respuestaMin: number; resolucionMin: number },
 ): string {
   const tipos = [...new Set(incs.map((i) => i.tipo))]
   if (tipos.length === 1) return 'Mismo tipo de caída'
@@ -233,7 +239,7 @@ function getRazon(
   const avgMttr = allMttr.length ? allMttr.reduce((a, b) => a + b, 0) / allMttr.length : 0
   if (avgMttr > 240) return 'MTTR alto'
   const slaFail = incs.some((i) => {
-    const sla = getSla(i.proveedor_id ?? '', i.tienda_id ?? '')
+    const sla = getSla(i)
     const r = calcSLARow({ tipo: i.tipo, hora_correo_n1: i.hora_correo_n1, hora_primera_resp: i.hora_primera_resp, hora_fin: i.hora_fin, hora_registro: i.hora_registro, max_nivel: i.max_nivel, slaRespuestaOverride: sla.respuestaMin, slaResolucionOverride: sla.resolucionMin })
     return r.evaluable && !r.slaGeneral
   })
@@ -253,7 +259,7 @@ async function buildCards(
   ventasDiarias: RawVentaDiaria[],
   prevIncs: RawIncidente[],
   prevEscs: RawEscalamiento[],
-  getSlaParaIncidente: (proveedorId: string, tiendaId: string) => { respuestaMin: number; resolucionMin: number },
+  getSlaParaIncidente: (proveedorId: string, tiendaId: string, overrideResp?: number | null, overrideResol?: number | null) => { respuestaMin: number; resolucionMin: number },
   totalTiendas: number,
 ) {
   const escMap     = escsByIncidente(escs)
@@ -415,7 +421,7 @@ async function buildCards(
   const evaluables: import('@/types/dashboard').IncidenteListItem[] = []
   for (const i of incs) {
     if (i.evaluable_proveedor === false) continue
-    const sla = getSlaParaIncidente(i.proveedor_id ?? '', i.tienda_id ?? '')
+    const sla = getSlaParaIncidente(i.proveedor_id ?? '', i.tienda_id ?? '', i.sla_respuesta_override, i.sla_resolucion_override)
     const slaRes = calcSLARow({
       tipo: i.tipo,
       hora_correo_n1: i.hora_correo_n1,
@@ -497,7 +503,7 @@ async function buildCards(
 
   let prevSlaOk = 0, prevSlaRespuestaOk = 0, prevSlaResolucionOk = 0, prevEvaluablesCount = 0
   for (const i of prevIncs) {
-    const sla = getSlaParaIncidente(i.proveedor_id ?? '', i.tienda_id ?? '')
+    const sla = getSlaParaIncidente(i.proveedor_id ?? '', i.tienda_id ?? '', i.sla_respuesta_override, i.sla_resolucion_override)
     const slaRes = calcSLARow({
       tipo: i.tipo,
       hora_correo_n1: i.hora_correo_n1,
@@ -654,7 +660,7 @@ async function buildCards(
         codigo: arr[0].tienda_codigo,
         proveedor: arr[0].prov_nombre ?? '—',
         caidas: arr.length,
-        razon: getRazon(arr, getSlaParaIncidente),
+        razon: getRazon(arr, (i) => getSlaParaIncidente(i.proveedor_id ?? '', i.tienda_id ?? '', i.sla_respuesta_override, i.sla_resolucion_override)),
         incidenteCodigos: arr.map((r) => r.codigo),
         tipoRepetido,
         costoEstimado,
@@ -679,7 +685,7 @@ async function buildCards(
     m.incidentes++
     m.tiendas.add(i.tienda_id)
     if (i.mttr_minutos) { m.mttrSum += i.mttr_minutos; m.mttrCount++ }
-    const sla7 = getSlaParaIncidente(i.proveedor_id ?? '', i.tienda_id ?? '')
+    const sla7 = getSlaParaIncidente(i.proveedor_id ?? '', i.tienda_id ?? '', i.sla_respuesta_override, i.sla_resolucion_override)
     const slaRes7 = calcSLARow({ tipo: i.tipo, hora_correo_n1: i.hora_correo_n1, hora_primera_resp: i.hora_primera_resp, hora_fin: i.hora_fin, hora_registro: i.hora_registro, max_nivel: i.max_nivel, slaRespuestaOverride: sla7.respuestaMin, slaResolucionOverride: sla7.resolucionMin })
     if (slaRes7.evaluable) { m.slaTotal++; if (slaRes7.slaGeneral) m.slaOk++ }
     m.costo += calcCostoIncidente(i, ventasDiarias).costo

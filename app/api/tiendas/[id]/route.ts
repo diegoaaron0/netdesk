@@ -113,15 +113,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   }
   try {
     const { calcSLARow } = await import('@/lib/sla-core')
-    const { getSlaContrato } = await import('@/lib/sla-contrato')
     const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
     const thirtyDaysAgoStr = thirtyDaysAgo.toISOString()
-    const slaContrato = tienda.proveedorId ? await getSlaContrato(tienda.proveedorId) : null
 
     const slaRows = await db.execute(sql`
       SELECT i.tipo, i.hora_registro, i.hora_fin,
-        n1.hora_correo_n1, resp.hora_primera_resp, max_n.max_nivel
+        n1.hora_correo_n1, resp.hora_primera_resp, max_n.max_nivel,
+        contrato.sla_resp_override, contrato.sla_resol_override
       FROM incidentes i
+      JOIN tiendas t ON i.tienda_id = t.id
       LEFT JOIN LATERAL (
         SELECT MIN(hora_envio_correo) AS hora_correo_n1
         FROM escalamientos WHERE incidente_id = i.id AND hora_envio_correo IS NOT NULL
@@ -135,6 +135,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         SELECT COALESCE(MAX(nivel), 0) AS max_nivel
         FROM escalamientos WHERE incidente_id = i.id
       ) max_n ON true
+      LEFT JOIN LATERAL (
+        SELECT tiempo_respuesta_sla  AS sla_resp_override,
+               tiempo_resolucion_sla AS sla_resol_override
+        FROM contratos_proveedor
+        WHERE proveedor_id = COALESCE(i.proveedor_id, t.proveedor_id)
+          AND estado = 'VIGENTE'
+          AND (tienda_id IS NULL OR tienda_id = i.tienda_id)
+        ORDER BY (tienda_id IS NOT NULL) DESC
+        LIMIT 1
+      ) contrato ON true
       WHERE i.tienda_id = ${id}
         AND i.hora_registro >= ${thirtyDaysAgoStr}::timestamptz
         AND i.estado = 'RESUELTO'
@@ -155,8 +165,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         hora_fin: row.hora_fin ?? null,
         hora_registro: row.hora_registro ?? null,
         max_nivel: row.max_nivel ?? 1,
-        slaRespuestaOverride: slaContrato?.respuestaMin,
-        slaResolucionOverride: slaContrato?.resolucionMin,
+        slaRespuestaOverride: row.sla_resp_override ?? undefined,
+        slaResolucionOverride: row.sla_resol_override ?? undefined,
       })
       if (!res.evaluable) continue
       totalEsc++
