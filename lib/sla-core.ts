@@ -32,8 +32,9 @@ export const SLA_RESOLUCION_DEFAULT_MIN = 90
 
 /**
  * Límite de MTTR por tipo de incidente (min).
- * Fuente única de verdad — usada en dashboard operativo, reportes SQL y analítico.
- * Cambiar aquí propaga a todo el sistema.
+ * Fuente única de verdad para clasificación operativa de severidad.
+ * Usada en: dashboard operativo (color-coding), lib/sla-sql.ts, lib/report-sql.ts (CSV exports).
+ * NO se usa para penalización contractual — eso usa SLA_RESOLUCION_DEFAULT_MIN + contrato vigente.
  */
 export const SLA_MTTR_POR_TIPO = {
   CAIDA_TOTAL:     60,

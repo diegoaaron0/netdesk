@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { proveedores, tiendas, incidentes, contratosProveedor, nivelesEscalamiento, tiendasHistorial } from '@/drizzle/schema'
+import { proveedores, tiendas, incidentes, contratosProveedor, nivelesEscalamiento } from '@/drizzle/schema'
 import { eq, sql, and, asc, desc } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'

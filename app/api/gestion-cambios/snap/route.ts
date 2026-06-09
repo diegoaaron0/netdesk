@@ -5,7 +5,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
-import { getSlaLimitePorTipo } from '@/lib/sla-core'
+import { SLA_RESOLUCION_DEFAULT_MIN } from '@/lib/sla-core'
 import { calcImpactoRow } from '@/lib/impacto-calc'
 
 export async function GET(req: NextRequest) {
@@ -103,6 +103,7 @@ export async function GET(req: NextRequest) {
         t.venta_hora_soles,
         t.venta_hora_fds_soles,
         t.cluster,
+        cp.sla_resol_override,
         CASE
           WHEN i.hora_fin IS NOT NULL
             THEN ROUND(EXTRACT(EPOCH FROM (i.hora_fin - i.hora_registro)) / 60)::int
@@ -110,6 +111,15 @@ export async function GET(req: NextRequest) {
         END AS duracion_min
       FROM incidentes i
       JOIN tiendas t ON i.tienda_id = t.id
+      LEFT JOIN LATERAL (
+        SELECT tiempo_resolucion_sla AS sla_resol_override
+        FROM   contratos_proveedor
+        WHERE  proveedor_id = COALESCE(i.proveedor_id, t.proveedor_id)
+          AND  estado = 'VIGENTE'
+          AND  (tienda_id IS NULL OR tienda_id = i.tienda_id)
+        ORDER  BY (tienda_id IS NOT NULL) DESC
+        LIMIT  1
+      ) cp ON true
       WHERE i.tienda_id = ${tiendaId}
         AND i.hora_registro >= ${desde.toISOString()}::timestamptz
         AND i.hora_registro <  ${hasta.toISOString()}::timestamptz
@@ -124,9 +134,9 @@ export async function GET(req: NextRequest) {
     let penalidadSum      = 0
 
     for (const r of rows) {
-      const slaLimite  = getSlaLimitePorTipo(r.tipo)
-      const duracion   = Number(r.duracion_min ?? 0)
-      const slaVencido = duracion > slaLimite
+      const slaResolucion = Number(r.sla_resol_override ?? SLA_RESOLUCION_DEFAULT_MIN)
+      const duracion      = Number(r.duracion_min ?? 0)
+      const slaVencido    = duracion > slaResolucion
       if (slaVencido) slaVencidoCount++
       if (r.mttr_minutos != null) { mttrSum += Number(r.mttr_minutos); mttrCount++ }
 
