@@ -986,17 +986,16 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                       {contSellada ? (
                         /* Vista compacta sellada: timestamps + rendimiento + observación editables */
                         <>
-                          {inc.contHoraActivacion && (
-                            <div style={{ marginBottom: '10px', display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 10px', background: 'rgba(100,116,139,0.08)', border: '0.5px solid rgba(100,116,139,0.3)', borderRadius: '6px', fontSize: '10px', color: 'var(--muted-foreground)' }}>
-                              <span>⏱</span>
-                              <span style={{ fontFamily: 'monospace' }}>
-                                {toDatetimeLocal(inc.contHoraActivacion).slice(11,16)}
-                                {' → '}
-                                {inc.contHoraDesactivacion ? toDatetimeLocal(inc.contHoraDesactivacion).slice(11,16) : '—'}
-                              </span>
-                              <span style={{ fontSize: '9px', color: 'var(--muted-foreground)' }}>Por: {editForm.contActivadoPor}</span>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '10px' }}>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Hora activación</label>
+                              <input type="datetime-local" disabled={contDis} style={iStyle(contDis)} value={editForm.contHoraActivacion ?? ''} onChange={e => setEdit('contHoraActivacion', e.target.value)} />
                             </div>
-                          )}
+                            <div>
+                              <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Hora desactivación</label>
+                              <input type="datetime-local" disabled={contDis} style={iStyle(contDis)} value={editForm.contHoraDesactivacion ?? ''} onChange={e => setEdit('contHoraDesactivacion', e.target.value)} />
+                            </div>
+                          </div>
                           <div style={{ marginBottom: '10px' }}>
                             <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Rendimiento</label>
                             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -1088,17 +1087,16 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                       {movSellada ? (
                         /* Vista compacta sellada: timestamps + rendimiento + observación editables */
                         <>
-                          {inc.movHoraActivacion && (
-                            <div style={{ marginBottom: '10px', display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 10px', background: 'rgba(100,116,139,0.08)', border: '0.5px solid rgba(100,116,139,0.3)', borderRadius: '6px', fontSize: '10px', color: 'var(--muted-foreground)' }}>
-                              <span>⏱</span>
-                              <span style={{ fontFamily: 'monospace' }}>
-                                {toDatetimeLocal(inc.movHoraActivacion).slice(11,16)}
-                                {' → '}
-                                {inc.movHoraDesactivacion ? toDatetimeLocal(inc.movHoraDesactivacion).slice(11,16) : '—'}
-                              </span>
-                              <span style={{ fontSize: '9px', color: 'var(--muted-foreground)' }}>Por: {editForm.movActivadoPor}</span>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '10px' }}>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Hora activación</label>
+                              <input type="datetime-local" disabled={movDis} style={iStyle(movDis)} value={editForm.movHoraActivacion ?? ''} onChange={e => setEdit('movHoraActivacion', e.target.value)} />
                             </div>
-                          )}
+                            <div>
+                              <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Hora desactivación</label>
+                              <input type="datetime-local" disabled={movDis} style={iStyle(movDis)} value={editForm.movHoraDesactivacion ?? ''} onChange={e => setEdit('movHoraDesactivacion', e.target.value)} />
+                            </div>
+                          </div>
                           <div style={{ marginBottom: '10px' }}>
                             <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Rendimiento</label>
                             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
