@@ -3,27 +3,20 @@ import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { DASHBOARD_CONFIG } from '@/lib/dashboard-config'
 import { getTotalTiendas } from '@/lib/tiendas-stats'
-import { db } from '@/lib/db'
-import { contratosProveedor } from '@/drizzle/schema'
-import { eq } from 'drizzle-orm'
 import {
   getVentaHoraEstimadaOrNull,
-  parseSlaMinutos,
-  getSLACumplido,
   getScoreProveedor,
 } from '@/lib/dashboard-calculations'
 import { calcImpactoRow } from '@/lib/impacto-calc'
 import { calcSLARow, calcEficienciaSLA, SLA_RESPUESTA_MIN, SLA_RESOLUCION_DEFAULT_MIN, parseEtaMin } from '@/lib/sla-core'
 import {
   fetchIncidentesPeriodo,
-  fetchEscalamientosPeriodo,
   fetchVentasDiarias,
   fetchProveedoresList,
   type RawIncidente,
-  type RawEscalamiento,
   type RawVentaDiaria,
 } from '@/lib/dashboard-queries'
-import type { DashboardAnaliticoResponse, SlaEvaluableItem } from '@/types/dashboard'
+import type { DashboardAnaliticoResponse } from '@/types/dashboard'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -46,45 +39,22 @@ export async function GET(req: NextRequest) {
 
   type SlaLookup = { respuestaMin: number; resolucionMin: number }
 
-  const [incidentes, escalamientos, ventasDiarias, proveedoresList, prevIncidentes, totalTiendas, prevEscalamientos, allContratosVigentes] = await Promise.all([
+  const [incidentes, ventasDiarias, proveedoresList, prevIncidentes, totalTiendas] = await Promise.all([
     fetchIncidentesPeriodo(desde, hasta, proveedorId),
-    fetchEscalamientosPeriodo(desde, hasta, proveedorId),
     fetchVentasDiarias(),
     fetchProveedoresList(),
     fetchIncidentesPeriodo(prevDesde, prevHasta, proveedorId),
     getTotalTiendas(),
-    fetchEscalamientosPeriodo(prevDesde, prevHasta, proveedorId),
-    db.select({
-      proveedorId:         contratosProveedor.proveedorId,
-      tiendaId:            contratosProveedor.tiendaId,
-      tiempoRespuestaSla:  contratosProveedor.tiempoRespuestaSla,
-      tiempoResolucionSla: contratosProveedor.tiempoResolucionSla,
-    }).from(contratosProveedor).where(eq(contratosProveedor.estado, 'VIGENTE')),
   ])
 
-  const slaContratoMap = new Map<string, SlaLookup>()
-  for (const c of allContratosVigentes) {
-    if (!c.tiempoRespuestaSla && !c.tiempoResolucionSla) continue
-    const key = c.tiendaId ? `${c.proveedorId}:${c.tiendaId}` : `${c.proveedorId}:marco`
-    slaContratoMap.set(key, {
-      respuestaMin: c.tiempoRespuestaSla ?? SLA_RESPUESTA_MIN,
-      resolucionMin: c.tiempoResolucionSla ?? SLA_RESOLUCION_DEFAULT_MIN,
-    })
-  }
-  const slaFallback: SlaLookup = { respuestaMin: SLA_RESPUESTA_MIN, resolucionMin: SLA_RESOLUCION_DEFAULT_MIN }
-  function getSlaParaIncidente(proveedorId: string, tiendaId: string, overrideResp?: number | null, overrideResol?: number | null): SlaLookup {
-    if (overrideResp != null || overrideResol != null) {
-      return {
-        respuestaMin: overrideResp ?? SLA_RESPUESTA_MIN,
-        resolucionMin: overrideResol ?? SLA_RESOLUCION_DEFAULT_MIN,
-      }
+  function getSlaParaIncidente(overrideResp?: number | null, overrideResol?: number | null): SlaLookup {
+    return {
+      respuestaMin:  overrideResp  ?? SLA_RESPUESTA_MIN,
+      resolucionMin: overrideResol ?? SLA_RESOLUCION_DEFAULT_MIN,
     }
-    return slaContratoMap.get(`${proveedorId}:${tiendaId}`)
-      ?? slaContratoMap.get(`${proveedorId}:marco`)
-      ?? slaFallback
   }
 
-  const { cards, graficos } = await buildCards(incidentes, escalamientos, ventasDiarias, prevIncidentes, prevEscalamientos, getSlaParaIncidente, totalTiendas)
+  const { cards, graficos } = await buildCards(incidentes, ventasDiarias, prevIncidentes, getSlaParaIncidente, totalTiendas)
 
   return NextResponse.json({
     periodo: { desde, hasta },
@@ -92,29 +62,6 @@ export async function GET(req: NextRequest) {
     cards,
     graficos,
   } satisfies DashboardAnaliticoResponse)
-}
-
-// ─── SLA helpers ────────────────────────────────────────────────────────────
-
-function escsByIncidente(escs: RawEscalamiento[]): Map<string, RawEscalamiento[]> {
-  const m = new Map<string, RawEscalamiento[]>()
-  for (const e of escs) {
-    if (!m.has(e.incidente_id)) m.set(e.incidente_id, [])
-    m.get(e.incidente_id)!.push(e)
-  }
-  return m
-}
-
-function calcExcessoMin(escs: RawEscalamiento[]): number {
-  const excesses = escs
-    .map((e) => {
-      const slaMin = parseSlaMinutos(e.tiempo_resp_sev1)
-      if (!slaMin || e.tiempo_respuesta_min == null) return null
-      return Math.max(0, e.tiempo_respuesta_min - slaMin)
-    })
-    .filter((v): v is number => v !== null)
-  if (excesses.length === 0) return 0
-  return Math.round(excesses.reduce((a, b) => a + b, 0) / excesses.length)
 }
 
 // ─── Cost helpers ────────────────────────────────────────────────────────────
@@ -255,16 +202,11 @@ function topKey(counts: Record<string, number>): string {
 
 async function buildCards(
   incs: RawIncidente[],
-  escs: RawEscalamiento[],
   ventasDiarias: RawVentaDiaria[],
   prevIncs: RawIncidente[],
-  prevEscs: RawEscalamiento[],
-  getSlaParaIncidente: (proveedorId: string, tiendaId: string, overrideResp?: number | null, overrideResol?: number | null) => { respuestaMin: number; resolucionMin: number },
+  getSlaParaIncidente: (overrideResp?: number | null, overrideResol?: number | null) => { respuestaMin: number; resolucionMin: number },
   totalTiendas: number,
 ) {
-  const escMap     = escsByIncidente(escs)
-  const prevEscMap = escsByIncidente(prevEscs)
-
   // ── CARD 1: Incidentes ──────────────────────────────────────────────────
   const { byDay, byDayMttr } = buildByDay(incs)
 
@@ -404,7 +346,7 @@ async function buildCards(
     tResolSum: number; tResolCount: number
   }
   const slaByProv = new Map<string, SlaProvAccum>()
-  type SlaIncRow = { codigo: string; fecha: string; tipo: string; excRespMin: number | null; excResolMin: number | null; duracionMin: number | null; cumplido: boolean }
+  type SlaIncRow = { tiendaCodigo: string; fecha: string; tipo: string; excRespMin: number | null; excResolMin: number | null; duracionMin: number | null; cumplido: boolean }
   const slaByProvIncidentes = new Map<string, SlaIncRow[]>()
 
   // Pre-pass: IEI por incidente (evita recalcular en la lista final)
@@ -421,7 +363,8 @@ async function buildCards(
   const evaluables: import('@/types/dashboard').IncidenteListItem[] = []
   for (const i of incs) {
     if (i.evaluable_proveedor === false) continue
-    const sla = getSlaParaIncidente(i.proveedor_id ?? '', i.tienda_id ?? '', i.sla_respuesta_override, i.sla_resolucion_override)
+    if (i.tipo === 'CORTE_ELECTRICO') continue
+    const sla = getSlaParaIncidente(i.sla_respuesta_override, i.sla_resolucion_override)
     const slaRes = calcSLARow({
       tipo: i.tipo,
       hora_correo_n1: i.hora_correo_n1,
@@ -488,7 +431,7 @@ async function buildCards(
       : null
     if (!slaByProvIncidentes.has(prov)) slaByProvIncidentes.set(prov, [])
     slaByProvIncidentes.get(prov)!.push({
-      codigo: i.tienda_codigo,
+      tiendaCodigo: i.tienda_codigo,
       fecha: fmtFechaInc(i.hora_registro),
       tipo: i.tipo,
       excRespMin: excRespMin != null && excRespMin > 0 ? excRespMin : null,
@@ -503,7 +446,7 @@ async function buildCards(
 
   let prevSlaOk = 0, prevSlaRespuestaOk = 0, prevSlaResolucionOk = 0, prevEvaluablesCount = 0
   for (const i of prevIncs) {
-    const sla = getSlaParaIncidente(i.proveedor_id ?? '', i.tienda_id ?? '', i.sla_respuesta_override, i.sla_resolucion_override)
+    const sla = getSlaParaIncidente(i.sla_respuesta_override, i.sla_resolucion_override)
     const slaRes = calcSLARow({
       tipo: i.tipo,
       hora_correo_n1: i.hora_correo_n1,
@@ -660,7 +603,7 @@ async function buildCards(
         codigo: arr[0].tienda_codigo,
         proveedor: arr[0].prov_nombre ?? '—',
         caidas: arr.length,
-        razon: getRazon(arr, (i) => getSlaParaIncidente(i.proveedor_id ?? '', i.tienda_id ?? '', i.sla_respuesta_override, i.sla_resolucion_override)),
+        razon: getRazon(arr, (i) => getSlaParaIncidente(i.sla_respuesta_override, i.sla_resolucion_override)),
         incidenteCodigos: arr.map((r) => r.codigo),
         tipoRepetido,
         costoEstimado,
@@ -685,7 +628,7 @@ async function buildCards(
     m.incidentes++
     m.tiendas.add(i.tienda_id)
     if (i.mttr_minutos) { m.mttrSum += i.mttr_minutos; m.mttrCount++ }
-    const sla7 = getSlaParaIncidente(i.proveedor_id ?? '', i.tienda_id ?? '', i.sla_respuesta_override, i.sla_resolucion_override)
+    const sla7 = getSlaParaIncidente(i.sla_respuesta_override, i.sla_resolucion_override)
     const slaRes7 = calcSLARow({ tipo: i.tipo, hora_correo_n1: i.hora_correo_n1, hora_primera_resp: i.hora_primera_resp, hora_fin: i.hora_fin, hora_registro: i.hora_registro, max_nivel: i.max_nivel, slaRespuestaOverride: sla7.respuestaMin, slaResolucionOverride: sla7.resolucionMin })
     if (slaRes7.evaluable) { m.slaTotal++; if (slaRes7.slaGeneral) m.slaOk++ }
     m.costo += calcCostoIncidente(i, ventasDiarias).costo

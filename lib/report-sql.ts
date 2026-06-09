@@ -1,24 +1,3 @@
-import { UMBRAL_ALERTA_MTTR, UMBRAL_ALERTA_MTTR_DEFAULT } from './sla-core'
-
-/**
- * Helpers de SQL como strings planos para rutas de exportación.
- * Se inyectan con sql.raw() en el punto de uso — nunca como objetos Drizzle anidados.
- */
-
-export function umbralAlertaCase(col = 'i.tipo'): string {
-  const t = UMBRAL_ALERTA_MTTR
-  return (
-    `CASE ${col}` +
-    ` WHEN 'CAIDA_TOTAL' THEN ${t.CAIDA_TOTAL}` +
-    ` WHEN 'INTERMITENCIA' THEN ${t.INTERMITENCIA}` +
-    ` WHEN 'LENTITUD' THEN ${t.LENTITUD}` +
-    ` WHEN 'POS' THEN ${t.POS}` +
-    ` WHEN 'OTROS' THEN ${t.OTROS}` +
-    ` WHEN 'CORTE_ELECTRICO' THEN ${t.CORTE_ELECTRICO}` +
-    ` ELSE ${UMBRAL_ALERTA_MTTR_DEFAULT} END`
-  )
-}
-
 export function clusterFallback(): string {
   return `CASE t.cluster WHEN 'A' THEN 601 WHEN 'B' THEN 360 WHEN 'C' THEN 262 WHEN 'D' THEN 153 ELSE 0 END`
 }

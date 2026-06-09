@@ -3,7 +3,6 @@ import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
-import { umbralAlertaCase } from '@/lib/sla-sql'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -60,7 +59,7 @@ export async function GET(req: NextRequest) {
             WHERE estado = 'RESUELTO'
               AND evaluable_proveedor = true
               AND mttr_minutos IS NOT NULL
-              AND mttr_minutos <= ${umbralAlertaCase('tipo')}
+              AND mttr_minutos <= 90
           ) / NULLIF(COUNT(*) FILTER (
             WHERE estado = 'RESUELTO' AND evaluable_proveedor = true
           ), 0)
@@ -69,7 +68,7 @@ export async function GET(req: NextRequest) {
         -- Incidentes con SLA vencido (abiertos que ya superaron límite)
         COUNT(*) FILTER (
           WHERE estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
-            AND EXTRACT(EPOCH FROM (NOW() - hora_registro)) / 60 > ${umbralAlertaCase('tipo')}
+            AND EXTRACT(EPOCH FROM (NOW() - hora_registro)) / 60 > 90
         )::int                                                             AS incidentes_sla_vencido,
 
         -- IEI acumulado (resueltos con cálculo)

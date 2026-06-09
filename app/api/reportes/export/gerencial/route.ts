@@ -4,24 +4,6 @@ import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { getTotalTiendas } from '@/lib/tiendas-stats'
-import { UMBRAL_ALERTA_MTTR, UMBRAL_ALERTA_MTTR_DEFAULT } from '@/lib/sla-core'
-
-// ── SQL helpers — plain strings, never Drizzle objects ───────────────────────
-
-function umbralAlertaCase(col = 'i.tipo'): string {
-  const t = UMBRAL_ALERTA_MTTR
-  return (
-    `CASE ${col}` +
-    ` WHEN 'CAIDA_TOTAL' THEN ${t.CAIDA_TOTAL}` +
-    ` WHEN 'INTERMITENCIA' THEN ${t.INTERMITENCIA}` +
-    ` WHEN 'LENTITUD' THEN ${t.LENTITUD}` +
-    ` WHEN 'POS' THEN ${t.POS}` +
-    ` WHEN 'OTROS' THEN ${t.OTROS}` +
-    ` WHEN 'CORTE_ELECTRICO' THEN ${t.CORTE_ELECTRICO}` +
-    ` ELSE ${UMBRAL_ALERTA_MTTR_DEFAULT} END`
-  )
-}
-
 function clusterFallback(): string {
   return `CASE t.cluster WHEN 'A' THEN 601 WHEN 'B' THEN 360 WHEN 'C' THEN 262 WHEN 'D' THEN 153 ELSE 0 END`
 }
@@ -143,13 +125,20 @@ export async function GET(req: Request) {
             ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int   AS mttr_avg,
             ROUND(
               COUNT(*) FILTER (
-                WHERE i.mttr_minutos <= ${sql.raw(umbralAlertaCase())}
-                  AND i.estado = 'RESUELTO'
+                WHERE i.estado = 'RESUELTO'
+                  AND n1h.hora_correo_n1 IS NOT NULL
+                  AND resp.hora_primera_resp IS NOT NULL
+                  AND i.hora_fin IS NOT NULL
                   AND i.evaluable_proveedor IS NOT FALSE
                   AND i.tipo != 'CORTE_ELECTRICO'
+                  AND EXTRACT(EPOCH FROM (resp.hora_primera_resp - n1h.hora_correo_n1)) / 60
+                    <= COALESCE(cp.tiempo_respuesta_sla, 60)
+                  AND EXTRACT(EPOCH FROM (i.hora_fin - resp.hora_primera_resp)) / 60
+                    <= COALESCE(cp.tiempo_resolucion_sla, 90)
               ) * 100.0 /
               NULLIF(COUNT(*) FILTER (
                 WHERE i.estado = 'RESUELTO'
+                  AND n1h.hora_correo_n1 IS NOT NULL
                   AND i.evaluable_proveedor IS NOT FALSE
                   AND i.tipo != 'CORTE_ELECTRICO'
               ), 0)
@@ -162,6 +151,25 @@ export async function GET(req: Request) {
             )::int                                                                   AS en_proceso
           FROM incidentes i
           JOIN tiendas t ON i.tienda_id = t.id
+          LEFT JOIN LATERAL (
+            SELECT MIN(e.hora_envio_correo) AS hora_correo_n1
+            FROM escalamientos e
+            WHERE e.incidente_id = i.id AND e.hora_envio_correo IS NOT NULL
+          ) n1h ON true
+          LEFT JOIN LATERAL (
+            SELECT MIN(e.hora_respuesta) AS hora_primera_resp
+            FROM escalamientos e
+            WHERE e.incidente_id = i.id AND e.hora_respuesta IS NOT NULL AND e.no_hubo_respuesta IS NOT TRUE
+          ) resp ON true
+          LEFT JOIN LATERAL (
+            SELECT tiempo_respuesta_sla, tiempo_resolucion_sla
+            FROM contratos_proveedor cp2
+            WHERE cp2.proveedor_id = COALESCE(i.proveedor_id, t.proveedor_id)
+              AND (cp2.tienda_id = t.id OR cp2.tienda_id IS NULL)
+              AND cp2.estado = 'VIGENTE'
+            ORDER BY cp2.tienda_id NULLS LAST
+            LIMIT 1
+          ) cp ON true
           WHERE i.hora_registro >= ${desde}::timestamptz
             AND i.hora_registro <  ${hasta}::timestamptz
             AND i.estado != 'CANCELADO'
@@ -174,13 +182,20 @@ export async function GET(req: Request) {
             ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int   AS mttr_avg,
             ROUND(
               COUNT(*) FILTER (
-                WHERE i.mttr_minutos <= ${sql.raw(umbralAlertaCase())}
-                  AND i.estado = 'RESUELTO'
+                WHERE i.estado = 'RESUELTO'
+                  AND n1h.hora_correo_n1 IS NOT NULL
+                  AND resp.hora_primera_resp IS NOT NULL
+                  AND i.hora_fin IS NOT NULL
                   AND i.evaluable_proveedor IS NOT FALSE
                   AND i.tipo != 'CORTE_ELECTRICO'
+                  AND EXTRACT(EPOCH FROM (resp.hora_primera_resp - n1h.hora_correo_n1)) / 60
+                    <= COALESCE(cp.tiempo_respuesta_sla, 60)
+                  AND EXTRACT(EPOCH FROM (i.hora_fin - resp.hora_primera_resp)) / 60
+                    <= COALESCE(cp.tiempo_resolucion_sla, 90)
               ) * 100.0 /
               NULLIF(COUNT(*) FILTER (
                 WHERE i.estado = 'RESUELTO'
+                  AND n1h.hora_correo_n1 IS NOT NULL
                   AND i.evaluable_proveedor IS NOT FALSE
                   AND i.tipo != 'CORTE_ELECTRICO'
               ), 0)
@@ -189,6 +204,25 @@ export async function GET(req: Request) {
             ${sql.raw(ieiSum())}                                                     AS iei_total
           FROM incidentes i
           JOIN tiendas t ON i.tienda_id = t.id
+          LEFT JOIN LATERAL (
+            SELECT MIN(e.hora_envio_correo) AS hora_correo_n1
+            FROM escalamientos e
+            WHERE e.incidente_id = i.id AND e.hora_envio_correo IS NOT NULL
+          ) n1h ON true
+          LEFT JOIN LATERAL (
+            SELECT MIN(e.hora_respuesta) AS hora_primera_resp
+            FROM escalamientos e
+            WHERE e.incidente_id = i.id AND e.hora_respuesta IS NOT NULL AND e.no_hubo_respuesta IS NOT TRUE
+          ) resp ON true
+          LEFT JOIN LATERAL (
+            SELECT tiempo_respuesta_sla, tiempo_resolucion_sla
+            FROM contratos_proveedor cp2
+            WHERE cp2.proveedor_id = COALESCE(i.proveedor_id, t.proveedor_id)
+              AND (cp2.tienda_id = t.id OR cp2.tienda_id IS NULL)
+              AND cp2.estado = 'VIGENTE'
+            ORDER BY cp2.tienda_id NULLS LAST
+            LIMIT 1
+          ) cp ON true
           WHERE i.hora_registro >= ${desdeAnt}::timestamptz
             AND i.hora_registro <  ${desde}::timestamptz
             AND i.estado != 'CANCELADO'
@@ -207,13 +241,20 @@ export async function GET(req: Request) {
             )::int                                                                  AS evaluables_sla,
             ROUND(
               COUNT(*) FILTER (
-                WHERE i.mttr_minutos <= ${sql.raw(umbralAlertaCase())}
-                  AND i.estado = 'RESUELTO'
+                WHERE i.estado = 'RESUELTO'
+                  AND n1h.hora_correo_n1 IS NOT NULL
+                  AND resp.hora_primera_resp IS NOT NULL
+                  AND i.hora_fin IS NOT NULL
                   AND i.evaluable_proveedor IS NOT FALSE
                   AND i.tipo != 'CORTE_ELECTRICO'
+                  AND EXTRACT(EPOCH FROM (resp.hora_primera_resp - n1h.hora_correo_n1)) / 60
+                    <= COALESCE(cp.tiempo_respuesta_sla, 60)
+                  AND EXTRACT(EPOCH FROM (i.hora_fin - resp.hora_primera_resp)) / 60
+                    <= COALESCE(cp.tiempo_resolucion_sla, 90)
               ) * 100.0 /
               NULLIF(COUNT(*) FILTER (
                 WHERE i.estado = 'RESUELTO'
+                  AND n1h.hora_correo_n1 IS NOT NULL
                   AND i.evaluable_proveedor IS NOT FALSE
                   AND i.tipo != 'CORTE_ELECTRICO'
               ), 0)
@@ -222,16 +263,21 @@ export async function GET(req: Request) {
               COUNT(*) FILTER (
                 WHERE n1h.hora_correo_n1 IS NOT NULL
                   AND resp.hora_primera_resp IS NOT NULL
-                  AND EXTRACT(EPOCH FROM (resp.hora_primera_resp - n1h.hora_correo_n1)) / 60 <= 60
+                  AND EXTRACT(EPOCH FROM (resp.hora_primera_resp - n1h.hora_correo_n1)) / 60
+                    <= COALESCE(cp.tiempo_respuesta_sla, 60)
               ) * 100.0 /
               NULLIF(COUNT(*) FILTER (WHERE n1h.hora_correo_n1 IS NOT NULL), 0)
             )::int                                                                  AS sla_respuesta_pct,
             ROUND(
               COUNT(*) FILTER (
-                WHERE i.mttr_minutos <= ${sql.raw(umbralAlertaCase())}
-                  AND i.estado = 'RESUELTO'
+                WHERE i.estado = 'RESUELTO'
+                  AND n1h.hora_correo_n1 IS NOT NULL
+                  AND resp.hora_primera_resp IS NOT NULL
+                  AND i.hora_fin IS NOT NULL
                   AND i.evaluable_proveedor IS NOT FALSE
                   AND i.tipo != 'CORTE_ELECTRICO'
+                  AND EXTRACT(EPOCH FROM (i.hora_fin - resp.hora_primera_resp)) / 60
+                    <= COALESCE(cp.tiempo_resolucion_sla, 90)
               ) * 100.0 /
               NULLIF(COUNT(*) FILTER (
                 WHERE i.estado = 'RESUELTO'
@@ -244,8 +290,12 @@ export async function GET(req: Request) {
             ROUND(AVG(
               EXTRACT(EPOCH FROM (resp.hora_primera_resp - n1h.hora_correo_n1)) / 60
             ))::int                                                                 AS t_resp_prov_avg,
-            ROUND(AVG(i.mttr_minutos) FILTER (
+            ROUND(AVG(
+              EXTRACT(EPOCH FROM (i.hora_fin - resp.hora_primera_resp)) / 60
+            ) FILTER (
               WHERE i.estado = 'RESUELTO'
+                AND resp.hora_primera_resp IS NOT NULL
+                AND i.hora_fin IS NOT NULL
                 AND i.evaluable_proveedor IS NOT FALSE
                 AND i.tipo != 'CORTE_ELECTRICO'
             ))::int                                                                 AS t_resol_prov_avg,
@@ -268,6 +318,15 @@ export async function GET(req: Request) {
               AND e.hora_respuesta IS NOT NULL
               AND e.no_hubo_respuesta IS NOT TRUE
           ) resp ON true
+          LEFT JOIN LATERAL (
+            SELECT tiempo_respuesta_sla, tiempo_resolucion_sla
+            FROM contratos_proveedor cp2
+            WHERE cp2.proveedor_id = COALESCE(i.proveedor_id, t.proveedor_id)
+              AND (cp2.tienda_id = t.id OR cp2.tienda_id IS NULL)
+              AND cp2.estado = 'VIGENTE'
+            ORDER BY cp2.tienda_id NULLS LAST
+            LIMIT 1
+          ) cp ON true
           LEFT JOIN LATERAL (
             SELECT DISTINCT incidente_id
             FROM escalamientos e
@@ -309,10 +368,37 @@ export async function GET(req: Request) {
             ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int        AS mttr_avg,
             COUNT(*) FILTER (WHERE i.estado = 'RESUELTO')::int                          AS resueltos,
             COUNT(*) FILTER (
-              WHERE i.mttr_minutos <= ${sql.raw(umbralAlertaCase())}
-                AND i.estado = 'RESUELTO'
+              WHERE i.estado = 'RESUELTO'
+                AND n1h.hora_correo_n1 IS NOT NULL
+                AND resp.hora_primera_resp IS NOT NULL
+                AND i.hora_fin IS NOT NULL
+                AND i.evaluable_proveedor IS NOT FALSE
+                AND EXTRACT(EPOCH FROM (resp.hora_primera_resp - n1h.hora_correo_n1)) / 60
+                  <= COALESCE(cp.tiempo_respuesta_sla, 60)
+                AND EXTRACT(EPOCH FROM (i.hora_fin - resp.hora_primera_resp)) / 60
+                  <= COALESCE(cp.tiempo_resolucion_sla, 90)
             )::int                                                                        AS dentro_sla
           FROM incidentes i
+          JOIN tiendas t ON i.tienda_id = t.id
+          LEFT JOIN LATERAL (
+            SELECT MIN(e.hora_envio_correo) AS hora_correo_n1
+            FROM escalamientos e
+            WHERE e.incidente_id = i.id AND e.hora_envio_correo IS NOT NULL
+          ) n1h ON true
+          LEFT JOIN LATERAL (
+            SELECT MIN(e.hora_respuesta) AS hora_primera_resp
+            FROM escalamientos e
+            WHERE e.incidente_id = i.id AND e.hora_respuesta IS NOT NULL AND e.no_hubo_respuesta IS NOT TRUE
+          ) resp ON true
+          LEFT JOIN LATERAL (
+            SELECT tiempo_respuesta_sla, tiempo_resolucion_sla
+            FROM contratos_proveedor cp2
+            WHERE cp2.proveedor_id = COALESCE(i.proveedor_id, t.proveedor_id)
+              AND (cp2.tienda_id = t.id OR cp2.tienda_id IS NULL)
+              AND cp2.estado = 'VIGENTE'
+            ORDER BY cp2.tienda_id NULLS LAST
+            LIMIT 1
+          ) cp ON true
           WHERE i.hora_registro >= ${desde}::timestamptz
             AND i.hora_registro <  ${hasta}::timestamptz
             AND i.estado != 'CANCELADO'

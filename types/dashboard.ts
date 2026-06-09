@@ -63,7 +63,7 @@ export interface SlaProveedor {
   excessoRespuestaMin: number
   excessoResolucionMin: number
   evaluables: number
-  tiendas: Array<{ codigo: string; fecha: string; tipo: string; excRespMin: number | null; excResolMin: number | null; duracionMin: number | null; cumplido: boolean }>
+  tiendas: Array<{ tiendaCodigo: string; fecha: string; tipo: string; excRespMin: number | null; excResolMin: number | null; duracionMin: number | null; cumplido: boolean }>
 }
 
 // SlaEvaluableItem deprecated — usar IncidenteListItem filtrado por dentroSLA

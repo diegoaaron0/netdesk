@@ -25,33 +25,9 @@ export const SLA_RESPUESTA_MIN = 60
 
 /**
  * Default tiempo de resolución SLA (min) usado en calcSLARow cuando no hay contrato vigente.
- * DISTINTO de UMBRAL_ALERTA_MTTR: este aplica al tiempo proveedor→resolución (desde primer correo),
- * mientras UMBRAL_ALERTA_MTTR aplica al MTTR total (desde registro del incidente).
+ * Distinto de los umbrales operativos: este aplica al tiempo proveedor→resolución (desde primer correo).
  */
 export const SLA_RESOLUCION_DEFAULT_MIN = 90
-
-/**
- * Límite de MTTR por tipo de incidente (min).
- * Fuente única de verdad para clasificación operativa de severidad.
- * Usada en: dashboard operativo (color-coding), lib/sla-sql.ts, lib/report-sql.ts (CSV exports).
- * NO se usa para penalización contractual — eso usa SLA_RESOLUCION_DEFAULT_MIN + contrato vigente.
- */
-export const UMBRAL_ALERTA_MTTR = {
-  CAIDA_TOTAL:     60,
-  INTERMITENCIA:  120,
-  LENTITUD:       240,
-  POS:             60,
-  OTROS:          120,
-  CORTE_ELECTRICO:120,
-} as const
-
-export type TipoIncidente = keyof typeof UMBRAL_ALERTA_MTTR
-export const UMBRAL_ALERTA_MTTR_DEFAULT = 120
-
-/** Devuelve el límite MTTR para un tipo de incidente dado */
-export function getUmbralAlertaMttr(tipo: string): number {
-  return UMBRAL_ALERTA_MTTR[tipo as TipoIncidente] ?? UMBRAL_ALERTA_MTTR_DEFAULT
-}
 
 // ─── Helpers de tiempo ────────────────────────────────────────────────────────
 

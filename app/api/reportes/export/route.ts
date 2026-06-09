@@ -4,7 +4,7 @@ import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { calcImpactoRow } from '@/lib/impacto-calc'
-import { umbralAlertaCase, pgErrMsg } from '@/lib/report-sql'
+import { pgErrMsg } from '@/lib/report-sql'
 
 export async function GET(req: Request) {
   const session = await auth()
@@ -71,36 +71,38 @@ export async function GET(req: Request) {
         END                                                                            AS efectividad_contingencia,
         i.mttr_minutos                                                                 AS mttr_min,
 
-        -- SLA Respuesta: tiempo desde envío N1 hasta respuesta del proveedor (≤ 60 min)
+        -- SLA Respuesta: primer correo (cualquier nivel) hasta primera respuesta del proveedor
         CASE
-          WHEN n1.hora_envio_raw IS NULL OR n1.hora_respuesta_raw IS NULL
+          WHEN sla_n1.hora_correo_n1 IS NULL OR sla_resp.hora_primera_resp IS NULL
             THEN 'No escalado'
-          WHEN EXTRACT(EPOCH FROM (n1.hora_respuesta_raw - n1.hora_envio_raw)) / 60 <= 60
+          WHEN EXTRACT(EPOCH FROM (sla_resp.hora_primera_resp - sla_n1.hora_correo_n1)) / 60
+            <= COALESCE(sla_cp.tiempo_respuesta_sla, 60)
             THEN 'Cumplido'
           ELSE 'Incumplido'
         END                                                                            AS sla_respuesta,
 
-        -- SLA Resolución: mttr vs límite por tipo de incidente
+        -- SLA Resolución: hora_fin − hora_primera_resp vs límite contrato
         CASE
-          WHEN i.estado != 'RESUELTO' OR i.mttr_minutos IS NULL
+          WHEN i.estado != 'RESUELTO' OR i.hora_fin IS NULL OR sla_resp.hora_primera_resp IS NULL
             THEN 'No aplica'
-          WHEN i.mttr_minutos <= ${sql.raw(umbralAlertaCase())}
+          WHEN EXTRACT(EPOCH FROM (i.hora_fin - sla_resp.hora_primera_resp)) / 60
+            <= COALESCE(sla_cp.tiempo_resolucion_sla, 90)
             THEN 'Cumplido'
           ELSE 'Incumplido'
         END                                                                            AS sla_resolucion,
 
-        -- SLA Cumplido: ambas partes deben cumplirse
+        -- SLA Cumplido: respuesta Y resolución dentro del límite del contrato
         CASE
           WHEN i.evaluable_proveedor = false
             THEN 'No evaluable'
-          WHEN i.estado != 'RESUELTO' OR i.mttr_minutos IS NULL
+          WHEN i.estado != 'RESUELTO' OR i.hora_fin IS NULL
             THEN 'Pendiente'
-          WHEN (
-            n1.hora_envio_raw IS NOT NULL
-            AND n1.hora_respuesta_raw IS NOT NULL
-            AND EXTRACT(EPOCH FROM (n1.hora_respuesta_raw - n1.hora_envio_raw)) / 60 <= 60
-            AND i.mttr_minutos <= ${sql.raw(umbralAlertaCase())}
-          )
+          WHEN sla_n1.hora_correo_n1 IS NOT NULL
+            AND sla_resp.hora_primera_resp IS NOT NULL
+            AND EXTRACT(EPOCH FROM (sla_resp.hora_primera_resp - sla_n1.hora_correo_n1)) / 60
+              <= COALESCE(sla_cp.tiempo_respuesta_sla, 60)
+            AND EXTRACT(EPOCH FROM (i.hora_fin - sla_resp.hora_primera_resp)) / 60
+              <= COALESCE(sla_cp.tiempo_resolucion_sla, 90)
             THEN 'Sí'
           ELSE 'No'
         END                                                                            AS sla_cumplido,
@@ -170,6 +172,29 @@ export async function GET(req: Request) {
         FROM escalamientos e
         WHERE e.incidente_id = i.id AND e.nivel = 3
       ) n3 ON true
+
+      -- Primer correo de cualquier nivel + primera respuesta (reloj SLA real)
+      LEFT JOIN LATERAL (
+        SELECT MIN(e.hora_envio_correo) AS hora_correo_n1
+        FROM escalamientos e
+        WHERE e.incidente_id = i.id AND e.hora_envio_correo IS NOT NULL
+      ) sla_n1 ON true
+      LEFT JOIN LATERAL (
+        SELECT MIN(e.hora_respuesta) AS hora_primera_resp
+        FROM escalamientos e
+        WHERE e.incidente_id = i.id
+          AND e.hora_respuesta IS NOT NULL
+          AND e.no_hubo_respuesta IS NOT TRUE
+      ) sla_resp ON true
+      LEFT JOIN LATERAL (
+        SELECT tiempo_respuesta_sla, tiempo_resolucion_sla
+        FROM contratos_proveedor cp2
+        WHERE cp2.proveedor_id = COALESCE(i.proveedor_id, t.proveedor_id)
+          AND (cp2.tienda_id = t.id OR cp2.tienda_id IS NULL)
+          AND cp2.estado = 'VIGENTE'
+        ORDER BY cp2.tienda_id NULLS LAST
+        LIMIT 1
+      ) sla_cp ON true
 
       WHERE i.hora_registro >= ${desde}::timestamptz
         AND i.hora_registro <  ${hasta}::timestamptz
