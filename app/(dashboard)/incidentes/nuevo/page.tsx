@@ -279,17 +279,17 @@ export default function NuevoIncidentePage() {
                 </div>
               )}
 
-              {/* Banner: contingencia standalone activa en la tienda */}
+              {/* Banner: tienda con contingencia activa en un incidente en curso */}
               {tienda && contActivaTienda?.activa && (
                 <div style={{ background: '#fff7ed', border: '1.5px solid #f97316', borderRadius: '10px', padding: '12px 16px' }}>
                   <div style={{ fontSize: '12px', fontWeight: 700, color: '#c2410c', marginBottom: '4px' }}>
-                    📶 Esta tienda tiene contingencia activa
+                    📶 Contingencia activa en esta tienda
                   </div>
                   <div style={{ fontSize: '11px', color: '#7c2d12', lineHeight: 1.5 }}>
                     {contActivaTienda.activadaPor
                       ? <>Activada por <strong>{contActivaTienda.activadaPor}</strong>.</>
-                      : 'Hay una contingencia activa en esta tienda.'}
-                    {' '}Desde el detalle del incidente podrás vincularla o desactivarla.
+                      : 'Esta tienda tiene una contingencia activa.'}
+                    {' '}Revisa los incidentes activos antes de registrar uno nuevo.
                   </div>
                 </div>
               )}
