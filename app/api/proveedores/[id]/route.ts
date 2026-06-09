@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { proveedores, tiendas, incidentes, contratosProveedor, nivelesEscalamiento, tiendasHistorial } from '@/drizzle/schema'
-import { eq, gte, sql, and, asc, desc, isNotNull } from 'drizzle-orm'
+import { eq, sql, and, asc, desc } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
 
@@ -76,12 +76,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // Incidentes 30d por tienda
   let incPerTienda: { tiendaId: string; count: number }[] = []
   try {
-    incPerTienda = await db.select({
-      tiendaId: incidentes.tiendaId,
-      count:    sql<number>`count(*)::int`,
-    }).from(incidentes)
-      .where(and(eq(incidentes.proveedorId, id), gte(incidentes.horaRegistro, thirtyDaysAgo)))
-      .groupBy(incidentes.tiendaId) as any
+    incPerTienda = await db.execute(sql`
+      SELECT i.tienda_id, count(*)::int AS count
+      FROM incidentes i
+      JOIN tiendas t ON i.tienda_id = t.id
+      WHERE COALESCE(i.proveedor_id, t.proveedor_id) = ${id}::uuid
+        AND i.hora_registro >= ${thirtyDaysAgoStr}::timestamptz
+      GROUP BY i.tienda_id
+    `) as any
   } catch { /* skip */ }
 
   const totalInc30d     = incPerTienda.reduce((s, r) => s + r.count, 0)
@@ -90,15 +92,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // MTTR
   let mttrData = { avg: null as number | null, total: 0 }
   try {
-    const [r] = await db.select({
-      mttrAvg:   sql<number>`round(avg(${incidentes.mttrMinutos}))::int`,
-      mttrTotal: sql<number>`coalesce(sum(${incidentes.mttrMinutos}), 0)::int`,
-    }).from(incidentes).where(and(
-      eq(incidentes.proveedorId, id),
-      gte(incidentes.horaRegistro, thirtyDaysAgo),
-      isNotNull(incidentes.mttrMinutos),
-    ))
-    if (r) mttrData = { avg: r.mttrAvg, total: r.mttrTotal }
+    const rows = await db.execute(sql`
+      SELECT
+        round(avg(i.mttr_minutos))::int AS mttr_avg,
+        coalesce(sum(i.mttr_minutos), 0)::int AS mttr_total
+      FROM incidentes i
+      JOIN tiendas t ON i.tienda_id = t.id
+      WHERE COALESCE(i.proveedor_id, t.proveedor_id) = ${id}::uuid
+        AND i.hora_registro >= ${thirtyDaysAgoStr}::timestamptz
+        AND i.mttr_minutos IS NOT NULL
+    `)
+    const r = (rows as any[])[0]
+    if (r) mttrData = { avg: r.mttr_avg, total: r.mttr_total }
   } catch { /* skip */ }
 
   // SLA
@@ -137,7 +142,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         FROM   escalamientos
         WHERE  incidente_id = i.id
       ) max_n ON true
-      WHERE i.proveedor_id = ${id}
+      WHERE COALESCE(i.proveedor_id, t.proveedor_id) = ${id}::uuid
         AND i.hora_registro >= ${thirtyDaysAgoStr}::timestamptz
         AND i.estado = 'RESUELTO'
         AND i.evaluable_proveedor IS NOT FALSE
@@ -206,7 +211,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         t.codigo AS tienda_codigo, t.nombre_cc AS tienda_nombre, t.id AS tienda_id
       FROM incidentes i
       JOIN tiendas t ON i.tienda_id = t.id
-      WHERE i.proveedor_id = ${id}
+      WHERE COALESCE(i.proveedor_id, t.proveedor_id) = ${id}::uuid
         AND i.estado = 'RESUELTO'
         AND i.tipo != 'CORTE_ELECTRICO'
         AND i.hora_registro >= ${thirtyDaysAgoStr}::timestamptz
