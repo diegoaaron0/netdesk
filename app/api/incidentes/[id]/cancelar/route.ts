@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { incidentes, tiendas, contingencias, routersExternos } from '@/drizzle/schema'
-import { eq, sql } from 'drizzle-orm'
+import { and, eq, isNull, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 
@@ -38,8 +38,15 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     .where(eq(incidentes.id, id))
     .returning()
 
+  // Sellar standalones activos de la tienda (absorbidos por este incidente)
+  if (inc.tiendaId) {
+    await db.update(contingencias)
+      .set({ horaDesactivacion: horaFin })
+      .where(and(eq(contingencias.tiendaId, inc.tiendaId), isNull(contingencias.horaDesactivacion)))
+  }
+
   // Limpiar contingencia_activa si no quedan otras fuentes activas
-  if (inc.tiendaId && inc.contActivadoPor) {
+  if (inc.tiendaId) {
     const rows = await db.execute(sql`
       SELECT COUNT(*)::int AS cnt FROM incidentes
       WHERE tienda_id = ${inc.tiendaId}

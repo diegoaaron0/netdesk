@@ -144,15 +144,10 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
   const [contStats, setContStats] = useState<any>(null)
   const [contList, setContList] = useState<any[]>([])
   const [routersTienda, setRoutersTienda] = useState<any[]>([])
-  const [routersAll, setRoutersAll] = useState<any[]>([])
   const [limpiarFlagBusy, setLimpiarFlagBusy] = useState(false)
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<any>({})
   const [saving, setSaving] = useState(false)
-  const [showContForm, setShowContForm] = useState(false)
-  const [contForm, setContForm] = useState({ tipo: '', activadoPor: '', justificacion: '', routerExternoId: '' })
-  const [contFormSaving, setContFormSaving] = useState(false)
-  const [contFormError, setContFormError] = useState<string | null>(null)
   const [desactivandoContId, setDesactivandoContId] = useState<string | null>(null)
   const [incRecientes, setIncRecientes] = useState<any[]>([])
   const [iei30d, setIei30d] = useState<number | null>(null)
@@ -199,9 +194,8 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
       .then((data: any) => {
         const rows = Array.isArray(data) ? data : []
         setRoutersTienda(rows.filter((r: any) => r.tienda_actual_id === id))
-        setRoutersAll(rows)
       })
-      .catch(() => { setRoutersTienda([]); setRoutersAll([]) })
+      .catch(() => setRoutersTienda([]))
   }, [id])
 
   useEffect(() => { loadData() }, [loadData])
@@ -235,31 +229,6 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
     }
     setSaving(false)
     setEditing(false)
-  }
-
-  async function handleActivarCont() {
-    if (!contForm.tipo || !contForm.activadoPor || !contForm.justificacion.trim()) return
-    if (contForm.tipo === 'ROUTER_EXTERNO' && !contForm.routerExternoId) return
-    setContFormSaving(true)
-    setContFormError(null)
-    try {
-      const res = await fetch('/api/contingencias', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tiendaId: id, ...contForm }),
-      })
-      if (res.ok) {
-        setShowContForm(false)
-        setContForm({ tipo: '', activadoPor: '', justificacion: '', routerExternoId: '' })
-        loadData()
-        loadPeriodData(filtroDesde, filtroHasta)
-      } else {
-        const err = await res.json().catch(() => ({}))
-        setContFormError(err.error ?? 'Error al activar contingencia')
-      }
-    } finally {
-      setContFormSaving(false)
-    }
   }
 
   async function handleLimpiarFlag() {
@@ -807,98 +776,14 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                     </div>
                   )
                 }
-                if (yaHayActiva && !showContForm) {
+                if (yaHayActiva) {
                   return (
                     <div style={{ padding: '8px 10px', background: 'rgba(245,158,11,0.08)', border: '0.5px solid rgba(245,158,11,0.4)', borderRadius: '7px', fontSize: '11px', color: '#92400e', textAlign: 'center' }}>
-                      Ya hay una contingencia activa
+                      Contingencia activa
                     </div>
-                  )
-                }
-                if (!showContForm) {
-                  return (
-                    <button onClick={() => setShowContForm(true)}
-                      style={{ padding: '9px 12px', background: 'rgba(245,158,11,0.08)', border: '0.5px solid rgba(245,158,11,0.5)', borderRadius: '7px', fontSize: '12px', fontWeight: 500, color: '#92400e', cursor: 'pointer', textAlign: 'center' }}>
-                      Activar contingencia
-                    </button>
                   )
                 }
                 return null
-              })()}
-              {showContForm && (() => {
-                const tipos = tienda.tieneContingencia
-                  ? [{ v: 'ROUTER_PROPIO', l: '📶 Router propio' }, { v: 'DATOS_MOVILES', l: 'Datos móviles' }, { v: 'ROUTER_EXTERNO', l: '📦 Router externo' }]
-                  : [{ v: 'ROUTER_EXTERNO', l: '📦 Router externo' }]
-                const routersDisponibles = routersAll.filter((r: any) => ['EN_DEPOSITO', 'DISPONIBLE'].includes(r.estado))
-                const routersEnUso = routersAll.filter((r: any) => r.estado === 'EN_TIENDA_ACTIVO' && r.tienda_actual_id !== id)
-                const formInvalid = contFormSaving || !contForm.tipo || !contForm.activadoPor || !contForm.justificacion.trim() || (contForm.tipo === 'ROUTER_EXTERNO' && !contForm.routerExternoId)
-                return (
-                  <div style={{ background: '#fffbeb', border: '0.5px solid #f59e0b', borderRadius: '8px', padding: '10px' }}>
-                    <div style={{ fontSize: '10px', fontWeight: 700, color: '#92400e', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Activar contingencia</div>
-                    <div style={{ marginBottom: '6px' }}>
-                      <div style={{ fontSize: '9px', fontWeight: 600, color: '#92400e', marginBottom: '4px', textTransform: 'uppercase' }}>Tipo</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                        {tipos.map(t => (
-                          <button key={t.v} type="button"
-                            onClick={() => setContForm(f => ({ ...f, tipo: t.v, routerExternoId: '' }))}
-                            style={{ padding: '4px 8px', fontSize: '11px', textAlign: 'left', borderRadius: '5px', cursor: 'pointer', border: contForm.tipo === t.v ? '1.5px solid #b45309' : '0.5px solid #fcd34d', background: contForm.tipo === t.v ? '#b45309' : '#fef3c7', color: contForm.tipo === t.v ? 'white' : '#78350f', outline: 'none' }}>
-                            {t.l}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    {contForm.tipo === 'ROUTER_EXTERNO' && (
-                      <div style={{ marginBottom: '6px' }}>
-                        <div style={{ fontSize: '9px', fontWeight: 600, color: '#92400e', marginBottom: '4px', textTransform: 'uppercase' }}>
-                          Router externo <span style={{ color: '#dc2626' }}>*</span>
-                        </div>
-                        {routersDisponibles.length === 0 && routersEnUso.length === 0 && (
-                          <div style={{ fontSize: '10px', color: '#dc2626', padding: '5px 8px', background: '#fee2e2', borderRadius: '5px' }}>
-                            No hay routers disponibles en depósito.
-                          </div>
-                        )}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                          {routersDisponibles.map((r: any) => (
-                            <button key={r.id} type="button"
-                              onClick={() => setContForm(f => ({ ...f, routerExternoId: r.id }))}
-                              style={{ padding: '4px 8px', fontSize: '11px', textAlign: 'left', borderRadius: '5px', cursor: 'pointer', border: contForm.routerExternoId === r.id ? '1.5px solid #b45309' : '0.5px solid #fcd34d', background: contForm.routerExternoId === r.id ? '#b45309' : '#fef3c7', color: contForm.routerExternoId === r.id ? 'white' : '#78350f', outline: 'none' }}>
-                              {r.codigo} — disponible
-                            </button>
-                          ))}
-                          {routersEnUso.map((r: any) => (
-                            <div key={r.id} style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '5px', background: '#f3f4f6', color: '#9ca3af', border: '0.5px solid #e5e7eb' }}>
-                              {r.codigo} — en uso (otra tienda)
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    <div style={{ marginBottom: '6px' }}>
-                      <div style={{ fontSize: '9px', fontWeight: 600, color: '#92400e', marginBottom: '3px', textTransform: 'uppercase' }}>Activado por</div>
-                      <input value={contForm.activadoPor} onChange={e => setContForm(f => ({ ...f, activadoPor: e.target.value }))} placeholder="Nombre o cargo"
-                        style={{ width: '100%', padding: '5px 8px', fontSize: '11px', border: '0.5px solid #fcd34d', borderRadius: '5px', background: 'white', outline: 'none', boxSizing: 'border-box' }} />
-                    </div>
-                    <div style={{ marginBottom: '8px' }}>
-                      <div style={{ fontSize: '9px', fontWeight: 600, color: '#92400e', marginBottom: '3px', textTransform: 'uppercase' }}>Justificación <span style={{ color: '#dc2626' }}>*</span></div>
-                      <textarea value={contForm.justificacion} onChange={e => setContForm(f => ({ ...f, justificacion: e.target.value }))} placeholder="Motivo de la activación…"
-                        style={{ width: '100%', padding: '5px 8px', fontSize: '11px', border: '0.5px solid #fcd34d', borderRadius: '5px', background: 'white', outline: 'none', boxSizing: 'border-box', minHeight: '54px', resize: 'vertical' }} />
-                    </div>
-                    {contFormError && (
-                      <div style={{ padding: '5px 8px', background: '#fee2e2', border: '0.5px solid #fca5a5', borderRadius: '5px', fontSize: '10px', color: '#dc2626', marginBottom: '6px' }}>
-                        {contFormError}
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', gap: '5px' }}>
-                      <button onClick={handleActivarCont} disabled={formInvalid}
-                        style={{ flex: 1, padding: '6px', fontSize: '11px', fontWeight: 600, border: 'none', borderRadius: '5px', background: '#b45309', color: 'white', cursor: 'pointer', opacity: formInvalid ? 0.5 : 1 }}>
-                        {contFormSaving ? 'Activando…' : 'Activar'}
-                      </button>
-                      <button onClick={() => { setShowContForm(false); setContForm({ tipo: '', activadoPor: '', justificacion: '', routerExternoId: '' }); setContFormError(null) }}
-                        style={{ padding: '6px 10px', fontSize: '11px', border: '0.5px solid #fcd34d', borderRadius: '5px', background: '#fef3c7', color: '#78350f', cursor: 'pointer' }}>
-                        Cancelar
-                      </button>
-                    </div>
-                  </div>
-                )
               })()}
               <a href={`/incidentes?tiendaId=${tienda.id}`}
                 style={{ display: 'block', padding: '9px 12px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '7px', fontSize: '12px', color: 'var(--foreground)', textDecoration: 'none', textAlign: 'center' }}>
