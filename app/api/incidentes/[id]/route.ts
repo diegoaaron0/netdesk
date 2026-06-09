@@ -389,8 +389,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   // Al editar hora_fin o hora_registro en un incidente ya resuelto/cerrado:
   // 1. Recalcular mttr_minutos automáticamente
-  // 2. Sincronizar cont_hora_desactivacion / mov_hora_desactivacion si se sellaron junto con hora_fin original
-  if (('horaFin' in allowedFields || 'horaRegistro' in allowedFields) && !body.estado) {
+  // 2. Sincronizar cont_hora_desactivacion / mov_hora_desactivacion con la nueva hora_fin
+  //    siempre que el usuario no haya cambiado esos campos explícitamente
+  if ('horaFin' in allowedFields || 'horaRegistro' in allowedFields) {
     const [prevSnap] = await db.select({
       estado:                incidentes.estado,
       horaFin:               incidentes.horaFin,
@@ -415,25 +416,30 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         }
       }
 
-      // Sincronizar timestamps de contingencia si se sellaron al mismo tiempo que hora_fin original
-      // (tolerancia 5 min para cubrir latencia entre el click de resolver y el DB write)
-      if ('horaFin' in allowedFields && allowedFields.horaFin && prevSnap.horaFin) {
-        const SYNC_TOL_MS = 5 * 60 * 1000
+      // Sincronizar cont/mov hora_desactivacion con la nueva hora_fin,
+      // salvo que el usuario haya cambiado esos campos explícitamente.
+      // Tolerancia 60s para la truncación a minutos de datetime-local.
+      if ('horaFin' in allowedFields && allowedFields.horaFin) {
         const newHoraFin = allowedFields.horaFin as Date
-        if (prevSnap.contActivadoPor && prevSnap.contHoraDesactivacion &&
-            !('contHoraDesactivacion' in allowedFields)) {
-          const drift = Math.abs(
-            new Date(prevSnap.contHoraDesactivacion).getTime() - new Date(prevSnap.horaFin).getTime()
-          )
-          if (drift <= SYNC_TOL_MS) allowedFields.contHoraDesactivacion = newHoraFin
-        }
-        if (prevSnap.movActivadoPor && prevSnap.movHoraDesactivacion &&
-            !('movHoraDesactivacion' in allowedFields)) {
-          const drift = Math.abs(
-            new Date(prevSnap.movHoraDesactivacion).getTime() - new Date(prevSnap.horaFin).getTime()
-          )
-          if (drift <= SYNC_TOL_MS) allowedFields.movHoraDesactivacion = newHoraFin
-        }
+        const TOL_MS = 60_000
+
+        const contDeactUnchanged = prevSnap.contActivadoPor != null &&
+          prevSnap.contHoraDesactivacion != null &&
+          (allowedFields.contHoraDesactivacion == null ||
+            Math.abs(
+              new Date(allowedFields.contHoraDesactivacion as any).getTime() -
+              new Date(prevSnap.contHoraDesactivacion).getTime()
+            ) < TOL_MS)
+        if (contDeactUnchanged) allowedFields.contHoraDesactivacion = newHoraFin
+
+        const movDeactUnchanged = prevSnap.movActivadoPor != null &&
+          prevSnap.movHoraDesactivacion != null &&
+          (allowedFields.movHoraDesactivacion == null ||
+            Math.abs(
+              new Date(allowedFields.movHoraDesactivacion as any).getTime() -
+              new Date(prevSnap.movHoraDesactivacion).getTime()
+            ) < TOL_MS)
+        if (movDeactUnchanged) allowedFields.movHoraDesactivacion = newHoraFin
       }
     }
   }
@@ -551,7 +557,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   // Cuando se limpia → solo se desactiva si ningún otro incidente abierto de esa tienda tiene contingencia.
   if ('contActivadoPor' in allowedFields && updated.tiendaId) {
     const userId = (session.user as any)?.id ?? null
-    if (updated.contActivadoPor) {
+    if (updated.contActivadoPor && !estadoCierra) {
       await db.update(tiendas)
         .set({
           contingenciaActiva: true,
