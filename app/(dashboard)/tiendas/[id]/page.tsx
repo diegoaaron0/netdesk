@@ -144,7 +144,6 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
   const [contStats, setContStats] = useState<any>(null)
   const [contList, setContList] = useState<any[]>([])
   const [routersTienda, setRoutersTienda] = useState<any[]>([])
-  const [limpiarFlagBusy, setLimpiarFlagBusy] = useState(false)
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<any>({})
   const [saving, setSaving] = useState(false)
@@ -230,26 +229,6 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
     }
     setSaving(false)
     setEditing(false)
-  }
-
-  async function handleLimpiarFlag() {
-    setLimpiarFlagBusy(true)
-    try {
-      const res = await fetch(`/api/tiendas/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contingenciaActiva: false, contingenciaActivadaPor: null }),
-      })
-      if (res.ok) {
-        const updated = await res.json()
-        if (updated.id) {
-          setTienda((prev: any) => ({ ...prev, ...updated }))
-          setForm((prev: any) => ({ ...prev, ...updated }))
-        }
-      }
-    } finally {
-      setLimpiarFlagBusy(false)
-    }
   }
 
   async function handleDesactivarCont(contId: string) {
@@ -761,35 +740,11 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Crear incidente
               </a>
-              {(() => {
-                const hasActiveCont   = contList.some((c: any) => !c.horaDesactivacion)
-                const hasActiveRouter = routersTienda.some((r: any) => r.estado === 'EN_TIENDA_ACTIVO')
-                const isGhostFlag     = (tienda?.contingenciaActiva ?? false) && !hasActiveCont && !hasActiveRouter
-                const yaHayActiva     = hasActiveCont || hasActiveRouter || (tienda?.contingenciaActiva && !isGhostFlag)
-
-                if (isGhostFlag) {
-                  return (
-                    <div style={{ padding: '8px 10px', background: 'rgba(239,68,68,0.07)', border: '0.5px solid rgba(239,68,68,0.35)', borderRadius: '7px', fontSize: '11px', color: '#991b1b' }}>
-                      <div style={{ fontWeight: 600, marginBottom: '3px' }}>Flag activo sin fuente</div>
-                      <div style={{ fontSize: '10px', color: '#b91c1c', marginBottom: '6px', lineHeight: 1.4 }}>
-                        La tienda figura con contingencia activa pero no hay fuente activa en el período.
-                      </div>
-                      <button onClick={handleLimpiarFlag} disabled={limpiarFlagBusy}
-                        style={{ padding: '3px 10px', fontSize: '10px', fontWeight: 600, border: 'none', borderRadius: '4px', background: '#dc2626', color: 'white', cursor: 'pointer', opacity: limpiarFlagBusy ? 0.5 : 1 }}>
-                        {limpiarFlagBusy ? 'Limpiando...' : 'Limpiar flag'}
-                      </button>
-                    </div>
-                  )
-                }
-                if (yaHayActiva) {
-                  return (
-                    <div style={{ padding: '8px 10px', background: 'rgba(245,158,11,0.08)', border: '0.5px solid rgba(245,158,11,0.4)', borderRadius: '7px', fontSize: '11px', color: '#92400e', textAlign: 'center' }}>
-                      Contingencia activa
-                    </div>
-                  )
-                }
-                return null
-              })()}
+              {(contList.some((c: any) => !c.horaDesactivacion) || routersTienda.some((r: any) => r.estado === 'EN_TIENDA_ACTIVO') || tienda?.contingenciaActiva) && (
+                <div style={{ padding: '8px 10px', background: 'rgba(245,158,11,0.08)', border: '0.5px solid rgba(245,158,11,0.4)', borderRadius: '7px', fontSize: '11px', color: '#92400e', textAlign: 'center' }}>
+                  Contingencia activa
+                </div>
+              )}
               <a href={`/incidentes?tiendaId=${tienda.id}`}
                 style={{ display: 'block', padding: '9px 12px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '7px', fontSize: '12px', color: 'var(--foreground)', textDecoration: 'none', textAlign: 'center' }}>
                 Ver incidentes
