@@ -387,6 +387,57 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
   }
 
+  // Al editar hora_fin o hora_registro en un incidente ya resuelto/cerrado:
+  // 1. Recalcular mttr_minutos automáticamente
+  // 2. Sincronizar cont_hora_desactivacion / mov_hora_desactivacion si se sellaron junto con hora_fin original
+  if (('horaFin' in allowedFields || 'horaRegistro' in allowedFields) && !body.estado) {
+    const [prevSnap] = await db.select({
+      estado:                incidentes.estado,
+      horaFin:               incidentes.horaFin,
+      horaRegistro:          incidentes.horaRegistro,
+      tiempoAcumuladoMin:    incidentes.tiempoAcumuladoMin,
+      contActivadoPor:       incidentes.contActivadoPor,
+      contHoraDesactivacion: incidentes.contHoraDesactivacion,
+      movActivadoPor:        incidentes.movActivadoPor,
+      movHoraDesactivacion:  incidentes.movHoraDesactivacion,
+    }).from(incidentes).where(eq(incidentes.id, id))
+
+    if (prevSnap && ['RESUELTO', 'CERRADO'].includes(prevSnap.estado ?? '')) {
+      // Recalcular MTTR si no fue enviado explícitamente
+      if (!('mttrMinutos' in allowedFields)) {
+        const fin = (allowedFields.horaFin ?? prevSnap.horaFin) as Date | null
+        const ini = (allowedFields.horaRegistro ?? prevSnap.horaRegistro) as Date
+        if (fin) {
+          const acum = prevSnap.tiempoAcumuladoMin ?? 0
+          allowedFields.mttrMinutos = Math.round(
+            (new Date(fin).getTime() - new Date(ini).getTime()) / 60000
+          ) + acum
+        }
+      }
+
+      // Sincronizar timestamps de contingencia si se sellaron al mismo tiempo que hora_fin original
+      // (tolerancia 5 min para cubrir latencia entre el click de resolver y el DB write)
+      if ('horaFin' in allowedFields && allowedFields.horaFin && prevSnap.horaFin) {
+        const SYNC_TOL_MS = 5 * 60 * 1000
+        const newHoraFin = allowedFields.horaFin as Date
+        if (prevSnap.contActivadoPor && prevSnap.contHoraDesactivacion &&
+            !('contHoraDesactivacion' in allowedFields)) {
+          const drift = Math.abs(
+            new Date(prevSnap.contHoraDesactivacion).getTime() - new Date(prevSnap.horaFin).getTime()
+          )
+          if (drift <= SYNC_TOL_MS) allowedFields.contHoraDesactivacion = newHoraFin
+        }
+        if (prevSnap.movActivadoPor && prevSnap.movHoraDesactivacion &&
+            !('movHoraDesactivacion' in allowedFields)) {
+          const drift = Math.abs(
+            new Date(prevSnap.movHoraDesactivacion).getTime() - new Date(prevSnap.horaFin).getTime()
+          )
+          if (drift <= SYNC_TOL_MS) allowedFields.movHoraDesactivacion = newHoraFin
+        }
+      }
+    }
+  }
+
   const [updated] = await db.update(incidentes)
     .set({ ...allowedFields, actualizadoEn: new Date() })
     .where(eq(incidentes.id, id))
