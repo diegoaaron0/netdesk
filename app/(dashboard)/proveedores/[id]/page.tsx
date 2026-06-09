@@ -123,6 +123,11 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
   const [contratoAplicacion, setContratoAplicacion] = useState<'marco' | 'especifica'>('marco')
   const [tiendaBusqModal, setTiendaBusqModal]     = useState('')
 
+  // Contrato por tienda (panel lateral)
+  const [contratoTiendaId, setContratoTiendaId]     = useState<string | null>(null)
+  const [contratoTiendaForm, setContratoTiendaForm] = useState<any>({})
+  const [savingContratoT, setSavingContratoT]       = useState(false)
+
   // Tiendas
   const [tiendas, setTiendas]     = useState<any[]>([])
   const [loadingT, setLoadingT]   = useState(false)
@@ -180,11 +185,32 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
     setSavingC(true)
     const url    = isNew ? `/api/proveedores/${id}/contratos` : `/api/contratos/${editContrato?.id}`
     const method = isNew ? 'POST' : 'PUT'
-    await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(contratoForm) })
+    await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...contratoForm, tiendaId: null }) })
     setSavingC(false)
     setEditContrato(null)
     setAddContrato(false)
     loadData()
+  }
+
+  async function saveContratoTienda() {
+    if (!contratoTiendaId) return
+    setSavingContratoT(true)
+    const tienda = tiendas.find((t: any) => t.id === contratoTiendaId)
+    const existing = tienda?.contratoEspecifico
+    if (existing?.id) {
+      await fetch(`/api/contratos/${existing.id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(contratoTiendaForm),
+      })
+    } else {
+      await fetch(`/api/proveedores/${id}/contratos`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...contratoTiendaForm, tiendaId: contratoTiendaId }),
+      })
+    }
+    setSavingContratoT(false)
+    setContratoTiendaId(null)
+    await Promise.all([loadData(), loadTiendas()])
   }
 
   async function deleteContrato(cid: string) {
@@ -320,14 +346,14 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
               <thead>
                 <tr style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--muted)' }}>
-                  {['Tienda', 'Distrito', 'CID', 'Conexión', 'Cluster', 'Costo', 'Contingencia', 'Estado', 'Inc. 30d', ''].map(h => (
+                  {['Tienda', 'Distrito', 'CID', 'Conexión', 'Cluster', 'Costo', 'Contingencia', 'Estado', 'Inc. 30d', 'Contrato SLA', ''].map(h => (
                     <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {loadingT && <tr><td colSpan={10} style={{ padding: '24px', textAlign: 'center', color: 'var(--muted-foreground)' }}>Cargando...</td></tr>}
-                {!loadingT && tiendasFiltradas.length === 0 && <tr><td colSpan={10} style={{ padding: '24px', textAlign: 'center', color: 'var(--muted-foreground)' }}>Sin tiendas</td></tr>}
+                {loadingT && <tr><td colSpan={11} style={{ padding: '24px', textAlign: 'center', color: 'var(--muted-foreground)' }}>Cargando...</td></tr>}
+                {!loadingT && tiendasFiltradas.length === 0 && <tr><td colSpan={11} style={{ padding: '24px', textAlign: 'center', color: 'var(--muted-foreground)' }}>Sin tiendas</td></tr>}
                 {!loadingT && tiendasFiltradas.map((t, i) => (
                   <tr key={t.id}
                     style={{ borderBottom: i < tiendasFiltradas.length - 1 ? '0.5px solid var(--border)' : 'none', cursor: 'pointer' }}
@@ -357,10 +383,42 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
                       {t.incidentes30d > 0 ? <span style={{ fontWeight: 700, color: '#dc2626' }}>{t.incidentes30d}</span> : <span style={{ color: 'var(--muted-foreground)' }}>0</span>}
                     </td>
                     <td style={{ padding: '8px 10px' }}>
-                      <button onClick={e => { e.stopPropagation(); router.push(`/proveedores/${id}/tienda/${t.id}`) }}
-                        style={{ padding: '4px 10px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                        Ver servicio
-                      </button>
+                      {t.contratoEspecifico ? (
+                        <div>
+                          <span style={{ fontSize: '10px', fontWeight: 600, padding: '1px 5px', borderRadius: '4px', background: '#dbeafe', color: '#1e40af' }}>Específico</span>
+                          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px', fontFamily: 'monospace' }}>
+                            {t.contratoEspecifico.tiempo_respuesta_sla ?? '—'}m / {t.contratoEspecifico.tiempo_resolucion_sla ?? '—'}m
+                          </div>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>General</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '8px 10px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <button onClick={e => { e.stopPropagation(); router.push(`/proveedores/${id}/tienda/${t.id}`) }}
+                          style={{ padding: '4px 10px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                          Ver servicio
+                        </button>
+                        <button onClick={e => {
+                          e.stopPropagation()
+                          const ex = t.contratoEspecifico
+                          setContratoTiendaForm({
+                            tiempoRespuestaSla:  ex?.tiempo_respuesta_sla  ?? null,
+                            tiempoResolucionSla: ex?.tiempo_resolucion_sla ?? null,
+                            codigoContrato:      ex?.codigo_contrato       ?? '',
+                            velocidadCapacidad:  ex?.velocidad_capacidad   ?? '',
+                            costoMensual:        ex?.costo_mensual         ?? '',
+                            fechaInicio:         ex?.fecha_inicio          ?? '',
+                            fechaFin:            ex?.fecha_fin             ?? '',
+                            estado:              'VIGENTE',
+                          })
+                          setContratoTiendaId(t.id)
+                        }}
+                          style={{ padding: '4px 10px', fontSize: '11px', border: `0.5px solid ${t.contratoEspecifico ? '#93c5fd' : 'var(--border)'}`, borderRadius: '6px', background: t.contratoEspecifico ? '#eff6ff' : 'var(--card)', color: t.contratoEspecifico ? '#1e40af' : 'var(--foreground)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                          {t.contratoEspecifico ? 'Contrato ✓' : 'Contrato'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -726,73 +784,132 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
             </FormGrid>
           </div>
 
-          {/* Sección 3 — Aplicación */}
-          <div style={{ background: 'var(--muted)', borderRadius: '10px', padding: '14px 16px', marginBottom: '4px' }}>
-            <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
-              Este contrato aplica a
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer' }}>
-                <input type="radio" name="aplicacion" checked={contratoAplicacion === 'marco'}
-                  onChange={() => { setContratoAplicacion('marco'); setContratoForm((f: any) => ({ ...f, tiendaId: null })) }} />
-                Todas las tiendas del proveedor (contrato marco)
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer' }}>
-                <input type="radio" name="aplicacion" checked={contratoAplicacion === 'especifica'}
-                  onChange={() => setContratoAplicacion('especifica')} />
-                Tienda específica:
-              </label>
-              {contratoAplicacion === 'especifica' && (
-                <div style={{ marginLeft: '24px', position: 'relative' }}>
-                  <input
-                    placeholder="Buscar por código o nombre..."
-                    value={tiendaBusqModal}
-                    onChange={e => { setTiendaBusqModal(e.target.value); setContratoForm((f: any) => ({ ...f, tiendaId: null })) }}
-                    style={{ ...INP, marginBottom: '4px', background: 'var(--card)' }}
-                  />
-                  {tiendaBusqModal.length >= 1 && !contratoForm.tiendaId && (
-                    <div style={{ border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', maxHeight: '150px', overflowY: 'auto' }}>
-                      {tiendas
-                        .filter(t => {
-                          const q = tiendaBusqModal.toLowerCase()
-                          return t.codigo?.toLowerCase().includes(q) || t.nombreCc?.toLowerCase().includes(q)
-                        })
-                        .slice(0, 8)
-                        .map(t => (
-                          <button key={t.id} type="button"
-                            onClick={() => {
-                              setContratoForm((f: any) => ({ ...f, tiendaId: t.id }))
-                              setTiendaBusqModal(`${t.codigo} — ${t.nombreCc}`)
-                            }}
-                            style={{ display: 'block', width: '100%', padding: '7px 10px', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '0.5px solid var(--border)', cursor: 'pointer', fontSize: '12px' }}
-                            onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
-                            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                            <span style={{ fontWeight: 600 }}>{t.codigo}</span>
-                            {t.nombreCc && <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginLeft: '6px' }}>{t.nombreCc}</span>}
-                          </button>
-                        ))}
-                      {tiendas.filter(t => { const q = tiendaBusqModal.toLowerCase(); return t.codigo?.toLowerCase().includes(q) || t.nombreCc?.toLowerCase().includes(q) }).length === 0 && (
-                        <div style={{ padding: '10px', fontSize: '12px', color: 'var(--muted-foreground)', textAlign: 'center' }}>Sin resultados</div>
-                      )}
-                    </div>
-                  )}
-                  {contratoForm.tiendaId && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-                      <span style={{ fontSize: '11px', color: '#1E40AF', fontWeight: 500 }}>✓ Tienda seleccionada</span>
-                      <button type="button" onClick={() => { setContratoForm((f: any) => ({ ...f, tiendaId: null })); setTiendaBusqModal('') }}
-                        style={{ fontSize: '10px', color: 'var(--muted-foreground)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px' }}>
-                        Cambiar
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', padding: '8px 10px', background: 'var(--muted)', borderRadius: '7px', marginBottom: '4px' }}>
+            Este contrato aplica a todas las tiendas del proveedor. Para asignar condiciones distintas a una tienda, usa el botón <strong>Contrato</strong> en la pestaña Tiendas asignadas.
           </div>
 
           <ModalFooter onCancel={() => { setEditContrato(null); setAddContrato(false) }} onSave={() => saveContrato(addContrato)} saving={savingC} />
         </ModalWrap>
       )}
+
+      {/* ── Side panel contrato de tienda ── */}
+      {contratoTiendaId && (
+        <div onClick={() => setContratoTiendaId(null)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.22)' }} />
+      )}
+      {(() => {
+        const tiendaSelec = tiendas.find((t: any) => t.id === contratoTiendaId)
+        const cEsp = tiendaSelec?.contratoEspecifico ?? null
+        const marcoContrato = contratos.find((c: any) => !c.tiendaId && c.estadoCalc === 'VIGENTE')
+        const slaRespActual  = cEsp?.tiempo_respuesta_sla  ?? marcoContrato?.tiempoRespuestaSla  ?? 60
+        const slaResolActual = cEsp?.tiempo_resolucion_sla ?? marcoContrato?.tiempoResolucionSla ?? 90
+        return (
+          <div style={{
+            position: 'fixed', top: 0, right: 0, bottom: 0, width: 420, maxWidth: '95vw',
+            background: 'var(--card)', borderLeft: '1px solid var(--border)',
+            boxShadow: '-4px 0 28px rgba(0,0,0,0.13)', zIndex: 201,
+            display: 'flex', flexDirection: 'column',
+            transform: contratoTiendaId ? 'translateX(0)' : 'translateX(100%)',
+            transition: 'transform 0.26s cubic-bezier(0.4,0,0.2,1)',
+            overflow: 'hidden',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderBottom: '0.5px solid var(--border)', background: 'var(--muted)', flexShrink: 0 }}>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 600 }}>Contrato — <span style={{ fontFamily: 'monospace' }}>{tiendaSelec?.codigo}</span></div>
+                <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{tiendaSelec?.nombreCc}</div>
+              </div>
+              <button onClick={() => setContratoTiendaId(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--muted-foreground)' }}>✕</button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px' }}>
+              {/* SLA vigente */}
+              <SectionTitle>SLA aplicado actualmente</SectionTitle>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+                {[['Respuesta', `${slaRespActual} min`], ['Resolución', `${slaResolActual} min`]].map(([l, v]) => (
+                  <div key={l} style={{ background: 'var(--muted)', borderRadius: '8px', padding: '10px 12px' }}>
+                    <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>{l}</div>
+                    <div style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'monospace' }}>{v}</div>
+                  </div>
+                ))}
+              </div>
+              {!cEsp && (
+                <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '14px', padding: '7px 10px', background: 'var(--muted)', borderRadius: '6px' }}>
+                  {marcoContrato ? 'Usando contrato marco del proveedor.' : 'Sin contrato marco — usando valores por defecto (60 min resp / 90 min resol).'}
+                </div>
+              )}
+
+              {canEdit && (
+                <>
+                  <SectionTitle>{cEsp ? 'Editar contrato específico' : 'Agregar contrato específico para esta tienda'}</SectionTitle>
+                  {/* Tiempos SLA */}
+                  <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '8px', padding: '12px', marginBottom: '10px' }}>
+                    <div style={{ fontSize: '10px', fontWeight: 700, color: '#1E40AF', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>
+                      Tiempos SLA — reemplazan al contrato marco
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+                      <FormField label="Respuesta máx (min)">
+                        <input type="number" min={1} value={contratoTiendaForm.tiempoRespuestaSla ?? ''} onChange={e => setContratoTiendaForm((f: any) => ({ ...f, tiempoRespuestaSla: Number(e.target.value) || null }))} style={{ ...INP, background: 'white' }} placeholder="60" />
+                      </FormField>
+                      <FormField label="Resolución máx (min)">
+                        <input type="number" min={1} value={contratoTiendaForm.tiempoResolucionSla ?? ''} onChange={e => setContratoTiendaForm((f: any) => ({ ...f, tiempoResolucionSla: Number(e.target.value) || null }))} style={{ ...INP, background: 'white' }} placeholder="90" />
+                      </FormField>
+                    </div>
+                  </div>
+                  {/* Datos comerciales */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+                    <FormField label="Código contrato">
+                      <input value={contratoTiendaForm.codigoContrato ?? ''} onChange={e => setContratoTiendaForm((f: any) => ({ ...f, codigoContrato: e.target.value }))} style={INP} />
+                    </FormField>
+                    <FormField label="Velocidad / Capacidad">
+                      <input value={contratoTiendaForm.velocidadCapacidad ?? ''} onChange={e => setContratoTiendaForm((f: any) => ({ ...f, velocidadCapacidad: e.target.value }))} style={INP} />
+                    </FormField>
+                    <FormField label="Costo mensual (S/.)">
+                      <input type="number" value={contratoTiendaForm.costoMensual ?? ''} onChange={e => setContratoTiendaForm((f: any) => ({ ...f, costoMensual: e.target.value || null }))} style={INP} />
+                    </FormField>
+                    <FormField label="Estado">
+                      <select value={contratoTiendaForm.estado ?? 'VIGENTE'} onChange={e => setContratoTiendaForm((f: any) => ({ ...f, estado: e.target.value }))} style={INP}>
+                        {['VIGENTE', 'VENCIDO', 'CANCELADO'].map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </FormField>
+                    <FormField label="Fecha inicio">
+                      <input type="date" value={contratoTiendaForm.fechaInicio ?? ''} onChange={e => setContratoTiendaForm((f: any) => ({ ...f, fechaInicio: e.target.value || null }))} style={INP} />
+                    </FormField>
+                    <FormField label="Fecha fin">
+                      <input type="date" value={contratoTiendaForm.fechaFin ?? ''} onChange={e => setContratoTiendaForm((f: any) => ({ ...f, fechaFin: e.target.value || null }))} style={INP} />
+                    </FormField>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                    {cEsp && (
+                      <button onClick={async () => {
+                        if (!confirm('¿Eliminar el contrato específico de esta tienda?')) return
+                        await fetch(`/api/contratos/${cEsp.id}`, { method: 'DELETE' })
+                        setContratoTiendaId(null)
+                        await Promise.all([loadData(), loadTiendas()])
+                      }} style={{ flex: 1, padding: '8px', border: '0.5px solid #fca5a5', borderRadius: '8px', background: 'var(--card)', color: '#dc2626', fontSize: '12px', cursor: 'pointer' }}>
+                        Eliminar
+                      </button>
+                    )}
+                    <button onClick={saveContratoTienda} disabled={savingContratoT}
+                      style={{ flex: 2, padding: '8px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', opacity: savingContratoT ? 0.7 : 1 }}>
+                      {savingContratoT ? 'Guardando...' : cEsp ? 'Guardar cambios' : 'Crear contrato'}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {!canEdit && cEsp && (
+                <>
+                  <SectionTitle>Detalles del contrato</SectionTitle>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
+                    <div><Label>Código</Label><Val v={cEsp.codigo_contrato} /></div>
+                    <div><Label>Velocidad</Label><Val v={cEsp.velocidad_capacidad} /></div>
+                    <div><Label>Costo mensual</Label><Val v={cEsp.costo_mensual ? fmtSoles(cEsp.costo_mensual) : null} /></div>
+                    <div><Label>Fecha fin</Label><Val v={fmtDate(cEsp.fecha_fin)} /></div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ── Side panel genérico de métricas ── */}
       {panelMetrica && (
