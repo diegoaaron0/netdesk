@@ -162,6 +162,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
   const [pendingCluster, setPendingCluster] = useState<string | null>(null)
   const [filtroDesde, setFiltroDesde] = useState(firstOfMonthStr)
   const [filtroHasta, setFiltroHasta] = useState(todayStr)
+  const [filtroProveedor, setFiltroProveedor] = useState<string>('')
 
   const loadPeriodData = useCallback((desde: string, hasta: string) => {
     if (!id) return
@@ -570,11 +571,15 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
             <div style={{ marginBottom: '8px' }}>
               <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Proveedor</div>
               {editing ? (
-                <select value={form.proveedorId ?? ''} onChange={e => setF('proveedorId', e.target.value)}
-                  style={{ width: '100%', padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
-                  <option value="">Sin proveedor</option>
-                  {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                </select>
+                <div style={{ padding: '6px 9px', background: 'var(--muted)', borderRadius: '6px', border: '0.5px solid var(--border)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  {tienda.proveedorNombre
+                    ? <span style={{ fontSize: '11px', fontWeight: 600, padding: '1px 7px', borderRadius: '4px', background: prov.bg, color: prov.color }}>{tienda.proveedorNombre}</span>
+                    : <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Sin proveedor</span>
+                  }
+                  <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', lineHeight: 1.3 }}>
+                    Para cambiar el proveedor usa <strong>Gestión de Cambios</strong>.
+                  </span>
+                </div>
               ) : tienda.proveedorNombre ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: prov.bg, color: prov.color }}>{tienda.proveedorNombre}</span>
@@ -1108,51 +1113,77 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
       )}
 
       {/* Incidentes del período */}
-      <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', overflow: 'hidden', marginTop: '16px' }}>
-        <div style={{ padding: '12px 18px', borderBottom: '0.5px solid var(--border)' }}>
-          <div style={{ fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted-foreground)' }}>Incidentes del período</div>
-        </div>
-        {incRecientes.length === 0 ? (
-          <div style={{ padding: '24px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Sin incidentes registrados</div>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-            <thead>
-              <tr style={{ background: 'var(--muted)' }}>
-                {['Código', 'Fecha', 'Tipo', 'MTTR', 'IEI est.', 'Estado'].map(h => (
-                  <th key={h} style={{ padding: '7px 10px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {incRecientes.map((inc: any) => {
-                const eb = estadoBadge(inc.estado)
-                return (
-                  <tr key={inc.id}
-                    style={{ borderTop: '0.5px solid var(--border)', cursor: 'pointer' }}
-                    onClick={() => router.push(`/incidentes/${inc.id}`)}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                    <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontWeight: 600, fontSize: '11px' }}>{inc.codigo}</td>
-                    <td style={{ padding: '8px 10px', color: 'var(--muted-foreground)', fontSize: '11px' }}>{fmtTs(inc.hora_registro)}</td>
-                    <td style={{ padding: '8px 10px', fontSize: '11px' }}>{tipoLabel(inc.tipo)}</td>
-                    <td style={{ padding: '8px 10px', fontSize: '11px' }}>{inc.mttr_minutos ? `${inc.mttr_minutos}m` : '—'}</td>
-                    <td style={{ padding: '8px 10px', fontSize: '11px', fontFamily: 'monospace' }}>
-                      {inc.iei != null
-                        ? <span style={{ color: inc.iei > 0 ? '#b91c1c' : '#16a34a', fontWeight: 600 }}>
-                            {inc.iei > 0 ? `S/ ${inc.iei.toLocaleString('es-PE')}` : 'S/ 0'}
-                          </span>
-                        : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
-                    </td>
-                    <td style={{ padding: '8px 10px' }}>
-                      <span style={{ fontSize: '10px', fontWeight: 600, padding: '1px 6px', borderRadius: '4px', background: eb.bg, color: eb.color }}>{inc.estado}</span>
-                    </td>
+      {(() => {
+        const proveedoresEnPeriodo = Array.from(new Set(incRecientes.map((i: any) => i.prov_nombre).filter(Boolean))) as string[]
+        const incFiltrados = filtroProveedor
+          ? incRecientes.filter((i: any) => i.prov_nombre === filtroProveedor)
+          : incRecientes
+        return (
+          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', overflow: 'hidden', marginTop: '16px' }}>
+            <div style={{ padding: '12px 18px', borderBottom: '0.5px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted-foreground)', flex: 1 }}>
+                Incidentes del período
+                {filtroProveedor && <span style={{ fontSize: '11px', fontWeight: 500, marginLeft: '8px', color: 'var(--foreground)' }}>— {filtroProveedor}</span>}
+              </div>
+              {proveedoresEnPeriodo.length > 1 && (
+                <select
+                  value={filtroProveedor}
+                  onChange={e => setFiltroProveedor(e.target.value)}
+                  style={{ padding: '4px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
+                  <option value="">Todos los proveedores</option>
+                  {proveedoresEnPeriodo.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              )}
+            </div>
+            {incFiltrados.length === 0 ? (
+              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Sin incidentes registrados</div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                <thead>
+                  <tr style={{ background: 'var(--muted)' }}>
+                    {['Código', 'Fecha', 'Proveedor', 'Tipo', 'MTTR', 'IEI est.', 'Estado'].map(h => (
+                      <th key={h} style={{ padding: '7px 10px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+                    ))}
                   </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+                </thead>
+                <tbody>
+                  {incFiltrados.map((inc: any) => {
+                    const eb = estadoBadge(inc.estado)
+                    const pc = provColor(inc.prov_nombre)
+                    return (
+                      <tr key={inc.id}
+                        style={{ borderTop: '0.5px solid var(--border)', cursor: 'pointer' }}
+                        onClick={() => router.push(`/incidentes/${inc.id}`)}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                        <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontWeight: 600, fontSize: '11px' }}>{inc.codigo}</td>
+                        <td style={{ padding: '8px 10px', color: 'var(--muted-foreground)', fontSize: '11px' }}>{fmtTs(inc.hora_registro)}</td>
+                        <td style={{ padding: '8px 10px' }}>
+                          {inc.prov_nombre
+                            ? <span style={{ fontSize: '10px', fontWeight: 600, padding: '1px 6px', borderRadius: '4px', background: pc.bg, color: pc.color }}>{inc.prov_nombre}</span>
+                            : <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>—</span>}
+                        </td>
+                        <td style={{ padding: '8px 10px', fontSize: '11px' }}>{tipoLabel(inc.tipo)}</td>
+                        <td style={{ padding: '8px 10px', fontSize: '11px' }}>{inc.mttr_minutos ? `${inc.mttr_minutos}m` : '—'}</td>
+                        <td style={{ padding: '8px 10px', fontSize: '11px', fontFamily: 'monospace' }}>
+                          {inc.iei != null
+                            ? <span style={{ color: inc.iei > 0 ? '#b91c1c' : '#16a34a', fontWeight: 600 }}>
+                                {inc.iei > 0 ? `S/ ${inc.iei.toLocaleString('es-PE')}` : 'S/ 0'}
+                              </span>
+                            : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
+                        </td>
+                        <td style={{ padding: '8px 10px' }}>
+                          <span style={{ fontSize: '10px', fontWeight: 600, padding: '1px 6px', borderRadius: '4px', background: eb.bg, color: eb.color }}>{inc.estado}</span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )
+      })()}
     </div>
   )
 }

@@ -27,9 +27,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       i.cont_hora_activacion, i.cont_hora_desactivacion, i.cont_rendimiento, i.cont_es_externo,
       i.mov_hora_activacion,  i.mov_hora_desactivacion,  i.mov_rendimiento,
       i.boleta_manual, i.boleta_rendimiento, i.boleta_hora_activacion,
-      t.venta_hora_soles, t.venta_hora_fds_soles, t.cluster
+      t.venta_hora_soles, t.venta_hora_fds_soles, t.cluster,
+      COALESCE(p.nombre, pt.nombre) AS prov_nombre
     FROM incidentes i
     JOIN tiendas t ON i.tienda_id = t.id
+    LEFT JOIN proveedores p  ON i.proveedor_id = p.id
+    LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
     WHERE i.tienda_id = ${id}
       AND i.estado != 'CANCELADO'
       AND i.hora_registro >= ${desde}::timestamptz
@@ -65,7 +68,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       mttr_minutos:  r.mttr_minutos,
       hora_registro: r.hora_registro,
       hora_fin:      r.hora_fin,
-      iei:           iei.impactoEconomicoEstimado,
+      prov_nombre:   r.prov_nombre ?? null,
+      iei:           iei.impactoEstimado,
       ieiFalta:      iei.faltaInformacion,
       ieiMotivo:     iei.motivoFactor,
     }

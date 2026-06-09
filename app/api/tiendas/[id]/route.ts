@@ -236,6 +236,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const body = await req.json()
 
+  // El cambio de proveedor solo se permite vía Gestión de Cambios (requiere backfill histórico)
+  delete body.proveedorId
+
   // Recálculo automático cuando se edita venta mensual
   if ('ventaMensualSoles' in body && body.ventaMensualSoles != null) {
     const prop = parseFloat(current.proporcionFds ?? '0.5')
