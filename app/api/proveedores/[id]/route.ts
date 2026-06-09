@@ -113,9 +113,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   let tResolucionPromedio:    number | null = null
   let slaBreakdown: any[] = []
   try {
-    const { getSlaContrato } = await import('@/lib/sla-contrato')
-    const slaContrato = await getSlaContrato(id)
-
     const slaRows = await db.execute(sql`
       SELECT
         i.id, i.codigo, i.tipo, i.evaluable_proveedor,
@@ -123,7 +120,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         t.codigo AS tienda_codigo, t.nombre_cc AS tienda_nombre,
         n1.hora_correo_n1,
         resp.hora_primera_resp,
-        max_n.max_nivel
+        max_n.max_nivel,
+        cp.tiempo_respuesta_sla  AS sla_resp_override,
+        cp.tiempo_resolucion_sla AS sla_resol_override
       FROM incidentes i
       JOIN tiendas t ON i.tienda_id = t.id
       LEFT JOIN LATERAL (
@@ -142,6 +141,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         FROM   escalamientos
         WHERE  incidente_id = i.id
       ) max_n ON true
+      LEFT JOIN LATERAL (
+        SELECT tiempo_respuesta_sla, tiempo_resolucion_sla
+        FROM   contratos_proveedor
+        WHERE  proveedor_id = COALESCE(i.proveedor_id, t.proveedor_id)
+          AND  estado = 'VIGENTE'
+          AND  (tienda_id IS NULL OR tienda_id = i.tienda_id)
+        ORDER  BY (tienda_id IS NOT NULL) DESC
+        LIMIT  1
+      ) cp ON true
       WHERE COALESCE(i.proveedor_id, t.proveedor_id) = ${id}::uuid
         AND i.hora_registro >= ${thirtyDaysAgoStr}::timestamptz
         AND i.estado = 'RESUELTO'
@@ -164,8 +172,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         hora_fin: row.hora_fin ?? null,
         hora_registro: row.hora_registro ?? null,
         max_nivel: row.max_nivel ?? 1,
-        slaRespuestaOverride: slaContrato.respuestaMin,
-        slaResolucionOverride: slaContrato.resolucionMin,
+        slaRespuestaOverride:  row.sla_resp_override  ?? undefined,
+        slaResolucionOverride: row.sla_resol_override ?? undefined,
       })
       if (!res.evaluable) continue
       totalEsc++
