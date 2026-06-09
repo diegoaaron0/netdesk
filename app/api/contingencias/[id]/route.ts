@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { contingencias, tiendas } from '@/drizzle/schema'
+import { contingencias, tiendas, routersExternos } from '@/drizzle/schema'
 import { eq, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 
@@ -16,7 +16,14 @@ export async function PATCH(_req: NextRequest, { params }: { params: Promise<{ i
 
   if (!updated) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
-  // Clear tiendas.contingencia_activa if no other active contingency source remains
+  // ROUTER_EXTERNO: resetear el router activo de esta tienda → EN_TIENDA_INACTIVO
+  if (updated.tipo === 'ROUTER_EXTERNO') {
+    await db.update(routersExternos)
+      .set({ estado: 'EN_TIENDA_INACTIVO' })
+      .where(eq(routersExternos.tiendaActualId, updated.tiendaId))
+  }
+
+  // Limpiar contingencia_activa si no quedan otras fuentes activas
   const [incRows] = await db.execute<{ cnt: number }>(sql`
     SELECT COUNT(*)::int AS cnt FROM incidentes
     WHERE tienda_id = ${updated.tiendaId}

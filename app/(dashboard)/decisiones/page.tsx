@@ -446,10 +446,10 @@ export default function DecisionesPage() {
       <div style={{ padding: '24px 28px 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
         <div>
           <h1 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--foreground)', margin: 0, lineHeight: 1.2 }}>
-            Decisiones Estratégicas
+            Gestión de Cambios
           </h1>
           <p style={{ fontSize: '12px', color: '#9ca3af', margin: '4px 0 0' }}>
-            Registro y seguimiento de decisiones operativas
+            Registro y seguimiento de cambios operativos
           </p>
         </div>
         {canCrear && (
@@ -503,7 +503,7 @@ export default function DecisionesPage() {
         {loading ? (
           <div style={{ padding: '48px', textAlign: 'center', color: '#9ca3af', fontSize: '13px' }}>Cargando…</div>
         ) : visible.length === 0 ? (
-          <div style={{ padding: '48px', textAlign: 'center', color: '#9ca3af', fontSize: '13px' }}>No hay decisiones registradas.</div>
+          <div style={{ padding: '48px', textAlign: 'center', color: '#9ca3af', fontSize: '13px' }}>No hay cambios registrados.</div>
         ) : visible.map(dec => (
           <DecisionCard key={dec.id} dec={dec} onClick={() => openPanel(dec)} />
         ))}

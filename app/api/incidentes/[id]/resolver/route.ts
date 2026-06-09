@@ -17,32 +17,39 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const evaluableProveedor = body.evaluableProveedor ?? true
 
   const [inc] = await db.select({
-    horaRegistro:       incidentes.horaRegistro,
-    tiendaId:           incidentes.tiendaId,
-    contActivadoPor:    incidentes.contActivadoPor,
-    contEsExterno:      incidentes.contEsExterno,
-    tiempoAcumuladoMin: incidentes.tiempoAcumuladoMin,
-    routerExternoId:    incidentes.routerExternoId,
+    horaRegistro:          incidentes.horaRegistro,
+    tiendaId:              incidentes.tiendaId,
+    contActivadoPor:       incidentes.contActivadoPor,
+    contHoraDesactivacion: incidentes.contHoraDesactivacion,
+    contEsExterno:         incidentes.contEsExterno,
+    movActivadoPor:        incidentes.movActivadoPor,
+    movHoraDesactivacion:  incidentes.movHoraDesactivacion,
+    tiempoAcumuladoMin:    incidentes.tiempoAcumuladoMin,
+    routerExternoId:       incidentes.routerExternoId,
   }).from(incidentes).where(eq(incidentes.id, id))
   if (!inc) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
   const horaFin = new Date()
-  // MTTR = tiempo desde la última apertura/reapertura + tiempos acumulados de aperturas anteriores
-  // No cuenta el tiempo que estuvo "cerrado" entre una resolución incorrecta y la reapertura
   const mttrDesdeUltimaApertura = Math.round((horaFin.getTime() - new Date(inc.horaRegistro).getTime()) / 60000)
   const mttrMinutos = mttrDesdeUltimaApertura + (inc.tiempoAcumuladoMin ?? 0)
 
+  // Sellar contingencias del incidente que aún no fueron desactivadas manualmente
+  const sealFields: Record<string, any> = {}
+  if (inc.contActivadoPor && !inc.contHoraDesactivacion) {
+    sealFields.contHoraDesactivacion = horaFin
+  }
+  if (inc.movActivadoPor && !inc.movHoraDesactivacion) {
+    sealFields.movHoraDesactivacion = horaFin
+  }
+
   const resueltoPorUsuarioId = (session.user as any)?.id ?? null
   const [updated] = await db.update(incidentes)
-    .set({ estado: 'RESUELTO', horaFin, mttrMinutos, tiempoAcumuladoMin: null, actualizadoEn: new Date(), resueltoPor, atribucionFinal, evaluableProveedor, resueltoPorUsuarioId })
+    .set({ estado: 'RESUELTO', horaFin, mttrMinutos, tiempoAcumuladoMin: null, actualizadoEn: new Date(), resueltoPor, atribucionFinal, evaluableProveedor, resueltoPorUsuarioId, ...sealFields })
     .where(eq(incidentes.id, id))
     .returning()
 
-  // Limpiar flag de contingencia_activa:
-  // - Siempre si el incidente no usó contingencia
-  // - También para ROUTER_EXTERNO: al resolver el incidente la tienda ya no necesita el flag
-  // - NO limpiar para ROUTER_PROPIO: el router físico sigue instalado hasta que TI lo retire manualmente
-  if (inc.tiendaId && (!inc.contActivadoPor || inc.contEsExterno)) {
+  // Limpiar contingencia_activa si no quedan otras fuentes activas (aplica a todos los tipos)
+  if (inc.tiendaId && inc.contActivadoPor) {
     const rows = await db.execute(sql`
       SELECT COUNT(*)::int AS cnt FROM incidentes
       WHERE tienda_id = ${inc.tiendaId}
@@ -50,7 +57,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         AND cont_hora_desactivacion IS NULL
         AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
     `)
-    if (Number((rows[0] as any)?.cnt ?? 0) === 0) {
+    const standaloneRows = await db.execute(sql`
+      SELECT COUNT(*)::int AS cnt FROM contingencias
+      WHERE tienda_id = ${inc.tiendaId}
+        AND hora_desactivacion IS NULL
+    `)
+    const stillActive = Number((rows[0] as any)?.cnt ?? 0) + Number((standaloneRows[0] as any)?.cnt ?? 0)
+    if (stillActive === 0) {
       await db.update(tiendas)
         .set({ contingenciaActiva: false, contingenciaActivadaPor: null })
         .where(eq(tiendas.id, inc.tiendaId))
@@ -68,5 +81,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
-  return NextResponse.json({ ...updated, contingenciaMantieneActiva: !!inc.contActivadoPor && !inc.contEsExterno })
+  return NextResponse.json(updated)
 }

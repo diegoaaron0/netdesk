@@ -87,6 +87,7 @@ export default function NuevoIncidentePage() {
 
   const [tienda, setTienda]       = useState<Tienda | null>(null)
   const [historial, setHistorial] = useState<any[]>([])
+  const [contActivaTienda, setContActivaTienda] = useState<{ activa: boolean; activadaPor: string | null } | null>(null)
   const [saving, setSaving]       = useState(false)
   const [preloading, setPreloading] = useState(!!fromId)
   const [showGuia, setShowGuia]   = useState(false)
@@ -135,6 +136,16 @@ export default function NuevoIncidentePage() {
       }
     })()
   }, [fromId])
+
+  useEffect(() => {
+    if (!tienda) { setContActivaTienda(null); return }
+    fetch(`/api/tiendas/${tienda.id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.id) setContActivaTienda({ activa: !!d.contingenciaActiva, activadaPor: d.contingenciaActivadaPor ?? null })
+      })
+      .catch(() => {})
+  }, [tienda])
 
   function set(k: string, v: any) { setForm(f => ({ ...f, [k]: v })) }
 
@@ -264,6 +275,21 @@ export default function NuevoIncidentePage() {
                   </div>
                   <div style={{ fontSize: '10px', color: '#78350f', marginTop: '8px' }}>
                     Puedes registrar igualmente si es un problema diferente.
+                  </div>
+                </div>
+              )}
+
+              {/* Banner: contingencia standalone activa en la tienda */}
+              {tienda && contActivaTienda?.activa && (
+                <div style={{ background: '#fff7ed', border: '1.5px solid #f97316', borderRadius: '10px', padding: '12px 16px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#c2410c', marginBottom: '4px' }}>
+                    📶 Esta tienda tiene contingencia activa
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#7c2d12', lineHeight: 1.5 }}>
+                    {contActivaTienda.activadaPor
+                      ? <>Activada por <strong>{contActivaTienda.activadaPor}</strong>.</>
+                      : 'Hay una contingencia activa en esta tienda.'}
+                    {' '}Desde el detalle del incidente podrás vincularla o desactivarla.
                   </div>
                 </div>
               )}

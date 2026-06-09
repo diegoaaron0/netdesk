@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import {
   accionesGestion, accionesGestionTiendas,
-  tiendas, contratosProveedor, tiendasHistorial,
+  tiendas, contratosProveedor, tiendasHistorial, incidentes,
 } from '@/drizzle/schema'
-import { eq, and, sql } from 'drizzle-orm'
+import { eq, and, isNull, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 
@@ -117,6 +117,17 @@ async function _cambiarProveedorTienda(
         eq(contratosProveedor.tiendaId,    tiendaId),
         eq(contratosProveedor.proveedorId, proveedorAnteriorId),
         eq(contratosProveedor.estado,      'VIGENTE'),
+      ))
+  }
+
+  // Backfill: incidentes históricos sin proveedor_id explícito → atribuir al proveedor anterior
+  // Esto preserva la historia aunque cambie tiendas.proveedor_id (evita que COALESCE los mueva)
+  if (proveedorAnteriorId) {
+    await db.update(incidentes)
+      .set({ proveedorId: proveedorAnteriorId } as any)
+      .where(and(
+        eq(incidentes.tiendaId, tiendaId),
+        isNull((incidentes as any).proveedorId),
       ))
   }
 

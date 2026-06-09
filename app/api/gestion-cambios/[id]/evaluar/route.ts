@@ -9,13 +9,17 @@ import { calcImpactoRow } from '@/lib/impacto-calc'
 
 // Calcula métricas de un período para una o varias tiendas
 async function calcMetrics(tiendaIds: string[], desde: Date, hasta: Date) {
+  // Build tienda filter without ANY() cast to avoid driver encoding issues
+  const tiendaFilter = tiendaIds.length === 1
+    ? sql`i.tienda_id = ${tiendaIds[0]}`
+    : sql`i.tienda_id::text IN (${sql.join(tiendaIds.map(id => sql`${id}`), sql`, `)})`
+
   const rows = await db.execute(sql`
     SELECT
       i.tipo,
       i.hora_registro,
       i.hora_fin,
       i.mttr_minutos,
-      i.proveedor_id,
       i.boleta_manual,
       i.boleta_rendimiento,
       i.boleta_hora_activacion,
@@ -30,7 +34,6 @@ async function calcMetrics(tiendaIds: string[], desde: Date, hasta: Date) {
       t.venta_hora_soles,
       t.venta_hora_fds_soles,
       t.cluster,
-      COALESCE(pi.nombre, pt.nombre) AS proveedor_nombre,
       CASE
         WHEN i.hora_fin IS NOT NULL
           THEN ROUND(EXTRACT(EPOCH FROM (i.hora_fin - i.hora_registro)) / 60)::int
@@ -38,30 +41,27 @@ async function calcMetrics(tiendaIds: string[], desde: Date, hasta: Date) {
       END AS duracion_min
     FROM incidentes i
     JOIN tiendas t ON i.tienda_id = t.id
-    LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
-    LEFT JOIN proveedores pt ON t.proveedor_id = pt.id
-    WHERE i.tienda_id = ANY(${tiendaIds}::uuid[])
+    WHERE ${tiendaFilter}
       AND i.hora_registro >= ${desde.toISOString()}::timestamptz
       AND i.hora_registro <  ${hasta.toISOString()}::timestamptz
       AND i.estado IN ('RESUELTO','CERRADO')
   `) as any[]
 
-  let totalIncidentes    = rows.length
-  let slaVencidoCount    = 0
-  let mttrSum            = 0
-  let mttrCount          = 0
-  let ieiSum             = 0
-  let penalidadSum       = 0
+  let totalIncidentes = rows.length
+  let slaVencidoCount = 0
+  let mttrSum         = 0
+  let mttrCount       = 0
+  let ieiSum          = 0
+  let penalidadSum    = 0
 
   for (const r of rows) {
-    const slaLimite = getSlaLimitePorTipo(r.tipo)
-    const duracion  = Number(r.duracion_min ?? 0)
+    const slaLimite  = getSlaLimitePorTipo(r.tipo)
+    const duracion   = Number(r.duracion_min ?? 0)
     const slaVencido = duracion > slaLimite
+
     if (slaVencido) {
       slaVencidoCount++
-      // IEI del incidente para penalidad
       try {
-        // calcImpactoRow imported statically at top
         const iei = calcImpactoRow({
           hora_registro:           r.hora_registro,
           hora_fin:                r.hora_fin,
@@ -77,18 +77,17 @@ async function calcMetrics(tiendaIds: string[], desde: Date, hasta: Date) {
           mov_hora_activacion:     r.mov_hora_activacion,
           mov_hora_desactivacion:  r.mov_hora_desactivacion,
           mov_rendimiento:         r.mov_rendimiento,
-          boleta_manual:            r.boleta_manual,
-          boleta_rendimiento:       r.boleta_rendimiento,
-          boleta_hora_activacion:   r.boleta_hora_activacion,
+          boleta_manual:           r.boleta_manual,
+          boleta_rendimiento:      r.boleta_rendimiento,
+          boleta_hora_activacion:  r.boleta_hora_activacion,
         }).impactoEstimado
         penalidadSum += iei
       } catch { /* skip */ }
     }
+
     if (r.mttr_minutos != null) { mttrSum += Number(r.mttr_minutos); mttrCount++ }
 
-    // IEI total del período
     try {
-      const { calcImpactoRow } = await import('@/lib/impacto-calc')
       ieiSum += calcImpactoRow({
         hora_registro:           r.hora_registro,
         hora_fin:                r.hora_fin,
@@ -104,9 +103,9 @@ async function calcMetrics(tiendaIds: string[], desde: Date, hasta: Date) {
         mov_hora_activacion:     r.mov_hora_activacion,
         mov_hora_desactivacion:  r.mov_hora_desactivacion,
         mov_rendimiento:         r.mov_rendimiento,
-        boleta_manual:            r.boleta_manual,
-        boleta_rendimiento:       r.boleta_rendimiento,
-        boleta_hora_activacion:   r.boleta_hora_activacion,
+        boleta_manual:           r.boleta_manual,
+        boleta_rendimiento:      r.boleta_rendimiento,
+        boleta_hora_activacion:  r.boleta_hora_activacion,
       }).impactoEstimado
     } catch { /* skip */ }
   }
@@ -132,6 +131,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   if (!can(session, 'gestion-cambios.crear')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
+  try {
   const body = await req.json().catch(() => ({}))
   const periodo: 30 | 90 = body.periodo === 90 ? 90 : 30
   const nota: string     = body.nota?.trim() ?? ''
@@ -210,4 +210,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .returning()
 
   return NextResponse.json({ ...updated, metricsCalculadas: metrics })
+  } catch (err: any) {
+    console.error('[evaluar] error:', err)
+    return NextResponse.json({ error: err?.message ?? 'Error interno' }, { status: 500 })
+  }
 }

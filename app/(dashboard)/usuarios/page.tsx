@@ -56,8 +56,8 @@ const PERMISOS_GRUPOS = [
   {
     key: 'DECISIONES',
     items: [
-      { key: 'decisiones.ver',   label: 'Ver decisiones' },
-      { key: 'decisiones.crear', label: 'Proponer decisiones' },
+      { key: 'decisiones.ver',   label: 'Ver gestión de cambios' },
+      { key: 'decisiones.crear', label: 'Proponer cambios' },
     ],
   },
   {

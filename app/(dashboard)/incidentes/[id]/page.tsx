@@ -287,8 +287,8 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   // canManage: solo SUPERVISOR y DEMO pueden editar incidentes cerrados
   const canManage  = ['SUPERVISOR', 'DEMO'].includes(userRol)
   const isMyInc    = userEmail === inc.agenteEmail
-  // canEditB: cuando abierto → cualquiera con incidentes.editar que sea el agente; cuando cerrado → solo supervisor/demo
-  const canEditB   = canManage || (can(session, 'incidentes.editar') && isMyInc && !isClosed)
+  // canEditB: cuando abierto → cualquiera con incidentes.editar; cuando cerrado → solo supervisor/demo
+  const canEditB   = canManage || (can(session, 'incidentes.editar') && !isClosed)
   const canEditA   = canManage && supervisorEdit
   const isSupervisor = userRol === 'SUPERVISOR'
   const canDelete  = can(session, 'incidentes.eliminar')
