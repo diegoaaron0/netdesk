@@ -4,12 +4,12 @@ import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { getTotalTiendas } from '@/lib/tiendas-stats'
-import { SLA_MTTR_POR_TIPO, SLA_MTTR_DEFAULT_MIN } from '@/lib/sla-core'
+import { UMBRAL_ALERTA_MTTR, UMBRAL_ALERTA_MTTR_DEFAULT } from '@/lib/sla-core'
 
 // ── SQL helpers — plain strings, never Drizzle objects ───────────────────────
 
-function slaCase(col = 'i.tipo'): string {
-  const t = SLA_MTTR_POR_TIPO
+function umbralAlertaCase(col = 'i.tipo'): string {
+  const t = UMBRAL_ALERTA_MTTR
   return (
     `CASE ${col}` +
     ` WHEN 'CAIDA_TOTAL' THEN ${t.CAIDA_TOTAL}` +
@@ -18,7 +18,7 @@ function slaCase(col = 'i.tipo'): string {
     ` WHEN 'POS' THEN ${t.POS}` +
     ` WHEN 'OTROS' THEN ${t.OTROS}` +
     ` WHEN 'CORTE_ELECTRICO' THEN ${t.CORTE_ELECTRICO}` +
-    ` ELSE ${SLA_MTTR_DEFAULT_MIN} END`
+    ` ELSE ${UMBRAL_ALERTA_MTTR_DEFAULT} END`
   )
 }
 
@@ -143,7 +143,7 @@ export async function GET(req: Request) {
             ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int   AS mttr_avg,
             ROUND(
               COUNT(*) FILTER (
-                WHERE i.mttr_minutos <= ${sql.raw(slaCase())}
+                WHERE i.mttr_minutos <= ${sql.raw(umbralAlertaCase())}
                   AND i.estado = 'RESUELTO'
                   AND i.evaluable_proveedor IS NOT FALSE
                   AND i.tipo != 'CORTE_ELECTRICO'
@@ -174,7 +174,7 @@ export async function GET(req: Request) {
             ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int   AS mttr_avg,
             ROUND(
               COUNT(*) FILTER (
-                WHERE i.mttr_minutos <= ${sql.raw(slaCase())}
+                WHERE i.mttr_minutos <= ${sql.raw(umbralAlertaCase())}
                   AND i.estado = 'RESUELTO'
                   AND i.evaluable_proveedor IS NOT FALSE
                   AND i.tipo != 'CORTE_ELECTRICO'
@@ -207,7 +207,7 @@ export async function GET(req: Request) {
             )::int                                                                  AS evaluables_sla,
             ROUND(
               COUNT(*) FILTER (
-                WHERE i.mttr_minutos <= ${sql.raw(slaCase())}
+                WHERE i.mttr_minutos <= ${sql.raw(umbralAlertaCase())}
                   AND i.estado = 'RESUELTO'
                   AND i.evaluable_proveedor IS NOT FALSE
                   AND i.tipo != 'CORTE_ELECTRICO'
@@ -228,7 +228,7 @@ export async function GET(req: Request) {
             )::int                                                                  AS sla_respuesta_pct,
             ROUND(
               COUNT(*) FILTER (
-                WHERE i.mttr_minutos <= ${sql.raw(slaCase())}
+                WHERE i.mttr_minutos <= ${sql.raw(umbralAlertaCase())}
                   AND i.estado = 'RESUELTO'
                   AND i.evaluable_proveedor IS NOT FALSE
                   AND i.tipo != 'CORTE_ELECTRICO'
@@ -309,7 +309,7 @@ export async function GET(req: Request) {
             ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int        AS mttr_avg,
             COUNT(*) FILTER (WHERE i.estado = 'RESUELTO')::int                          AS resueltos,
             COUNT(*) FILTER (
-              WHERE i.mttr_minutos <= ${sql.raw(slaCase())}
+              WHERE i.mttr_minutos <= ${sql.raw(umbralAlertaCase())}
                 AND i.estado = 'RESUELTO'
             )::int                                                                        AS dentro_sla
           FROM incidentes i

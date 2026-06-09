@@ -4,7 +4,7 @@ import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { calcImpactoRow } from '@/lib/impacto-calc'
-import { slaCase, pgErrMsg } from '@/lib/report-sql'
+import { umbralAlertaCase, pgErrMsg } from '@/lib/report-sql'
 
 export async function GET(req: Request) {
   const session = await auth()
@@ -84,7 +84,7 @@ export async function GET(req: Request) {
         CASE
           WHEN i.estado != 'RESUELTO' OR i.mttr_minutos IS NULL
             THEN 'No aplica'
-          WHEN i.mttr_minutos <= ${sql.raw(slaCase())}
+          WHEN i.mttr_minutos <= ${sql.raw(umbralAlertaCase())}
             THEN 'Cumplido'
           ELSE 'Incumplido'
         END                                                                            AS sla_resolucion,
@@ -99,7 +99,7 @@ export async function GET(req: Request) {
             n1.hora_envio_raw IS NOT NULL
             AND n1.hora_respuesta_raw IS NOT NULL
             AND EXTRACT(EPOCH FROM (n1.hora_respuesta_raw - n1.hora_envio_raw)) / 60 <= 60
-            AND i.mttr_minutos <= ${sql.raw(slaCase())}
+            AND i.mttr_minutos <= ${sql.raw(umbralAlertaCase())}
           )
             THEN 'Sí'
           ELSE 'No'

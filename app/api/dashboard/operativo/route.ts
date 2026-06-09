@@ -3,11 +3,11 @@ import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
-import { getSlaLimitePorTipo } from '@/lib/sla-core'
+import { getUmbralAlertaMttr } from '@/lib/sla-core'
 
 function getEstadoOp(tipo: string, horaRegistro: Date | string, pendienteProveedor: boolean, estadoDB: string, nowMs: number) {
   const minutos = (nowMs - new Date(horaRegistro).getTime()) / 60000
-  const slaLimite = getSlaLimitePorTipo(tipo)
+  const slaLimite = getUmbralAlertaMttr(tipo)
   const pct = minutos / slaLimite
   let estadoOp: string
   if (pct >= 1.0) estadoOp = 'SLA_VENCIDO'

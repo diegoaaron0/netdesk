@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
-import { slaCase, ieiSum, pgErrMsg } from '@/lib/report-sql'
+import { umbralAlertaCase, ieiSum, pgErrMsg } from '@/lib/report-sql'
 
 function esc(v: unknown): string {
   if (v == null) return ''
@@ -37,7 +37,7 @@ export async function GET(req: Request) {
           COUNT(i.id) FILTER (WHERE i.estado = 'RESUELTO' AND i.mttr_minutos IS NOT NULL
             AND n1h.hora_correo_n1_val IS NOT NULL
             AND i.evaluable_proveedor IS NOT FALSE AND i.tipo != 'CORTE_ELECTRICO')::int AS evaluables_sla,
-          ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= ${sql.raw(slaCase())}
+          ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= ${sql.raw(umbralAlertaCase())}
             AND i.estado = 'RESUELTO'
             AND i.evaluable_proveedor IS NOT FALSE AND i.tipo != 'CORTE_ELECTRICO') * 100.0 /
             NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'
@@ -91,7 +91,7 @@ export async function GET(req: Request) {
           COUNT(i.id)::int                                   AS incidentes,
           MODE() WITHIN GROUP (ORDER BY i.tipo)              AS tipo_frecuente,
           ROUND(AVG(i.mttr_minutos))::int                    AS mttr_avg,
-          ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= ${sql.raw(slaCase())}
+          ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= ${sql.raw(umbralAlertaCase())}
             AND i.estado = 'RESUELTO'
             AND i.evaluable_proveedor IS NOT FALSE AND i.tipo != 'CORTE_ELECTRICO') * 100.0 /
             NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'

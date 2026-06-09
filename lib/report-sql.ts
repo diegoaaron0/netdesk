@@ -1,12 +1,12 @@
-import { SLA_MTTR_POR_TIPO, SLA_MTTR_DEFAULT_MIN } from './sla-core'
+import { UMBRAL_ALERTA_MTTR, UMBRAL_ALERTA_MTTR_DEFAULT } from './sla-core'
 
 /**
  * Helpers de SQL como strings planos para rutas de exportación.
  * Se inyectan con sql.raw() en el punto de uso — nunca como objetos Drizzle anidados.
  */
 
-export function slaCase(col = 'i.tipo'): string {
-  const t = SLA_MTTR_POR_TIPO
+export function umbralAlertaCase(col = 'i.tipo'): string {
+  const t = UMBRAL_ALERTA_MTTR
   return (
     `CASE ${col}` +
     ` WHEN 'CAIDA_TOTAL' THEN ${t.CAIDA_TOTAL}` +
@@ -15,7 +15,7 @@ export function slaCase(col = 'i.tipo'): string {
     ` WHEN 'POS' THEN ${t.POS}` +
     ` WHEN 'OTROS' THEN ${t.OTROS}` +
     ` WHEN 'CORTE_ELECTRICO' THEN ${t.CORTE_ELECTRICO}` +
-    ` ELSE ${SLA_MTTR_DEFAULT_MIN} END`
+    ` ELSE ${UMBRAL_ALERTA_MTTR_DEFAULT} END`
   )
 }
 

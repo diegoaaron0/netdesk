@@ -1,24 +1,24 @@
 /**
  * sla-sql.ts — fragmentos SQL derivados de las constantes de sla-core.ts.
  *
- * Usar estos helpers en queries SQL raw para que el CASE de límite MTTR
- * siempre esté sincronizado con los valores de SLA_MTTR_POR_TIPO.
+ * Usar estos helpers en queries SQL raw para que el CASE de umbral MTTR
+ * siempre esté sincronizado con los valores de UMBRAL_ALERTA_MTTR.
  *
  * Ejemplo de uso en un query Drizzle:
- *   import { slaLimiteCase } from '@/lib/sla-sql'
- *   sql`... WHERE i.mttr_minutos <= ${slaLimiteCase('i.tipo')} ...`
+ *   import { umbralAlertaCase } from '@/lib/sla-sql'
+ *   sql`... WHERE i.mttr_minutos <= ${umbralAlertaCase('i.tipo')} ...`
  */
 import { sql } from 'drizzle-orm'
-import { SLA_MTTR_POR_TIPO, SLA_MTTR_DEFAULT_MIN } from './sla-core'
+import { UMBRAL_ALERTA_MTTR, UMBRAL_ALERTA_MTTR_DEFAULT } from './sla-core'
 
 /**
  * Genera un fragmento SQL `CASE col WHEN ... THEN N ... ELSE N END`
- * con los límites MTTR de cada tipo de incidente.
+ * con los umbrales MTTR de cada tipo de incidente.
  *
  * @param col - Nombre de columna o alias a usar en el CASE (ej. 'i.tipo', 'tipo')
  */
-export function slaLimiteCase(col = 'i.tipo') {
-  const { CAIDA_TOTAL, INTERMITENCIA, LENTITUD, POS, OTROS, CORTE_ELECTRICO } = SLA_MTTR_POR_TIPO
+export function umbralAlertaCase(col = 'i.tipo') {
+  const { CAIDA_TOTAL, INTERMITENCIA, LENTITUD, POS, OTROS, CORTE_ELECTRICO } = UMBRAL_ALERTA_MTTR
   return sql.raw(
     `CASE ${col}` +
     ` WHEN 'CAIDA_TOTAL' THEN ${CAIDA_TOTAL}` +
@@ -27,6 +27,6 @@ export function slaLimiteCase(col = 'i.tipo') {
     ` WHEN 'POS' THEN ${POS}` +
     ` WHEN 'OTROS' THEN ${OTROS}` +
     ` WHEN 'CORTE_ELECTRICO' THEN ${CORTE_ELECTRICO}` +
-    ` ELSE ${SLA_MTTR_DEFAULT_MIN} END`
+    ` ELSE ${UMBRAL_ALERTA_MTTR_DEFAULT} END`
   )
 }

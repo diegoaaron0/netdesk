@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
-import { slaCase, pgErrMsg } from '@/lib/report-sql'
+import { umbralAlertaCase, pgErrMsg } from '@/lib/report-sql'
 
 function esc(v: unknown): string {
   if (v == null) return ''
@@ -44,10 +44,10 @@ export async function GET(req: Request) {
         i.mttr_minutos                                                             AS mttr_min,
 
         -- Límite SLA resolución según tipo
-        ${sql.raw(slaCase())}                                                 AS limite_resolucion_min,
+        ${sql.raw(umbralAlertaCase())}                                                 AS limite_resolucion_min,
 
         -- Exceso resolución (negativo = dentro de SLA)
-        i.mttr_minutos - ${sql.raw(slaCase())}                                AS exceso_resolucion_min,
+        i.mttr_minutos - ${sql.raw(umbralAlertaCase())}                                AS exceso_resolucion_min,
 
         -- SLA Respuesta: tiempo desde envío N1 hasta primera respuesta
         ROUND(EXTRACT(EPOCH FROM (n1.hora_respuesta_raw - n1.hora_envio_raw)) / 60)::int AS t_respuesta_min,
@@ -60,11 +60,11 @@ export async function GET(req: Request) {
           WHEN i.estado != 'RESUELTO' OR i.mttr_minutos IS NULL THEN 'SLA Pendiente'
           WHEN n1.hora_envio_raw IS NULL THEN 'Sin escalamiento N1'
           WHEN n1.hora_respuesta_raw IS NULL
-            AND i.mttr_minutos > ${sql.raw(slaCase())}
+            AND i.mttr_minutos > ${sql.raw(umbralAlertaCase())}
             THEN 'Sin respuesta N1 + Resolución tardía'
           WHEN n1.hora_respuesta_raw IS NULL THEN 'Sin respuesta N1'
           WHEN EXTRACT(EPOCH FROM (n1.hora_respuesta_raw - n1.hora_envio_raw)) / 60 > 60
-            AND i.mttr_minutos > ${sql.raw(slaCase())}
+            AND i.mttr_minutos > ${sql.raw(umbralAlertaCase())}
             THEN 'Respuesta tardía + Resolución tardía'
           WHEN EXTRACT(EPOCH FROM (n1.hora_respuesta_raw - n1.hora_envio_raw)) / 60 > 60
             THEN 'Respuesta N1 tardía'
@@ -81,7 +81,7 @@ export async function GET(req: Request) {
         -- SLA Resolución cumplido
         CASE
           WHEN i.estado != 'RESUELTO' OR i.mttr_minutos IS NULL THEN 'Pendiente'
-          WHEN i.mttr_minutos <= ${sql.raw(slaCase())}
+          WHEN i.mttr_minutos <= ${sql.raw(umbralAlertaCase())}
             THEN 'Cumplido'
           ELSE 'Incumplido'
         END                                                                        AS sla_resolucion,
@@ -114,7 +114,7 @@ export async function GET(req: Request) {
         AND i.tipo != 'CORTE_ELECTRICO'
         AND (
           -- SLA Resolución incumplida
-          (i.estado = 'RESUELTO' AND i.mttr_minutos > ${sql.raw(slaCase())})
+          (i.estado = 'RESUELTO' AND i.mttr_minutos > ${sql.raw(umbralAlertaCase())})
           OR
           -- SLA Respuesta incumplida (respondió pero tarde)
           (n1.hora_envio_raw IS NOT NULL AND n1.hora_respuesta_raw IS NOT NULL
