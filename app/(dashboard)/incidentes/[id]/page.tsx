@@ -993,12 +993,12 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                                 <input type="time" disabled={!canManage}
                                   value={editForm.contHoraActivacion?.slice(11,16) ?? ''}
                                   onChange={e => setEdit('contHoraActivacion', (editForm.contHoraActivacion?.slice(0,11) ?? '') + e.target.value)}
-                                  style={{ background: 'transparent', border: 'none', borderBottom: canManage ? '1px dotted var(--muted-foreground)' : 'none', fontFamily: 'monospace', fontSize: '10px', color: 'var(--muted-foreground)', padding: '0', width: '46px', cursor: canManage ? 'pointer' : 'default', outline: 'none' }} />
+                                  style={{ background: 'transparent', border: 'none', borderBottom: canManage ? '1px dotted var(--muted-foreground)' : 'none', fontFamily: 'monospace', fontSize: '10px', color: 'var(--muted-foreground)', padding: '0', width: '62px', cursor: canManage ? 'pointer' : 'default', outline: 'none' }} />
                                 <span>→</span>
                                 <input type="time" disabled={!canManage}
                                   value={editForm.contHoraDesactivacion?.slice(11,16) ?? ''}
                                   onChange={e => setEdit('contHoraDesactivacion', (editForm.contHoraDesactivacion?.slice(0,11) ?? editForm.contHoraActivacion?.slice(0,11) ?? '') + e.target.value)}
-                                  style={{ background: 'transparent', border: 'none', borderBottom: canManage ? '1px dotted var(--muted-foreground)' : 'none', fontFamily: 'monospace', fontSize: '10px', color: 'var(--muted-foreground)', padding: '0', width: '46px', cursor: canManage ? 'pointer' : 'default', outline: 'none' }} />
+                                  style={{ background: 'transparent', border: 'none', borderBottom: canManage ? '1px dotted var(--muted-foreground)' : 'none', fontFamily: 'monospace', fontSize: '10px', color: 'var(--muted-foreground)', padding: '0', width: '62px', cursor: canManage ? 'pointer' : 'default', outline: 'none' }} />
                               </span>
                               <span style={{ fontSize: '9px' }}>Por: {editForm.contActivadoPor}</span>
                             </div>
@@ -1101,12 +1101,12 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                                 <input type="time" disabled={!canManage}
                                   value={editForm.movHoraActivacion?.slice(11,16) ?? ''}
                                   onChange={e => setEdit('movHoraActivacion', (editForm.movHoraActivacion?.slice(0,11) ?? '') + e.target.value)}
-                                  style={{ background: 'transparent', border: 'none', borderBottom: canManage ? '1px dotted var(--muted-foreground)' : 'none', fontFamily: 'monospace', fontSize: '10px', color: 'var(--muted-foreground)', padding: '0', width: '46px', cursor: canManage ? 'pointer' : 'default', outline: 'none' }} />
+                                  style={{ background: 'transparent', border: 'none', borderBottom: canManage ? '1px dotted var(--muted-foreground)' : 'none', fontFamily: 'monospace', fontSize: '10px', color: 'var(--muted-foreground)', padding: '0', width: '62px', cursor: canManage ? 'pointer' : 'default', outline: 'none' }} />
                                 <span>→</span>
                                 <input type="time" disabled={!canManage}
                                   value={editForm.movHoraDesactivacion?.slice(11,16) ?? ''}
                                   onChange={e => setEdit('movHoraDesactivacion', (editForm.movHoraDesactivacion?.slice(0,11) ?? editForm.movHoraActivacion?.slice(0,11) ?? '') + e.target.value)}
-                                  style={{ background: 'transparent', border: 'none', borderBottom: canManage ? '1px dotted var(--muted-foreground)' : 'none', fontFamily: 'monospace', fontSize: '10px', color: 'var(--muted-foreground)', padding: '0', width: '46px', cursor: canManage ? 'pointer' : 'default', outline: 'none' }} />
+                                  style={{ background: 'transparent', border: 'none', borderBottom: canManage ? '1px dotted var(--muted-foreground)' : 'none', fontFamily: 'monospace', fontSize: '10px', color: 'var(--muted-foreground)', padding: '0', width: '62px', cursor: canManage ? 'pointer' : 'default', outline: 'none' }} />
                               </span>
                               <span style={{ fontSize: '9px' }}>Por: {editForm.movActivadoPor}</span>
                             </div>
