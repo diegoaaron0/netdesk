@@ -5,7 +5,8 @@ import { eq } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   if (!can(session, 'gestion-cambios.ver')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -13,18 +14,19 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const niveles = await db
     .select()
     .from(fichasNiveles)
-    .where(eq(fichasNiveles.fichaId, params.id))
+    .where(eq(fichasNiveles.fichaId, id))
     .orderBy(fichasNiveles.nivel)
 
   return NextResponse.json(niveles)
 }
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   if (!can(session, 'gestion-cambios.crear')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const [ficha] = await db.select({ id: fichas.id }).from(fichas).where(eq(fichas.id, params.id)).limit(1)
+  const [ficha] = await db.select({ id: fichas.id }).from(fichas).where(eq(fichas.id, id)).limit(1)
   if (!ficha) return NextResponse.json({ error: 'Ficha no encontrada' }, { status: 404 })
 
   const body = await req.json()
@@ -33,7 +35,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   const [nivel] = await db.insert(fichasNiveles).values({
-    fichaId:               params.id,
+    fichaId:               id,
     nivel:                 body.nivel,
     nombreContacto:        body.nombreContacto,
     email:                 body.email                 ?? null,

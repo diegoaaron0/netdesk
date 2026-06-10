@@ -8,7 +8,8 @@ import { can } from '@/lib/permisos'
 // PATCH /api/fichas/[id]/estado
 // body: { estado: 'BORRADOR' | 'ACTIVA' | 'HISTORICA' }
 // Activar: archiva la ficha ACTIVA anterior de la tienda y sincroniza tiendas.*
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   if (!can(session, 'gestion-cambios.crear')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -28,7 +29,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       tipoConexion: fichas.tipoConexion,
     })
     .from(fichas)
-    .where(eq(fichas.id, params.id))
+    .where(eq(fichas.id, id))
     .limit(1)
 
   if (!ficha) return NextResponse.json({ error: 'No encontrada' }, { status: 404 })
@@ -42,18 +43,18 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       .where(and(
         eq(fichas.tiendaId, ficha.tiendaId),
         eq(fichas.estado, 'ACTIVA'),
-        ne(fichas.id, params.id),
+        ne(fichas.id, id),
       ))
 
     // Activar la nueva ficha
     const [updated] = await db
       .update(fichas)
       .set({ estado: 'ACTIVA', activadoEn: new Date() })
-      .where(eq(fichas.id, params.id))
+      .where(eq(fichas.id, id))
       .returning()
 
     // Sincronizar tienda: apuntar a la nueva ficha y actualizar datos de conectividad
-    const syncFields: Record<string, unknown> = { fichaActivaId: params.id, proveedorId: ficha.proveedorId }
+    const syncFields: Record<string, unknown> = { fichaActivaId: id, proveedorId: ficha.proveedorId }
     if (ficha.cidServicio)  syncFields.cidServicio  = ficha.cidServicio
     if (ficha.tipoConexion) syncFields.tipoConexion = ficha.tipoConexion
 
@@ -66,14 +67,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const [updated] = await db
       .update(fichas)
       .set({ estado: 'HISTORICA', archivadoEn: new Date() })
-      .where(eq(fichas.id, params.id))
+      .where(eq(fichas.id, id))
       .returning()
 
     // Si era la activa de la tienda, limpiar el puntero
     await db
       .update(tiendas)
       .set({ fichaActivaId: null })
-      .where(and(eq(tiendas.id, ficha.tiendaId), eq(tiendas.fichaActivaId, params.id)))
+      .where(and(eq(tiendas.id, ficha.tiendaId), eq(tiendas.fichaActivaId, id)))
 
     return NextResponse.json(updated)
   }
@@ -82,7 +83,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const [updated] = await db
     .update(fichas)
     .set({ estado: 'BORRADOR', activadoEn: null })
-    .where(eq(fichas.id, params.id))
+    .where(eq(fichas.id, id))
     .returning()
 
   return NextResponse.json(updated)

@@ -5,7 +5,8 @@ import { eq } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   if (!can(session, 'gestion-cambios.ver')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -53,7 +54,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     .innerJoin(tiendas, eq(fichas.tiendaId, tiendas.id))
     .innerJoin(proveedores, eq(fichas.proveedorId, proveedores.id))
     .leftJoin(usuarios, eq(fichas.creadoPorId, usuarios.id))
-    .where(eq(fichas.id, params.id))
+    .where(eq(fichas.id, id))
     .limit(1)
 
   if (!row) return NextResponse.json({ error: 'No encontrada' }, { status: 404 })
@@ -61,18 +62,19 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const niveles = await db
     .select()
     .from(fichasNiveles)
-    .where(eq(fichasNiveles.fichaId, params.id))
+    .where(eq(fichasNiveles.fichaId, id))
     .orderBy(fichasNiveles.nivel)
 
   return NextResponse.json({ ...row, niveles })
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   if (!can(session, 'gestion-cambios.crear')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const [existing] = await db.select({ id: fichas.id, estado: fichas.estado }).from(fichas).where(eq(fichas.id, params.id)).limit(1)
+  const [existing] = await db.select({ id: fichas.id, estado: fichas.estado }).from(fichas).where(eq(fichas.id, id)).limit(1)
   if (!existing) return NextResponse.json({ error: 'No encontrada' }, { status: 404 })
 
   const body = await req.json()
@@ -98,6 +100,6 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ error: 'Sin campos para actualizar' }, { status: 400 })
   }
 
-  const [updated] = await db.update(fichas).set(allowed as any).where(eq(fichas.id, params.id)).returning()
+  const [updated] = await db.update(fichas).set(allowed as any).where(eq(fichas.id, id)).returning()
   return NextResponse.json(updated)
 }

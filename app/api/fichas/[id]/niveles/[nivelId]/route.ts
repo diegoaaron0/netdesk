@@ -5,7 +5,8 @@ import { eq, and } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string; nivelId: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string; nivelId: string }> }) {
+  const { id, nivelId } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   if (!can(session, 'gestion-cambios.crear')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -13,7 +14,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string; 
   const [existing] = await db
     .select({ id: fichasNiveles.id })
     .from(fichasNiveles)
-    .where(and(eq(fichasNiveles.id, params.nivelId), eq(fichasNiveles.fichaId, params.id)))
+    .where(and(eq(fichasNiveles.id, nivelId), eq(fichasNiveles.fichaId, id)))
     .limit(1)
 
   if (!existing) return NextResponse.json({ error: 'Nivel no encontrado' }, { status: 404 })
@@ -38,13 +39,14 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string; 
   const [updated] = await db
     .update(fichasNiveles)
     .set(allowed as any)
-    .where(eq(fichasNiveles.id, params.nivelId))
+    .where(eq(fichasNiveles.id, nivelId))
     .returning()
 
   return NextResponse.json(updated)
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string; nivelId: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string; nivelId: string }> }) {
+  const { id, nivelId } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   if (!can(session, 'gestion-cambios.crear')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -52,11 +54,11 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   const [existing] = await db
     .select({ id: fichasNiveles.id })
     .from(fichasNiveles)
-    .where(and(eq(fichasNiveles.id, params.nivelId), eq(fichasNiveles.fichaId, params.id)))
+    .where(and(eq(fichasNiveles.id, nivelId), eq(fichasNiveles.fichaId, id)))
     .limit(1)
 
   if (!existing) return NextResponse.json({ error: 'Nivel no encontrado' }, { status: 404 })
 
-  await db.delete(fichasNiveles).where(eq(fichasNiveles.id, params.nivelId))
+  await db.delete(fichasNiveles).where(eq(fichasNiveles.id, nivelId))
   return NextResponse.json({ ok: true })
 }
