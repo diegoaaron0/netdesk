@@ -153,6 +153,8 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
   const [iei30dBreakdown, setIei30dBreakdown] = useState<any[]>([])
   const [ieiPanelOpen, setIeiPanelOpen] = useState(false)
   const [historialOpen, setHistorialOpen] = useState(false)
+  const [provHistOpen, setProvHistOpen] = useState(false)
+  const [provHist, setProvHist] = useState<any[]>([])
   const [ventasExpanded, setVentasExpanded] = useState(false)
   const [editingVentas, setEditingVentas] = useState(false)
   const [ventaMensualInput, setVentaMensualInput] = useState('')
@@ -185,6 +187,9 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
     })
     fetch(`/api/tiendas/historial?tiendaId=${id}`).then(r => r.json()).then(d => {
       setHistorial(Array.isArray(d) ? d : [])
+    })
+    fetch(`/api/tiendas/historial-proveedores?tiendaId=${id}`).then(r => r.json()).then(d => {
+      setProvHist(Array.isArray(d) ? d : [])
     })
     fetch('/api/proveedores').then(r => r.json()).then(d => {
       setProveedores(Array.isArray(d) ? d : [])
@@ -929,6 +934,16 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
             <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Historial de cambios</span>
             <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{historial.length > 0 ? `${historial.length} cambios` : 'Sin cambios'} →</span>
           </button>
+
+          {/* Historial de proveedores */}
+          <button
+            onClick={() => setProvHistOpen(true)}
+            style={{ width: '100%', background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '10px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left' }}>
+            <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Historial de proveedores</span>
+            <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
+              {provHist.length > 0 ? `${provHist.length} cambio${provHist.length !== 1 ? 's' : ''}` : 'Sin cambios'} →
+            </span>
+          </button>
         </div>
       </div>
 
@@ -1031,6 +1046,54 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                   {!h.valorAnterior && !h.valorNuevo && <span style={{ color: 'var(--muted-foreground)', fontStyle: 'italic' }}>sin valor</span>}
                 </div>
                 <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '4px' }}>por <strong>{h.usuarioNombre ?? 'Sistema'}</strong></div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* ── Side panel — Historial de proveedores ── */}
+      {provHistOpen && (
+        <div onClick={() => setProvHistOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.22)' }} />
+      )}
+      <div style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0, width: 420, maxWidth: '95vw',
+        background: 'var(--card)', borderLeft: '1px solid var(--border)',
+        boxShadow: '-4px 0 28px rgba(0,0,0,0.13)',
+        zIndex: 201, display: 'flex', flexDirection: 'column',
+        transform: provHistOpen ? 'translateX(0)' : 'translateX(100%)',
+        transition: 'transform 0.26s cubic-bezier(0.4,0,0.2,1)',
+        overflow: 'hidden',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderBottom: '0.5px solid var(--border)', background: 'var(--muted)', flexShrink: 0 }}>
+          <div style={{ fontSize: '13px', fontWeight: 600 }}>Historial de proveedores — {tienda?.codigo}</div>
+          <button onClick={() => setProvHistOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--muted-foreground)', lineHeight: 1 }}>✕</button>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {provHist.length === 0 ? (
+            <div style={{ textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px', padding: '32px 0' }}>Sin cambios de proveedor registrados</div>
+          ) : provHist.map((h: any) => {
+            const fecha = h.editadoEn
+              ? new Date(h.editadoEn).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+              : '—'
+            return (
+              <div key={h.id} style={{ background: 'var(--background)', borderRadius: '8px', padding: '10px 12px', border: '0.5px solid var(--border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px', flexWrap: 'wrap' }}>
+                  {h.anteriorNombre
+                    ? <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--muted-foreground)', textDecoration: 'line-through' }}>{h.anteriorNombre}</span>
+                    : <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>Sin proveedor</span>
+                  }
+                  <span style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>→</span>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--foreground)' }}>{h.nuevoNombre ?? '—'}</span>
+                </div>
+                {h.via && (
+                  <div style={{ fontSize: '10px', color: '#7C3AED', fontWeight: 500, marginBottom: '3px', fontFamily: 'monospace' }}>
+                    vía {h.via}
+                  </div>
+                )}
+                <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>
+                  {fecha} · por <strong>{h.usuarioNombre ?? 'Sistema'}</strong>
+                </div>
               </div>
             )
           })}
