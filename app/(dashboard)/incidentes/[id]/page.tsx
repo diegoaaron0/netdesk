@@ -745,7 +745,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 <div style={{ fontSize: '22px', marginBottom: '4px' }}>🌐</div>
                 <div style={{ fontSize: '12px', fontWeight: 600 }}>Proveedor</div>
               </button>
-              {inc.escaladoInfraId ? (
+              {isSupervisor && (inc.escaladoInfraId ? (
                 <button onClick={() => setResolverMode('INFRAESTRUCTURA')}
                   style={{ flex: 1, padding: '16px 8px', border: '1.5px solid rgba(99,102,241,.4)', borderRadius: '10px', background: 'rgba(99,102,241,.07)', cursor: 'pointer', textAlign: 'center' }}>
                   <div style={{ fontSize: '22px', marginBottom: '4px' }}>🔧</div>
@@ -757,7 +757,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   <div style={{ fontSize: '22px', marginBottom: '4px' }}>👤</div>
                   <div style={{ fontSize: '12px', fontWeight: 600 }}>Agente</div>
                 </button>
-              )}
+              ))}
             </div>
             <button onClick={() => setShowResolverModal(false)}
               style={{ width: '100%', padding: '8px', background: 'none', border: 'none', color: 'var(--muted-foreground)', fontSize: '12px', cursor: 'pointer' }}>

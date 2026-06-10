@@ -21,7 +21,7 @@ export const PERMISOS_POR_ROL: Record<string, string[]> = {
     'contingencias.gestionar',
   ],
   INFRAESTRUCTURA: [
-    'incidentes.ver', 'incidentes.crear', 'incidentes.reabrir', 'incidentes.editar',
+    'incidentes.ver', 'incidentes.crear', 'incidentes.reabrir', 'incidentes.editar', 'incidentes.cancelar',
     'escalamientos.crear', 'escalamientos.envio', 'escalamientos.respuesta',
     'mantenimiento.ver', 'mantenimiento.editar',
     'dashboard.ver', 'reportes.ver', 'reportes.exportar',
