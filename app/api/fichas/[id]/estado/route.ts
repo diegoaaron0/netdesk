@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { fichas, tiendas } from '@/drizzle/schema'
-import { eq, and, ne } from 'drizzle-orm'
+import { fichas, tiendas, incidentes, tiendasHistorial } from '@/drizzle/schema'
+import { eq, and, ne, isNull } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 
@@ -44,6 +44,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (ficha.estado === estado) return NextResponse.json({ error: 'La ficha ya tiene ese estado' }, { status: 400 })
 
   if (estado === 'ACTIVA') {
+    // Leer el proveedor actual de la tienda ANTES de sincronizar
+    const [tiendaActual] = await db
+      .select({ proveedorId: tiendas.proveedorId })
+      .from(tiendas)
+      .where(eq(tiendas.id, ficha.tiendaId))
+      .limit(1)
+
+    const proveedorAnteriorId = tiendaActual?.proveedorId ?? null
+
     // Archivar la ficha ACTIVA anterior de esta tienda (que no sea la que estamos activando)
     await db
       .update(fichas)
@@ -70,8 +79,29 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     for (const f of connFields) {
       if (ficha[f] != null) syncFields[f] = ficha[f]
     }
-
     await db.update(tiendas).set(syncFields as any).where(eq(tiendas.id, ficha.tiendaId))
+
+    // Si el proveedor cambió (activación directa sin pasar por ejecutar),
+    // garantizar backfill de incidentes e historial.
+    // Nota: si ejecutar ya corrió primero, tiendas.proveedorId ya tiene el nuevo valor
+    // así que esta condición es false y no se duplica nada.
+    if (ficha.proveedorId && proveedorAnteriorId && ficha.proveedorId !== proveedorAnteriorId) {
+      // Backfill: incidentes históricos sin proveedor explícito → atribuir al proveedor anterior
+      await db.update(incidentes)
+        .set({ proveedorId: proveedorAnteriorId } as any)
+        .where(and(
+          eq(incidentes.tiendaId, ficha.tiendaId),
+          isNull((incidentes as any).proveedorId),
+        ))
+
+      await db.insert(tiendasHistorial).values({
+        tiendaId:      ficha.tiendaId,
+        usuarioId:     (session.user as any).id ?? null,
+        campoEditado:  'proveedor_id',
+        valorAnterior: proveedorAnteriorId,
+        valorNuevo:    `${ficha.proveedorId} — vía ficha ${ficha.codigo ?? id}`,
+      })
+    }
 
     return NextResponse.json(updated)
   }
