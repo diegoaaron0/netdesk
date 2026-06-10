@@ -18,8 +18,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     email:                   body.email               ?? null,
     celular:                 body.celular             ?? null,
     tiempoRespSev1:          body.tiempoRespSev1      ?? null,
-    tiempoRespSev2:          body.tiempoRespSev2      ?? null,
-    tiempoRespSev3:          body.tiempoRespSev3      ?? null,
     correosCopia:            body.correosCopia        ?? null,
     whatsapp:                body.whatsapp            ?? null,
     canal:                   body.canal               ?? 'correo',

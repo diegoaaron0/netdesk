@@ -23,7 +23,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const allowed: Record<string, unknown> = {}
   const fields = [
     'nivel', 'nombreContacto', 'email', 'celular',
-    'tiempoRespSev1', 'tiempoRespSev2', 'tiempoRespSev3',
+    'tiempoRespSev1',
     'correosCopia', 'whatsapp', 'canal', 'horarioAtencion',
     'tiempoEsperadoSolucion', 'instruccion', 'activo',
   ] as const

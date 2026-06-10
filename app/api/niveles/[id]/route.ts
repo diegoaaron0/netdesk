@@ -18,8 +18,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     email:                  'email'                  in body ? (body.email                  ?? null)  : undefined,
     celular:                'celular'                in body ? (body.celular                ?? null)  : undefined,
     tiempoRespSev1:         'tiempoRespSev1'         in body ? (body.tiempoRespSev1         ?? null)  : undefined,
-    tiempoRespSev2:         'tiempoRespSev2'         in body ? (body.tiempoRespSev2         ?? null)  : undefined,
-    tiempoRespSev3:         'tiempoRespSev3'         in body ? (body.tiempoRespSev3         ?? null)  : undefined,
     correosCopia:           'correosCopia'           in body ? (body.correosCopia           ?? null)  : undefined,
     whatsapp:               'whatsapp'               in body ? (body.whatsapp               ?? null)  : undefined,
     canal:                  'canal'                  in body ? (body.canal                  ?? null)  : undefined,

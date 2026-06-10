@@ -287,8 +287,6 @@ export default function FichaDetallePage() {
                   { key: 'whatsapp', label: 'WhatsApp' },
                   { key: 'horarioAtencion', label: 'Horario atención' },
                   { key: 'tiempoRespSev1', label: 'Tiempo resp. SEV1' },
-                  { key: 'tiempoRespSev2', label: 'Tiempo resp. SEV2' },
-                  { key: 'tiempoRespSev3', label: 'Tiempo resp. SEV3' },
                 ].map(f => (
                   <div key={f.key} style={{ marginBottom: '10px' }}>
                     <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '3px' }}>{f.label}</label>
@@ -352,8 +350,6 @@ export default function FichaDetallePage() {
                       {n.canal && <span>Canal: <strong style={{ color: 'var(--foreground)' }}>{n.canal}</strong></span>}
                       {n.horarioAtencion && <span>Horario: <strong style={{ color: 'var(--foreground)' }}>{n.horarioAtencion}</strong></span>}
                       {n.tiempoRespSev1 && <span>SEV1: <strong style={{ color: 'var(--foreground)' }}>{n.tiempoRespSev1}</strong></span>}
-                      {n.tiempoRespSev2 && <span>SEV2: <strong style={{ color: 'var(--foreground)' }}>{n.tiempoRespSev2}</strong></span>}
-                      {n.tiempoRespSev3 && <span>SEV3: <strong style={{ color: 'var(--foreground)' }}>{n.tiempoRespSev3}</strong></span>}
                     </div>
                   )}
                   {n.instruccion && (
