@@ -78,7 +78,7 @@ export default function GestionCambiosPage() {
   const enEvaluacion = rows.filter(r => ['EJECUTADO','EN_EVALUACION'].includes(r.estado))
 
   return (
-    <div style={{ padding: '20px 24px', maxWidth: '1200px', margin: '0 auto' }}>
+    <div>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
         <div>
