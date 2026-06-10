@@ -296,7 +296,7 @@ export default function IncidentesPage() {
 
           <select value={estado} onChange={e => { setEstado(e.target.value); setPage(1) }} style={selStyle}>
             <option value="">Estados</option>
-            {['ABIERTO','EN_SEGUIMIENTO','ESCALADO_N1','ESCALADO_N2','ESCALADO_N3','RESUELTO','CANCELADO','CERRADO'].map(e => (
+            {['ABIERTO','EN_SEGUIMIENTO','ESCALADO_N1','ESCALADO_N2','ESCALADO_N3','RESUELTO','CANCELADO'].map(e => (
               <option key={e} value={e}>{e.replace(/_/g,' ')}</option>
             ))}
           </select>

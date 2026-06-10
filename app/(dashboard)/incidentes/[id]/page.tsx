@@ -1434,7 +1434,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               <ResumenRow icon={<IcoStatus />} label="Estado">
                 {canEditA ? (
                   <select style={{ ...iStyle(), fontSize: '11px', padding: '4px 6px' }} value={editForm.estado} onChange={e => setEdit('estado', e.target.value)}>
-                    {['ABIERTO','EN_SEGUIMIENTO','ESCALADO_N1','ESCALADO_N2','ESCALADO_N3','RESUELTO','CERRADO','CANCELADO'].map(v => <option key={v} value={v}>{v.replace(/_/g,' ')}</option>)}
+                    {['ABIERTO','EN_SEGUIMIENTO','ESCALADO_N1','ESCALADO_N2','ESCALADO_N3','RESUELTO','CANCELADO'].map(v => <option key={v} value={v}>{v.replace(/_/g,' ')}</option>)}
                   </select>
                 ) : <Badge variant={estadoToVariant(inc.estado)} />}
               </ResumenRow>
