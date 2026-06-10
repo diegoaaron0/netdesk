@@ -78,6 +78,8 @@ export default function AccionDetallePage() {
   const [evalNota90, setEvalNota90] = useState('')
   const [notasEjec, setNotasEjec] = useState('')
   const [actionError, setActionError] = useState('')
+  const [pendingEval, setPendingEval]   = useState<30 | 90 | null>(null)
+  const [pendingReset, setPendingReset] = useState<30 | 90 | null>(null)
 
   const userRol = (session?.user as any)?.rol ?? ''
   const isGerencia = userRol === 'GERENCIA' || userRol === 'DEMO'
@@ -223,9 +225,19 @@ export default function AccionDetallePage() {
                   <textarea value={evalNota30} onChange={e => setEvalNota30(e.target.value)} rows={2}
                     placeholder="Nota sobre los resultados observados…"
                     style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid #FCD34D', borderRadius: '7px', boxSizing: 'border-box', resize: 'none', fontFamily: 'inherit', marginBottom: '6px' }} />
-                  <button onClick={() => doAction('evaluar', { periodo: 30, nota: evalNota30 })} disabled={actBusy} style={btnStyle(true, '#D97706')}>
-                    Calcular evaluación 30d
-                  </button>
+                  {pendingEval === 30 ? (
+                    <div style={{ background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: '7px', padding: '10px', fontSize: '12px' }}>
+                      <div style={{ fontWeight: 600, marginBottom: '8px', color: '#92400E' }}>¿Calcular evaluación 30d? Esto registrará los resultados definitivos del período.</div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button onClick={() => { setPendingEval(null); doAction('evaluar', { periodo: 30, nota: evalNota30 }) }} disabled={actBusy} style={btnStyle(true, '#D97706')}>Confirmar</button>
+                        <button onClick={() => setPendingEval(null)} disabled={actBusy} style={{ ...btnStyle(false), background: 'var(--muted)', color: 'var(--foreground)', border: '0.5px solid var(--border)' }}>Cancelar</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={() => setPendingEval(30)} disabled={actBusy} style={btnStyle(true, '#D97706')}>
+                      Calcular evaluación 30d
+                    </button>
+                  )}
                 </div>
               )}
               {accion.eval30Completada && !accion.eval90Completada && (
@@ -236,9 +248,19 @@ export default function AccionDetallePage() {
                   <textarea value={evalNota90} onChange={e => setEvalNota90(e.target.value)} rows={2}
                     placeholder="Nota trimestral sobre los resultados…"
                     style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid #FCD34D', borderRadius: '7px', boxSizing: 'border-box', resize: 'none', fontFamily: 'inherit', marginBottom: '6px' }} />
-                  <button onClick={() => doAction('evaluar', { periodo: 90, nota: evalNota90 })} disabled={actBusy} style={btnStyle(true, '#D97706')}>
-                    Calcular evaluación 90d
-                  </button>
+                  {pendingEval === 90 ? (
+                    <div style={{ background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: '7px', padding: '10px', fontSize: '12px' }}>
+                      <div style={{ fontWeight: 600, marginBottom: '8px', color: '#92400E' }}>¿Calcular evaluación 90d? Esto registrará los resultados definitivos del período.</div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button onClick={() => { setPendingEval(null); doAction('evaluar', { periodo: 90, nota: evalNota90 }) }} disabled={actBusy} style={btnStyle(true, '#D97706')}>Confirmar</button>
+                        <button onClick={() => setPendingEval(null)} disabled={actBusy} style={{ ...btnStyle(false), background: 'var(--muted)', color: 'var(--foreground)', border: '0.5px solid var(--border)' }}>Cancelar</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={() => setPendingEval(90)} disabled={actBusy} style={btnStyle(true, '#D97706')}>
+                      Calcular evaluación 90d
+                    </button>
+                  )}
                 </div>
               )}
               {accion.eval30Completada && accion.eval90Completada && (
@@ -329,8 +351,24 @@ export default function AccionDetallePage() {
 
             {accion.eval30Completada && (
               <div style={{ marginBottom: '16px' }}>
-                <div style={{ fontSize: '10px', fontWeight: 700, color: '#D97706', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
-                  Evaluación 30 días — {fmtFechaHora(accion.eval30Fecha)}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#D97706', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    Evaluación 30 días — {fmtFechaHora(accion.eval30Fecha)}
+                  </div>
+                  {isInfra && (pendingReset === 30 ? (
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center', fontSize: '11px' }}>
+                      <span style={{ color: '#92400E' }}>¿Borrar y recalcular?</span>
+                      <button onClick={() => { setPendingReset(null); doAction('resetear-eval', { periodo: 30 }) }} disabled={actBusy}
+                        style={{ fontSize: '10px', background: '#D97706', color: 'white', border: 'none', borderRadius: '5px', padding: '3px 8px', cursor: 'pointer' }}>Sí</button>
+                      <button onClick={() => setPendingReset(null)} disabled={actBusy}
+                        style={{ fontSize: '10px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '5px', padding: '3px 8px', cursor: 'pointer' }}>No</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setPendingReset(30)} disabled={actBusy}
+                      style={{ fontSize: '10px', background: 'none', border: '0.5px solid var(--border)', borderRadius: '5px', padding: '2px 8px', cursor: 'pointer', color: 'var(--muted-foreground)' }}>
+                      Recalcular
+                    </button>
+                  ))}
                 </div>
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   <MetricCard label="SLA cumplido" before={accion.snapSlaPct}   after={accion.eval30SlaPct}   unit="%" />
@@ -349,8 +387,24 @@ export default function AccionDetallePage() {
 
             {accion.eval90Completada && (
               <div>
-                <div style={{ fontSize: '10px', fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
-                  Evaluación 90 días — {fmtFechaHora(accion.eval90Fecha)}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    Evaluación 90 días — {fmtFechaHora(accion.eval90Fecha)}
+                  </div>
+                  {isInfra && (pendingReset === 90 ? (
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center', fontSize: '11px' }}>
+                      <span style={{ color: '#065F46' }}>¿Borrar y recalcular?</span>
+                      <button onClick={() => { setPendingReset(null); doAction('resetear-eval', { periodo: 90 }) }} disabled={actBusy}
+                        style={{ fontSize: '10px', background: '#059669', color: 'white', border: 'none', borderRadius: '5px', padding: '3px 8px', cursor: 'pointer' }}>Sí</button>
+                      <button onClick={() => setPendingReset(null)} disabled={actBusy}
+                        style={{ fontSize: '10px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '5px', padding: '3px 8px', cursor: 'pointer' }}>No</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setPendingReset(90)} disabled={actBusy}
+                      style={{ fontSize: '10px', background: 'none', border: '0.5px solid var(--border)', borderRadius: '5px', padding: '2px 8px', cursor: 'pointer', color: 'var(--muted-foreground)' }}>
+                      Recalcular
+                    </button>
+                  ))}
                 </div>
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   <MetricCard label="SLA cumplido" before={accion.snapSlaPct}      after={accion.eval90SlaPct}   unit="%" />
