@@ -642,6 +642,14 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               <Field label="Contacto soporte" value={tienda.contactoSoporte ?? ''} editing={false} onChange={() => {}} />
               <Field label="Coordenadas"      value={tienda.coordenadas     ?? ''} editing={false} onChange={() => {}} />
             </div>
+
+            {/* Historial de fichas */}
+            <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '8px', marginTop: '4px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => router.push(`/gestion-cambios/fichas?tiendaId=${tienda.id}`)}
+                style={{ fontSize: '11px', color: 'var(--muted-foreground)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                Ver historial de fichas →
+              </button>
+            </div>
           </div>
 
           {/* Card C: Supervisor */}

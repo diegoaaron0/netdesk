@@ -1,11 +1,11 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 const ESTADO_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
-  BORRADOR:  { label: 'Borrador',  bg: '#F1F5F9', color: '#475569' },
-  ACTIVA:    { label: 'Activa',    bg: '#ECFDF5', color: '#065F46' },
-  HISTORICA: { label: 'Historial', bg: '#F8FAFC', color: '#94A3B8' },
+  BORRADOR:  { label: 'Borrador',   bg: '#F1F5F9', color: '#475569' },
+  ACTIVA:    { label: 'Activa',     bg: '#ECFDF5', color: '#065F46' },
+  HISTORICA: { label: 'Desactivada', bg: '#F8FAFC', color: '#94A3B8' },
 }
 
 function GcTabs({ active }: { active: 'acciones' | 'fichas' }) {
@@ -28,6 +28,9 @@ function GcTabs({ active }: { active: 'acciones' | 'fichas' }) {
 
 export default function FichasPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const tiendaIdUrl = searchParams.get('tiendaId') ?? ''
+
   const [rows,   setRows]   = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [proveedores, setProveedores] = useState<any[]>([])
@@ -41,11 +44,12 @@ export default function FichasPage() {
     if (filtroEstado)    p.set('estado',      filtroEstado)
     if (filtroProveedor) p.set('proveedorId', filtroProveedor)
     if (buscar)          p.set('buscar',      buscar)
+    if (tiendaIdUrl)     p.set('tiendaId',    tiendaIdUrl)
     fetch(`/api/fichas?${p}`)
       .then(r => r.json())
       .then(d => setRows(Array.isArray(d) ? d : []))
       .finally(() => setLoading(false))
-  }, [filtroEstado, filtroProveedor, buscar])
+  }, [filtroEstado, filtroProveedor, buscar, tiendaIdUrl])
 
   useEffect(() => { load() }, [load])
   useEffect(() => {
@@ -70,6 +74,17 @@ export default function FichasPage() {
       </div>
 
       <GcTabs active="fichas" />
+
+      {/* Banner tienda filtrada */}
+      {tiendaIdUrl && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', padding: '7px 12px', background: '#EFF6FF', border: '0.5px solid #BFDBFE', borderRadius: '8px', fontSize: '12px', color: '#1D4ED8' }}>
+          <span>Mostrando fichas de una tienda específica.</span>
+          <button onClick={() => router.push('/gestion-cambios/fichas')}
+            style={{ fontSize: '11px', fontWeight: 600, background: 'none', border: 'none', color: '#1D4ED8', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
+            Ver todas
+          </button>
+        </div>
+      )}
 
       {/* Filtros */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', flexWrap: 'wrap' }}>
@@ -138,9 +153,13 @@ export default function FichasPage() {
                     <td style={{ padding: '10px 12px', fontSize: '11px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>
                       {r.activadoEn ? new Date(r.activadoEn).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Lima' }) : '—'}
                     </td>
-                    <td style={{ padding: '10px 12px', fontSize: '11px', color: 'var(--muted-foreground)', textAlign: 'center' }}>
-                      {r.totalNiveles > 0
-                        ? <span style={{ background: '#EFF6FF', color: '#1D4ED8', padding: '1px 7px', borderRadius: '99px', fontWeight: 600, fontSize: '10px' }}>{r.totalNiveles}</span>
+                    <td style={{ padding: '10px 12px' }}>
+                      {r.nivelesStr
+                        ? <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                            {r.nivelesStr.split(' ').map((n: string) => (
+                              <span key={n} style={{ background: '#EFF6FF', color: '#1D4ED8', padding: '1px 7px', borderRadius: '4px', fontWeight: 700, fontSize: '10px', fontFamily: 'monospace' }}>{n}</span>
+                            ))}
+                          </div>
                         : <span style={{ color: '#DC2626', fontSize: '10px' }}>Sin niveles</span>}
                     </td>
                   </tr>

@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 const ESTADO_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
   BORRADOR:  { label: 'Borrador',  bg: '#F1F5F9', color: '#475569' },
   ACTIVA:    { label: 'Activa',    bg: '#ECFDF5', color: '#065F46' },
-  HISTORICA: { label: 'Historial', bg: '#F8FAFC', color: '#94A3B8' },
+  HISTORICA: { label: 'Desactivada', bg: '#F8FAFC', color: '#94A3B8' },
 }
 
 function Field({ label, value, editing, name, onChange, type = 'text', textarea = false }: {

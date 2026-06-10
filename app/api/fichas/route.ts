@@ -46,6 +46,7 @@ export async function GET(req: NextRequest) {
       archivadoEn:       fichas.archivadoEn,
       creadoEn:          fichas.creadoEn,
       totalNiveles:      sql<number>`(SELECT count(*)::int FROM fichas_niveles fn WHERE fn.ficha_id = ${fichas.id})`,
+      nivelesStr:        sql<string | null>`(SELECT string_agg('N' || fn.nivel::text, ' ' ORDER BY fn.nivel) FROM fichas_niveles fn WHERE fn.ficha_id = ${fichas.id})`,
     })
     .from(fichas)
     .innerJoin(tiendas, eq(fichas.tiendaId, tiendas.id))
