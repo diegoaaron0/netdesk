@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import {
   accionesGestion, accionesGestionTiendas,
-  tiendas, contratosProveedor, tiendasHistorial, incidentes,
+  tiendas, contratosProveedor, tiendasHistorial, incidentes, fichas,
 } from '@/drizzle/schema'
-import { eq, and, isNull, sql } from 'drizzle-orm'
+import { eq, and, isNull, ne, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 
@@ -16,6 +16,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const body = await req.json().catch(() => ({}))
   const notasEjecucion: string = body.notasEjecucion?.trim() ?? ''
+  const fichaNuevaId:   string | null = body.fichaNuevaId ?? null
 
   const [accion] = await db.select({
     id:                  accionesGestion.id,
@@ -85,16 +86,66 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
+  // Activar la ficha nueva si se proporcionó
+  if (fichaNuevaId) {
+    const [fichaData] = await db
+      .select({
+        id:                  fichas.id,
+        tiendaId:            fichas.tiendaId,
+        cidServicio:         fichas.cidServicio,
+        tipoConexion:        fichas.tipoConexion,
+        velocidad:           fichas.velocidad,
+        tipoServicio:        fichas.tipoServicio,
+        costoMensual:        fichas.costoMensual,
+        descripcionServicio: fichas.descripcionServicio,
+        planAplicado:        fichas.planAplicado,
+        vigenciaContrato:    fichas.vigenciaContrato,
+        estadoServicio:      fichas.estadoServicio,
+        fechaAltaServicio:   fichas.fechaAltaServicio,
+      })
+      .from(fichas)
+      .where(eq(fichas.id, fichaNuevaId))
+      .limit(1)
+
+    if (fichaData) {
+      // Archivar ficha activa anterior (si la hay)
+      await db.update(fichas)
+        .set({ estado: 'HISTORICA', archivadoEn: ahora })
+        .where(and(
+          eq(fichas.tiendaId, fichaData.tiendaId),
+          eq(fichas.estado, 'ACTIVA'),
+          ne(fichas.id, fichaNuevaId),
+        ))
+
+      // Activar la nueva ficha
+      await db.update(fichas)
+        .set({ estado: 'ACTIVA', activadoEn: ahora })
+        .where(eq(fichas.id, fichaNuevaId))
+
+      // Sincronizar campos de conectividad a la tienda
+      const syncFields: Record<string, unknown> = { fichaActivaId: fichaNuevaId }
+      const connFields = [
+        'cidServicio', 'tipoConexion', 'velocidad', 'tipoServicio', 'costoMensual',
+        'descripcionServicio', 'planAplicado', 'vigenciaContrato', 'estadoServicio', 'fechaAltaServicio',
+      ] as const
+      for (const f of connFields) {
+        if (fichaData[f] != null) syncFields[f] = fichaData[f]
+      }
+      await db.update(tiendas).set(syncFields as any).where(eq(tiendas.id, fichaData.tiendaId))
+    }
+  }
+
   // Marcar como EJECUTADO
   const [updated] = await db.update(accionesGestion)
     .set({
-      estado:        'EJECUTADO',
-      ejecutadoEn:   ahora,
+      estado:         'EJECUTADO',
+      ejecutadoEn:    ahora,
       ejecutadoPorId,
       notasEjecucion: notasEjecucion || null,
-      fechaEval30:   toDateStr(eval30),
-      fechaEval90:   toDateStr(eval90),
-      actualizadoEn: ahora,
+      fichaNuevaId:   fichaNuevaId ?? undefined,
+      fechaEval30:    toDateStr(eval30),
+      fechaEval90:    toDateStr(eval90),
+      actualizadoEn:  ahora,
     })
     .where(eq(accionesGestion.id, id))
     .returning()

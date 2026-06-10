@@ -80,6 +80,8 @@ export default function AccionDetallePage() {
   const [actionError, setActionError] = useState('')
   const [pendingEval, setPendingEval]   = useState<30 | 90 | null>(null)
   const [pendingReset, setPendingReset] = useState<30 | 90 | null>(null)
+  const [fichasDisponibles, setFichasDisponibles] = useState<any[]>([])
+  const [selectedFichaId, setSelectedFichaId] = useState<string>('')
 
   const userRol = (session?.user as any)?.rol ?? ''
   const isGerencia = userRol === 'GERENCIA' || userRol === 'DEMO'
@@ -94,6 +96,20 @@ export default function AccionDetallePage() {
   }, [id])
 
   useEffect(() => { fetchAccion() }, [fetchAccion])
+
+  useEffect(() => {
+    if (!accion || accion.tipo !== 'CAMBIO_PROVEEDOR') return
+    if (!['APROBADO', 'EN_EJECUCION'].includes(accion.estado)) return
+    if (!accion.tiendaId) return
+    fetch(`/api/fichas?tiendaId=${accion.tiendaId}&estado=BORRADOR`)
+      .then(r => r.json())
+      .then(rows => {
+        const list = Array.isArray(rows) ? rows : []
+        setFichasDisponibles(list)
+        if (list.length === 1) setSelectedFichaId(list[0].id)
+      })
+      .catch(() => {})
+  }, [accion?.tipo, accion?.tiendaId, accion?.estado])
 
   async function doAction(endpoint: string, body: any = {}) {
     setActBusy(true); setActionError('')
@@ -197,17 +213,70 @@ export default function AccionDetallePage() {
         {accion.estado === 'APROBADO' && isInfra && (
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px' }}>
             <div style={{ fontSize: '11px', fontWeight: 600, marginBottom: '8px' }}>Listo para ejecutar</div>
+
+            {accion.tipo === 'CAMBIO_PROVEEDOR' && (
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>
+                  Ficha de servicio nueva
+                  <span style={{ fontSize: '9px', fontWeight: 400, textTransform: 'none', marginLeft: '4px' }}>(se activará automáticamente al ejecutar)</span>
+                </label>
+                {fichasDisponibles.length === 0 ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: '7px', fontSize: '11px', color: '#C2410C' }}>
+                    <span>⚠</span>
+                    <span>No hay fichas en borrador para esta tienda.</span>
+                    <button
+                      onClick={() => router.push(`/gestion-cambios/fichas/nueva?tiendaId=${accion.tiendaId}&proveedorId=${accion.proveedorNuevoId ?? ''}`)}
+                      style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 600, padding: '3px 8px', borderRadius: '5px', background: '#7C3AED', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                      + Nueva ficha
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {fichasDisponibles.map(f => (
+                      <label key={f.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '8px 10px', border: `1px solid ${selectedFichaId === f.id ? '#7C3AED' : 'var(--border)'}`, borderRadius: '7px', cursor: 'pointer', background: selectedFichaId === f.id ? '#F5F3FF' : 'var(--background)' }}>
+                        <input type="radio" name="fichaSeleccionada" value={f.id} checked={selectedFichaId === f.id} onChange={() => setSelectedFichaId(f.id)}
+                          style={{ marginTop: '1px', accentColor: '#7C3AED' }} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 700, color: '#7C3AED' }}>{f.codigo}</span>
+                            {f.tipoConexion && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{f.tipoConexion}</span>}
+                            {f.velocidad && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>· {f.velocidad}</span>}
+                          </div>
+                          {f.descripcionServicio && (
+                            <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{f.descripcionServicio}</div>
+                          )}
+                        </div>
+                      </label>
+                    ))}
+                    <button
+                      onClick={() => router.push(`/gestion-cambios/fichas/nueva?tiendaId=${accion.tiendaId}&proveedorId=${accion.proveedorNuevoId ?? ''}`)}
+                      style={{ fontSize: '10px', fontWeight: 600, padding: '4px 8px', borderRadius: '5px', background: 'var(--muted)', color: 'var(--muted-foreground)', border: '0.5px solid var(--border)', cursor: 'pointer', alignSelf: 'flex-start' }}>
+                      + Nueva ficha
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={{ marginBottom: '10px' }}>
               <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Notas de ejecución (opcional)</label>
-              <textarea value={notasEjec} onChange={e => setNotasEjec(e.target.value)} rows={2} placeholder="Coordinations con proveedor, hora exacta, incidencias…"
+              <textarea value={notasEjec} onChange={e => setNotasEjec(e.target.value)} rows={2} placeholder="Coordinaciones con proveedor, hora exacta, incidencias…"
                 style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
             </div>
-            <button onClick={() => doAction('ejecutar', { notasEjecucion: notasEjec })} disabled={actBusy} style={btnStyle(true, '#7E22CE')}>
+            <button
+              onClick={() => doAction('ejecutar', { notasEjecucion: notasEjec, fichaNuevaId: selectedFichaId || null })}
+              disabled={actBusy || (accion.tipo === 'CAMBIO_PROVEEDOR' && fichasDisponibles.length > 0 && !selectedFichaId)}
+              style={btnStyle(!(accion.tipo === 'CAMBIO_PROVEEDOR' && fichasDisponibles.length > 0 && !selectedFichaId), '#7E22CE')}>
               Marcar como ejecutado
             </button>
-            {accion.tipo === 'CAMBIO_PROVEEDOR' && (
+            {accion.tipo === 'CAMBIO_PROVEEDOR' && selectedFichaId && (
               <div style={{ fontSize: '10px', color: '#7E22CE', marginTop: '6px' }}>
-                Esto actualizará automáticamente el proveedor de la tienda en el sistema.
+                Actualizará el proveedor de la tienda y activará la ficha seleccionada.
+              </div>
+            )}
+            {accion.tipo === 'CAMBIO_PROVEEDOR' && !selectedFichaId && fichasDisponibles.length === 0 && (
+              <div style={{ fontSize: '10px', color: '#C2410C', marginTop: '6px' }}>
+                Puedes ejecutar sin ficha — el proveedor se actualizará igualmente.
               </div>
             )}
           </div>
