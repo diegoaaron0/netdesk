@@ -541,67 +541,13 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               <Field label="Admin. celular" value={form.administradorCelular ?? ''} editing={editing} onChange={v => setF('administradorCelular', v)} />
               <Field label="Email"          value={form.administradorEmail   ?? ''} editing={editing} onChange={v => setF('administradorEmail', v)} />
             </div>
-          </div>
 
-          {/* Card B: Conectividad */}
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
-            <SectionTitle>Conectividad</SectionTitle>
-
-            <div style={{ marginBottom: '8px' }}>
-              <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Proveedor</div>
-              {editing ? (
-                <div style={{ padding: '6px 9px', background: 'var(--muted)', borderRadius: '6px', border: '0.5px solid var(--border)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  {tienda.proveedorNombre
-                    ? <span style={{ fontSize: '11px', fontWeight: 600, padding: '1px 7px', borderRadius: '4px', background: prov.bg, color: prov.color }}>{tienda.proveedorNombre}</span>
-                    : <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Sin proveedor</span>
-                  }
-                  <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', lineHeight: 1.3 }}>
-                    Para cambiar el proveedor usa <strong>Gestión de Cambios</strong>.
-                  </span>
-                </div>
-              ) : tienda.proveedorNombre ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: prov.bg, color: prov.color }}>{tienda.proveedorNombre}</span>
-                  {tienda.proveedorTelefono && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{tienda.proveedorTelefono}</span>}
-                </div>
-              ) : (
-                <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>—</div>
-              )}
-            </div>
-
-            {/* Ficha activa */}
-            {tienda.fichaActiva && (
-              <div style={{ marginBottom: '10px', padding: '8px 12px', background: '#f0fdf4', border: '0.5px solid #86efac', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ fontSize: '9px', fontWeight: 600, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>Ficha de servicio activa</div>
-                  <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '12px', color: '#166534' }}>{tienda.fichaActiva.codigo}</span>
-                  {tienda.fichaActiva.totalNiveles > 0 && (
-                    <span style={{ marginLeft: '8px', fontSize: '10px', color: '#166534' }}>{tienda.fichaActiva.totalNiveles} nivel{tienda.fichaActiva.totalNiveles !== 1 ? 'es' : ''} de escalamiento</span>
-                  )}
-                </div>
-                <button onClick={() => router.push(`/gestion-cambios/fichas/${tienda.fichaActiva.id}`)}
-                  style={{ padding: '4px 12px', fontSize: '11px', fontWeight: 600, border: '0.5px solid #86efac', borderRadius: '6px', background: 'white', color: '#166534', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                  Ver ficha
-                </button>
-              </div>
-            )}
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
-              <Field label="Tipo conexión"     value={form.tipoConexion  ?? ''} editing={editing} onChange={v => setF('tipoConexion', v)} />
-              <Field label="CID / Servicio"    value={form.cidServicio   ?? ''} editing={editing} onChange={v => setF('cidServicio', v)} />
-              <Field label="Tipo servicio"     value={form.tipoServicio  ?? ''} editing={editing} onChange={v => setF('tipoServicio', v)} />
-              <Field label="Velocidad"         value={form.velocidad     ?? ''} editing={editing} onChange={v => setF('velocidad', v)} />
-              <Field label="Costo mensual (S/.)" value={form.costoMensual ?? ''} editing={editing} onChange={v => setF('costoMensual', v)} />
-            </div>
-            <Field label="Descripción servicio" value={form.descripcionServicio ?? ''} editing={editing} onChange={v => setF('descripcionServicio', v)} type="textarea" />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
-              <Field label="Vigencia contrato" value={form.vigenciaContrato ?? ''} editing={editing} onChange={v => setF('vigenciaContrato', v)} />
-              {/* Gabinete */}
+            <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '8px', marginTop: '4px' }}>
               <div style={{ marginBottom: '8px' }}>
                 <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Gabinete</div>
                 {editing ? (
                   <div style={{ display: 'flex', gap: '5px' }}>
-                    {[{ v: true, l: 'Sí' }, { v: false, l: 'No' }].map(({ v, l }) => (
+                    {([{ v: true, l: 'Sí' }, { v: false, l: 'No' }] as const).map(({ v, l }) => (
                       <button key={l} type="button" onClick={() => setF('gabinete', v)}
                         style={{ padding: '3px 8px', fontSize: '11px', borderRadius: '5px', cursor: 'pointer', border: form.gabinete === v ? '1.5px solid hsl(221,83%,23%)' : '0.5px solid var(--border)', background: form.gabinete === v ? 'hsl(221,83%,23%)' : 'var(--muted)', color: form.gabinete === v ? 'white' : 'var(--foreground)', outline: 'none' }}>
                         {l}
@@ -612,31 +558,90 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                   <div style={{ fontSize: '11px', color: 'var(--foreground)' }}>{form.gabinete ? 'Sí' : 'No'}</div>
                 )}
               </div>
+              <Field label="Observación" value={form.observacion ?? ''} editing={editing} onChange={v => setF('observacion', v)} type="textarea" />
             </div>
-            <Field label="Observación" value={form.observacion ?? ''} editing={editing} onChange={v => setF('observacion', v)} type="textarea" />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
-              <Field label="Plan aplicado"       value={form.planAplicado      ?? ''} editing={editing} onChange={v => setF('planAplicado', v)} />
-              <Field label="Fecha alta servicio" value={form.fechaAltaServicio ?? ''} editing={editing} onChange={v => setF('fechaAltaServicio', v)} type="date" />
-              {/* Estado servicio */}
-              <div style={{ marginBottom: '8px' }}>
-                <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Estado servicio</div>
-                {editing ? (
-                  <select value={form.estadoServicio ?? 'ACTIVO'} onChange={e => setF('estadoServicio', e.target.value)}
-                    style={{ width: '100%', padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
-                    <option value="ACTIVO">Activo</option>
-                    <option value="INACTIVO">Inactivo</option>
-                    <option value="SUSPENDIDO">Suspendido</option>
-                    <option value="BAJA">Baja</option>
-                  </select>
-                ) : (
-                  <div style={{ fontSize: '11px', color: form.estadoServicio && form.estadoServicio !== 'ACTIVO' ? '#b91c1c' : 'var(--foreground)' }}>
-                    {form.estadoServicio || 'ACTIVO'}
-                  </div>
-                )}
+          </div>
+
+          {/* Card B: Conectividad — solo lectura, gestionada vía Fichas */}
+          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', paddingBottom: '5px', borderBottom: '0.5px solid var(--border)' }}>
+              <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Conectividad</div>
+              <span style={{ fontSize: '9px', fontWeight: 600, color: '#7c3aed', background: '#ede9fe', padding: '1px 8px', borderRadius: '4px', letterSpacing: '0.04em' }}>Vía Fichas</span>
+            </div>
+
+            {/* Proveedor */}
+            <div style={{ marginBottom: '8px' }}>
+              <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Proveedor</div>
+              {tienda.proveedorNombre ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: prov.bg, color: prov.color }}>{tienda.proveedorNombre}</span>
+                  {tienda.proveedorTelefono && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{tienda.proveedorTelefono}</span>}
+                  <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>· Para cambiar, usa <strong>Gestión de Cambios</strong></span>
+                </div>
+              ) : (
+                <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>—</div>
+              )}
+            </div>
+
+            {/* Ficha activa / sin ficha */}
+            {tienda.fichaActiva ? (
+              <div style={{ marginBottom: '10px', padding: '7px 12px', background: '#f0fdf4', border: '0.5px solid #86efac', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                <div>
+                  <div style={{ fontSize: '9px', fontWeight: 600, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>Ficha de servicio activa</div>
+                  <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '12px', color: '#166534' }}>{tienda.fichaActiva.codigo}</span>
+                  {tienda.fichaActiva.totalNiveles > 0 && (
+                    <span style={{ marginLeft: '8px', fontSize: '10px', color: '#166534' }}>{tienda.fichaActiva.totalNiveles} nivel{tienda.fichaActiva.totalNiveles !== 1 ? 'es' : ''} escalamiento</span>
+                  )}
+                </div>
+                <button onClick={() => router.push(`/gestion-cambios/fichas/${tienda.fichaActiva.id}`)}
+                  style={{ padding: '4px 12px', fontSize: '11px', fontWeight: 600, border: '0.5px solid #86efac', borderRadius: '6px', background: 'white', color: '#166534', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  Ver ficha
+                </button>
               </div>
+            ) : (
+              <div style={{ marginBottom: '10px', padding: '7px 12px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Sin ficha activa</span>
+                <button onClick={() => router.push('/gestion-cambios/fichas/nueva')}
+                  style={{ padding: '3px 10px', fontSize: '11px', fontWeight: 600, border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'hsl(221,83%,23%)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  Crear ficha
+                </button>
+              </div>
+            )}
+
+            {/* Red */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
+              <Field label="Tipo conexión"  value={tienda.tipoConexion ?? ''} editing={false} onChange={() => {}} />
+              <Field label="CID / Servicio" value={tienda.cidServicio  ?? ''} editing={false} onChange={() => {}} />
+              <Field label="Tipo servicio"  value={tienda.tipoServicio ?? ''} editing={false} onChange={() => {}} />
+              <Field label="Velocidad"      value={tienda.velocidad    ?? ''} editing={false} onChange={() => {}} />
             </div>
-            <Field label="Contacto soporte" value={form.contactoSoporte ?? ''} editing={editing} onChange={v => setF('contactoSoporte', v)} />
-            <Field label="Coordenadas"      value={form.coordenadas     ?? ''} editing={editing} onChange={v => setF('coordenadas', v)} />
+
+            {/* Servicio */}
+            <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '8px', marginTop: '2px' }}>
+              <Field label="Costo mensual (S/.)"   value={tienda.costoMensual        != null ? String(tienda.costoMensual) : ''} editing={false} onChange={() => {}} />
+              <Field label="Descripción servicio"  value={tienda.descripcionServicio ?? ''} editing={false} onChange={() => {}} type="textarea" />
+            </div>
+
+            {/* Contrato */}
+            <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '8px', marginTop: '2px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
+              <Field label="Vigencia contrato"   value={tienda.vigenciaContrato  ?? ''} editing={false} onChange={() => {}} />
+              <div style={{ marginBottom: '8px' }}>
+                <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>Estado servicio</div>
+                <div style={{ fontSize: '11px', color: tienda.estadoServicio && tienda.estadoServicio !== 'ACTIVO' ? '#b91c1c' : 'var(--foreground)' }}>
+                  {tienda.estadoServicio || 'Activo'}
+                </div>
+              </div>
+              <Field label="Plan aplicado"       value={tienda.planAplicado      ?? ''} editing={false} onChange={() => {}} />
+              <Field label="Fecha alta servicio" value={tienda.fechaAltaServicio ?? ''} editing={false} onChange={() => {}} />
+            </div>
+
+            {/* Soporte */}
+            <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '8px', marginTop: '2px' }}>
+              <Field label="Contacto soporte" value={tienda.contactoSoporte ?? ''} editing={false} onChange={() => {}} />
+              <Field label="Coordenadas"      value={tienda.coordenadas     ?? ''} editing={false} onChange={() => {}} />
+            </div>
           </div>
 
           {/* Card C: Supervisor */}
