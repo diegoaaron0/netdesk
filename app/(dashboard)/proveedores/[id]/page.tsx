@@ -2,8 +2,6 @@
 import { useEffect, useState, use, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { fmtSLA } from '@/lib/sla-display'
-
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function fmtSoles(v: string | number | null | undefined) {
   if (v == null || v === '' || Number(v) === 0) return '—'
@@ -21,44 +19,11 @@ function fmtDate(d: string | null | undefined) {
   return new Date(d).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-function calcEstado(fechaFin: string | null | undefined): 'VIGENTE' | 'POR_VENCER' | 'VENCIDO' {
-  if (!fechaFin) return 'VIGENTE'
-  const fin = new Date(fechaFin), hoy = new Date()
-  const en7 = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-  if (fin < hoy) return 'VENCIDO'
-  if (fin <= en7) return 'POR_VENCER'
-  return 'VIGENTE'
-}
-
-function diasRestantes(fechaFin: string | null | undefined): number | null {
-  if (!fechaFin) return null
-  return Math.ceil((new Date(fechaFin).getTime() - Date.now()) / 86400000)
-}
-
 function slaColor(v: number | null) {
   if (v == null) return '#9ca3af'
   if (v >= 80) return '#16a34a'
   if (v >= 60) return '#d97706'
   return '#dc2626'
-}
-
-function estadoBadge(est: string) {
-  const m: Record<string, { bg: string; color: string }> = {
-    VIGENTE:    { bg: '#d1fae5', color: '#065f46' },
-    POR_VENCER: { bg: '#fef3c7', color: '#92400e' },
-    VENCIDO:    { bg: '#fee2e2', color: '#b91c1c' },
-  }
-  return m[est] ?? { bg: '#f3f4f6', color: '#6b7280' }
-}
-
-function canalBadge(c: string | null) {
-  const m: Record<string, { bg: string; color: string }> = {
-    correo:   { bg: '#dbeafe', color: '#1e40af' },
-    llamada:  { bg: '#d1fae5', color: '#065f46' },
-    whatsapp: { bg: '#dcfce7', color: '#15803d' },
-    portal:   { bg: '#ede9fe', color: '#7c3aed' },
-  }
-  return m[c ?? ''] ?? { bg: '#f3f4f6', color: '#6b7280' }
 }
 
 const INP: React.CSSProperties = {
@@ -109,25 +74,6 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
   const [editForm, setEditForm]     = useState<any>({})
   const [savingP, setSavingP]       = useState(false)
 
-  // Edit nivel modal
-  const [editNivel, setEditNivel]   = useState<any>(null)
-  const [nivelForm, setNivelForm]   = useState<any>({})
-  const [savingN, setSavingN]       = useState(false)
-  const [addNivel, setAddNivel]     = useState(false)
-
-  // Edit contrato modal
-  const [editContrato, setEditContrato]           = useState<any>(null)
-  const [contratoForm, setContratoForm]           = useState<any>({})
-  const [savingC, setSavingC]                     = useState(false)
-  const [addContrato, setAddContrato]             = useState(false)
-  const [contratoAplicacion, setContratoAplicacion] = useState<'marco' | 'especifica'>('marco')
-  const [tiendaBusqModal, setTiendaBusqModal]     = useState('')
-
-  // Contrato por tienda (panel lateral)
-  const [contratoTiendaId, setContratoTiendaId]     = useState<string | null>(null)
-  const [contratoTiendaForm, setContratoTiendaForm] = useState<any>({})
-  const [savingContratoT, setSavingContratoT]       = useState(false)
-
   // Tiendas
   const [tiendas, setTiendas]     = useState<any[]>([])
   const [loadingT, setLoadingT]   = useState(false)
@@ -162,68 +108,11 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
     loadData()
   }
 
-  // ── Save nivel ──────────────────────────────────────────────────────────────
-  async function saveNivel(isNew: boolean) {
-    setSavingN(true)
-    const url    = isNew ? `/api/proveedores/${id}/niveles` : `/api/niveles/${editNivel?.id}`
-    const method = isNew ? 'POST' : 'PUT'
-    await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(nivelForm) })
-    setSavingN(false)
-    setEditNivel(null)
-    setAddNivel(false)
-    loadData()
-  }
-
-  async function deleteNivel(nid: string) {
-    if (!confirm('¿Eliminar este nivel?')) return
-    await fetch(`/api/niveles/${nid}`, { method: 'DELETE' })
-    loadData()
-  }
-
-  // ── Save contrato ───────────────────────────────────────────────────────────
-  async function saveContrato(isNew: boolean) {
-    setSavingC(true)
-    const url    = isNew ? `/api/proveedores/${id}/contratos` : `/api/contratos/${editContrato?.id}`
-    const method = isNew ? 'POST' : 'PUT'
-    await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...contratoForm, tiendaId: null }) })
-    setSavingC(false)
-    setEditContrato(null)
-    setAddContrato(false)
-    loadData()
-  }
-
-  async function saveContratoTienda() {
-    if (!contratoTiendaId) return
-    setSavingContratoT(true)
-    const tienda = tiendas.find((t: any) => t.id === contratoTiendaId)
-    const existing = tienda?.contratoEspecifico
-    if (existing?.id) {
-      await fetch(`/api/contratos/${existing.id}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(contratoTiendaForm),
-      })
-    } else {
-      await fetch(`/api/proveedores/${id}/contratos`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...contratoTiendaForm, tiendaId: contratoTiendaId }),
-      })
-    }
-    setSavingContratoT(false)
-    setContratoTiendaId(null)
-    await Promise.all([loadData(), loadTiendas()])
-  }
-
-  async function deleteContrato(cid: string) {
-    if (!confirm('¿Eliminar este contrato?')) return
-    await fetch(`/api/contratos/${cid}`, { method: 'DELETE' })
-    loadData()
-  }
-
   if (!data) {
     return <div style={{ display: 'flex', justifyContent: 'center', padding: '48px', color: 'var(--muted-foreground)', fontSize: '13px' }}>Cargando...</div>
   }
 
-  const { metricas, niveles = [], contratos = [] } = data
+  const { metricas, niveles = [] } = data
   const tiendasFiltradas = tiendas.filter(t => {
     if (!buscarT) return true
     const q = buscarT.toLowerCase()
@@ -485,254 +374,6 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
           <ModalFooter onCancel={() => setEditProv(false)} onSave={saveProv} saving={savingP} />
         </ModalWrap>
       )}
-
-      {/* ── Modal: Nivel (agregar / editar) ──────────────────────────────────── */}
-      {(editNivel || addNivel) && (
-        <ModalWrap title={addNivel ? 'Agregar nivel' : `Editar Nivel ${editNivel?.nivel}`} onClose={() => { setEditNivel(null); setAddNivel(false) }}>
-          <FormGrid>
-            <FormField label="Nivel *">
-              <input type="number" min={1} max={4} value={nivelForm.nivel ?? ''} onChange={e => setNivelForm((f: any) => ({ ...f, nivel: Number(e.target.value) }))} style={INP} />
-            </FormField>
-            <FormField label="Nombre / Área *">
-              <input value={nivelForm.nombreContacto ?? ''} onChange={e => setNivelForm((f: any) => ({ ...f, nombreContacto: e.target.value }))} style={INP} />
-            </FormField>
-            <FormField label="Correo">
-              <input value={nivelForm.email ?? ''} onChange={e => setNivelForm((f: any) => ({ ...f, email: e.target.value }))} style={INP} />
-            </FormField>
-            <FormField label="Celular">
-              <input value={nivelForm.celular ?? ''} onChange={e => setNivelForm((f: any) => ({ ...f, celular: e.target.value }))} style={INP} />
-            </FormField>
-            <FormField label="WhatsApp">
-              <input value={nivelForm.whatsapp ?? ''} onChange={e => setNivelForm((f: any) => ({ ...f, whatsapp: e.target.value }))} style={INP} />
-            </FormField>
-            <FormField label="Canal">
-              <select value={nivelForm.canal ?? 'correo'} onChange={e => setNivelForm((f: any) => ({ ...f, canal: e.target.value }))} style={INP}>
-                {['correo', 'llamada', 'whatsapp', 'portal'].map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </FormField>
-            <FormField label="Horario atención">
-              <input value={nivelForm.horarioAtencion ?? ''} onChange={e => setNivelForm((f: any) => ({ ...f, horarioAtencion: e.target.value }))} style={INP} />
-            </FormField>
-            <FormField label="T. respuesta Sev1">
-              <input value={nivelForm.tiempoRespSev1 ?? ''} onChange={e => setNivelForm((f: any) => ({ ...f, tiempoRespSev1: e.target.value }))} style={INP} placeholder="ej: 1h" />
-            </FormField>
-            <FormField label="T. respuesta Sev2">
-              <input value={nivelForm.tiempoRespSev2 ?? ''} onChange={e => setNivelForm((f: any) => ({ ...f, tiempoRespSev2: e.target.value }))} style={INP} placeholder="ej: 2h" />
-            </FormField>
-            <FormField label="T. respuesta Sev3">
-              <input value={nivelForm.tiempoRespSev3 ?? ''} onChange={e => setNivelForm((f: any) => ({ ...f, tiempoRespSev3: e.target.value }))} style={INP} placeholder="ej: 4h" />
-            </FormField>
-            <FormField label="T. solución (h)">
-              <input type="number" value={nivelForm.tiempoEsperadoSolucion ?? ''} onChange={e => setNivelForm((f: any) => ({ ...f, tiempoEsperadoSolucion: Number(e.target.value) || null }))} style={INP} />
-            </FormField>
-            <FormField label="Correos en copia (separados por coma)" span>
-              <input value={(nivelForm.correosCopia ?? []).join(', ')}
-                onChange={e => setNivelForm((f: any) => ({ ...f, correosCopia: e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean) }))}
-                style={INP} placeholder="email1@..., email2@..." />
-            </FormField>
-            <FormField label="Instrucción" span>
-              <textarea value={nivelForm.instruccion ?? ''} onChange={e => setNivelForm((f: any) => ({ ...f, instruccion: e.target.value }))} style={{ ...INP, minHeight: '72px', resize: 'vertical' }} />
-            </FormField>
-            <FormField label="Estado">
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', paddingTop: '4px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={!!nivelForm.activo} onChange={e => setNivelForm((f: any) => ({ ...f, activo: e.target.checked }))} />
-                  Activo
-                </label>
-              </div>
-            </FormField>
-          </FormGrid>
-          <ModalFooter onCancel={() => { setEditNivel(null); setAddNivel(false) }} onSave={() => saveNivel(addNivel)} saving={savingN} />
-        </ModalWrap>
-      )}
-
-      {/* ── Modal: Contrato (agregar / editar) ───────────────────────────────── */}
-      {(editContrato || addContrato) && (
-        <ModalWrap title={addContrato ? 'Agregar contrato' : 'Editar contrato'} onClose={() => { setEditContrato(null); setAddContrato(false) }}>
-
-          {/* Sección 1 — Datos comerciales */}
-          <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px', paddingBottom: '6px', borderBottom: '0.5px solid var(--border)' }}>
-            Datos comerciales
-          </div>
-          <FormGrid>
-            <FormField label="Código contrato">
-              <input value={contratoForm.codigoContrato ?? ''} onChange={e => setContratoForm((f: any) => ({ ...f, codigoContrato: e.target.value }))} style={INP} />
-            </FormField>
-            <FormField label="Plan">
-              <input value={contratoForm.plan ?? ''} onChange={e => setContratoForm((f: any) => ({ ...f, plan: e.target.value }))} style={INP} />
-            </FormField>
-            <FormField label="Tipo de servicio">
-              <input value={contratoForm.tipoServicio ?? ''} onChange={e => setContratoForm((f: any) => ({ ...f, tipoServicio: e.target.value }))} style={INP} />
-            </FormField>
-            <FormField label="Velocidad / Capacidad">
-              <input value={contratoForm.velocidadCapacidad ?? ''} onChange={e => setContratoForm((f: any) => ({ ...f, velocidadCapacidad: e.target.value }))} style={INP} />
-            </FormField>
-            <FormField label="Costo mensual (S/.)">
-              <input type="number" value={contratoForm.costoMensual ?? ''} onChange={e => setContratoForm((f: any) => ({ ...f, costoMensual: e.target.value || null }))} style={INP} />
-            </FormField>
-            <FormField label="Fecha inicio">
-              <input type="date" value={contratoForm.fechaInicio ?? ''} onChange={e => setContratoForm((f: any) => ({ ...f, fechaInicio: e.target.value || null }))} style={INP} />
-            </FormField>
-            <FormField label="Fecha fin">
-              <input type="date" value={contratoForm.fechaFin ?? ''} onChange={e => setContratoForm((f: any) => ({ ...f, fechaFin: e.target.value || null }))} style={INP} />
-            </FormField>
-            <FormField label="Renovación automática">
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer', paddingTop: '4px' }}>
-                <input type="checkbox" checked={!!contratoForm.renovacionAutomatica} onChange={e => setContratoForm((f: any) => ({ ...f, renovacionAutomatica: e.target.checked }))} />
-                Sí
-              </label>
-            </FormField>
-            <FormField label="Penalidad" span>
-              <textarea value={contratoForm.penalidad ?? ''} onChange={e => setContratoForm((f: any) => ({ ...f, penalidad: e.target.value }))} style={{ ...INP, minHeight: '52px', resize: 'vertical' }} />
-            </FormField>
-            <FormField label="URL documento" span>
-              <input value={contratoForm.documentoUrl ?? ''} onChange={e => setContratoForm((f: any) => ({ ...f, documentoUrl: e.target.value }))} style={INP} placeholder="https://..." />
-            </FormField>
-          </FormGrid>
-
-          {/* Sección 2 — Compromisos SLA */}
-          <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '10px', padding: '14px 16px', marginTop: '16px', marginBottom: '16px' }}>
-            <div style={{ fontSize: '11px', fontWeight: 700, color: '#1E40AF', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px' }}>
-              Compromisos SLA del contrato
-            </div>
-            <FormGrid>
-              <FormField label="Tiempo máximo de respuesta N1 (minutos)">
-                <input type="number" min={1} value={contratoForm.tiempoRespuestaSla ?? ''} onChange={e => setContratoForm((f: any) => ({ ...f, tiempoRespuestaSla: Number(e.target.value) || null }))} style={{ ...INP, background: 'white' }} placeholder="60" />
-                <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '4px', lineHeight: 1.4 }}>El proveedor debe responder en este tiempo desde que se le escala</div>
-              </FormField>
-              <FormField label="Tiempo máximo de resolución (minutos)">
-                <input type="number" min={1} value={contratoForm.tiempoResolucionSla ?? ''} onChange={e => setContratoForm((f: any) => ({ ...f, tiempoResolucionSla: Number(e.target.value) || null }))} style={{ ...INP, background: 'white' }} placeholder="60" />
-                <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '4px', lineHeight: 1.4 }}>Tiempo base — se multiplica x2 para intermitencia y x4 para lentitud</div>
-              </FormField>
-            </FormGrid>
-          </div>
-
-          <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', padding: '8px 10px', background: 'var(--muted)', borderRadius: '7px', marginBottom: '4px' }}>
-            Este contrato aplica a todas las tiendas del proveedor. Para asignar condiciones distintas a una tienda, usa el botón <strong>Contrato</strong> en la pestaña Tiendas asignadas.
-          </div>
-
-          <ModalFooter onCancel={() => { setEditContrato(null); setAddContrato(false) }} onSave={() => saveContrato(addContrato)} saving={savingC} />
-        </ModalWrap>
-      )}
-
-      {/* ── Side panel contrato de tienda ── */}
-      {contratoTiendaId && (
-        <div onClick={() => setContratoTiendaId(null)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.22)' }} />
-      )}
-      {(() => {
-        const tiendaSelec = tiendas.find((t: any) => t.id === contratoTiendaId)
-        const cEsp = tiendaSelec?.contratoEspecifico ?? null
-        const marcoContrato = contratos.find((c: any) => !c.tiendaId && c.estadoCalc === 'VIGENTE')
-        const slaRespActual  = cEsp?.tiempo_respuesta_sla  ?? marcoContrato?.tiempoRespuestaSla  ?? 60
-        const slaResolActual = cEsp?.tiempo_resolucion_sla ?? marcoContrato?.tiempoResolucionSla ?? 90
-        return (
-          <div style={{
-            position: 'fixed', top: 0, right: 0, bottom: 0, width: 420, maxWidth: '95vw',
-            background: 'var(--card)', borderLeft: '1px solid var(--border)',
-            boxShadow: '-4px 0 28px rgba(0,0,0,0.13)', zIndex: 201,
-            display: 'flex', flexDirection: 'column',
-            transform: contratoTiendaId ? 'translateX(0)' : 'translateX(100%)',
-            transition: 'transform 0.26s cubic-bezier(0.4,0,0.2,1)',
-            overflow: 'hidden',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderBottom: '0.5px solid var(--border)', background: 'var(--muted)', flexShrink: 0 }}>
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: 600 }}>Contrato — <span style={{ fontFamily: 'monospace' }}>{tiendaSelec?.codigo}</span></div>
-                <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{tiendaSelec?.nombreCc}</div>
-              </div>
-              <button onClick={() => setContratoTiendaId(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--muted-foreground)' }}>✕</button>
-            </div>
-            <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px' }}>
-              {/* SLA vigente */}
-              <SectionTitle>SLA aplicado actualmente</SectionTitle>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
-                {[['Respuesta', `${slaRespActual} min`], ['Resolución', `${slaResolActual} min`]].map(([l, v]) => (
-                  <div key={l} style={{ background: 'var(--muted)', borderRadius: '8px', padding: '10px 12px' }}>
-                    <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>{l}</div>
-                    <div style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'monospace' }}>{v}</div>
-                  </div>
-                ))}
-              </div>
-              {!cEsp && (
-                <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '14px', padding: '7px 10px', background: 'var(--muted)', borderRadius: '6px' }}>
-                  {marcoContrato ? 'Usando contrato marco del proveedor.' : 'Sin contrato marco — usando valores por defecto (60 min resp / 90 min resol).'}
-                </div>
-              )}
-
-              {canEdit && (
-                <>
-                  <SectionTitle>{cEsp ? 'Editar contrato específico' : 'Agregar contrato específico para esta tienda'}</SectionTitle>
-                  {/* Tiempos SLA */}
-                  <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '8px', padding: '12px', marginBottom: '10px' }}>
-                    <div style={{ fontSize: '10px', fontWeight: 700, color: '#1E40AF', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>
-                      Tiempos SLA — reemplazan al contrato marco
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
-                      <FormField label="Respuesta máx (min)">
-                        <input type="number" min={1} value={contratoTiendaForm.tiempoRespuestaSla ?? ''} onChange={e => setContratoTiendaForm((f: any) => ({ ...f, tiempoRespuestaSla: Number(e.target.value) || null }))} style={{ ...INP, background: 'white' }} placeholder="60" />
-                      </FormField>
-                      <FormField label="Resolución máx (min)">
-                        <input type="number" min={1} value={contratoTiendaForm.tiempoResolucionSla ?? ''} onChange={e => setContratoTiendaForm((f: any) => ({ ...f, tiempoResolucionSla: Number(e.target.value) || null }))} style={{ ...INP, background: 'white' }} placeholder="90" />
-                      </FormField>
-                    </div>
-                  </div>
-                  {/* Datos comerciales */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
-                    <FormField label="Código contrato">
-                      <input value={contratoTiendaForm.codigoContrato ?? ''} onChange={e => setContratoTiendaForm((f: any) => ({ ...f, codigoContrato: e.target.value }))} style={INP} />
-                    </FormField>
-                    <FormField label="Velocidad / Capacidad">
-                      <input value={contratoTiendaForm.velocidadCapacidad ?? ''} onChange={e => setContratoTiendaForm((f: any) => ({ ...f, velocidadCapacidad: e.target.value }))} style={INP} />
-                    </FormField>
-                    <FormField label="Costo mensual (S/.)">
-                      <input type="number" value={contratoTiendaForm.costoMensual ?? ''} onChange={e => setContratoTiendaForm((f: any) => ({ ...f, costoMensual: e.target.value || null }))} style={INP} />
-                    </FormField>
-                    <FormField label="Estado">
-                      <select value={contratoTiendaForm.estado ?? 'VIGENTE'} onChange={e => setContratoTiendaForm((f: any) => ({ ...f, estado: e.target.value }))} style={INP}>
-                        {['VIGENTE', 'VENCIDO', 'CANCELADO'].map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                    </FormField>
-                    <FormField label="Fecha inicio">
-                      <input type="date" value={contratoTiendaForm.fechaInicio ?? ''} onChange={e => setContratoTiendaForm((f: any) => ({ ...f, fechaInicio: e.target.value || null }))} style={INP} />
-                    </FormField>
-                    <FormField label="Fecha fin">
-                      <input type="date" value={contratoTiendaForm.fechaFin ?? ''} onChange={e => setContratoTiendaForm((f: any) => ({ ...f, fechaFin: e.target.value || null }))} style={INP} />
-                    </FormField>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                    {cEsp && (
-                      <button onClick={async () => {
-                        if (!confirm('¿Eliminar el contrato específico de esta tienda?')) return
-                        await fetch(`/api/contratos/${cEsp.id}`, { method: 'DELETE' })
-                        setContratoTiendaId(null)
-                        await Promise.all([loadData(), loadTiendas()])
-                      }} style={{ flex: 1, padding: '8px', border: '0.5px solid #fca5a5', borderRadius: '8px', background: 'var(--card)', color: '#dc2626', fontSize: '12px', cursor: 'pointer' }}>
-                        Eliminar
-                      </button>
-                    )}
-                    <button onClick={saveContratoTienda} disabled={savingContratoT}
-                      style={{ flex: 2, padding: '8px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', opacity: savingContratoT ? 0.7 : 1 }}>
-                      {savingContratoT ? 'Guardando...' : cEsp ? 'Guardar cambios' : 'Crear contrato'}
-                    </button>
-                  </div>
-                </>
-              )}
-
-              {!canEdit && cEsp && (
-                <>
-                  <SectionTitle>Detalles del contrato</SectionTitle>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
-                    <div><Label>Código</Label><Val v={cEsp.codigo_contrato} /></div>
-                    <div><Label>Velocidad</Label><Val v={cEsp.velocidad_capacidad} /></div>
-                    <div><Label>Costo mensual</Label><Val v={cEsp.costo_mensual ? fmtSoles(cEsp.costo_mensual) : null} /></div>
-                    <div><Label>Fecha fin</Label><Val v={fmtDate(cEsp.fecha_fin)} /></div>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        )
-      })()}
 
       {/* ── Side panel genérico de métricas ── */}
       {panelMetrica && (
