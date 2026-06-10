@@ -184,6 +184,12 @@ export default function Sidebar({ serverRol, serverName }: { serverRol?: string;
             </div>
           </div>
         </div>
+        <Link href="/perfil"
+          style={{ display: 'block', width: '100%', padding: '5px 0', fontSize: '11px', color: 'rgba(255,255,255,0.3)', background: 'transparent', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '6px', cursor: 'pointer', textAlign: 'center', textDecoration: 'none', marginBottom: '6px' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.7)'; (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(255,255,255,0.2)' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.3)'; (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(255,255,255,0.08)' }}>
+          Mi perfil
+        </Link>
         <button
           onClick={() => signOut({ callbackUrl: '/login' })}
           style={{ width: '100%', padding: '6px 0', fontSize: '11px', color: 'rgba(255,255,255,0.3)', background: 'transparent', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '6px', cursor: 'pointer', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
