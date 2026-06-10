@@ -1888,7 +1888,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               </div>
             </>
           )}
-          {isClosed && inc.estado !== 'CANCELADO' && (
+          {isClosed && inc.estado !== 'CANCELADO' && can(session, 'incidentes.reabrir') && (
             <button onClick={() => {
               const mins = inc.horaFin
                 ? Math.round((Date.now() - new Date(inc.horaFin).getTime()) / 60000)
