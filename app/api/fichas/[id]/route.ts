@@ -96,6 +96,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (f in rest) allowed[f] = rest[f]
   }
 
+  // Coercionar campos integer: string vacío → null, string numérico → Number
+  for (const intField of ['costoMensual', 'tiempoRespuestaSla', 'tiempoResolucionSla'] as const) {
+    if (intField in allowed) {
+      const v = allowed[intField]
+      allowed[intField] = (v === '' || v == null) ? null : Number(v)
+    }
+  }
+
   if (Object.keys(allowed).length === 0) {
     return NextResponse.json({ error: 'Sin campos para actualizar' }, { status: 400 })
   }

@@ -8,15 +8,20 @@ const ESTADO_CONFIG: Record<string, { label: string; bg: string; color: string }
   HISTORICA: { label: 'Desactivada', bg: '#F8FAFC', color: '#94A3B8' },
 }
 
-function Field({ label, value, editing, name, onChange, type = 'text', textarea = false }: {
+function Field({ label, value, editing, name, onChange, type = 'text', textarea = false, defaultValue }: {
   label: string; value: any; editing: boolean; name: string
-  onChange: (n: string, v: any) => void; type?: string; textarea?: boolean
+  onChange: (n: string, v: any) => void; type?: string; textarea?: boolean; defaultValue?: number
 }) {
-  const display = value == null || value === '' ? '—' : type === 'checkbox' ? (value ? 'Sí' : 'No') : String(value)
+  const isEmpty = value == null || value === ''
+  const display = isEmpty ? (defaultValue != null ? String(defaultValue) : '—') : type === 'checkbox' ? (value ? 'Sí' : 'No') : String(value)
+  const isDefault = isEmpty && defaultValue != null
   if (!editing) return (
     <div style={{ marginBottom: '12px' }}>
       <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>{label}</div>
-      <div style={{ fontSize: '12px', color: display === '—' ? 'var(--muted-foreground)' : 'var(--foreground)' }}>{display}</div>
+      <div style={{ fontSize: '12px', color: display === '—' ? 'var(--muted-foreground)' : 'var(--foreground)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+        {display}
+        {isDefault && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>(por defecto)</span>}
+      </div>
     </div>
   )
   if (type === 'checkbox') return (
@@ -64,7 +69,11 @@ export default function FichaDetallePage() {
   useEffect(() => { loadFicha() }, [loadFicha])
 
   function startEdit() {
-    setDraft({ ...data })
+    setDraft({
+      ...data,
+      tiempoRespuestaSla:  data.tiempoRespuestaSla  ?? 60,
+      tiempoResolucionSla: data.tiempoResolucionSla ?? 90,
+    })
     setEditing(true)
   }
 
@@ -205,8 +214,8 @@ export default function FichaDetallePage() {
           <Field label="Renovación automática" value={src.renovacionAutomatica} editing={editing} name="renovacionAutomatica" onChange={fieldChange} type="checkbox" />
           <div />
           <Field label="SLA comprometido" value={src.slaComprometido} editing={editing} name="slaComprometido" onChange={fieldChange} />
-          <Field label="Tiempo respuesta SLA (min)" value={src.tiempoRespuestaSla} editing={editing} name="tiempoRespuestaSla" onChange={fieldChange} type="number" />
-          <Field label="Tiempo resolución SLA (min)" value={src.tiempoResolucionSla} editing={editing} name="tiempoResolucionSla" onChange={fieldChange} type="number" />
+          <Field label="Tiempo respuesta SLA (min)" value={src.tiempoRespuestaSla} editing={editing} name="tiempoRespuestaSla" onChange={fieldChange} type="number" defaultValue={60} />
+          <Field label="Tiempo resolución SLA (min)" value={src.tiempoResolucionSla} editing={editing} name="tiempoResolucionSla" onChange={fieldChange} type="number" defaultValue={90} />
           <Field label="Horario atención SLA" value={src.horarioAtencionSla} editing={editing} name="horarioAtencionSla" onChange={fieldChange} />
           <div style={{ gridColumn: '1 / -1' }}>
             <Field label="URL documento" value={src.documentoUrl} editing={editing} name="documentoUrl" onChange={fieldChange} />
