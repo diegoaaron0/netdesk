@@ -121,6 +121,12 @@ export default function FichaDetallePage() {
 
   return (
     <div style={{ padding: '20px 24px', maxWidth: '900px', margin: '0 auto' }}>
+      {/* Volver */}
+      <button onClick={() => router.push('/gestion-cambios/fichas')}
+        style={{ marginBottom: '12px', padding: '5px 12px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--muted-foreground)', cursor: 'pointer' }}>
+        ← Volver
+      </button>
+
       {/* Breadcrumb */}
       <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '12px', display: 'flex', gap: '6px', alignItems: 'center' }}>
         <span style={{ cursor: 'pointer', color: 'hsl(221,83%,23%)' }} onClick={() => router.push('/gestion-cambios/fichas')}>Fichas</span>
