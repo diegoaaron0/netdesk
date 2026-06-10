@@ -31,7 +31,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }).from(accionesGestion).where(eq(accionesGestion.id, id))
 
   if (!accion) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
-  if (!['APROBADO', 'EN_EJECUCION'].includes(accion.estado))
+  if (accion.estado !== 'APROBADO')
     return NextResponse.json({ error: 'La acción debe estar APROBADA para ejecutarse' }, { status: 409 })
 
   const ejecutadoPorId = (session.user as any)?.id

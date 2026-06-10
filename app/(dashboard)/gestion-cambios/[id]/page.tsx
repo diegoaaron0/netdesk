@@ -22,7 +22,7 @@ const ESTADO_CONFIG: Record<string, { label: string; bg: string; color: string }
   RECHAZADO:     { label: 'Rechazado',     bg: '#FEF2F2', color: '#991B1B' },
   CANCELADO:     { label: 'Cancelado',     bg: '#F8FAFC', color: '#94A3B8' },
 }
-const FLOW = ['BORRADOR','PROPUESTO','APROBADO','EN_EJECUCION','EJECUTADO','EN_EVALUACION','COMPLETADO']
+const FLOW = ['BORRADOR','PROPUESTO','APROBADO','EJECUTADO','EN_EVALUACION','COMPLETADO']
 
 function fmtFecha(d: string | null) {
   if (!d) return '—'
