@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useState, use } from 'react'
-import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -21,14 +20,14 @@ function fmtTs(d: string | null | undefined) {
 
 function estadoBadge(est: string | null | undefined) {
   const m: Record<string, { bg: string; color: string }> = {
-    ACTIVO:      { bg: '#d1fae5', color: '#065f46' },
-    SUSPENDIDO:  { bg: '#fee2e2', color: '#b91c1c' },
-    EN_REVISION: { bg: '#fef3c7', color: '#92400e' },
-    ABIERTO:     { bg: '#dbeafe', color: '#1e40af' },
+    ACTIVO:         { bg: '#d1fae5', color: '#065f46' },
+    SUSPENDIDO:     { bg: '#fee2e2', color: '#b91c1c' },
+    EN_REVISION:    { bg: '#fef3c7', color: '#92400e' },
+    ABIERTO:        { bg: '#dbeafe', color: '#1e40af' },
     EN_SEGUIMIENTO: { bg: '#ede9fe', color: '#7c3aed' },
-    RESUELTO:    { bg: '#d1fae5', color: '#065f46' },
-    CERRADO:     { bg: '#f3f4f6', color: '#6b7280' },
-    CANCELADO:   { bg: '#f3f4f6', color: '#9ca3af' },
+    RESUELTO:       { bg: '#d1fae5', color: '#065f46' },
+    CERRADO:        { bg: '#f3f4f6', color: '#6b7280' },
+    CANCELADO:      { bg: '#f3f4f6', color: '#9ca3af' },
   }
   return m[est ?? ''] ?? { bg: '#f3f4f6', color: '#6b7280' }
 }
@@ -66,23 +65,13 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   return <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px', paddingBottom: '6px', borderBottom: '0.5px solid var(--border)' }}>{children}</div>
 }
 
-const INP: React.CSSProperties = {
-  width: '100%', padding: '6px 9px', fontSize: '12px',
-  border: '0.5px solid var(--border)', borderRadius: '7px',
-  background: 'var(--card)', color: 'var(--foreground)', outline: 'none', boxSizing: 'border-box',
-}
-
 // ── Main ───────────────────────────────────────────────────────────────────────
 export default function ServicioTiendaPage({ params }: { params: Promise<{ id: string; tiendaId: string }> }) {
   const { id, tiendaId } = use(params)
   const router = useRouter()
-  const { data: session } = useSession()
-  const canEdit = ['SUPERVISOR', 'INFRAESTRUCTURA'].includes((session?.user as any)?.rol ?? '')
 
-  const [data, setData]   = useState<any>(null)
-  const [editModal, setEditModal] = useState(false)
-  const [editForm, setEditForm]   = useState<any>({})
-  const [saving, setSaving]       = useState(false)
+  const [data, setData]               = useState<any>(null)
+  const [fichaActiva, setFichaActiva] = useState<any>(null)
 
   useEffect(() => {
     fetch(`/api/proveedores/${id}/tienda/${tiendaId}`)
@@ -90,17 +79,11 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
       .then(d => { if (d.tienda) setData(d) })
   }, [id, tiendaId])
 
-  async function handleSave() {
-    setSaving(true)
-    await fetch(`/api/tiendas/${tiendaId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(editForm),
-    })
-    setSaving(false)
-    setEditModal(false)
-    fetch(`/api/proveedores/${id}/tienda/${tiendaId}`).then(r => r.json()).then(d => { if (d.tienda) setData(d) })
-  }
+  useEffect(() => {
+    fetch(`/api/fichas?tiendaId=${tiendaId}&estado=ACTIVA`)
+      .then(r => r.json())
+      .then(rows => setFichaActiva(Array.isArray(rows) && rows.length > 0 ? rows[0] : null))
+  }, [tiendaId])
 
   if (!data) {
     return <div style={{ display: 'flex', justifyContent: 'center', padding: '48px', color: 'var(--muted-foreground)', fontSize: '13px' }}>Cargando...</div>
@@ -113,7 +96,7 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
 
   return (
     <div>
-      {/* Breadcrumb + header */}
+      {/* Breadcrumb */}
       <div style={{ marginBottom: '4px', fontSize: '11px', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '6px' }}>
         <span style={{ cursor: 'pointer' }} onClick={() => router.push('/proveedores')}>Proveedores</span>
         <span>›</span>
@@ -122,6 +105,7 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
         <span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--foreground)' }}>{tienda.codigo}</span>
       </div>
 
+      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '16px' }}>
         <button onClick={() => router.push(`/proveedores/${id}`)}
           style={{ padding: '6px 12px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', cursor: 'pointer', whiteSpace: 'nowrap', marginTop: '2px' }}>
@@ -133,12 +117,6 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
             {tienda.nombreCc ? ` — ${tienda.nombreCc}` : ''}
           </h1>
         </div>
-        {canEdit && (
-          <button onClick={() => { setEditForm({ ...tienda }); setEditModal(true) }}
-            style={{ padding: '7px 14px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', cursor: 'pointer', whiteSpace: 'nowrap', marginTop: '2px' }}>
-            Editar servicio
-          </button>
-        )}
       </div>
 
       {/* Main layout */}
@@ -146,12 +124,33 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
 
         {/* Left: datos del servicio */}
         <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
-          <SectionTitle>Datos del servicio</SectionTitle>
+          {/* Header con badge Via Fichas */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', paddingBottom: '6px', borderBottom: '0.5px solid var(--border)' }}>
+            <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              Datos del servicio
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px', background: '#EDE9FE', color: '#7C3AED' }}>
+                Via Fichas
+              </span>
+              {fichaActiva
+                ? <button onClick={() => router.push(`/gestion-cambios/fichas/${fichaActiva.id}`)}
+                    style={{ padding: '2px 8px', fontSize: '10px', fontWeight: 600, border: '0.5px solid #86efac', borderRadius: '4px', background: '#f0fdf4', color: '#166534', cursor: 'pointer' }}>
+                    {fichaActiva.codigo}
+                  </button>
+                : <button onClick={() => router.push(`/gestion-cambios/fichas/nueva?tiendaId=${tiendaId}&proveedorId=${id}`)}
+                    style={{ padding: '2px 8px', fontSize: '10px', border: '0.5px solid var(--border)', borderRadius: '4px', background: 'var(--muted)', color: 'var(--muted-foreground)', cursor: 'pointer' }}>
+                    + Nueva ficha
+                  </button>
+              }
+            </div>
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 20px' }}>
             <div><Label>Tienda</Label><Val v={`${tienda.codigo} — ${tienda.nombreCc ?? ''}`} mono /></div>
             <div><Label>Proveedor</Label><Val v={tienda.proveedorNombre} /></div>
             <div><Label>CID / Servicio</Label><Val v={tienda.cidServicio} mono /></div>
-            <div><Label>Tipo conexión</Label><Val v={tienda.tipoConexion} /></div>
+            <div><Label>Tipo conexion</Label><Val v={tienda.tipoConexion} /></div>
             <div><Label>Tipo servicio</Label><Val v={tienda.tipoServicio} /></div>
             <div><Label>Plan aplicado</Label><Val v={tienda.planAplicado} /></div>
             <div><Label>Velocidad</Label><Val v={tienda.velocidad} /></div>
@@ -162,27 +161,32 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
             <div>
               <Label>Estado servicio</Label>
               <div style={{ marginBottom: '10px' }}>
-                {(() => { const b = estadoBadge(tienda.estadoServicio ?? 'ACTIVO'); return <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '5px', background: b.bg, color: b.color }}>{tienda.estadoServicio ?? 'ACTIVO'}</span> })()}
+                {(() => {
+                  const b = estadoBadge(tienda.estadoServicio ?? 'ACTIVO')
+                  return <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '5px', background: b.bg, color: b.color }}>{tienda.estadoServicio ?? 'ACTIVO'}</span>
+                })()}
               </div>
             </div>
-            <div><Label>Gabinete</Label><Val v={tienda.gabinete ? 'Sí' : tienda.gabinete === false ? 'No' : '—'} /></div>
+            <div><Label>Gabinete</Label><Val v={tienda.gabinete ? 'Si' : tienda.gabinete === false ? 'No' : '—'} /></div>
           </div>
           {tienda.descripcionServicio && (
             <div>
-              <Label>Descripción servicio</Label>
+              <Label>Descripcion servicio</Label>
               <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '10px' }}>{tienda.descripcionServicio}</div>
             </div>
           )}
           {tienda.observacion && (
             <div>
-              <Label>Observación</Label>
+              <Label>Observacion</Label>
               <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '10px' }}>{tienda.observacion}</div>
             </div>
           )}
           {tienda.direccion && (
             <div>
-              <Label>Dirección</Label>
-              <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '10px' }}>{tienda.direccion}{tienda.distrito ? `, ${tienda.distrito}` : ''}{tienda.provincia ? ` — ${tienda.provincia}` : ''}</div>
+              <Label>Direccion</Label>
+              <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '10px' }}>
+                {tienda.direccion}{tienda.distrito ? `, ${tienda.distrito}` : ''}{tienda.provincia ? ` — ${tienda.provincia}` : ''}
+              </div>
             </div>
           )}
           {(tienda.supervisorNombre || tienda.contactoSoporte) && (
@@ -198,12 +202,12 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
           <SectionTitle>Rendimiento del proveedor en esta tienda</SectionTitle>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
             {[
-              { label: 'Incidentes históricos',       value: String(metricas?.incidentesHistoricos ?? 0) },
-              { label: 'Incidentes últimos 30d',      value: String(metricas?.incidentes30d ?? 0) },
+              { label: 'Incidentes historicos',       value: String(metricas?.incidentesHistoricos ?? 0) },
+              { label: 'Incidentes ultimos 30d',      value: String(metricas?.incidentes30d ?? 0) },
               { label: 'MTTR promedio',               value: metricas?.mttrPromFmt ?? '—' },
               { label: 'SLA Respuesta (30d)',         value: metricas?.slaRespuestaTienda  != null ? `${metricas.slaRespuestaTienda}%`  : '—', color: slaColor(metricas?.slaRespuestaTienda  ?? null) },
-              { label: 'SLA Resolución (30d)',        value: metricas?.slaResolucionTienda != null ? `${metricas.slaResolucionTienda}%` : '—', color: slaColor(metricas?.slaResolucionTienda ?? null) },
-              { label: 'Tiempo caído total (hist.)',  value: metricas?.tiempoCaidoFmt ?? '—' },
+              { label: 'SLA Resolucion (30d)',        value: metricas?.slaResolucionTienda != null ? `${metricas.slaResolucionTienda}%` : '—', color: slaColor(metricas?.slaResolucionTienda ?? null) },
+              { label: 'Tiempo caido total (hist.)',  value: metricas?.tiempoCaidoFmt ?? '—' },
               { label: 'Impacto estimado',            value: metricas?.impactoEstimado != null ? fmtSoles(metricas.impactoEstimado) : '—' },
             ].map(r => (
               <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '0.5px solid var(--border)' }}>
@@ -211,17 +215,15 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
                 <span style={{ fontSize: '12px', fontWeight: 600, color: (r as any).color ?? 'var(--foreground)' }}>{r.value}</span>
               </div>
             ))}
-            {/* Reincidencia */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '0.5px solid var(--border)' }}>
               <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Reincidencia (30d)</span>
               <span style={{ fontSize: '11px', fontWeight: 700, padding: '1px 7px', borderRadius: '4px', background: reincBadge.bg, color: reincBadge.color }}>
                 {metricas?.incidentes30d ?? 0} incidentes
               </span>
             </div>
-            {/* Último incidente */}
             {lastIncidente && (
               <div style={{ marginTop: '8px', padding: '8px', background: 'var(--muted)', borderRadius: '8px' }}>
-                <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Último incidente</div>
+                <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Ultimo incidente</div>
                 <div style={{ fontSize: '12px', fontWeight: 600, fontFamily: 'monospace' }}>{lastIncidente.codigo}</div>
                 <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{tipoLabel(lastIncidente.tipo)} · {fmtTs(lastIncidente.horaRegistro)}</div>
                 <div style={{ marginTop: '3px' }}>
@@ -242,7 +244,7 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
             <thead>
               <tr style={{ background: 'var(--muted)' }}>
-                {['Proveedor', 'Incidentes', 'MTTR prom', 'SLA', 'Último incidente'].map(h => (
+                {['Proveedor', 'Incidentes', 'MTTR prom', 'SLA', 'Ultimo incidente'].map(h => (
                   <th key={h} style={{ padding: '7px 10px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
                 ))}
               </tr>
@@ -289,9 +291,9 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
               style={{ display: 'block', padding: '9px 12px', background: 'var(--muted)', border: '0.5px solid var(--border)', color: 'var(--foreground)', borderRadius: '8px', fontSize: '12px', textDecoration: 'none', textAlign: 'center' }}>
               Ver incidentes
             </a>
-            <button onClick={() => router.push(`/proveedores/${id}?tab=contrato`)}
+            <button onClick={() => router.push(`/gestion-cambios/fichas?tiendaId=${tienda.id}`)}
               style={{ padding: '9px 12px', background: 'var(--muted)', border: '0.5px solid var(--border)', color: 'var(--foreground)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', textAlign: 'center' }}>
-              Ver contrato
+              Ver fichas
             </button>
           </div>
         </div>
@@ -299,7 +301,7 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
         {/* Historial */}
         <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
           <div style={{ padding: '12px 14px', borderBottom: '0.5px solid var(--border)' }}>
-            <SectionTitle>Últimos incidentes con este proveedor</SectionTitle>
+            <SectionTitle>Ultimos incidentes con este proveedor</SectionTitle>
           </div>
           {historial.length === 0 ? (
             <div style={{ padding: '24px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Sin incidentes registrados</div>
@@ -307,7 +309,7 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
               <thead>
                 <tr style={{ background: 'var(--muted)' }}>
-                  {['Código', 'Fecha', 'Tipo', 'MTTR', 'Estado'].map(h => (
+                  {['Codigo', 'Fecha', 'Tipo', 'MTTR', 'Estado'].map(h => (
                     <th key={h} style={{ padding: '7px 10px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
                   ))}
                 </tr>
@@ -336,55 +338,6 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
           )}
         </div>
       </div>
-
-      {/* Modal editar servicio */}
-      {editModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', width: '100%', maxWidth: '560px', maxHeight: '90vh', overflow: 'auto' }}>
-            <div style={{ padding: '14px 18px', borderBottom: '0.5px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: '13px', fontWeight: 600 }}>Editar servicio — {tienda.codigo}</div>
-              <button onClick={() => setEditModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--muted-foreground)' }}>✕</button>
-            </div>
-            <div style={{ padding: '16px 18px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-              {([
-                ['cidServicio',   'CID / Servicio'],
-                ['tipoConexion',  'Tipo conexión'],
-                ['tipoServicio',  'Tipo servicio'],
-                ['planAplicado',  'Plan aplicado'],
-                ['velocidad',     'Velocidad'],
-                ['costoMensual',  'Costo mensual (S/.)'],
-              ] as [string, string][]).map(([k, l]) => (
-                <div key={k} style={{ marginBottom: '10px' }}>
-                  <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '3px' }}>{l}</label>
-                  <input value={editForm[k] ?? ''} onChange={e => setEditForm((f: any) => ({ ...f, [k]: e.target.value }))} style={INP} />
-                </div>
-              ))}
-              <div style={{ marginBottom: '10px' }}>
-                <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '3px' }}>Fecha alta servicio</label>
-                <input type="date" value={editForm.fechaAltaServicio ?? ''} onChange={e => setEditForm((f: any) => ({ ...f, fechaAltaServicio: e.target.value || null }))} style={INP} />
-              </div>
-              <div style={{ marginBottom: '10px' }}>
-                <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '3px' }}>Estado servicio</label>
-                <select value={editForm.estadoServicio ?? 'ACTIVO'} onChange={e => setEditForm((f: any) => ({ ...f, estadoServicio: e.target.value }))} style={INP}>
-                  <option value="ACTIVO">ACTIVO</option>
-                  <option value="SUSPENDIDO">SUSPENDIDO</option>
-                  <option value="EN_REVISION">EN REVISIÓN</option>
-                </select>
-              </div>
-            </div>
-            <div style={{ padding: '0 18px 16px', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button onClick={() => setEditModal(false)}
-                style={{ padding: '8px 16px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>
-                Cancelar
-              </button>
-              <button onClick={handleSave} disabled={saving}
-                style={{ padding: '8px 16px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
-                {saving ? 'Guardando...' : 'Guardar'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

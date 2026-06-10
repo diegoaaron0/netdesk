@@ -163,7 +163,23 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
 
       {/* ── Tab: Resumen ─────────────────────────────────────────────────────── */}
       {tab === 'resumen' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '16px' }}>
+        <>
+          {/* KPI chips */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '14px' }}>
+            {[
+              { label: 'Tiendas asignadas', value: String(metricas?.totalTiendas ?? 0), color: 'hsl(221,83%,23%)' },
+              { label: 'SLA Respuesta 30d', value: metricas?.scoreRespuestaPromedio  != null ? `${metricas.scoreRespuestaPromedio}%`  : '—', color: slaColor(metricas?.scoreRespuestaPromedio  ?? null) },
+              { label: 'SLA Resolución 30d', value: metricas?.scoreResolucionPromedio != null ? `${metricas.scoreResolucionPromedio}%` : '—', color: slaColor(metricas?.scoreResolucionPromedio ?? null) },
+              { label: 'Incidentes 30d', value: String(metricas?.incidentes30d ?? 0), color: (metricas?.incidentes30d ?? 0) > 0 ? '#b45309' : '#6b7280' },
+            ].map(k => (
+              <div key={k.label} style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '14px 16px' }}>
+                <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>{k.label}</div>
+                <div style={{ fontSize: '24px', fontWeight: 700, color: k.color, lineHeight: 1 }}>{k.value}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '16px' }}>
           {/* Left */}
           <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
             <SectionTitle>Información general</SectionTitle>
@@ -172,24 +188,28 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
               <div><Label>Tipo de servicio</Label><Val v={data.tipoServicio} /></div>
               <div><Label>Plan principal</Label><Val v={data.planPrincipal} /></div>
               <div><Label>Canal de atención</Label><Val v={data.canalAtencion} /></div>
-              <div><Label>Correo soporte</Label><Val v={data.correoSoporte} /></div>
-              <div><Label>Teléfono</Label><Val v={data.telefonoSoporte} /></div>
-              {nivelContacto && <>
-                <div><Label>Contacto N1</Label><Val v={nivelContacto.nombreContacto} /></div>
-                <div><Label>WhatsApp N1</Label><Val v={nivelContacto.whatsapp} /></div>
-              </>}
             </div>
+            {(data.correoSoporte || data.telefonoSoporte || nivelContacto) && (
+              <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '10px', marginTop: '2px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
+                {data.correoSoporte  && <div><Label>Correo soporte</Label><Val v={data.correoSoporte} /></div>}
+                {data.telefonoSoporte && <div><Label>Teléfono</Label><Val v={data.telefonoSoporte} /></div>}
+                {nivelContacto && <>
+                  <div><Label>Contacto N1</Label><Val v={nivelContacto.nombreContacto} /></div>
+                  <div><Label>WhatsApp N1</Label><Val v={nivelContacto.whatsapp} /></div>
+                </>}
+              </div>
+            )}
             {data.observaciones && (
-              <>
+              <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '10px', marginTop: '2px' }}>
                 <Label>Observaciones</Label>
                 <div style={{ fontSize: '12px', color: 'var(--foreground)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{data.observaciones}</div>
-              </>
+              </div>
             )}
             {data.instruccionGeneral && (
-              <>
-                <div style={{ marginTop: '10px' }}><Label>Instrucción general</Label></div>
+              <div style={{ marginTop: '10px' }}>
+                <Label>Instrucción general</Label>
                 <div style={{ fontSize: '12px', color: 'var(--foreground)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{data.instruccionGeneral}</div>
-              </>
+              </div>
             )}
           </div>
 
@@ -220,15 +240,24 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
             </div>
           </div>
         </div>
+        </>
       )}
 
       {/* ── Tab: Tiendas asignadas ────────────────────────────────────────────── */}
       {tab === 'tiendas' && (
         <div>
-          <div style={{ marginBottom: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '12px' }}>
             <input placeholder="Buscar por código o nombre..." value={buscarT}
               onChange={e => setBuscarT(e.target.value)}
               style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', minWidth: '240px' }} />
+            {!loadingT && (
+              <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>
+                {tiendasFiltradas.length} tienda{tiendasFiltradas.length !== 1 ? 's' : ''}
+                {tiendasFiltradas.filter((t: any) => !t.fichaActiva).length > 0 && (
+                  <span style={{ color: '#d97706', marginLeft: '6px' }}>· {tiendasFiltradas.filter((t: any) => !t.fichaActiva).length} sin ficha</span>
+                )}
+              </span>
+            )}
           </div>
           <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
