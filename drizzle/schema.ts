@@ -2,6 +2,7 @@ import {
   pgTable, pgEnum, uuid, text, boolean,
   timestamp, integer, numeric, date, jsonb,
 } from 'drizzle-orm/pg-core'
+import type { AnyPgColumn } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
 
 export const rolEnum = pgEnum('rol', ['AGENTE', 'SUPERVISOR', 'GERENCIA', 'INFRAESTRUCTURA', 'DEMO'])
@@ -20,6 +21,8 @@ export const estadoCronometroEnum = pgEnum('estado_cronometro', [
 export const alcanceCorteEnum = pgEnum('alcance_corte', [
   'SOLO_TIENDA', 'MALL', 'CUADRA_CALLE', 'ZONA_AMPLIA',
 ])
+
+export const estadoFichaEnum = pgEnum('estado_ficha', ['BORRADOR', 'ACTIVA', 'HISTORICA'])
 
 export const tipoDecisionEnum = pgEnum('tipo_decision', [
   'CAMBIO_PROVEEDOR', 'RENEGOCIACION_CONTRATO', 'ACTIVACION_CONTINGENCIA',
@@ -128,6 +131,7 @@ export const tiendas = pgTable('tiendas', {
   velocidad:                     text('velocidad'),
   planAplicado:                  text('plan_aplicado'),
   observacion:                   text('observacion'),
+  fichaActivaId:                 uuid('ficha_activa_id').references((): AnyPgColumn => fichas.id, { onDelete: 'set null' }),
   creadoEn:                      timestamp('creado_en').defaultNow(),
 })
 
@@ -150,6 +154,69 @@ export const contratosProveedor = pgTable('contratos_proveedor', {
   documentoUrl:         text('documento_url'),
   estado:               text('estado').default('VIGENTE'),
   creadoEn:             timestamp('creado_en').defaultNow(),
+})
+
+// ── Fichas (contratos por tienda — reemplaza contratosProveedor) ─────────────
+
+export const fichas = pgTable('fichas', {
+  id:          uuid('id').primaryKey().defaultRandom(),
+  codigo:      text('codigo').unique().notNull(),      // FC-001-T28
+  tiendaId:    uuid('tienda_id').references(() => tiendas.id).notNull(),
+  proveedorId: uuid('proveedor_id').references(() => proveedores.id).notNull(),
+  estado:      estadoFichaEnum('estado').notNull().default('BORRADOR'),
+
+  // Datos del contrato
+  codigoContrato:       text('codigo_contrato'),
+  plan:                 text('plan'),
+  tipoServicio:         text('tipo_servicio'),
+  velocidadCapacidad:   text('velocidad_capacidad'),
+  costoMensual:         numeric('costo_mensual'),
+  fechaInicio:          date('fecha_inicio'),
+  fechaFin:             date('fecha_fin'),
+  renovacionAutomatica: boolean('renovacion_automatica').default(false),
+  penalidad:            text('penalidad'),
+  slaComprometido:      text('sla_comprometido'),
+  tiempoRespuestaSla:   integer('tiempo_respuesta_sla'),
+  tiempoResolucionSla:  integer('tiempo_resolucion_sla'),
+  horarioAtencionSla:   text('horario_atencion_sla'),  // ej: "08:00-20:00 LUN-VIE"
+  documentoUrl:         text('documento_url'),
+
+  // Datos de conectividad (migrados desde tiendas)
+  tipoConexion:         text('tipo_conexion'),
+  cidServicio:          text('cid_servicio'),
+  velocidad:            text('velocidad'),
+  planAplicado:         text('plan_aplicado'),
+  vigenciaContrato:     text('vigencia_contrato'),
+  estadoServicio:       text('estado_servicio').default('ACTIVO'),
+  fechaAltaServicio:    date('fecha_alta_servicio'),
+  descripcionServicio:  text('descripcion_servicio'),
+  observacion:          text('observacion'),
+
+  // Meta
+  creadoPorId: uuid('creado_por_id').references(() => usuarios.id, { onDelete: 'set null' }),
+  activadoEn:  timestamp('activado_en'),
+  archivadoEn: timestamp('archivado_en'),
+  creadoEn:    timestamp('creado_en').defaultNow().notNull(),
+})
+
+export const fichasNiveles = pgTable('fichas_niveles', {
+  id:                     uuid('id').primaryKey().defaultRandom(),
+  fichaId:                uuid('ficha_id').references(() => fichas.id, { onDelete: 'cascade' }).notNull(),
+  nivel:                  integer('nivel').notNull(),
+  nombreContacto:         text('nombre_contacto').notNull(),
+  email:                  text('email'),
+  celular:                text('celular'),
+  tiempoRespSev1:         text('tiempo_resp_sev1'),
+  tiempoRespSev2:         text('tiempo_resp_sev2'),
+  tiempoRespSev3:         text('tiempo_resp_sev3'),
+  correosCopia:           text('correos_copia').array(),
+  whatsapp:               text('whatsapp'),
+  canal:                  text('canal').default('correo'),
+  horarioAtencion:        text('horario_atencion'),
+  tiempoEsperadoSolucion: integer('tiempo_esperado_solucion'),
+  instruccion:            text('instruccion'),
+  activo:                 boolean('activo').default(true),
+  creadoEn:               timestamp('creado_en').defaultNow(),
 })
 
 export const tiendasHistorial = pgTable('tiendas_historial', {
@@ -236,6 +303,8 @@ export const incidentes = pgTable('incidentes', {
   grupoMasivoId:         uuid('grupo_masivo_id'),
   // Router externo de contingencia TI
   routerExternoId:       uuid('router_externo_id').references(() => routersExternos.id, { onDelete: 'set null' }),
+  // Ficha vigente al momento del registro
+  fichaId:               uuid('ficha_id').references(() => fichas.id, { onDelete: 'set null' }),
   // Escalamiento a Infraestructura interna
   escaladoInfraId:       uuid('escalado_infra_id').references(() => usuarios.id, { onDelete: 'set null' }),
   horaEscaladoInfra:     timestamp('hora_escalado_infra'),
@@ -292,6 +361,7 @@ export const escalamientos = pgTable('escalamientos', {
   incidenteId:             uuid('incidente_id').references(() => incidentes.id).notNull(),
   nivel:                   integer('nivel').notNull(),
   nivelEscId:              uuid('nivel_esc_id').references(() => nivelesEscalamiento.id),
+  fichaNivelId:            uuid('ficha_nivel_id').references(() => fichasNiveles.id, { onDelete: 'set null' }),
   contactoEscalado:        text('contacto_escalado').notNull(),
   emailContacto:           text('email_contacto').notNull(),
   telefonoContacto:        text('telefono_contacto'),
@@ -393,6 +463,7 @@ export const proveedoresRelations = relations(proveedores, ({ many }) => ({
   tiendas:    many(tiendas),
   niveles:    many(nivelesEscalamiento),
   contratos:  many(contratosProveedor),
+  fichas:     many(fichas),
   decisiones: many(decisiones),
 }))
 
@@ -401,11 +472,13 @@ export const nivelesRelations = relations(nivelesEscalamiento, ({ one }) => ({
 }))
 
 export const tiendasRelations = relations(tiendas, ({ one, many }) => ({
-  proveedor:  one(proveedores, { fields: [tiendas.proveedorId], references: [proveedores.id] }),
-  incidentes: many(incidentes),
-  historial:  many(tiendasHistorial),
-  contratos:  many(contratosProveedor),
-  decisiones: many(decisiones),
+  proveedor:   one(proveedores, { fields: [tiendas.proveedorId],   references: [proveedores.id] }),
+  fichaActiva: one(fichas,      { fields: [tiendas.fichaActivaId], references: [fichas.id] }),
+  incidentes:  many(incidentes),
+  historial:   many(tiendasHistorial),
+  contratos:   many(contratosProveedor),
+  fichas:      many(fichas),
+  decisiones:  many(decisiones),
 }))
 
 export const contratosProveedorRelations = relations(contratosProveedor, ({ one }) => ({
@@ -422,6 +495,7 @@ export const incidentesRelations = relations(incidentes, ({ one, many }) => ({
   tienda:         one(tiendas,          { fields: [incidentes.tiendaId],        references: [tiendas.id] }),
   registradoPor:  one(usuarios,         { fields: [incidentes.registradoPorId],  references: [usuarios.id] }),
   proveedor:      one(proveedores,      { fields: [incidentes.proveedorId],     references: [proveedores.id] }),
+  ficha:          one(fichas,           { fields: [incidentes.fichaId],         references: [fichas.id] }),
   grupoMasivo:    one(gruposMasivos,    { fields: [incidentes.grupoMasivoId],   references: [gruposMasivos.id] }),
   routerExterno:  one(routersExternos,  { fields: [incidentes.routerExternoId], references: [routersExternos.id] }),
   escalamientos:  many(escalamientos),
@@ -442,9 +516,10 @@ export const routerHistorialRelations = relations(routerHistorial, ({ one }) => 
 
 
 export const escalamientosRelations = relations(escalamientos, ({ one, many }) => ({
-  incidente: one(incidentes,        { fields: [escalamientos.incidenteId], references: [incidentes.id] }),
-  nivelEsc:  one(nivelesEscalamiento, { fields: [escalamientos.nivelEscId],  references: [nivelesEscalamiento.id] }),
-  adjuntos:  many(adjuntos),
+  incidente:   one(incidentes,           { fields: [escalamientos.incidenteId],   references: [incidentes.id] }),
+  nivelEsc:    one(nivelesEscalamiento,  { fields: [escalamientos.nivelEscId],    references: [nivelesEscalamiento.id] }),
+  fichaNivel:  one(fichasNiveles,        { fields: [escalamientos.fichaNivelId],  references: [fichasNiveles.id] }),
+  adjuntos:    many(adjuntos),
 }))
 
 export const adjuntosRelations = relations(adjuntos, ({ one }) => ({
@@ -501,7 +576,10 @@ export const accionesGestion = pgTable('acciones_gestion', {
   proveedorAnteriorId:      uuid('proveedor_anterior_id').references(() => proveedores.id),
   proveedorNuevoId:         uuid('proveedor_nuevo_id').references(() => proveedores.id),
 
-  // Contrato previo (RENEGOCIACION_CONTRATO)
+  // Fichas vinculadas (CAMBIO_PROVEEDOR / RENEGOCIACION_CONTRATO)
+  fichaAnteriorId:          uuid('ficha_anterior_id').references(() => fichas.id, { onDelete: 'set null' }),
+  fichaNuevaId:             uuid('ficha_nueva_id').references(() => fichas.id, { onDelete: 'set null' }),
+  // Contrato previo legacy (RENEGOCIACION_CONTRATO) — se elimina en Phase 6
   contratoAnteriorId:       uuid('contrato_anterior_id').references(() => contratosProveedor.id),
 
   // Router vinculado (ADQUISICION_EQUIPO)
@@ -574,6 +652,8 @@ export const accionesGestionTiendas = pgTable('acciones_gestion_tiendas', {
   tiendaId:             uuid('tienda_id').notNull().references(() => tiendas.id),
   proveedorAnteriorId:  uuid('proveedor_anterior_id').references(() => proveedores.id),
   proveedorNuevoId:     uuid('proveedor_nuevo_id').references(() => proveedores.id),
+  fichaAnteriorId:      uuid('ficha_anterior_id').references(() => fichas.id, { onDelete: 'set null' }),
+  fichaNuevaId:         uuid('ficha_nueva_id').references(() => fichas.id, { onDelete: 'set null' }),
   snapDetalle:          jsonb('snap_detalle'),
   eval30Detalle:        jsonb('eval30_detalle'),
   eval90Detalle:        jsonb('eval90_detalle'),
@@ -581,16 +661,29 @@ export const accionesGestionTiendas = pgTable('acciones_gestion_tiendas', {
   creadoEn:             timestamp('creado_en').defaultNow().notNull(),
 })
 
+export const fichasRelations = relations(fichas, ({ one, many }) => ({
+  tienda:   one(tiendas,     { fields: [fichas.tiendaId],    references: [tiendas.id] }),
+  proveedor: one(proveedores, { fields: [fichas.proveedorId], references: [proveedores.id] }),
+  creadoPor: one(usuarios,   { fields: [fichas.creadoPorId], references: [usuarios.id] }),
+  niveles:   many(fichasNiveles),
+}))
+
+export const fichasNivelesRelations = relations(fichasNiveles, ({ one }) => ({
+  ficha: one(fichas, { fields: [fichasNiveles.fichaId], references: [fichas.id] }),
+}))
+
 export const accionesGestionRelations = relations(accionesGestion, ({ one, many }) => ({
-  tienda:           one(tiendas,            { fields: [accionesGestion.tiendaId],            references: [tiendas.id] }),
-  proveedorAnterior: one(proveedores,       { fields: [accionesGestion.proveedorAnteriorId], references: [proveedores.id] }),
-  proveedorNuevo:   one(proveedores,        { fields: [accionesGestion.proveedorNuevoId],    references: [proveedores.id] }),
-  contratoAnterior: one(contratosProveedor, { fields: [accionesGestion.contratoAnteriorId],  references: [contratosProveedor.id] }),
-  routerExterno:    one(routersExternos,    { fields: [accionesGestion.routerExternoId],     references: [routersExternos.id] }),
-  creadoPor:        one(usuarios,           { fields: [accionesGestion.creadoPorId],         references: [usuarios.id] }),
-  aprobadoPor:      one(usuarios,           { fields: [accionesGestion.aprobadoPorId],       references: [usuarios.id] }),
-  ejecutadoPor:     one(usuarios,           { fields: [accionesGestion.ejecutadoPorId],      references: [usuarios.id] }),
-  tiendas:          many(accionesGestionTiendas),
+  tienda:            one(tiendas,            { fields: [accionesGestion.tiendaId],            references: [tiendas.id] }),
+  proveedorAnterior: one(proveedores,        { fields: [accionesGestion.proveedorAnteriorId], references: [proveedores.id] }),
+  proveedorNuevo:    one(proveedores,        { fields: [accionesGestion.proveedorNuevoId],    references: [proveedores.id] }),
+  fichaAnterior:     one(fichas,             { fields: [accionesGestion.fichaAnteriorId],     references: [fichas.id] }),
+  fichaNueva:        one(fichas,             { fields: [accionesGestion.fichaNuevaId],        references: [fichas.id] }),
+  contratoAnterior:  one(contratosProveedor, { fields: [accionesGestion.contratoAnteriorId],  references: [contratosProveedor.id] }),
+  routerExterno:     one(routersExternos,    { fields: [accionesGestion.routerExternoId],     references: [routersExternos.id] }),
+  creadoPor:         one(usuarios,           { fields: [accionesGestion.creadoPorId],         references: [usuarios.id] }),
+  aprobadoPor:       one(usuarios,           { fields: [accionesGestion.aprobadoPorId],       references: [usuarios.id] }),
+  ejecutadoPor:      one(usuarios,           { fields: [accionesGestion.ejecutadoPorId],      references: [usuarios.id] }),
+  tiendas:           many(accionesGestionTiendas),
 }))
 
 export const accionesGestionTiendasRelations = relations(accionesGestionTiendas, ({ one }) => ({
@@ -598,4 +691,6 @@ export const accionesGestionTiendasRelations = relations(accionesGestionTiendas,
   tienda:            one(tiendas,         { fields: [accionesGestionTiendas.tiendaId],            references: [tiendas.id] }),
   proveedorAnterior: one(proveedores,     { fields: [accionesGestionTiendas.proveedorAnteriorId], references: [proveedores.id] }),
   proveedorNuevo:    one(proveedores,     { fields: [accionesGestionTiendas.proveedorNuevoId],    references: [proveedores.id] }),
+  fichaAnterior:     one(fichas,          { fields: [accionesGestionTiendas.fichaAnteriorId],     references: [fichas.id] }),
+  fichaNueva:        one(fichas,          { fields: [accionesGestionTiendas.fichaNuevaId],        references: [fichas.id] }),
 }))

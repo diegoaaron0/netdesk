@@ -569,6 +569,23 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               )}
             </div>
 
+            {/* Ficha activa */}
+            {tienda.fichaActiva && (
+              <div style={{ marginBottom: '10px', padding: '8px 12px', background: '#f0fdf4', border: '0.5px solid #86efac', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: '9px', fontWeight: 600, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>Ficha de servicio activa</div>
+                  <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '12px', color: '#166534' }}>{tienda.fichaActiva.codigo}</span>
+                  {tienda.fichaActiva.totalNiveles > 0 && (
+                    <span style={{ marginLeft: '8px', fontSize: '10px', color: '#166534' }}>{tienda.fichaActiva.totalNiveles} nivel{tienda.fichaActiva.totalNiveles !== 1 ? 'es' : ''} de escalamiento</span>
+                  )}
+                </div>
+                <button onClick={() => router.push(`/gestion-cambios/fichas/${tienda.fichaActiva.id}`)}
+                  style={{ padding: '4px 12px', fontSize: '11px', fontWeight: 600, border: '0.5px solid #86efac', borderRadius: '6px', background: 'white', color: '#166534', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  Ver ficha
+                </button>
+              </div>
+            )}
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
               <Field label="Tipo conexión"     value={form.tipoConexion  ?? ''} editing={editing} onChange={v => setF('tipoConexion', v)} />
               <Field label="CID / Servicio"    value={form.cidServicio   ?? ''} editing={editing} onChange={v => setF('cidServicio', v)} />

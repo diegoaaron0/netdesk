@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
   const [user] = await db.select({ id: usuarios.id }).from(usuarios).where(eq(usuarios.email, session.user!.email!))
   if (!user) return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 })
 
-  const [tiendaRow] = await db.select({ proveedorId: tiendas.proveedorId })
+  const [tiendaRow] = await db.select({ proveedorId: tiendas.proveedorId, fichaActivaId: tiendas.fichaActivaId })
     .from(tiendas).where(eq(tiendas.id, body.tiendaId))
 
   const values = {
@@ -150,6 +150,7 @@ export async function POST(req: NextRequest) {
     tipoPersonalizado:     body.tipoPersonalizado  ?? null,
     otrosClasificacion:    body.tipo === 'OTROS' ? (body.otrosClasificacion ?? null) : null,
     proveedorId:           body.tipo === 'CORTE_ELECTRICO' ? null : (tiendaRow?.proveedorId ?? null),
+    fichaId:               body.tipo === 'CORTE_ELECTRICO' ? null : (tiendaRow?.fichaActivaId ?? null),
     evaluableProveedor:    body.tipo === 'CORTE_ELECTRICO' ? false : true,
     alcanceCorte:          body.tipo === 'CORTE_ELECTRICO' ? (body.alcanceCorte ?? 'SOLO_TIENDA') : null,
     tuvoUps:               body.tipo === 'CORTE_ELECTRICO' ? (body.tuvoUps ?? false) : null,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { tiendas } from '@/drizzle/schema'
+import { tiendas, fichas } from '@/drizzle/schema'
 import { eq, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 
@@ -71,10 +71,24 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     for (const c of contratos as any[]) if (c.tienda_id) contratoMap[c.tienda_id] = c
   } catch { /* table not migrated yet */ }
 
+  // Ficha activa por tienda
+  let fichaMap: Record<string, { id: string; codigo: string; totalNiveles: number }> = {}
+  try {
+    const fichaRows = await db.execute(sql`
+      SELECT f.id, f.codigo, f.tienda_id,
+             (SELECT count(*)::int FROM fichas_niveles fn WHERE fn.ficha_id = f.id) AS total_niveles
+      FROM fichas f
+      JOIN tiendas t ON t.ficha_activa_id = f.id
+      WHERE t.proveedor_id = ${id}::uuid AND f.estado = 'ACTIVA'
+    `)
+    for (const r of fichaRows as any[]) if (r.tienda_id) fichaMap[r.tienda_id] = { id: r.id, codigo: r.codigo, totalNiveles: r.total_niveles }
+  } catch { /* fichas table not migrated yet */ }
+
   return NextResponse.json(rows.map(t => ({
     ...t,
     ...(extMap[t.id] ?? { estadoServicio: 'ACTIVO', planAplicado: null, velocidad: null, fechaAltaServicio: null }),
     incidentes30d:      incMap[t.id]      ?? 0,
     contratoEspecifico: contratoMap[t.id] ?? null,
+    fichaActiva:        fichaMap[t.id]    ?? null,
   })))
 }

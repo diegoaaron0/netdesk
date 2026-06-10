@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { incidentes, tiendas, proveedores, usuarios, escalamientos, nivelesEscalamiento, adjuntos, atcLlamadas, tiendasHistorial, gruposMasivos, routersExternos } from '@/drizzle/schema'
+import { incidentes, tiendas, proveedores, usuarios, escalamientos, nivelesEscalamiento, fichasNiveles, adjuntos, atcLlamadas, tiendasHistorial, gruposMasivos, routersExternos } from '@/drizzle/schema'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
@@ -89,6 +89,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     cajasTotales:        incidentes.cajasTotales,
     alcanceCorte:        incidentes.alcanceCorte,
     tuvoUps:             incidentes.tuvoUps,
+    fichaId:             incidentes.fichaId,
     grupoMasivoId:       incidentes.grupoMasivoId,
     routerExternoId:     incidentes.routerExternoId,
     // Escalamiento infra interna
@@ -131,11 +132,21 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
-  // Niveles del proveedor registrado en el incidente → los que corresponden al momento del incidente.
-  // Si el proveedor cambió sus niveles de escalamiento después, el incidente sigue usando
-  // los niveles actuales del proveedor histórico (que son los vigentes para ese proveedor hoy).
+  // Niveles de escalamiento: usar los de la ficha del incidente (fichasNiveles).
+  // Fallback a nivelesEscalamiento del proveedor para incidentes sin fichaId.
   let nivelesProveedor: any[] = []
-  if (inc.proveedorId) {
+  if (inc.fichaId) {
+    nivelesProveedor = await db.select({
+      id:              fichasNiveles.id,
+      nivel:           fichasNiveles.nivel,
+      nombreContacto:  fichasNiveles.nombreContacto,
+      email:           fichasNiveles.email,
+      celular:         fichasNiveles.celular,
+      tiempoRespSev1:  fichasNiveles.tiempoRespSev1,
+    }).from(fichasNiveles)
+      .where(eq(fichasNiveles.fichaId, inc.fichaId))
+      .orderBy(fichasNiveles.nivel)
+  } else if (inc.proveedorId) {
     nivelesProveedor = await db.select({
       id:              nivelesEscalamiento.id,
       nivel:           nivelesEscalamiento.nivel,
@@ -183,7 +194,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }, null)
     const maxNivel = escs.reduce((max: number, e: any) => Math.max(max, e.nivel ?? 0), 0)
 
-    const slaContrato = inc.proveedorId ? await getSlaContrato(inc.proveedorId) : null
+    const slaContrato = inc.proveedorId ? await getSlaContrato(inc.proveedorId, inc.tiendaId) : null
     const res = calcSLARow({
       tipo: inc.tipo,
       hora_correo_n1:    horaCorreoN1,

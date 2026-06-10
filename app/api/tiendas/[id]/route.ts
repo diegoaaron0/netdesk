@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { tiendas, proveedores, incidentes, tiendasHistorial } from '@/drizzle/schema'
+import { tiendas, proveedores, incidentes, tiendasHistorial, fichas } from '@/drizzle/schema'
 import { eq, count, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
@@ -49,12 +49,26 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     fuenteVentas: tiendas.fuenteVentas,
     tipoPersonalizadoHabilitado: tiendas.tipoPersonalizadoHabilitado,
     creadoEn: tiendas.creadoEn,
+    fichaActivaId: tiendas.fichaActivaId,
   })
     .from(tiendas)
     .leftJoin(proveedores, eq(tiendas.proveedorId, proveedores.id))
     .where(eq(tiendas.id, id))
 
   if (!tienda) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+
+  // Ficha activa
+  let fichaActiva: { id: string; codigo: string; totalNiveles: number } | null = null
+  if (tienda.fichaActivaId) {
+    try {
+      const [f] = await db.select({
+        id:     fichas.id,
+        codigo: fichas.codigo,
+        totalNiveles: sql<number>`(SELECT count(*)::int FROM fichas_niveles fn WHERE fn.ficha_id = ${fichas.id})`,
+      }).from(fichas).where(eq(fichas.id, tienda.fichaActivaId)).limit(1)
+      if (f) fichaActiva = f
+    } catch { /* fichas not migrated yet */ }
+  }
 
   const [{ total }] = await db.select({ total: count() })
     .from(incidentes)
@@ -184,7 +198,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }
   } catch { /* skip */ }
 
-  return NextResponse.json({ ...tienda, ...extended, totalIncidentes: total, datosMovilesActivos: movCount > 0, slaTienda })
+  return NextResponse.json({ ...tienda, ...extended, totalIncidentes: total, datosMovilesActivos: movCount > 0, slaTienda, fichaActiva })
 }
 
 const TRACKED_FIELDS = [

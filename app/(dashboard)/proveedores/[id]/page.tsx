@@ -99,7 +99,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
   const canEdit = ['SUPERVISOR', 'INFRAESTRUCTURA'].includes((session?.user as any)?.rol ?? '')
 
   const [data, setData]   = useState<any>(null)
-  const [tab, setTab]     = useState<'resumen' | 'tiendas' | 'contrato' | 'escalamiento' | 'historicas'>('resumen')
+  const [tab, setTab]     = useState<'resumen' | 'tiendas' | 'historicas'>('resumen')
   const [ieiPanelOpen, setIeiPanelOpen] = useState(false)
   const [panelMetrica, setPanelMetrica] = useState<string | null>(null)
   const [buscarT, setBuscarT] = useState('')
@@ -247,11 +247,6 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
             {data.tipoServicio && (
               <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '5px', background: 'var(--muted)', color: 'var(--muted-foreground)' }}>{data.tipoServicio}</span>
             )}
-            {(() => {
-              const est = contratos.length > 0 ? contratos[0].estadoCalc : 'VIGENTE'
-              const b = estadoBadge(est)
-              return <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '5px', background: b.bg, color: b.color }}>{est}</span>
-            })()}
           </div>
           {data.correoSoporte && <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{data.correoSoporte}{data.telefonoSoporte ? ` · ${data.telefonoSoporte}` : ''}</div>}
         </div>
@@ -265,10 +260,14 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '2px', borderBottom: '0.5px solid var(--border)', marginBottom: '16px' }}>
-        {(['resumen', 'tiendas', 'contrato', 'escalamiento', 'historicas'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            style={{ padding: '8px 16px', fontSize: '12px', fontWeight: tab === t ? 600 : 400, background: 'none', border: 'none', cursor: 'pointer', color: tab === t ? 'var(--foreground)' : 'var(--muted-foreground)', borderBottom: tab === t ? '2px solid hsl(221,83%,23%)' : '2px solid transparent', textTransform: 'capitalize', transition: 'color 0.15s' }}>
-            {t === 'resumen' ? 'Resumen' : t === 'tiendas' ? 'Tiendas asignadas' : t === 'contrato' ? 'Contrato' : t === 'escalamiento' ? 'Escalamiento' : 'Históricas'}
+        {([
+          { id: 'resumen',    label: 'Resumen' },
+          { id: 'tiendas',    label: 'Tiendas asignadas' },
+          { id: 'historicas', label: 'Históricas' },
+        ] as const).map(t => (
+          <button key={t.id} onClick={() => setTab(t.id as any)}
+            style={{ padding: '8px 16px', fontSize: '12px', fontWeight: tab === t.id ? 600 : 400, background: 'none', border: 'none', cursor: 'pointer', color: tab === t.id ? 'var(--foreground)' : 'var(--muted-foreground)', borderBottom: tab === t.id ? '2px solid hsl(221,83%,23%)' : '2px solid transparent', transition: 'color 0.15s' }}>
+            {t.label}
           </button>
         ))}
       </div>
@@ -400,24 +399,17 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
                           style={{ padding: '4px 10px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                           Ver servicio
                         </button>
-                        <button onClick={e => {
-                          e.stopPropagation()
-                          const ex = t.contratoEspecifico
-                          setContratoTiendaForm({
-                            tiempoRespuestaSla:  ex?.tiempo_respuesta_sla  ?? null,
-                            tiempoResolucionSla: ex?.tiempo_resolucion_sla ?? null,
-                            codigoContrato:      ex?.codigo_contrato       ?? '',
-                            velocidadCapacidad:  ex?.velocidad_capacidad   ?? '',
-                            costoMensual:        ex?.costo_mensual         ?? '',
-                            fechaInicio:         ex?.fecha_inicio          ?? '',
-                            fechaFin:            ex?.fecha_fin             ?? '',
-                            estado:              'VIGENTE',
-                          })
-                          setContratoTiendaId(t.id)
-                        }}
-                          style={{ padding: '4px 10px', fontSize: '11px', border: `0.5px solid ${t.contratoEspecifico ? '#93c5fd' : 'var(--border)'}`, borderRadius: '6px', background: t.contratoEspecifico ? '#eff6ff' : 'var(--card)', color: t.contratoEspecifico ? '#1e40af' : 'var(--foreground)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                          {t.contratoEspecifico ? 'Contrato ✓' : 'Contrato'}
-                        </button>
+                        {t.fichaActiva ? (
+                          <button onClick={e => { e.stopPropagation(); router.push(`/gestion-cambios/fichas/${t.fichaActiva.id}`) }}
+                            style={{ padding: '4px 10px', fontSize: '11px', border: '0.5px solid #86efac', borderRadius: '6px', background: '#f0fdf4', color: '#166534', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                            {t.fichaActiva.codigo}
+                          </button>
+                        ) : (
+                          <button onClick={e => { e.stopPropagation(); router.push(`/gestion-cambios/fichas/nueva?tiendaId=${t.id}&proveedorId=${id}`) }}
+                            style={{ padding: '4px 10px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--muted-foreground)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                            + Ficha
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -428,176 +420,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
         </div>
       )}
 
-      {/* ── Tab: Contrato ────────────────────────────────────────────────────── */}
-      {tab === 'contrato' && (
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
-            {canEdit && (
-              <button onClick={() => {
-                setContratoForm({})
-                setAddContrato(true)
-                setContratoAplicacion('marco')
-                setTiendaBusqModal('')
-                if (tiendas.length === 0) loadTiendas()
-              }}
-                style={{ padding: '7px 14px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>
-                + Agregar contrato
-              </button>
-            )}
-          </div>
-          {contratos.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '32px', color: 'var(--muted-foreground)', fontSize: '13px' }}>Sin contratos registrados</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {contratos.map((c: any) => {
-                const est  = c.estadoCalc ?? calcEstado(c.fechaFin)
-                const dias = diasRestantes(c.fechaFin)
-                const eb   = estadoBadge(est)
-                const diasColor = dias == null ? '#9ca3af' : dias <= 7 ? '#dc2626' : dias <= 30 ? '#d97706' : '#16a34a'
-                return (
-                  <div key={c.id} style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '13px', fontWeight: 600 }}>{c.codigoContrato ?? 'Contrato'}</span>
-                        <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 7px', borderRadius: '5px', background: eb.bg, color: eb.color }}>{est}</span>
-                        {!c.tiendaId ? (
-                          <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'var(--muted)', color: 'var(--muted-foreground)' }}>Contrato general</span>
-                        ) : (
-                          <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: '#dbeafe', color: '#1e40af' }}>Tienda específica</span>
-                        )}
-                      </div>
-                      {canEdit && (
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <button onClick={() => {
-                            setContratoForm({ ...c })
-                            setEditContrato(c)
-                            setContratoAplicacion(c.tiendaId ? 'especifica' : 'marco')
-                            const td = tiendas.find((t: any) => t.id === c.tiendaId)
-                            setTiendaBusqModal(td ? `${td.codigo} — ${td.nombreCc}` : '')
-                            if (tiendas.length === 0) loadTiendas()
-                          }}
-                            style={{ padding: '5px 10px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', cursor: 'pointer' }}>Editar</button>
-                          <button onClick={() => deleteContrato(c.id)}
-                            style={{ padding: '5px 10px', fontSize: '11px', border: '0.5px solid #fca5a5', borderRadius: '6px', background: 'var(--card)', color: '#dc2626', cursor: 'pointer' }}>Eliminar</button>
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '0 24px' }}>
-                      <div><Label>Plan</Label><Val v={c.plan} /></div>
-                      <div><Label>Tipo servicio</Label><Val v={c.tipoServicio} /></div>
-                      <div><Label>Velocidad / Capacidad</Label><Val v={c.velocidadCapacidad} /></div>
-                      <div><Label>Costo mensual</Label><Val v={c.costoMensual ? fmtSoles(c.costoMensual) : null} /></div>
-                      <div><Label>Fecha inicio</Label><Val v={fmtDate(c.fechaInicio)} /></div>
-                      <div>
-                        <Label>Fecha fin</Label>
-                        <div style={{ fontSize: '12px', marginBottom: '10px' }}>
-                          <span style={{ color: 'var(--foreground)' }}>{fmtDate(c.fechaFin)}</span>
-                          {dias != null && (
-                            <span style={{ marginLeft: '6px', fontSize: '10px', fontWeight: 600, color: diasColor }}>
-                              {dias > 0 ? `(${dias}d restantes)` : `(vencido hace ${Math.abs(dias)}d)`}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div><Label>Renovación automática</Label><Val v={c.renovacionAutomatica ? 'Sí' : 'No'} /></div>
-                      <div><Label>SLA comprometido</Label><Val v={c.slaComprometido} /></div>
-                      <div><Label>T. respuesta SLA</Label><Val v={c.tiempoRespuestaSla ? `${c.tiempoRespuestaSla}h` : null} /></div>
-                      <div><Label>T. resolución SLA</Label><Val v={c.tiempoResolucionSla ? `${c.tiempoResolucionSla}h` : null} /></div>
-                      {c.penalidad && <div style={{ gridColumn: '1/-1' }}><Label>Penalidad</Label><Val v={c.penalidad} /></div>}
-                      {c.documentoUrl && (
-                        <div style={{ gridColumn: '1/-1' }}>
-                          <Label>Documento</Label>
-                          <a href={c.documentoUrl} target="_blank" rel="noreferrer"
-                            style={{ fontSize: '12px', color: 'hsl(221,83%,50%)', textDecoration: 'underline' }}>
-                            Ver documento
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )}
 
-      {/* ── Tab: Escalamiento ────────────────────────────────────────────────── */}
-      {tab === 'escalamiento' && (
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
-            {canEdit && (
-              <button onClick={() => { setNivelForm({ nivel: (niveles.length > 0 ? Math.max(...niveles.map((n: any) => n.nivel)) + 1 : 1), activo: true }); setAddNivel(true) }}
-                style={{ padding: '7px 14px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>
-                + Agregar nivel
-              </button>
-            )}
-          </div>
-          {niveles.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '32px', color: 'var(--muted-foreground)', fontSize: '13px' }}>Sin niveles de escalamiento registrados</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {niveles.map((n: any) => {
-                const canal = canalBadge(n.canal)
-                return (
-                  <div key={n.id} style={{ background: 'var(--card)', border: `0.5px solid ${n.activo ? 'var(--border)' : '#fca5a5'}`, borderRadius: '12px', padding: '16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '13px', fontWeight: 700 }}>Nivel {n.nivel}</span>
-                        <span style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>—</span>
-                        <span style={{ fontSize: '13px', fontWeight: 500 }}>{n.nombreContacto}</span>
-                        <span style={{ fontSize: '10px', fontWeight: 600, padding: '1px 7px', borderRadius: '4px', background: n.activo ? '#d1fae5' : '#fee2e2', color: n.activo ? '#065f46' : '#b91c1c' }}>
-                          {n.activo ? 'Activo' : 'Inactivo'}
-                        </span>
-                      </div>
-                      {canEdit && (
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <button onClick={() => { setNivelForm({ ...n }); setEditNivel(n) }}
-                            style={{ padding: '5px 10px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', cursor: 'pointer' }}>Editar</button>
-                          <button onClick={() => deleteNivel(n.id)}
-                            style={{ padding: '5px 10px', fontSize: '11px', border: '0.5px solid #fca5a5', borderRadius: '6px', background: 'var(--card)', color: '#dc2626', cursor: 'pointer' }}>Eliminar</button>
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '0 24px' }}>
-                      <div><Label>Correo principal</Label><Val v={n.email} /></div>
-                      <div><Label>Celular</Label><Val v={n.celular} /></div>
-                      <div><Label>WhatsApp</Label><Val v={n.whatsapp} /></div>
-                      <div>
-                        <Label>Canal</Label>
-                        <div style={{ marginBottom: '10px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '5px', background: canal.bg, color: canal.color }}>{n.canal ?? '—'}</span>
-                        </div>
-                      </div>
-                      <div><Label>Horario atención</Label><Val v={n.horarioAtencion} /></div>
-                      <div><Label>T. respuesta Sev1</Label><Val v={n.tiempoRespSev1} /></div>
-                      <div><Label>T. respuesta Sev2</Label><Val v={n.tiempoRespSev2} /></div>
-                      <div><Label>T. respuesta Sev3</Label><Val v={n.tiempoRespSev3} /></div>
-                      <div><Label>T. solución esperado</Label><Val v={n.tiempoEsperadoSolucion != null ? `${n.tiempoEsperadoSolucion}h` : null} /></div>
-                      {n.correosCopia && n.correosCopia.length > 0 && (
-                        <div style={{ gridColumn: '1/-1' }}>
-                          <Label>Correos en copia</Label>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '10px' }}>
-                            {n.correosCopia.map((cc: string) => (
-                              <span key={cc} style={{ fontSize: '11px', padding: '2px 7px', background: 'var(--muted)', borderRadius: '4px' }}>{cc}</span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {n.instruccion && (
-                        <div style={{ gridColumn: '1/-1' }}>
-                          <Label>Instrucción</Label>
-                          <div style={{ fontSize: '12px', color: 'var(--foreground)', lineHeight: 1.5, whiteSpace: 'pre-wrap', marginBottom: '10px' }}>{n.instruccion}</div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* ── Tab: Históricas ──────────────────────────────────────────────────── */}
       {tab === 'historicas' && (

@@ -2,6 +2,24 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 
+function GcTabs({ active }: { active: 'acciones' | 'fichas' }) {
+  const router = useRouter()
+  const tabs = [
+    { id: 'acciones' as const, label: 'Acciones',   href: '/gestion-cambios' },
+    { id: 'fichas'   as const, label: 'Fichas',     href: '/gestion-cambios/fichas' },
+  ]
+  return (
+    <div style={{ display: 'flex', gap: '2px', borderBottom: '0.5px solid var(--border)', marginBottom: '16px' }}>
+      {tabs.map(t => (
+        <button key={t.id} onClick={() => router.push(t.href)}
+          style={{ padding: '8px 16px', fontSize: '12px', fontWeight: active === t.id ? 700 : 400, background: 'none', border: 'none', cursor: 'pointer', color: active === t.id ? 'var(--foreground)' : 'var(--muted-foreground)', borderBottom: active === t.id ? '2px solid hsl(221,83%,23%)' : '2px solid transparent', transition: 'color 0.15s' }}>
+          {t.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 const TIPO_LABELS: Record<string, string> = {
   CAMBIO_PROVEEDOR:      'Cambio de proveedor',
   RENEGOCIACION_CONTRATO:'Renegociación de contrato',
@@ -75,6 +93,8 @@ export default function GestionCambiosPage() {
           + Nueva acción
         </button>
       </div>
+
+      <GcTabs active="acciones" />
 
       {/* Alertas rápidas */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' }}>
