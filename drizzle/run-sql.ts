@@ -195,7 +195,7 @@ async function main() {
   await sql`CREATE INDEX IF NOT EXISTS idx_incidentes_proveedor_hora ON incidentes(proveedor_id, hora_registro DESC)`
   await sql`CREATE INDEX IF NOT EXISTS idx_incidentes_estado ON incidentes(estado) WHERE estado NOT IN ('RESUELTO','CANCELADO','CERRADO')`
   await sql`CREATE INDEX IF NOT EXISTS idx_escalamientos_incidente_nivel ON escalamientos(incidente_id, nivel)`
-  await sql`CREATE INDEX IF NOT EXISTS idx_contratos_proveedor_tienda ON contratos_proveedor(proveedor_id, tienda_id, estado)`
+  // idx_contratos_proveedor_tienda eliminado — tabla contratos_proveedor dropeada en migración 0026
   console.log('[startup] ✓ Índices de performance (0006)')
 
   // 0007 — secuencia para códigos de incidente (evita race condition)
