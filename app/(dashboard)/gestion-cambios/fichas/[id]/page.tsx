@@ -202,46 +202,108 @@ export default function FichaDetallePage() {
 
       {/* ── Tab: Contrato ── */}
       {tab === 'contrato' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
-          <Field label="Código de contrato" value={src.codigoContrato} editing={editing} name="codigoContrato" onChange={fieldChange} />
-          <Field label="Plan" value={src.plan} editing={editing} name="plan" onChange={fieldChange} />
-          <Field label="Tipo de servicio" value={src.tipoServicio} editing={editing} name="tipoServicio" onChange={fieldChange} />
-          <Field label="Velocidad / Capacidad" value={src.velocidadCapacidad} editing={editing} name="velocidadCapacidad" onChange={fieldChange} />
-          <Field label="Costo mensual (S/)" value={src.costoMensual} editing={editing} name="costoMensual" onChange={fieldChange} type="number" />
-          <div />
-          <Field label="Fecha inicio" value={src.fechaInicio} editing={editing} name="fechaInicio" onChange={fieldChange} type="date" />
-          <Field label="Fecha fin" value={src.fechaFin} editing={editing} name="fechaFin" onChange={fieldChange} type="date" />
-          <Field label="Renovación automática" value={src.renovacionAutomatica} editing={editing} name="renovacionAutomatica" onChange={fieldChange} type="checkbox" />
-          <div />
-          <Field label="SLA comprometido" value={src.slaComprometido} editing={editing} name="slaComprometido" onChange={fieldChange} />
-          <Field label="Tiempo respuesta SLA (min)" value={src.tiempoRespuestaSla} editing={editing} name="tiempoRespuestaSla" onChange={fieldChange} type="number" defaultValue={60} />
-          <Field label="Tiempo resolución SLA (min)" value={src.tiempoResolucionSla} editing={editing} name="tiempoResolucionSla" onChange={fieldChange} type="number" defaultValue={90} />
-          <Field label="Horario atención SLA" value={src.horarioAtencionSla} editing={editing} name="horarioAtencionSla" onChange={fieldChange} />
-          <div style={{ gridColumn: '1 / -1' }}>
-            <Field label="URL documento" value={src.documentoUrl} editing={editing} name="documentoUrl" onChange={fieldChange} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+          {/* KPIs — solo en modo vista */}
+          {!editing && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+              {[
+                {
+                  label: 'Costo mensual',
+                  value: src.costoMensual ? `S/ ${Number(src.costoMensual).toLocaleString('es-PE')}` : '—',
+                  color: src.costoMensual ? 'var(--foreground)' : 'var(--muted-foreground)',
+                },
+                {
+                  label: 'SLA Respuesta',
+                  value: src.tiempoRespuestaSla ?? 60,
+                  suffix: 'min',
+                  color: 'hsl(221,83%,23%)',
+                  note: !src.tiempoRespuestaSla ? 'por defecto' : undefined,
+                },
+                {
+                  label: 'SLA Resolución',
+                  value: src.tiempoResolucionSla ?? 90,
+                  suffix: 'min',
+                  color: 'hsl(221,83%,23%)',
+                  note: !src.tiempoResolucionSla ? 'por defecto' : undefined,
+                },
+              ].map(k => (
+                <div key={k.label} style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '14px 16px' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>{k.label}</div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
+                    <span style={{ fontSize: '22px', fontWeight: 700, color: k.color, lineHeight: 1 }}>{k.value}</span>
+                    {(k as any).suffix && <span style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>{(k as any).suffix}</span>}
+                  </div>
+                  {(k as any).note && <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontStyle: 'italic', marginTop: '3px' }}>{(k as any).note}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Fila principal: Información + Vigencia */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+            <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px' }}>
+              <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', paddingBottom: '8px', borderBottom: '0.5px solid var(--border)' }}>Información del contrato</div>
+              <Field label="Código de contrato"   value={src.codigoContrato}     editing={editing} name="codigoContrato"     onChange={fieldChange} />
+              <Field label="Plan"                 value={src.plan}               editing={editing} name="plan"               onChange={fieldChange} />
+              <Field label="Tipo de servicio"     value={src.tipoServicio}       editing={editing} name="tipoServicio"       onChange={fieldChange} />
+              <Field label="Velocidad / Capacidad" value={src.velocidadCapacidad} editing={editing} name="velocidadCapacidad" onChange={fieldChange} />
+              <Field label="Costo mensual (S/)"   value={src.costoMensual}       editing={editing} name="costoMensual"       onChange={fieldChange} type="number" />
+            </div>
+            <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px' }}>
+              <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', paddingBottom: '8px', borderBottom: '0.5px solid var(--border)' }}>Vigencia</div>
+              <Field label="Fecha inicio"          value={src.fechaInicio}          editing={editing} name="fechaInicio"          onChange={fieldChange} type="date" />
+              <Field label="Fecha fin"             value={src.fechaFin}             editing={editing} name="fechaFin"             onChange={fieldChange} type="date" />
+              <Field label="Renovación automática" value={src.renovacionAutomatica} editing={editing} name="renovacionAutomatica" onChange={fieldChange} type="checkbox" />
+            </div>
           </div>
-          <div style={{ gridColumn: '1 / -1' }}>
-            <Field label="Penalidad" value={src.penalidad} editing={editing} name="penalidad" onChange={fieldChange} textarea />
+
+          {/* SLA */}
+          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px' }}>
+            <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', paddingBottom: '8px', borderBottom: '0.5px solid var(--border)' }}>SLA</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
+              <Field label="SLA comprometido"           value={src.slaComprometido}    editing={editing} name="slaComprometido"    onChange={fieldChange} />
+              <Field label="Tiempo respuesta SLA (min)" value={src.tiempoRespuestaSla} editing={editing} name="tiempoRespuestaSla" onChange={fieldChange} type="number" defaultValue={60} />
+              <Field label="Tiempo resolución SLA (min)" value={src.tiempoResolucionSla} editing={editing} name="tiempoResolucionSla" onChange={fieldChange} type="number" defaultValue={90} />
+              <Field label="Horario atención SLA"       value={src.horarioAtencionSla} editing={editing} name="horarioAtencionSla" onChange={fieldChange} />
+            </div>
+          </div>
+
+          {/* Documentos */}
+          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px' }}>
+            <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', paddingBottom: '8px', borderBottom: '0.5px solid var(--border)' }}>Documentos y penalidades</div>
+            <Field label="URL documento" value={src.documentoUrl} editing={editing} name="documentoUrl" onChange={fieldChange} />
+            <Field label="Penalidad"     value={src.penalidad}    editing={editing} name="penalidad"    onChange={fieldChange} textarea />
           </div>
         </div>
       )}
 
       {/* ── Tab: Conectividad ── */}
       {tab === 'conectividad' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
-          <Field label="Tipo de conexión" value={src.tipoConexion} editing={editing} name="tipoConexion" onChange={fieldChange} />
-          <Field label="CID / Nro. de servicio" value={src.cidServicio} editing={editing} name="cidServicio" onChange={fieldChange} />
-          <Field label="Velocidad" value={src.velocidad} editing={editing} name="velocidad" onChange={fieldChange} />
-          <Field label="Plan aplicado" value={src.planAplicado} editing={editing} name="planAplicado" onChange={fieldChange} />
-          <Field label="Vigencia del contrato" value={src.vigenciaContrato} editing={editing} name="vigenciaContrato" onChange={fieldChange} />
-          <Field label="Estado del servicio" value={src.estadoServicio} editing={editing} name="estadoServicio" onChange={fieldChange} />
-          <Field label="Fecha alta servicio" value={src.fechaAltaServicio} editing={editing} name="fechaAltaServicio" onChange={fieldChange} type="date" />
-          <div />
-          <div style={{ gridColumn: '1 / -1' }}>
-            <Field label="Descripción del servicio" value={src.descripcionServicio} editing={editing} name="descripcionServicio" onChange={fieldChange} textarea />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+          {/* Fila: Datos técnicos + Estado */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+            <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px' }}>
+              <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', paddingBottom: '8px', borderBottom: '0.5px solid var(--border)' }}>Datos técnicos</div>
+              <Field label="Tipo de conexión"      value={src.tipoConexion}  editing={editing} name="tipoConexion"  onChange={fieldChange} />
+              <Field label="CID / Nro. de servicio" value={src.cidServicio}  editing={editing} name="cidServicio"   onChange={fieldChange} />
+              <Field label="Velocidad"             value={src.velocidad}     editing={editing} name="velocidad"     onChange={fieldChange} />
+              <Field label="Plan aplicado"         value={src.planAplicado}  editing={editing} name="planAplicado"  onChange={fieldChange} />
+            </div>
+            <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px' }}>
+              <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', paddingBottom: '8px', borderBottom: '0.5px solid var(--border)' }}>Estado del servicio</div>
+              <Field label="Estado del servicio"   value={src.estadoServicio}    editing={editing} name="estadoServicio"    onChange={fieldChange} />
+              <Field label="Fecha alta servicio"   value={src.fechaAltaServicio} editing={editing} name="fechaAltaServicio" onChange={fieldChange} type="date" />
+              <Field label="Vigencia del contrato" value={src.vigenciaContrato}  editing={editing} name="vigenciaContrato"  onChange={fieldChange} />
+            </div>
           </div>
-          <div style={{ gridColumn: '1 / -1' }}>
-            <Field label="Observación" value={src.observacion} editing={editing} name="observacion" onChange={fieldChange} textarea />
+
+          {/* Notas */}
+          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px' }}>
+            <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', paddingBottom: '8px', borderBottom: '0.5px solid var(--border)' }}>Notas</div>
+            <Field label="Descripción del servicio" value={src.descripcionServicio} editing={editing} name="descripcionServicio" onChange={fieldChange} textarea />
+            <Field label="Observación"              value={src.observacion}         editing={editing} name="observacion"         onChange={fieldChange} textarea />
           </div>
         </div>
       )}
