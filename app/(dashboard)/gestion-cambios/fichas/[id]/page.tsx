@@ -129,7 +129,7 @@ export default function FichaDetallePage() {
   const src = editing ? draft : data
 
   return (
-    <div style={{ padding: '20px 24px', maxWidth: '900px', margin: '0 auto' }}>
+    <div>
       {/* Volver */}
       <button onClick={() => router.push('/gestion-cambios/fichas')}
         style={{ marginBottom: '12px', padding: '5px 12px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--muted-foreground)', cursor: 'pointer' }}>
