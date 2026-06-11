@@ -80,8 +80,7 @@ const CAMPO_LABELS: Record<string, string> = {
 const BLANK = {
   codigo: '', nombreCc: '', formato: '', direccion: '', referencia: '',
   distrito: '', provincia: '', ubicacion: '', cluster: '',
-  supervisorNombre: '', proveedorId: '', tipoConexion: '',
-  tipoServicio: '', cidServicio: '', tieneContingencia: false, costoMensual: '',
+  supervisorNombre: '', proveedorId: '', tieneContingencia: false,
   instruccionReporte: '', contactoSoporte: '', administradorNombre: '',
   administradorEmail: '', administradorCelular: '',
 }
@@ -180,7 +179,6 @@ export default function TiendasPage() {
     const body = {
       ...modal.data,
       tieneContingencia: !!modal.data.tieneContingencia,
-      costoMensual: modal.data.costoMensual || null,
       cluster: modal.data.cluster || null,
       proveedorId: modal.data.proveedorId || null,
     }
@@ -753,8 +751,6 @@ export default function TiendasPage() {
                 ['distrito',             'Distrito',          'text'],
                 ['provincia',            'Provincia',         'text'],
                 ['supervisorNombre',     'Supervisor',        'text'],
-                ['tipoConexion',         'Tipo conexión',     'text'],
-                ['cidServicio',          'CID / Servicio',    'text'],
                 ['instruccionReporte',   'I.E.',              'textarea'],
                 ['administradorCelular', 'Admin celular',     'text'],
               ] as [string, string, string][]).map(([key, label, type]) => (

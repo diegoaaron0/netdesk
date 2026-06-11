@@ -56,7 +56,6 @@ export interface RawEscalamiento {
   hora_envio_correo: Date | null
   hora_respuesta: Date | null
   tiempo_respuesta_min: number | null
-  tiempo_resp_sev1: string | null
 }
 
 export interface RawVentaDiaria {
@@ -166,15 +165,13 @@ export async function fetchEscalamientosPeriodo(
       e.nivel,
       e.hora_envio_correo,
       e.hora_respuesta,
-      e.tiempo_respuesta_min,
-      ne.tiempo_resp_sev1
+      e.tiempo_respuesta_min
     FROM escalamientos e
     JOIN incidentes i ON e.incidente_id       = i.id
     JOIN tiendas t    ON i.tienda_id          = t.id
     JOIN usuarios u   ON i.registrado_por_id  = u.id
     LEFT JOIN proveedores p  ON i.proveedor_id = p.id
     LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
-    LEFT JOIN niveles_escalamiento ne ON e.nivel_esc_id = ne.id
     WHERE i.hora_registro >= ${desde}::timestamptz
       AND i.hora_registro <  ${hasta}::timestamptz
       AND i.estado != 'CANCELADO'

@@ -451,7 +451,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         nivel,
-        nivelEscId:             nivelData?.id             ?? null,
+        fichaNivelId:           nivelData?.id             ?? null,
         contactoEscalado:       nivelData?.nombreContacto ?? `Nivel ${nivel}`,
         emailContacto:          nivelData?.email          ?? '',
         telefonoContacto:       nivelData?.celular        ?? null,

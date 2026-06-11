@@ -338,8 +338,8 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
           {tienda.cluster && (
             <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', background: 'var(--muted)', padding: '1px 6px', borderRadius: '4px' }}>Cluster {tienda.cluster}</span>
           )}
-          {tienda.cidServicio && (
-            <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>CID {tienda.cidServicio}</span>
+          {tienda.fichaActiva?.cidServicio && (
+            <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>CID {tienda.fichaActiva.cidServicio}</span>
           )}
           {tienda.contingenciaActiva && !hayRouterExternoActivo && (
             <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 7px', borderRadius: '4px', background: '#fef3c7', color: '#92400e', border: '0.5px solid #f59e0b' }}>
@@ -355,9 +355,9 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
 
         {/* KPI mini inline */}
         <div style={{ display: 'flex', gap: '8px', flexShrink: 0, alignItems: 'center' }}>
-          {tienda.costoMensual && (
+          {tienda.fichaActiva?.costoMensual && (
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontWeight: 700, color: 'var(--foreground)', fontSize: '13px' }}>S/ {Number(tienda.costoMensual).toLocaleString('es-PE')}</div>
+              <div style={{ fontWeight: 700, color: 'var(--foreground)', fontSize: '13px' }}>S/ {Number(tienda.fichaActiva.costoMensual).toLocaleString('es-PE')}</div>
               <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>/mes costo</div>
             </div>
           )}
@@ -617,29 +617,29 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
 
             {/* Red */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
-              <Field label="Tipo conexión"  value={tienda.tipoConexion ?? ''} editing={false} onChange={() => {}} />
-              <Field label="CID / Servicio" value={tienda.cidServicio  ?? ''} editing={false} onChange={() => {}} />
-              <Field label="Tipo servicio"  value={tienda.tipoServicio ?? ''} editing={false} onChange={() => {}} />
-              <Field label="Velocidad"      value={tienda.velocidad    ?? ''} editing={false} onChange={() => {}} />
+              <Field label="Tipo conexión"  value={tienda.fichaActiva?.tipoConexion ?? ''} editing={false} onChange={() => {}} />
+              <Field label="CID / Servicio" value={tienda.fichaActiva?.cidServicio  ?? ''} editing={false} onChange={() => {}} />
+              <Field label="Tipo servicio"  value={tienda.fichaActiva?.tipoServicio ?? ''} editing={false} onChange={() => {}} />
+              <Field label="Velocidad"      value={tienda.fichaActiva?.velocidad    ?? ''} editing={false} onChange={() => {}} />
             </div>
 
             {/* Servicio */}
             <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '8px', marginTop: '2px' }}>
-              <Field label="Costo mensual (S/.)"   value={tienda.costoMensual        != null ? String(tienda.costoMensual) : ''} editing={false} onChange={() => {}} />
-              <Field label="Descripción servicio"  value={tienda.descripcionServicio ?? ''} editing={false} onChange={() => {}} type="textarea" />
+              <Field label="Costo mensual (S/.)"   value={tienda.fichaActiva?.costoMensual != null ? String(tienda.fichaActiva.costoMensual) : ''} editing={false} onChange={() => {}} />
+              <Field label="Descripción servicio"  value={tienda.fichaActiva?.descripcionServicio ?? ''} editing={false} onChange={() => {}} type="textarea" />
             </div>
 
             {/* Contrato */}
             <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '8px', marginTop: '2px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
-              <Field label="Vigencia contrato"   value={tienda.vigenciaContrato  ?? ''} editing={false} onChange={() => {}} />
+              <Field label="Vigencia contrato"   value={tienda.fichaActiva?.vigenciaContrato  ?? ''} editing={false} onChange={() => {}} />
               <div style={{ marginBottom: '8px' }}>
                 <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>Estado servicio</div>
-                <div style={{ fontSize: '11px', color: tienda.estadoServicio && tienda.estadoServicio !== 'ACTIVO' ? '#b91c1c' : 'var(--foreground)' }}>
-                  {tienda.estadoServicio || 'Activo'}
+                <div style={{ fontSize: '11px', color: tienda.fichaActiva?.estadoServicio && tienda.fichaActiva.estadoServicio !== 'ACTIVO' ? '#b91c1c' : 'var(--foreground)' }}>
+                  {tienda.fichaActiva?.estadoServicio || 'Activo'}
                 </div>
               </div>
-              <Field label="Plan aplicado"       value={tienda.planAplicado      ?? ''} editing={false} onChange={() => {}} />
-              <Field label="Fecha alta servicio" value={tienda.fechaAltaServicio ?? ''} editing={false} onChange={() => {}} />
+              <Field label="Plan aplicado"       value={tienda.fichaActiva?.planAplicado      ?? ''} editing={false} onChange={() => {}} />
+              <Field label="Fecha alta servicio" value={tienda.fichaActiva?.fechaAltaServicio ?? ''} editing={false} onChange={() => {}} />
             </div>
 
             {/* Soporte */}

@@ -149,30 +149,30 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 20px' }}>
             <div><Label>Tienda</Label><Val v={`${tienda.codigo} — ${tienda.nombreCc ?? ''}`} mono /></div>
             <div><Label>Proveedor</Label><Val v={tienda.proveedorNombre} /></div>
-            <div><Label>CID / Servicio</Label><Val v={tienda.cidServicio} mono /></div>
-            <div><Label>Tipo conexion</Label><Val v={tienda.tipoConexion} /></div>
-            <div><Label>Tipo servicio</Label><Val v={tienda.tipoServicio} /></div>
-            <div><Label>Plan aplicado</Label><Val v={tienda.planAplicado} /></div>
-            <div><Label>Velocidad</Label><Val v={tienda.velocidad} /></div>
-            <div><Label>Vigencia contrato</Label><Val v={tienda.vigenciaContrato} /></div>
-            <div><Label>Costo mensual</Label><Val v={fmtSoles(tienda.costoMensual)} /></div>
-            <div><Label>SLA comprometido</Label><Val v={contrato?.slaComprometido ?? '—'} /></div>
-            <div><Label>Fecha alta servicio</Label><Val v={fmtDate(tienda.fechaAltaServicio)} /></div>
+            <div><Label>CID / Servicio</Label><Val v={contrato?.cidServicio} mono /></div>
+            <div><Label>Tipo conexion</Label><Val v={contrato?.tipoConexion} /></div>
+            <div><Label>Tipo servicio</Label><Val v={contrato?.tipoServicio} /></div>
+            <div><Label>Plan aplicado</Label><Val v={contrato?.planAplicado} /></div>
+            <div><Label>Velocidad</Label><Val v={contrato?.velocidad} /></div>
+            <div><Label>Vigencia contrato</Label><Val v={contrato?.vigenciaContrato} /></div>
+            <div><Label>Costo mensual</Label><Val v={fmtSoles(contrato?.costoMensual)} /></div>
+            <div><Label>SLA respuesta</Label><Val v={contrato?.tiempoRespuestaSla ? `${contrato.tiempoRespuestaSla} min` : '—'} /></div>
+            <div><Label>Fecha alta servicio</Label><Val v={fmtDate(contrato?.fechaAltaServicio)} /></div>
             <div>
               <Label>Estado servicio</Label>
               <div style={{ marginBottom: '10px' }}>
                 {(() => {
-                  const b = estadoBadge(tienda.estadoServicio ?? 'ACTIVO')
-                  return <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '5px', background: b.bg, color: b.color }}>{tienda.estadoServicio ?? 'ACTIVO'}</span>
+                  const b = estadoBadge(contrato?.estadoServicio ?? 'ACTIVO')
+                  return <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '5px', background: b.bg, color: b.color }}>{contrato?.estadoServicio ?? 'ACTIVO'}</span>
                 })()}
               </div>
             </div>
             <div><Label>Gabinete</Label><Val v={tienda.gabinete ? 'Si' : tienda.gabinete === false ? 'No' : '—'} /></div>
           </div>
-          {tienda.descripcionServicio && (
+          {contrato?.descripcionServicio && (
             <div>
               <Label>Descripcion servicio</Label>
-              <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '10px' }}>{tienda.descripcionServicio}</div>
+              <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '10px' }}>{contrato.descripcionServicio}</div>
             </div>
           )}
           {tienda.observacion && (
