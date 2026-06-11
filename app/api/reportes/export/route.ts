@@ -26,8 +26,8 @@ export async function GET(req: Request) {
         t.nombre_cc                                                                    AS tienda_nombre_cc,
         COALESCE(t.distrito, '')                                                       AS ubicacion,
         COALESCE(pi.nombre, pt.nombre)                                                 AS proveedor,
-        t.cid_servicio,
-        t.tipo_conexion,
+        f.cid_servicio,
+        f.tipo_conexion,
         t.cluster,
         i.nivel_impacto,
         i.tipo                                                                         AS tipo_incidente,
@@ -133,6 +133,7 @@ export async function GET(req: Request) {
 
       FROM incidentes i
       JOIN    tiendas      t   ON i.tienda_id         = t.id
+      LEFT JOIN fichas      f   ON f.id = COALESCE(i.ficha_id, t.ficha_activa_id)
       LEFT JOIN proveedores  pi  ON i.proveedor_id    = pi.id
       LEFT JOIN proveedores  pt  ON t.proveedor_id    = pt.id
       LEFT JOIN usuarios     u   ON i.registrado_por_id = u.id

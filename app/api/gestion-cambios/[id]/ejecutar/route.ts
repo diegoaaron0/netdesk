@@ -90,20 +90,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   let fichaAnteriorIdCapturada: string | null = null
   if (fichaNuevaId) {
     const [fichaData] = await db
-      .select({
-        id:                  fichas.id,
-        tiendaId:            fichas.tiendaId,
-        cidServicio:         fichas.cidServicio,
-        tipoConexion:        fichas.tipoConexion,
-        velocidad:           fichas.velocidad,
-        tipoServicio:        fichas.tipoServicio,
-        costoMensual:        fichas.costoMensual,
-        descripcionServicio: fichas.descripcionServicio,
-        planAplicado:        fichas.planAplicado,
-        vigenciaContrato:    fichas.vigenciaContrato,
-        estadoServicio:      fichas.estadoServicio,
-        fechaAltaServicio:   fichas.fechaAltaServicio,
-      })
+      .select({ id: fichas.id, tiendaId: fichas.tiendaId })
       .from(fichas)
       .where(eq(fichas.id, fichaNuevaId))
       .limit(1)
@@ -132,16 +119,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         .set({ estado: 'ACTIVA', activadoEn: ahora })
         .where(eq(fichas.id, fichaNuevaId))
 
-      // Sincronizar campos de conectividad a la tienda
-      const syncFields: Record<string, unknown> = { fichaActivaId: fichaNuevaId }
-      const connFields = [
-        'cidServicio', 'tipoConexion', 'velocidad', 'tipoServicio', 'costoMensual',
-        'descripcionServicio', 'planAplicado', 'vigenciaContrato', 'estadoServicio', 'fechaAltaServicio',
-      ] as const
-      for (const f of connFields) {
-        if (fichaData[f] != null) syncFields[f] = fichaData[f]
-      }
-      await db.update(tiendas).set(syncFields as any).where(eq(tiendas.id, fichaData.tiendaId))
+      // Actualizar puntero de ficha activa en la tienda
+      await db.update(tiendas)
+        .set({ fichaActivaId: fichaNuevaId })
+        .where(eq(tiendas.id, fichaData.tiendaId))
     }
   }
 

@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { tiendas, proveedores, incidentes } from '@/drizzle/schema'
+import { tiendas, proveedores, incidentes, fichas, fichasNiveles } from '@/drizzle/schema'
 import { ilike, or, eq, and, gte, sql, count } from 'drizzle-orm'
 import { auth } from '@/auth'
-import { fichasNiveles, fichas } from '@/drizzle/schema'
 
 const PROVEEDOR_COLORS: Record<string, { bg: string; color: string }> = {
   BITEL:     { bg: '#dbeafe', color: '#1e40af' },
@@ -30,8 +29,10 @@ export async function GET(req: NextRequest) {
     const rows = await db.select({
       id: tiendas.id, codigo: tiendas.codigo, nombreCc: tiendas.nombreCc,
       formato: tiendas.formato, direccion: tiendas.direccion, distrito: tiendas.distrito,
-      cluster: tiendas.cluster, tipoConexion: tiendas.tipoConexion,
-      cidServicio: tiendas.cidServicio, instruccionReporte: tiendas.instruccionReporte,
+      cluster: tiendas.cluster,
+      tipoConexion: fichas.tipoConexion,
+      cidServicio:  fichas.cidServicio,
+      instruccionReporte: tiendas.instruccionReporte,
       administradorCelular: tiendas.administradorCelular,
       celularTienda: tiendas.celularTienda,
       tieneContingencia: tiendas.tieneContingencia,
@@ -39,6 +40,7 @@ export async function GET(req: NextRequest) {
       fichaActivaId: tiendas.fichaActivaId,
     })
       .from(tiendas)
+      .leftJoin(fichas, eq(fichas.id, tiendas.fichaActivaId))
       .where(or(ilike(tiendas.codigo, pattern), ilike(tiendas.nombreCc, pattern)))
       .limit(8)
 
@@ -81,9 +83,9 @@ export async function GET(req: NextRequest) {
       distrito: tiendas.distrito, provincia: tiendas.provincia, ubicacion: tiendas.ubicacion,
       cluster: tiendas.cluster, supervisorNombre: tiendas.supervisorNombre,
       proveedorId: tiendas.proveedorId, proveedorNombre: proveedores.nombre,
-      tipoConexion: tiendas.tipoConexion, tipoServicio: tiendas.tipoServicio,
-      cidServicio: tiendas.cidServicio, tieneContingencia: tiendas.tieneContingencia,
-      costoMensual: tiendas.costoMensual, instruccionReporte: tiendas.instruccionReporte,
+      tipoConexion: fichas.tipoConexion, tipoServicio: fichas.tipoServicio,
+      cidServicio:  fichas.cidServicio,  tieneContingencia: tiendas.tieneContingencia,
+      costoMensual: fichas.costoMensual, instruccionReporte: tiendas.instruccionReporte,
       contactoSoporte: tiendas.contactoSoporte,
       administradorNombre: tiendas.administradorNombre,
       administradorEmail: tiendas.administradorEmail,
@@ -93,10 +95,11 @@ export async function GET(req: NextRequest) {
       contingenciaActiva: tiendas.contingenciaActiva,
       contingenciaDescripcion: tiendas.contingenciaDescripcion,
       contingenciaActivadaPor: tiendas.contingenciaActivadaPor,
-      estadoServicio: tiendas.estadoServicio,
+      estadoServicio: fichas.estadoServicio,
     })
       .from(tiendas)
       .leftJoin(proveedores, eq(tiendas.proveedorId, proveedores.id))
+      .leftJoin(fichas, eq(fichas.id, tiendas.fichaActivaId))
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(tiendas.codigo),
 
@@ -137,11 +140,7 @@ export async function POST(req: NextRequest) {
     cluster:             body.cluster ?? null,
     supervisorNombre:    body.supervisorNombre ?? null,
     proveedorId:         body.proveedorId ?? null,
-    tipoConexion:        body.tipoConexion ?? null,
-    tipoServicio:        body.tipoServicio ?? null,
-    cidServicio:         body.cidServicio ?? null,
     tieneContingencia:   body.tieneContingencia ?? false,
-    costoMensual:        body.costoMensual ?? null,
     instruccionReporte:  body.instruccionReporte ?? null,
     contactoSoporte:     body.contactoSoporte ?? null,
     administradorNombre: body.administradorNombre ?? null,

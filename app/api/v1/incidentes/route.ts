@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
       t.nombre_cc                                                                AS tienda_nombre,
       t.distrito                                                                 AS tienda_distrito,
       t.cluster                                                                  AS tienda_cluster,
-      t.tipo_conexion                                                            AS tienda_tipo_conexion,
+      f.tipo_conexion                                                            AS tienda_tipo_conexion,
       -- Proveedor (histórico del incidente)
       COALESCE(pi.nombre, pt.nombre)                                             AS proveedor,
       -- SLA Respuesta N1
@@ -89,6 +89,7 @@ export async function GET(req: NextRequest) {
       t.cluster                                                                  AS cluster_raw
     FROM incidentes i
     JOIN tiendas t ON i.tienda_id = t.id
+    LEFT JOIN fichas f ON f.id = COALESCE(i.ficha_id, t.ficha_activa_id)
     LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
     LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
     LEFT JOIN LATERAL (

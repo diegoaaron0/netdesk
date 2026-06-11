@@ -45,17 +45,17 @@ export async function GET() {
         t.provincia,
         t.ubicacion,
         COALESCE(p.nombre, '')              AS proveedor,
-        t.tipo_conexion,
-        t.tipo_servicio,
-        t.cid_servicio,
-        t.descripcion_servicio,
-        t.costo_mensual,
+        f.tipo_conexion,
+        f.tipo_servicio,
+        f.cid_servicio,
+        f.descripcion_servicio,
+        f.costo_mensual,
         t.venta_hora_soles,
-        t.velocidad,
-        t.plan_aplicado,
-        t.vigencia_contrato,
-        t.fecha_alta_servicio,
-        t.estado_servicio,
+        f.velocidad,
+        f.plan_aplicado,
+        f.vigencia_contrato,
+        f.fecha_alta_servicio,
+        f.estado_servicio,
         CASE WHEN COALESCE(t.gabinete, false) THEN 'Sí' ELSE 'No' END    AS gabinete,
         CASE WHEN COALESCE(t.tiene_contingencia, false) THEN 'Sí' ELSE 'No' END AS tiene_contingencia,
         CASE WHEN COALESCE(t.contingencia_activa, false) THEN 'Sí' ELSE 'No' END AS contingencia_activa,
@@ -75,6 +75,7 @@ export async function GET() {
         t.coordenadas
       FROM tiendas t
       LEFT JOIN proveedores p ON t.proveedor_id = p.id
+      LEFT JOIN fichas f ON f.id = t.ficha_activa_id
       ORDER BY t.codigo
     `)
 

@@ -28,15 +28,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     proveedorNombre: proveedores.nombre,
     proveedorTelefono: proveedores.telefonoSoporte,
     proveedorCorreo: proveedores.correoSoporte,
-    tipoConexion: tiendas.tipoConexion,
-    tipoServicio: tiendas.tipoServicio,
-    cidServicio: tiendas.cidServicio,
     tieneContingencia: tiendas.tieneContingencia,
     contingenciaActiva: tiendas.contingenciaActiva,
     contingenciaActivadaPor: tiendas.contingenciaActivadaPor,
     contingenciaDescripcion: tiendas.contingenciaDescripcion,
     contingenciaFecha: tiendas.contingenciaFecha,
-    costoMensual: tiendas.costoMensual,
     instruccionReporte: tiendas.instruccionReporte,
     contactoSoporte: tiendas.contactoSoporte,
     administradorNombre: tiendas.administradorNombre,
@@ -57,14 +53,30 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   if (!tienda) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
-  // Ficha activa
-  let fichaActiva: { id: string; codigo: string; totalNiveles: number } | null = null
+  // Ficha activa (incluye campos de conectividad — ya no viven en tiendas)
+  let fichaActiva: {
+    id: string; codigo: string; totalNiveles: number
+    cidServicio: string | null; tipoConexion: string | null; tipoServicio: string | null
+    costoMensual: string | null; velocidad: string | null; planAplicado: string | null
+    vigenciaContrato: string | null; estadoServicio: string | null
+    fechaAltaServicio: string | null; descripcionServicio: string | null
+  } | null = null
   if (tienda.fichaActivaId) {
     try {
       const [f] = await db.select({
         id:     fichas.id,
         codigo: fichas.codigo,
-        totalNiveles: sql<number>`(SELECT count(*)::int FROM fichas_niveles fn WHERE fn.ficha_id = ${fichas.id})`,
+        totalNiveles:        sql<number>`(SELECT count(*)::int FROM fichas_niveles fn WHERE fn.ficha_id = ${fichas.id})`,
+        cidServicio:         fichas.cidServicio,
+        tipoConexion:        fichas.tipoConexion,
+        tipoServicio:        fichas.tipoServicio,
+        costoMensual:        fichas.costoMensual,
+        velocidad:           fichas.velocidad,
+        planAplicado:        fichas.planAplicado,
+        vigenciaContrato:    fichas.vigenciaContrato,
+        estadoServicio:      fichas.estadoServicio,
+        fechaAltaServicio:   fichas.fechaAltaServicio,
+        descripcionServicio: fichas.descripcionServicio,
       }).from(fichas).where(eq(fichas.id, tienda.fichaActivaId)).limit(1)
       if (f) fichaActiva = f
     } catch { /* fichas not migrated yet */ }
@@ -87,10 +99,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   let extended: Record<string, any> = {
     celularTienda: null, supervisorCelular: null,
     contingenciaChip: null, contingenciaPaquete: null,
-    extras: null, gabinete: false,
-    vigenciaContrato: null, descripcionServicio: null,
-    observacion: null, fechaAltaServicio: null,
-    estadoServicio: 'ACTIVO', velocidad: null, planAplicado: null,
+    extras: null, gabinete: false, observacion: null,
     ventaHoraFdsSoles: null, ventaMensualSoles: null,
     proporcionFds: null, fuenteVentas: null,
   }
@@ -102,17 +111,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       contingenciaPaquete: tiendas.contingenciaPaquete,
       extras:              tiendas.extras,
       gabinete:            tiendas.gabinete,
-      vigenciaContrato:    tiendas.vigenciaContrato,
-      descripcionServicio: tiendas.descripcionServicio,
       observacion:         tiendas.observacion,
-      fechaAltaServicio:   tiendas.fechaAltaServicio,
-      estadoServicio:      tiendas.estadoServicio,
-      velocidad:           tiendas.velocidad,
-      planAplicado:        tiendas.planAplicado,
       ventaHoraFdsSoles:   tiendas.ventaHoraFdsSoles,
       ventaMensualSoles:   tiendas.ventaMensualSoles,
       proporcionFds:       tiendas.proporcionFds,
-      fuenteVentas:   tiendas.fuenteVentas,
+      fuenteVentas:        tiendas.fuenteVentas,
     }).from(tiendas).where(eq(tiendas.id, id))
     if (ext) extended = ext as any
   } catch {
@@ -224,45 +227,30 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     distrito: tiendas.distrito, provincia: tiendas.provincia, ubicacion: tiendas.ubicacion,
     coordenadas: tiendas.coordenadas, cluster: tiendas.cluster,
     supervisorNombre: tiendas.supervisorNombre, perfilSupervisor: tiendas.perfilSupervisor,
-    proveedorId: tiendas.proveedorId, tipoConexion: tiendas.tipoConexion,
-    tipoServicio: tiendas.tipoServicio, cidServicio: tiendas.cidServicio,
+    proveedorId: tiendas.proveedorId,
     tieneContingencia: tiendas.tieneContingencia, contingenciaActiva: tiendas.contingenciaActiva,
     contingenciaActivadaPor: tiendas.contingenciaActivadaPor,
     contingenciaDescripcion: tiendas.contingenciaDescripcion,
     contingenciaFecha: tiendas.contingenciaFecha,
-    costoMensual: tiendas.costoMensual, instruccionReporte: tiendas.instruccionReporte,
+    instruccionReporte: tiendas.instruccionReporte,
     contactoSoporte: tiendas.contactoSoporte, administradorNombre: tiendas.administradorNombre,
     administradorEmail: tiendas.administradorEmail, administradorCelular: tiendas.administradorCelular,
-    ventaHoraSoles: tiendas.ventaHoraSoles,
+    ventaHoraSoles:      tiendas.ventaHoraSoles,
     ventaHoraFdsSoles:   tiendas.ventaHoraFdsSoles,
     ventaMensualSoles:   tiendas.ventaMensualSoles,
     proporcionFds:       tiendas.proporcionFds,
-    fuenteVentas:   tiendas.fuenteVentas,
+    fuenteVentas:        tiendas.fuenteVentas,
     celularTienda:       tiendas.celularTienda,
     supervisorCelular:   tiendas.supervisorCelular,
     contingenciaChip:    tiendas.contingenciaChip,
     contingenciaPaquete: tiendas.contingenciaPaquete,
     extras:              tiendas.extras,
     gabinete:            tiendas.gabinete,
-    vigenciaContrato:    tiendas.vigenciaContrato,
-    descripcionServicio: tiendas.descripcionServicio,
     observacion:         tiendas.observacion,
-    fechaAltaServicio:   tiendas.fechaAltaServicio,
-    estadoServicio:      tiendas.estadoServicio,
-    velocidad:           tiendas.velocidad,
-    planAplicado:        tiendas.planAplicado,
   }).from(tiendas).where(eq(tiendas.id, id))
   if (!current) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
   const body = await req.json()
-
-  // Estos campos solo cambian al activar una ficha — nunca por PUT directo
-  const CAMPOS_SOLO_FICHA = [
-    'proveedorId', 'tipoConexion', 'tipoServicio', 'cidServicio', 'velocidad',
-    'planAplicado', 'vigenciaContrato', 'estadoServicio', 'fechaAltaServicio',
-    'descripcionServicio', 'costoMensual',
-  ] as const
-  for (const campo of CAMPOS_SOLO_FICHA) delete body[campo]
 
   // Recálculo automático cuando se edita venta mensual
   if ('ventaMensualSoles' in body && body.ventaMensualSoles != null) {

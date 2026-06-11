@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { proveedores, tiendas, incidentes, escalamientos } from '@/drizzle/schema'
+import { proveedores, tiendas, incidentes, escalamientos, fichas } from '@/drizzle/schema'
 import { eq, gte, sql, and, isNotNull } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { SLA_RESPUESTA_MIN, SLA_RESOLUCION_DEFAULT_MIN } from '@/lib/sla-core'
@@ -45,8 +45,9 @@ export async function GET(req: NextRequest) {
     const tAgg = await db.select({
       proveedorId: tiendas.proveedorId,
       total:       sql<number>`count(*)::int`,
-      costoTotal:  sql<string>`coalesce(sum(costo_mensual::numeric), 0)::text`,
+      costoTotal:  sql<string>`coalesce(sum(${fichas.costoMensual}::numeric), 0)::text`,
     }).from(tiendas)
+      .leftJoin(fichas, eq(fichas.id, tiendas.fichaActivaId))
       .where(isNotNull(tiendas.proveedorId))
       .groupBy(tiendas.proveedorId)
     for (const t of tAgg) if (t.proveedorId) tMap[t.proveedorId] = { total: t.total, costoTotal: t.costoTotal }

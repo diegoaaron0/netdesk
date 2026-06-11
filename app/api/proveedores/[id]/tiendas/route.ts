@@ -12,7 +12,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const thirtyDaysAgo    = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
   const thirtyDaysAgoStr = thirtyDaysAgo.toISOString()
 
-  // Base columns (original — always safe)
+  // Base columns
   const rows = await db.select({
     id:                tiendas.id,
     codigo:            tiendas.codigo,
@@ -20,30 +20,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     referencia:        tiendas.referencia,
     distrito:          tiendas.distrito,
     provincia:         tiendas.provincia,
-    cidServicio:       tiendas.cidServicio,
-    tipoConexion:      tiendas.tipoConexion,
-    tipoServicio:      tiendas.tipoServicio,
     cluster:           tiendas.cluster,
-    costoMensual:      tiendas.costoMensual,
     tieneContingencia: tiendas.tieneContingencia,
     contingenciaActiva: tiendas.contingenciaActiva,
-    descripcionServicio: tiendas.descripcionServicio,
   }).from(tiendas)
     .where(eq(tiendas.proveedorId, id))
     .orderBy(tiendas.codigo)
-
-  // New columns (may not exist in Railway yet)
-  let extMap: Record<string, any> = {}
-  try {
-    const extRows = await db.select({
-      id:                tiendas.id,
-      estadoServicio:    tiendas.estadoServicio,
-      planAplicado:      tiendas.planAplicado,
-      velocidad:         tiendas.velocidad,
-      fechaAltaServicio: tiendas.fechaAltaServicio,
-    }).from(tiendas).where(eq(tiendas.proveedorId, id))
-    for (const r of extRows) extMap[r.id] = r
-  } catch { /* columns not migrated yet */ }
 
   // Incidentes 30d — COALESCE para incluir incidentes post-cambio de proveedor
   let incMap: Record<string, number> = {}
@@ -59,36 +41,38 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     for (const c of incCounts as any[]) if (c.tienda_id) incMap[c.tienda_id] = c.total
   } catch { /* skip */ }
 
-  // Contratos específicos por tienda (override SLA)
-  let contratoMap: Record<string, any> = {}
-  try {
-    const contratos = await db.execute(sql`
-      SELECT id, tienda_id, codigo_contrato, tiempo_respuesta_sla, tiempo_resolucion_sla,
-             costo_mensual::text, velocidad_capacidad, fecha_inicio::text, fecha_fin::text
-      FROM contratos_proveedor
-      WHERE proveedor_id = ${id} AND tienda_id IS NOT NULL AND estado = 'VIGENTE'
-    `)
-    for (const c of contratos as any[]) if (c.tienda_id) contratoMap[c.tienda_id] = c
-  } catch { /* table not migrated yet */ }
-
-  // Ficha activa por tienda
-  let fichaMap: Record<string, { id: string; codigo: string; totalNiveles: number }> = {}
+  // Ficha activa por tienda (incluye campos de conectividad)
+  let fichaMap: Record<string, any> = {}
   try {
     const fichaRows = await db.execute(sql`
       SELECT f.id, f.codigo, f.tienda_id,
+             f.cid_servicio, f.tipo_conexion, f.tipo_servicio, f.costo_mensual,
+             f.velocidad, f.plan_aplicado, f.descripcion_servicio,
+             f.vigencia_contrato, f.fecha_alta_servicio, f.estado_servicio,
+             f.tiempo_respuesta_sla, f.tiempo_resolucion_sla,
              (SELECT count(*)::int FROM fichas_niveles fn WHERE fn.ficha_id = f.id) AS total_niveles
       FROM fichas f
       JOIN tiendas t ON t.ficha_activa_id = f.id
       WHERE t.proveedor_id = ${id}::uuid AND f.estado = 'ACTIVA'
     `)
-    for (const r of fichaRows as any[]) if (r.tienda_id) fichaMap[r.tienda_id] = { id: r.id, codigo: r.codigo, totalNiveles: r.total_niveles }
+    for (const r of fichaRows as any[]) if (r.tienda_id) fichaMap[r.tienda_id] = r
   } catch { /* fichas table not migrated yet */ }
 
   return NextResponse.json(rows.map(t => ({
     ...t,
-    ...(extMap[t.id] ?? { estadoServicio: 'ACTIVO', planAplicado: null, velocidad: null, fechaAltaServicio: null }),
-    incidentes30d:      incMap[t.id]      ?? 0,
-    contratoEspecifico: contratoMap[t.id] ?? null,
-    fichaActiva:        fichaMap[t.id]    ?? null,
+    cidServicio:         fichaMap[t.id]?.cid_servicio         ?? null,
+    tipoConexion:        fichaMap[t.id]?.tipo_conexion         ?? null,
+    tipoServicio:        fichaMap[t.id]?.tipo_servicio         ?? null,
+    costoMensual:        fichaMap[t.id]?.costo_mensual         ?? null,
+    velocidad:           fichaMap[t.id]?.velocidad             ?? null,
+    planAplicado:        fichaMap[t.id]?.plan_aplicado         ?? null,
+    descripcionServicio: fichaMap[t.id]?.descripcion_servicio  ?? null,
+    vigenciaContrato:    fichaMap[t.id]?.vigencia_contrato     ?? null,
+    fechaAltaServicio:   fichaMap[t.id]?.fecha_alta_servicio   ?? null,
+    estadoServicio:      fichaMap[t.id]?.estado_servicio       ?? null,
+    incidentes30d:       incMap[t.id] ?? 0,
+    fichaActiva:         fichaMap[t.id]
+      ? { id: fichaMap[t.id].id, codigo: fichaMap[t.id].codigo, totalNiveles: fichaMap[t.id].total_niveles }
+      : null,
   })))
 }

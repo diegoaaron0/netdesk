@@ -16,7 +16,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  // Base tienda info (original columns — safe)
+  // Base tienda info
   const [tiendaBase] = await db.select({
     id:                tiendas.id,
     codigo:            tiendas.codigo,
@@ -26,11 +26,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     direccion:         tiendas.direccion,
     distrito:          tiendas.distrito,
     provincia:         tiendas.provincia,
-    cidServicio:       tiendas.cidServicio,
-    tipoConexion:      tiendas.tipoConexion,
-    tipoServicio:      tiendas.tipoServicio,
-    descripcionServicio: tiendas.descripcionServicio,
-    costoMensual:      tiendas.costoMensual,
     tieneContingencia: tiendas.tieneContingencia,
     contingenciaActiva: tiendas.contingenciaActiva,
     ventaHoraSoles:    tiendas.ventaHoraSoles,
@@ -40,7 +35,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     supervisorNombre:  tiendas.supervisorNombre,
     supervisorCelular: tiendas.supervisorCelular,
     contactoSoporte:   tiendas.contactoSoporte,
-    vigenciaContrato:  tiendas.vigenciaContrato,
     gabinete:          tiendas.gabinete,
     observacion:       tiendas.observacion,
   }).from(tiendas)
@@ -49,19 +43,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   if (!tiendaBase) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
-  // New tienda columns (may not exist yet)
-  let tiendaExt: any = { planAplicado: null, velocidad: null, fechaAltaServicio: null, estadoServicio: 'ACTIVO' }
-  try {
-    const [r] = await db.select({
-      planAplicado:      tiendas.planAplicado,
-      velocidad:         tiendas.velocidad,
-      fechaAltaServicio: tiendas.fechaAltaServicio,
-      estadoServicio:    tiendas.estadoServicio,
-    }).from(tiendas).where(eq(tiendas.id, tiendaId))
-    if (r) tiendaExt = r
-  } catch { /* columns not migrated yet */ }
-
-  const tienda = { ...tiendaBase, ...tiendaExt }
+  const tienda = { ...tiendaBase }
 
   const thirtyDaysAgo    = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
   const thirtyDaysAgoStr = thirtyDaysAgo.toISOString()

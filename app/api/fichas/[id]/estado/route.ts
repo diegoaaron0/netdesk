@@ -21,21 +21,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const [ficha] = await db
     .select({
-      id:                  fichas.id,
-      codigo:              fichas.codigo,
-      tiendaId:            fichas.tiendaId,
-      proveedorId:         fichas.proveedorId,
-      estado:              fichas.estado,
-      cidServicio:         fichas.cidServicio,
-      tipoConexion:        fichas.tipoConexion,
-      velocidad:           fichas.velocidad,
-      tipoServicio:        fichas.tipoServicio,
-      costoMensual:        fichas.costoMensual,
-      descripcionServicio: fichas.descripcionServicio,
-      planAplicado:        fichas.planAplicado,
-      vigenciaContrato:    fichas.vigenciaContrato,
-      estadoServicio:      fichas.estadoServicio,
-      fechaAltaServicio:   fichas.fechaAltaServicio,
+      id:          fichas.id,
+      codigo:      fichas.codigo,
+      tiendaId:    fichas.tiendaId,
+      proveedorId: fichas.proveedorId,
+      estado:      fichas.estado,
     })
     .from(fichas)
     .where(eq(fichas.id, id))
@@ -71,16 +61,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       .where(eq(fichas.id, id))
       .returning()
 
-    // Sincronizar tienda: ficha activa + todos los campos de conectividad
-    const syncFields: Record<string, unknown> = { fichaActivaId: id, proveedorId: ficha.proveedorId }
-    const connFields: (keyof typeof ficha)[] = [
-      'cidServicio', 'tipoConexion', 'velocidad', 'tipoServicio', 'costoMensual',
-      'descripcionServicio', 'planAplicado', 'vigenciaContrato', 'estadoServicio', 'fechaAltaServicio',
-    ]
-    for (const f of connFields) {
-      if (ficha[f] != null) syncFields[f] = ficha[f]
-    }
-    await db.update(tiendas).set(syncFields as any).where(eq(tiendas.id, ficha.tiendaId))
+    // Sincronizar tienda: solo puntero a ficha activa y proveedor
+    await db.update(tiendas)
+      .set({ fichaActivaId: id, proveedorId: ficha.proveedorId })
+      .where(eq(tiendas.id, ficha.tiendaId))
 
     // Si el proveedor cambió (activación directa sin pasar por ejecutar),
     // garantizar backfill de incidentes e historial.

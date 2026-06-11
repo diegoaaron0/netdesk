@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { proveedores, tiendas, incidentes } from '@/drizzle/schema'
+import { proveedores, tiendas, incidentes, fichas } from '@/drizzle/schema'
 import { eq, sql, and, desc } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
@@ -49,8 +49,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const [r] = await db.select({
       count:      sql<number>`count(*)::int`,
-      costoTotal: sql<string>`coalesce(sum(costo_mensual::numeric), 0)::text`,
-    }).from(tiendas).where(eq(tiendas.proveedorId, id))
+      costoTotal: sql<string>`coalesce(sum(${fichas.costoMensual}::numeric), 0)::text`,
+    }).from(tiendas)
+      .leftJoin(fichas, eq(fichas.id, tiendas.fichaActivaId))
+      .where(eq(tiendas.proveedorId, id))
     if (r) tiendasData = { count: r.count, costoTotal: r.costoTotal }
   } catch { /* skip */ }
 
@@ -228,10 +230,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   let costoBreakdown: any[] = []
   try {
     const rows = await db.execute(sql`
-      SELECT codigo, nombre_cc, costo_mensual::numeric AS costo
-      FROM tiendas
-      WHERE proveedor_id = ${id} AND costo_mensual IS NOT NULL
-      ORDER BY costo_mensual::numeric DESC
+      SELECT t.codigo, t.nombre_cc, f.costo_mensual::numeric AS costo
+      FROM tiendas t
+      LEFT JOIN fichas f ON f.id = t.ficha_activa_id
+      WHERE t.proveedor_id = ${id} AND f.costo_mensual IS NOT NULL
+      ORDER BY f.costo_mensual::numeric DESC
     `)
     costoBreakdown = (rows as any[]).map(r => ({
       codigo: r.codigo, nombre: r.nombre_cc, costo: Number(r.costo),

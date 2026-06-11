@@ -202,6 +202,19 @@ async function main() {
   await sql`CREATE SEQUENCE IF NOT EXISTS netdesk_inc_seq START 1`
   console.log('[startup] ✓ Secuencia netdesk_inc_seq (0007)')
 
+  // 0027 — eliminar campos de conectividad de tiendas (ahora viven en fichas)
+  await sql`ALTER TABLE tiendas DROP COLUMN IF EXISTS tipo_conexion`
+  await sql`ALTER TABLE tiendas DROP COLUMN IF EXISTS tipo_servicio`
+  await sql`ALTER TABLE tiendas DROP COLUMN IF EXISTS cid_servicio`
+  await sql`ALTER TABLE tiendas DROP COLUMN IF EXISTS velocidad`
+  await sql`ALTER TABLE tiendas DROP COLUMN IF EXISTS plan_aplicado`
+  await sql`ALTER TABLE tiendas DROP COLUMN IF EXISTS vigencia_contrato`
+  await sql`ALTER TABLE tiendas DROP COLUMN IF EXISTS estado_servicio`
+  await sql`ALTER TABLE tiendas DROP COLUMN IF EXISTS fecha_alta_servicio`
+  await sql`ALTER TABLE tiendas DROP COLUMN IF EXISTS descripcion_servicio`
+  await sql`ALTER TABLE tiendas DROP COLUMN IF EXISTS costo_mensual`
+  console.log('[startup] ✓ Campos conectividad de tiendas eliminados (0027)')
+
   console.log('[startup] Migraciones completadas.')
   await sql.end()
 }

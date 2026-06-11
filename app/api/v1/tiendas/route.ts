@@ -15,9 +15,9 @@ export async function GET(req: NextRequest) {
       t.distrito,
       t.provincia,
       t.cluster,
-      t.tipo_conexion,
-      t.tipo_servicio,
-      t.cid_servicio,
+      f.tipo_conexion,
+      f.tipo_servicio,
+      f.cid_servicio,
       COALESCE(p.nombre, '')                                             AS proveedor,
       CASE WHEN t.tiene_contingencia    THEN 'Sí' ELSE 'No' END        AS tiene_contingencia,
       CASE WHEN t.contingencia_activa   THEN 'Sí' ELSE 'No' END        AS contingencia_activa,
@@ -28,10 +28,11 @@ export async function GET(req: NextRequest) {
           AND i.hora_registro >= NOW() - INTERVAL '30 days'
       )::int                                                             AS incidentes_30d
     FROM tiendas t
+    LEFT JOIN fichas      f ON f.id = t.ficha_activa_id
     LEFT JOIN proveedores p ON t.proveedor_id = p.id
     LEFT JOIN incidentes  i ON i.tienda_id    = t.id
     GROUP BY t.id, t.codigo, t.nombre_cc, t.formato, t.distrito, t.provincia,
-             t.cluster, t.tipo_conexion, t.tipo_servicio, t.cid_servicio,
+             t.cluster, f.tipo_conexion, f.tipo_servicio, f.cid_servicio,
              t.tiene_contingencia, t.contingencia_activa, t.venta_hora_soles, p.nombre
     ORDER BY t.codigo
   `) as unknown as any[]
