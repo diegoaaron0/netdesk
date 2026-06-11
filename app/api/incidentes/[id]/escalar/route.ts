@@ -18,14 +18,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const creadoPorId = (session.user as any)?.id ?? null
   const [esc] = await db.insert(escalamientos).values({
-    incidenteId: id,
-    nivel: body.nivel,
-    nivelEscId: body.nivelEscId ?? null,
+    incidenteId:      id,
+    nivel:            body.nivel,
+    fichaNivelId:     body.fichaNivelId     ?? null,
     contactoEscalado: body.contactoEscalado,
-    emailContacto: body.emailContacto,
+    emailContacto:    body.emailContacto,
     telefonoContacto: body.telefonoContacto ?? null,
     tiempoEstimadoSolucion: body.tiempoEstimadoSolucion ?? null,
-    cuerpoCorreo: body.cuerpoCorreo ?? null,
+    cuerpoCorreo:     body.cuerpoCorreo     ?? null,
     creadoPorId,
   }).returning()
 

@@ -152,11 +152,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       LEFT JOIN LATERAL (
         SELECT tiempo_respuesta_sla  AS sla_resp_override,
                tiempo_resolucion_sla AS sla_resol_override
-        FROM contratos_proveedor
-        WHERE proveedor_id = COALESCE(i.proveedor_id, t.proveedor_id)
-          AND estado = 'VIGENTE'
-          AND (tienda_id IS NULL OR tienda_id = i.tienda_id)
-        ORDER BY (tienda_id IS NOT NULL) DESC
+        FROM fichas
+        WHERE id = COALESCE(i.ficha_id, t.ficha_activa_id)
         LIMIT 1
       ) contrato ON true
       WHERE i.tienda_id = ${id}

@@ -1,32 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { proveedores, tiendas, incidentes, escalamientos, contratosProveedor } from '@/drizzle/schema'
-import { eq, gte, sql, and, isNotNull, desc } from 'drizzle-orm'
+import { proveedores, tiendas, incidentes, escalamientos } from '@/drizzle/schema'
+import { eq, gte, sql, and, isNotNull } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { SLA_RESPUESTA_MIN, SLA_RESOLUCION_DEFAULT_MIN } from '@/lib/sla-core'
-
-function calcEstado(fechaFin: string | null): 'VIGENTE' | 'POR_VENCER' | 'VENCIDO' {
-  if (!fechaFin) return 'VIGENTE'
-  const fin = new Date(fechaFin)
-  const hoy = new Date()
-  const en7 = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-  if (fin < hoy) return 'VENCIDO'
-  if (fin <= en7) return 'POR_VENCER'
-  return 'VIGENTE'
-}
-
-const RANK: Record<string, number> = { VENCIDO: 2, POR_VENCER: 1, VIGENTE: 0 }
 
 export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   const { searchParams } = req.nextUrl
-  const buscar       = searchParams.get('buscar')        ?? ''
-  const tipoServicio = searchParams.get('tipoServicio')  ?? ''
-  const estadoFiltro = searchParams.get('estadoContrato') ?? ''
-  const planFiltro   = searchParams.get('plan')          ?? ''
-  const ordenar      = searchParams.get('ordenar')       ?? ''
+  const buscar     = searchParams.get('buscar')  ?? ''
+  const planFiltro = searchParams.get('plan')    ?? ''
+  const ordenar    = searchParams.get('ordenar') ?? ''
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
   const thirtyDaysAgoStr = thirtyDaysAgo.toISOString()
@@ -41,19 +27,17 @@ export async function GET(req: NextRequest) {
     creadoEn:           proveedores.creadoEn,
   }).from(proveedores).orderBy(proveedores.nombre)
 
-  // ── 2. New columns (may not exist yet in Railway) ───────────────────────────
-  let extMap: Record<string, { tipoServicio: string | null; planPrincipal: string | null; canalAtencion: string | null; observaciones: string | null; estadoContrato: string | null }> = {}
+  // ── 2. Extended columns (plan, canal, observaciones) ───────────────────────
+  let extMap: Record<string, { planPrincipal: string | null; canalAtencion: string | null; observaciones: string | null }> = {}
   try {
     const extRows = await db.select({
       id:             proveedores.id,
-      tipoServicio:   proveedores.tipoServicio,
       planPrincipal:  proveedores.planPrincipal,
       canalAtencion:  proveedores.canalAtencion,
       observaciones:  proveedores.observaciones,
-      estadoContrato: proveedores.estadoContrato,
     }).from(proveedores)
     for (const r of extRows) extMap[r.id] = r
-  } catch { /* columns not migrated yet */ }
+  } catch { /* skip */ }
 
   // ── 3. Tiendas aggregate per provider ──────────────────────────────────────
   let tMap: Record<string, { total: number; costoTotal: string }> = {}
@@ -136,42 +120,20 @@ export async function GET(req: NextRequest) {
     }
   } catch { /* skip */ }
 
-  // ── 6. Contratos per provider (may not exist yet) ───────────────────────────
-  let cMap: Record<string, { estado: string; plan: string | null }> = {}
-  try {
-    const contratosRows = await db.select({
-      proveedorId: contratosProveedor.proveedorId,
-      fechaFin:    contratosProveedor.fechaFin,
-      plan:        contratosProveedor.plan,
-    }).from(contratosProveedor)
-      .orderBy(desc(contratosProveedor.creadoEn))
-    for (const c of contratosRows) {
-      const est = calcEstado(c.fechaFin)
-      const ex  = cMap[c.proveedorId]
-      if (!ex || (RANK[est] ?? 0) > (RANK[ex.estado] ?? 0)) {
-        cMap[c.proveedorId] = { estado: est, plan: c.plan }
-      }
-    }
-  } catch { /* contratos table not migrated yet */ }
-
   // ── Merge ───────────────────────────────────────────────────────────────────
   let result = provsList.map(p => ({
     ...p,
-    ...(extMap[p.id] ?? { tipoServicio: null, planPrincipal: null, canalAtencion: null, observaciones: null, estadoContrato: null }),
-    totalTiendas:       tMap[p.id]?.total     ?? 0,
-    costoTotal:         tMap[p.id]?.costoTotal ?? '0',
-    incidentes30d:      iMap[p.id]                       ?? 0,
-    slaRespuesta:       slaMap[p.id]?.respuesta          ?? null as number | null,
-    slaResolucion:      slaMap[p.id]?.resolucion         ?? null as number | null,
-    estadoContratoCalc: cMap[p.id]?.estado    ?? 'VIGENTE',
-    planContrato:       cMap[p.id]?.plan      ?? null as string | null,
+    ...(extMap[p.id] ?? { planPrincipal: null, canalAtencion: null, observaciones: null }),
+    totalTiendas:  tMap[p.id]?.total     ?? 0,
+    costoTotal:    tMap[p.id]?.costoTotal ?? '0',
+    incidentes30d: iMap[p.id]            ?? 0,
+    slaRespuesta:  slaMap[p.id]?.respuesta  ?? null as number | null,
+    slaResolucion: slaMap[p.id]?.resolucion ?? null as number | null,
   }))
 
   // ── Filters ─────────────────────────────────────────────────────────────────
-  if (buscar)       result = result.filter(p => p.nombre.toLowerCase().includes(buscar.toLowerCase()))
-  if (tipoServicio) result = result.filter(p => p.tipoServicio === tipoServicio)
-  if (estadoFiltro) result = result.filter(p => p.estadoContratoCalc === estadoFiltro)
-  if (planFiltro)   result = result.filter(p => p.planContrato === planFiltro || p.planPrincipal === planFiltro)
+  if (buscar)     result = result.filter(p => p.nombre.toLowerCase().includes(buscar.toLowerCase()))
+  if (planFiltro) result = result.filter(p => p.planPrincipal === planFiltro)
 
   // ── Sort ─────────────────────────────────────────────────────────────────────
   if      (ordenar === 'z-a')            result.sort((a, b) => b.nombre.localeCompare(a.nombre))
@@ -197,20 +159,11 @@ export async function POST(req: NextRequest) {
     telefonoSoporte:    body.telefonoSoporte    ?? null,
     instruccionGeneral: body.instruccionGeneral ?? null,
   }
-  let p: any
-  try {
-    const [r] = await db.insert(proveedores).values({
-      ...baseValues,
-      tipoServicio:   body.tipoServicio   ?? null,
-      planPrincipal:  body.planPrincipal  ?? null,
-      canalAtencion:  body.canalAtencion  ?? null,
-      observaciones:  body.observaciones  ?? null,
-      estadoContrato: body.estadoContrato ?? 'VIGENTE',
-    }).returning()
-    p = r
-  } catch {
-    const [r] = await db.insert(proveedores).values(baseValues).returning()
-    p = r
-  }
+  const [p] = await db.insert(proveedores).values({
+    ...baseValues,
+    planPrincipal: body.planPrincipal ?? null,
+    canalAtencion: body.canalAtencion ?? null,
+    observaciones: body.observaciones ?? null,
+  }).returning()
   return NextResponse.json(p, { status: 201 })
 }

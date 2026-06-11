@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import {
   accionesGestion, accionesGestionTiendas,
-  tiendas, proveedores, usuarios, contratosProveedor, routersExternos,
+  tiendas, proveedores, usuarios, routersExternos,
 } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { incidentes, tiendas, proveedores, usuarios, escalamientos, nivelesEscalamiento, fichasNiveles, adjuntos, atcLlamadas, tiendasHistorial, gruposMasivos, routersExternos } from '@/drizzle/schema'
+import { incidentes, tiendas, proveedores, usuarios, escalamientos, fichasNiveles, adjuntos, atcLlamadas, tiendasHistorial, gruposMasivos, routersExternos } from '@/drizzle/schema'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
@@ -132,8 +132,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
-  // Niveles de escalamiento: usar los de la ficha del incidente (fichasNiveles).
-  // Fallback a nivelesEscalamiento del proveedor para incidentes sin fichaId.
+  // Niveles de escalamiento: se obtienen de la ficha vinculada al incidente.
   let nivelesProveedor: any[] = []
   if (inc.fichaId) {
     nivelesProveedor = await db.select({
@@ -146,16 +145,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }).from(fichasNiveles)
       .where(eq(fichasNiveles.fichaId, inc.fichaId))
       .orderBy(fichasNiveles.nivel)
-  } else if (inc.proveedorId) {
-    nivelesProveedor = await db.select({
-      id:              nivelesEscalamiento.id,
-      nivel:           nivelesEscalamiento.nivel,
-      nombreContacto:  nivelesEscalamiento.nombreContacto,
-      email:           nivelesEscalamiento.email,
-      celular:         nivelesEscalamiento.celular,
-      tiempoRespSev1:  nivelesEscalamiento.tiempoRespSev1,
-    }).from(nivelesEscalamiento)
-      .where(eq(nivelesEscalamiento.proveedorId, inc.proveedorId))
   }
 
   // Grupo masivo: fetch group info + other linked incidents if present

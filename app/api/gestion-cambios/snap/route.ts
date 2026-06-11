@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { tiendas, proveedores, contratosProveedor } from '@/drizzle/schema'
-import { and, eq, isNull } from 'drizzle-orm'
+import { tiendas, proveedores, fichas } from '@/drizzle/schema'
+import { and, eq } from 'drizzle-orm'
 import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
@@ -40,46 +40,21 @@ export async function GET(req: NextRequest) {
 
     if (!tiendaData) return NextResponse.json({ error: 'Tienda no encontrada' }, { status: 404 })
 
-    // Contrato vigente del proveedor para esta tienda
+    // SLA de la ficha activa de la tienda
     let contratoSlaRespuestaMin: number | null = null
     let contratoSlaResolucionMin: number | null = null
     let contratoPlan: string | null = null
-    if (tiendaData.proveedorId) {
-      const [contrato] = await db.select({
-        tiempoRespuestaSla:  contratosProveedor.tiempoRespuestaSla,
-        tiempoResolucionSla: contratosProveedor.tiempoResolucionSla,
-        plan:                contratosProveedor.plan,
-      })
-        .from(contratosProveedor)
-        .where(and(
-          eq(contratosProveedor.proveedorId, tiendaData.proveedorId),
-          eq(contratosProveedor.estado, 'VIGENTE'),
-        ))
-        .limit(1)
-
-      if (!contrato) {
-        // Intentar contrato marco (sin tiendaId)
-        const [marco] = await db.select({
-          tiempoRespuestaSla:  contratosProveedor.tiempoRespuestaSla,
-          tiempoResolucionSla: contratosProveedor.tiempoResolucionSla,
-          plan:                contratosProveedor.plan,
-        })
-          .from(contratosProveedor)
-          .where(and(
-            eq(contratosProveedor.proveedorId, tiendaData.proveedorId),
-            isNull(contratosProveedor.tiendaId),
-            eq(contratosProveedor.estado, 'VIGENTE'),
-          ))
-          .limit(1)
-        contratoSlaRespuestaMin  = marco?.tiempoRespuestaSla  ?? null
-        contratoSlaResolucionMin = marco?.tiempoResolucionSla ?? null
-        contratoPlan             = marco?.plan                ?? null
-      } else {
-        contratoSlaRespuestaMin  = contrato.tiempoRespuestaSla  ?? null
-        contratoSlaResolucionMin = contrato.tiempoResolucionSla ?? null
-        contratoPlan             = contrato.plan                ?? null
-      }
-    }
+    const [fichaActiva] = await db.select({
+      tiempoRespuestaSla:  fichas.tiempoRespuestaSla,
+      tiempoResolucionSla: fichas.tiempoResolucionSla,
+      plan:                fichas.plan,
+    })
+      .from(fichas)
+      .where(and(eq(fichas.tiendaId, tiendaId), eq(fichas.estado, 'ACTIVA')))
+      .limit(1)
+    contratoSlaRespuestaMin  = fichaActiva?.tiempoRespuestaSla  ?? null
+    contratoSlaResolucionMin = fichaActiva?.tiempoResolucionSla ?? null
+    contratoPlan             = fichaActiva?.plan                ?? null
 
     // Incidentes del período
     const rows = await db.execute(sql`
@@ -113,11 +88,8 @@ export async function GET(req: NextRequest) {
       JOIN tiendas t ON i.tienda_id = t.id
       LEFT JOIN LATERAL (
         SELECT tiempo_resolucion_sla AS sla_resol_override
-        FROM   contratos_proveedor
-        WHERE  proveedor_id = COALESCE(i.proveedor_id, t.proveedor_id)
-          AND  estado = 'VIGENTE'
-          AND  (tienda_id IS NULL OR tienda_id = i.tienda_id)
-        ORDER  BY (tienda_id IS NOT NULL) DESC
+        FROM   fichas
+        WHERE  id = COALESCE(i.ficha_id, t.ficha_activa_id)
         LIMIT  1
       ) cp ON true
       WHERE i.tienda_id = ${tiendaId}

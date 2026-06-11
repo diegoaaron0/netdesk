@@ -163,11 +163,8 @@ export async function GET(req: Request) {
           ) resp ON true
           LEFT JOIN LATERAL (
             SELECT tiempo_respuesta_sla, tiempo_resolucion_sla
-            FROM contratos_proveedor cp2
-            WHERE cp2.proveedor_id = COALESCE(i.proveedor_id, t.proveedor_id)
-              AND (cp2.tienda_id = t.id OR cp2.tienda_id IS NULL)
-              AND cp2.estado = 'VIGENTE'
-            ORDER BY cp2.tienda_id NULLS LAST
+            FROM fichas
+            WHERE id = COALESCE(i.ficha_id, t.ficha_activa_id)
             LIMIT 1
           ) cp ON true
           WHERE i.hora_registro >= ${desde}::timestamptz
@@ -216,11 +213,8 @@ export async function GET(req: Request) {
           ) resp ON true
           LEFT JOIN LATERAL (
             SELECT tiempo_respuesta_sla, tiempo_resolucion_sla
-            FROM contratos_proveedor cp2
-            WHERE cp2.proveedor_id = COALESCE(i.proveedor_id, t.proveedor_id)
-              AND (cp2.tienda_id = t.id OR cp2.tienda_id IS NULL)
-              AND cp2.estado = 'VIGENTE'
-            ORDER BY cp2.tienda_id NULLS LAST
+            FROM fichas
+            WHERE id = COALESCE(i.ficha_id, t.ficha_activa_id)
             LIMIT 1
           ) cp ON true
           WHERE i.hora_registro >= ${desdeAnt}::timestamptz
@@ -320,11 +314,8 @@ export async function GET(req: Request) {
           ) resp ON true
           LEFT JOIN LATERAL (
             SELECT tiempo_respuesta_sla, tiempo_resolucion_sla
-            FROM contratos_proveedor cp2
-            WHERE cp2.proveedor_id = COALESCE(i.proveedor_id, t.proveedor_id)
-              AND (cp2.tienda_id = t.id OR cp2.tienda_id IS NULL)
-              AND cp2.estado = 'VIGENTE'
-            ORDER BY cp2.tienda_id NULLS LAST
+            FROM fichas
+            WHERE id = COALESCE(i.ficha_id, t.ficha_activa_id)
             LIMIT 1
           ) cp ON true
           LEFT JOIN LATERAL (
@@ -392,11 +383,8 @@ export async function GET(req: Request) {
           ) resp ON true
           LEFT JOIN LATERAL (
             SELECT tiempo_respuesta_sla, tiempo_resolucion_sla
-            FROM contratos_proveedor cp2
-            WHERE cp2.proveedor_id = COALESCE(i.proveedor_id, t.proveedor_id)
-              AND (cp2.tienda_id = t.id OR cp2.tienda_id IS NULL)
-              AND cp2.estado = 'VIGENTE'
-            ORDER BY cp2.tienda_id NULLS LAST
+            FROM fichas
+            WHERE id = COALESCE(i.ficha_id, t.ficha_activa_id)
             LIMIT 1
           ) cp ON true
           WHERE i.hora_registro >= ${desde}::timestamptz

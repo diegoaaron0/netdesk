@@ -44,11 +44,8 @@ async function calcMetrics(tiendaIds: string[], desde: Date, hasta: Date) {
     JOIN tiendas t ON i.tienda_id = t.id
     LEFT JOIN LATERAL (
       SELECT tiempo_resolucion_sla AS sla_resol_override
-      FROM contratos_proveedor
-      WHERE proveedor_id = COALESCE(i.proveedor_id, t.proveedor_id)
-        AND estado = 'VIGENTE'
-        AND (tienda_id IS NULL OR tienda_id = i.tienda_id)
-      ORDER BY (tienda_id IS NOT NULL) DESC
+      FROM fichas
+      WHERE id = COALESCE(i.ficha_id, t.ficha_activa_id)
       LIMIT 1
     ) cp ON true
     WHERE ${tiendaFilter}

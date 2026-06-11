@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { tiendas, proveedores, nivelesEscalamiento, incidentes } from '@/drizzle/schema'
+import { tiendas, proveedores, incidentes } from '@/drizzle/schema'
 import { ilike, or, eq, and, gte, sql, count } from 'drizzle-orm'
 import { auth } from '@/auth'
+import { fichasNiveles, fichas } from '@/drizzle/schema'
 
 const PROVEEDOR_COLORS: Record<string, { bg: string; color: string }> = {
   BITEL:     { bg: '#dbeafe', color: '#1e40af' },
@@ -35,6 +36,7 @@ export async function GET(req: NextRequest) {
       celularTienda: tiendas.celularTienda,
       tieneContingencia: tiendas.tieneContingencia,
       proveedorId: tiendas.proveedorId,
+      fichaActivaId: tiendas.fichaActivaId,
     })
       .from(tiendas)
       .where(or(ilike(tiendas.codigo, pattern), ilike(tiendas.nombreCc, pattern)))
@@ -47,12 +49,18 @@ export async function GET(req: NextRequest) {
           nombre: proveedores.nombre, instruccionGeneral: proveedores.instruccionGeneral,
           telefonoSoporte: proveedores.telefonoSoporte, correoSoporte: proveedores.correoSoporte,
         }).from(proveedores).where(eq(proveedores.id, t.proveedorId))
-        const niveles = await db.select({
-          id: nivelesEscalamiento.id, nivel: nivelesEscalamiento.nivel,
-          nombreContacto: nivelesEscalamiento.nombreContacto,
-          email: nivelesEscalamiento.email, celular: nivelesEscalamiento.celular,
-          tiempoRespSev1: nivelesEscalamiento.tiempoRespSev1,
-        }).from(nivelesEscalamiento).where(eq(nivelesEscalamiento.proveedorId, t.proveedorId))
+
+        // Niveles desde ficha activa de la tienda (o ficha activa del padre si es catálogo)
+        let niveles: any[] = []
+        const fichaId = t.fichaActivaId ?? null
+        if (fichaId) {
+          niveles = await db.select({
+            id: fichasNiveles.id, nivel: fichasNiveles.nivel,
+            nombreContacto: fichasNiveles.nombreContacto,
+            email: fichasNiveles.email, celular: fichasNiveles.celular,
+            tiempoRespSev1: fichasNiveles.tiempoRespSev1,
+          }).from(fichasNiveles).where(eq(fichasNiveles.fichaId, fichaId))
+        }
         proveedor = p ? { ...p, niveles } : null
       }
       return { ...t, proveedor }

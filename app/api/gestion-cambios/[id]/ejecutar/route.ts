@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import {
   accionesGestion, accionesGestionTiendas,
-  tiendas, contratosProveedor, tiendasHistorial, incidentes, fichas,
+  tiendas, tiendasHistorial, incidentes, fichas,
 } from '@/drizzle/schema'
 import { eq, and, isNull, ne, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
@@ -160,17 +160,6 @@ async function _cambiarProveedorTienda(
   usuarioId: string,
   referencia: string,
 ) {
-  // Expirar contrato vigente del proveedor anterior
-  if (proveedorAnteriorId) {
-    await db.update(contratosProveedor)
-      .set({ estado: 'EXPIRADO' } as any)
-      .where(and(
-        eq(contratosProveedor.tiendaId,    tiendaId),
-        eq(contratosProveedor.proveedorId, proveedorAnteriorId),
-        eq(contratosProveedor.estado,      'VIGENTE'),
-      ))
-  }
-
   // Backfill: incidentes históricos sin proveedor_id explícito → atribuir al proveedor anterior
   // Esto preserva la historia aunque cambie tiendas.proveedor_id (evita que COALESCE los mueva)
   if (proveedorAnteriorId) {

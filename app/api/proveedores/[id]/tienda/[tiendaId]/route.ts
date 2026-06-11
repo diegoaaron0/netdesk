@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { tiendas, proveedores, incidentes, contratosProveedor } from '@/drizzle/schema'
+import { tiendas, proveedores, incidentes, fichas } from '@/drizzle/schema'
 import { eq, gte, sql, and, isNotNull, desc, count } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
@@ -66,15 +66,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const thirtyDaysAgo    = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
   const thirtyDaysAgoStr = thirtyDaysAgo.toISOString()
 
-  // Contrato específico de esta tienda
+  // Ficha activa de esta tienda con este proveedor
   let contrato: any = null
   try {
-    const [c] = await db.select().from(contratosProveedor)
-      .where(and(eq(contratosProveedor.proveedorId, id), eq(contratosProveedor.tiendaId, tiendaId)))
-      .orderBy(desc(contratosProveedor.creadoEn))
+    const [c] = await db.select().from(fichas)
+      .where(and(eq(fichas.proveedorId, id), eq(fichas.tiendaId, tiendaId), eq(fichas.estado, 'ACTIVA')))
+      .orderBy(desc(fichas.activadoEn))
       .limit(1)
     contrato = c ?? null
-  } catch { /* table not migrated yet */ }
+  } catch { /* skip */ }
 
   // Métricas históricas — solo incidentes explícitamente atribuidos a este proveedor
   const incStrictWhere = and(eq(incidentes.tiendaId, tiendaId), eq(incidentes.proveedorId, id))

@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     tipo, titulo, descripcion, motivo, alcance,
     tiendaId, zonaDescripcion, tiendaIds,
     proveedorAnteriorId, proveedorNuevoId,
-    contratoAnteriorId, routerExternoId,
+    routerExternoId,
     fechaEjecucionPlanificada,
     snapPeriodoDias, snapSlaPct, snapMttrMin, snapIei, snapNincidentes, snapDetalle,
   } = body
@@ -132,7 +132,6 @@ export async function POST(req: NextRequest) {
     tiendaId:                 alcance === 'ZONA' ? null : (tiendaId || null),
     proveedorAnteriorId:      proveedorAnteriorId || null,
     proveedorNuevoId:         proveedorNuevoId    || null,
-    contratoAnteriorId:       contratoAnteriorId  || null,
     routerExternoId:          routerExternoId     || null,
     creadoPorId,
     fechaEjecucionPlanificada: fechaEjecucionPlanificada || null,

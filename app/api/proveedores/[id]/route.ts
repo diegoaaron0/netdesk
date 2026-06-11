@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { proveedores, tiendas, incidentes, contratosProveedor, nivelesEscalamiento } from '@/drizzle/schema'
-import { eq, sql, and, asc, desc } from 'drizzle-orm'
+import { proveedores, tiendas, incidentes } from '@/drizzle/schema'
+import { eq, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
 
@@ -30,38 +30,19 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   }).from(proveedores).where(eq(proveedores.id, id))
   if (!base) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
-  // New columns
-  let ext: any = { tipoServicio: null, planPrincipal: null, canalAtencion: null, observaciones: null, estadoContrato: null }
+  // Campos adicionales del proveedor
+  let ext: any = { planPrincipal: null, canalAtencion: null, observaciones: null }
   try {
     const [r] = await db.select({
-      tipoServicio:   proveedores.tipoServicio,
-      planPrincipal:  proveedores.planPrincipal,
-      canalAtencion:  proveedores.canalAtencion,
-      observaciones:  proveedores.observaciones,
-      estadoContrato: proveedores.estadoContrato,
+      planPrincipal: proveedores.planPrincipal,
+      canalAtencion: proveedores.canalAtencion,
+      observaciones: proveedores.observaciones,
     }).from(proveedores).where(eq(proveedores.id, id))
     if (r) ext = r
   } catch { /* columns not migrated yet */ }
 
   const thirtyDaysAgo    = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
   const thirtyDaysAgoStr = thirtyDaysAgo.toISOString()
-
-  // Niveles de escalamiento
-  let niveles: any[] = []
-  try {
-    niveles = await db.select().from(nivelesEscalamiento)
-      .where(eq(nivelesEscalamiento.proveedorId, id))
-      .orderBy(asc(nivelesEscalamiento.nivel))
-  } catch { /* skip */ }
-
-  // Contratos
-  let contratos: any[] = []
-  try {
-    const rows = await db.select().from(contratosProveedor)
-      .where(eq(contratosProveedor.proveedorId, id))
-      .orderBy(desc(contratosProveedor.creadoEn))
-    contratos = rows.map(c => ({ ...c, estadoCalc: calcEstado(c.fechaFin) }))
-  } catch { /* table not migrated yet */ }
 
   // Tiendas count + costo
   let tiendasData = { count: 0, costoTotal: '0' }
@@ -347,19 +328,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if ('telefonoSoporte'    in body) baseSet.telefonoSoporte    = body.telefonoSoporte    ?? null
   if ('instruccionGeneral' in body) baseSet.instruccionGeneral = body.instruccionGeneral ?? null
 
-  let p: any
-  try {
-    const fullSet = { ...baseSet }
-    if ('tipoServicio'   in body) fullSet.tipoServicio   = body.tipoServicio   ?? null
-    if ('planPrincipal'  in body) fullSet.planPrincipal  = body.planPrincipal  ?? null
-    if ('canalAtencion'  in body) fullSet.canalAtencion  = body.canalAtencion  ?? null
-    if ('observaciones'  in body) fullSet.observaciones  = body.observaciones  ?? null
-    if ('estadoContrato' in body) fullSet.estadoContrato = body.estadoContrato ?? null
-    const [r] = await db.update(proveedores).set(fullSet).where(eq(proveedores.id, id)).returning()
-    p = r
-  } catch {
-    const [r] = await db.update(proveedores).set(baseSet).where(eq(proveedores.id, id)).returning()
-    p = r
-  }
+  if ('planPrincipal' in body) baseSet.planPrincipal = body.planPrincipal ?? null
+  if ('canalAtencion' in body) baseSet.canalAtencion = body.canalAtencion ?? null
+  if ('observaciones' in body) baseSet.observaciones = body.observaciones ?? null
+  const [p] = await db.update(proveedores).set(baseSet).where(eq(proveedores.id, id)).returning()
   return NextResponse.json(p)
 }
