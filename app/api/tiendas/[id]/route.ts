@@ -201,17 +201,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   return NextResponse.json({ ...tienda, ...extended, totalIncidentes: total, datosMovilesActivos: movCount > 0, slaTienda, fichaActiva })
 }
 
+// Campos que cambian solo al activar una ficha — no se trackean aquí
 const TRACKED_FIELDS = [
   'celularTienda',
   'nombreCc', 'formato', 'direccion', 'referencia', 'distrito', 'provincia',
   'ubicacion', 'cluster', 'supervisorNombre', 'supervisorCelular', 'perfilSupervisor',
-  'tipoConexion', 'tipoServicio', 'cidServicio', 'tieneContingencia',
-  'contingenciaActiva', 'contingenciaDescripcion', 'contingenciaChip', 'contingenciaPaquete',
-  'costoMensual', 'instruccionReporte', 'contactoSoporte', 'administradorNombre',
-  'administradorEmail', 'administradorCelular', 'proveedorId', 'ventaHoraSoles', 'extras',
-  'gabinete', 'vigenciaContrato', 'descripcionServicio',
-  'observacion', 'fechaAltaServicio', 'estadoServicio', 'velocidad', 'planAplicado',
-  'ventaMensualSoles', 'ventaHoraFdsSoles',
+  'tieneContingencia', 'contingenciaActiva', 'contingenciaDescripcion',
+  'contingenciaChip', 'contingenciaPaquete',
+  'instruccionReporte', 'contactoSoporte', 'administradorNombre',
+  'administradorEmail', 'administradorCelular', 'ventaHoraSoles', 'extras',
+  'gabinete', 'observacion', 'ventaMensualSoles', 'ventaHoraFdsSoles',
 ] as const
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -260,8 +259,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const body = await req.json()
 
-  // El cambio de proveedor solo se permite vía Gestión de Cambios (requiere backfill histórico)
-  delete body.proveedorId
+  // Estos campos solo cambian al activar una ficha — nunca por PUT directo
+  const CAMPOS_SOLO_FICHA = [
+    'proveedorId', 'tipoConexion', 'tipoServicio', 'cidServicio', 'velocidad',
+    'planAplicado', 'vigenciaContrato', 'estadoServicio', 'fechaAltaServicio',
+    'descripcionServicio', 'costoMensual',
+  ] as const
+  for (const campo of CAMPOS_SOLO_FICHA) delete body[campo]
 
   // Recálculo automático cuando se edita venta mensual
   if ('ventaMensualSoles' in body && body.ventaMensualSoles != null) {
@@ -288,16 +292,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     cluster:              'cluster'              in body ? (body.cluster              ?? null) : current.cluster,
     supervisorNombre:     'supervisorNombre'     in body ? (body.supervisorNombre     ?? null) : current.supervisorNombre,
     perfilSupervisor:     'perfilSupervisor'     in body ? (body.perfilSupervisor     ?? null) : current.perfilSupervisor,
-    proveedorId:          'proveedorId'          in body ? (body.proveedorId          ?? null) : current.proveedorId,
-    tipoConexion:         'tipoConexion'         in body ? (body.tipoConexion         ?? null) : current.tipoConexion,
-    tipoServicio:         'tipoServicio'         in body ? (body.tipoServicio         ?? null) : current.tipoServicio,
-    cidServicio:          'cidServicio'          in body ? (body.cidServicio          ?? null) : current.cidServicio,
     tieneContingencia:    'tieneContingencia'    in body ? !!body.tieneContingencia               : current.tieneContingencia,
     contingenciaActiva:   'contingenciaActiva'   in body ? !!body.contingenciaActiva              : current.contingenciaActiva,
     contingenciaActivadaPor: 'contingenciaActivadaPor' in body ? (body.contingenciaActivadaPor ?? null) : current.contingenciaActivadaPor,
     contingenciaDescripcion: 'contingenciaDescripcion' in body ? (body.contingenciaDescripcion ?? null) : current.contingenciaDescripcion,
     contingenciaFecha:    'contingenciaFecha'    in body ? (body.contingenciaFecha ? new Date(body.contingenciaFecha) : null) : current.contingenciaFecha,
-    costoMensual:         'costoMensual'         in body ? (body.costoMensual         ?? null) : current.costoMensual,
     instruccionReporte:   'instruccionReporte'   in body ? (body.instruccionReporte   ?? null) : current.instruccionReporte,
     contactoSoporte:      'contactoSoporte'      in body ? (body.contactoSoporte      ?? null) : current.contactoSoporte,
     administradorNombre:  'administradorNombre'  in body ? (body.administradorNombre  ?? null) : current.administradorNombre,
@@ -316,13 +315,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       contingenciaPaquete: 'contingenciaPaquete' in body ? (body.contingenciaPaquete ?? null) : current.contingenciaPaquete,
       extras:              'extras'              in body ? (body.extras              ?? null) : current.extras,
       gabinete:            'gabinete'            in body ? !!body.gabinete                    : current.gabinete,
-      vigenciaContrato:    'vigenciaContrato'    in body ? (body.vigenciaContrato    ?? null) : current.vigenciaContrato,
-      descripcionServicio: 'descripcionServicio' in body ? (body.descripcionServicio ?? null) : current.descripcionServicio,
       observacion:         'observacion'         in body ? (body.observacion         ?? null) : current.observacion,
-      fechaAltaServicio:   'fechaAltaServicio'   in body ? (body.fechaAltaServicio   ?? null) : current.fechaAltaServicio,
-      estadoServicio:      'estadoServicio'      in body ? (body.estadoServicio      ?? null) : current.estadoServicio,
-      velocidad:           'velocidad'           in body ? (body.velocidad           ?? null) : current.velocidad,
-      planAplicado:        'planAplicado'        in body ? (body.planAplicado        ?? null) : current.planAplicado,
       ventaHoraFdsSoles:   'ventaHoraFdsSoles'  in body ? (body.ventaHoraFdsSoles   ?? null) : current.ventaHoraFdsSoles,
       ventaMensualSoles:   'ventaMensualSoles'   in body ? (body.ventaMensualSoles   ?? null) : current.ventaMensualSoles,
     }

@@ -24,6 +24,8 @@ export const alcanceCorteEnum = pgEnum('alcance_corte', [
 
 export const estadoFichaEnum = pgEnum('estado_ficha', ['BORRADOR', 'ACTIVA', 'HISTORICA'])
 
+export const tipoLocalEnum = pgEnum('tipo_local', ['TIENDA', 'CATALOGO', 'ENLACE', 'ALMACEN', 'RESTAURANTE'])
+
 export const tipoDecisionEnum = pgEnum('tipo_decision', [
   'CAMBIO_PROVEEDOR', 'RENEGOCIACION_CONTRATO', 'ACTIVACION_CONTINGENCIA',
   'REVISION_SLA', 'BAJA_TIENDA', 'CAMBIO_PLAN', 'AUDITORIA_PROVEEDOR', 'OTRO',
@@ -132,6 +134,8 @@ export const tiendas = pgTable('tiendas', {
   planAplicado:                  text('plan_aplicado'),
   observacion:                   text('observacion'),
   fichaActivaId:                 uuid('ficha_activa_id').references((): AnyPgColumn => fichas.id, { onDelete: 'set null' }),
+  tipoLocal:                     tipoLocalEnum('tipo_local').notNull().default('TIENDA'),
+  tiendaPadreId:                 uuid('tienda_padre_id').references((): AnyPgColumn => tiendas.id, { onDelete: 'set null' }),
   creadoEn:                      timestamp('creado_en').defaultNow(),
 })
 
@@ -472,8 +476,10 @@ export const nivelesRelations = relations(nivelesEscalamiento, ({ one }) => ({
 }))
 
 export const tiendasRelations = relations(tiendas, ({ one, many }) => ({
-  proveedor:   one(proveedores, { fields: [tiendas.proveedorId],   references: [proveedores.id] }),
-  fichaActiva: one(fichas,      { fields: [tiendas.fichaActivaId], references: [fichas.id] }),
+  proveedor:   one(proveedores, { fields: [tiendas.proveedorId],    references: [proveedores.id] }),
+  fichaActiva: one(fichas,      { fields: [tiendas.fichaActivaId],  references: [fichas.id] }),
+  tiendaPadre: one(tiendas,     { fields: [tiendas.tiendaPadreId],  references: [tiendas.id], relationName: 'padre_hijo' }),
+  hijos:       many(tiendas,    { relationName: 'padre_hijo' }),
   incidentes:  many(incidentes),
   historial:   many(tiendasHistorial),
   contratos:   many(contratosProveedor),
