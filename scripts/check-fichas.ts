@@ -28,8 +28,7 @@ if (fichaNoActiva.length > 0) console.table(fichaNoActiva)
 
 // No tienen fichaActivaId — cuáles son
 const sinFicha = await sql`
-  SELECT t.codigo, t.nombre_cc, p.nombre AS proveedor,
-         t.tipo_conexion, t.cid_servicio, t.velocidad
+  SELECT t.codigo, t.nombre_cc, p.nombre AS proveedor
   FROM tiendas t
   LEFT JOIN proveedores p ON p.id = t.proveedor_id
   WHERE t.ficha_activa_id IS NULL

@@ -74,5 +74,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     fichaActiva:         fichaMap[t.id]
       ? { id: fichaMap[t.id].id, codigo: fichaMap[t.id].codigo, totalNiveles: fichaMap[t.id].total_niveles }
       : null,
+    contratoEspecifico:  (fichaMap[t.id]?.tiempo_respuesta_sla != null || fichaMap[t.id]?.tiempo_resolucion_sla != null)
+      ? { tiempo_respuesta_sla: fichaMap[t.id].tiempo_respuesta_sla, tiempo_resolucion_sla: fichaMap[t.id].tiempo_resolucion_sla }
+      : null,
   })))
 }

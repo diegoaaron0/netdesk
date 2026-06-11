@@ -42,6 +42,7 @@ export async function GET(req: NextRequest) {
       cidServicio:       fichas.cidServicio,
       velocidad:         fichas.velocidad,
       estadoServicio:    fichas.estadoServicio,
+      descripcionServicio: fichas.descripcionServicio,
       activadoEn:        fichas.activadoEn,
       archivadoEn:       fichas.archivadoEn,
       creadoEn:          fichas.creadoEn,
