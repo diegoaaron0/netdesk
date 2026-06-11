@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { proveedores, tiendas, incidentes } from '@/drizzle/schema'
-import { eq, sql } from 'drizzle-orm'
+import { eq, sql, and, desc } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
 
@@ -124,11 +124,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       ) max_n ON true
       LEFT JOIN LATERAL (
         SELECT tiempo_respuesta_sla, tiempo_resolucion_sla
-        FROM   contratos_proveedor
-        WHERE  proveedor_id = COALESCE(i.proveedor_id, t.proveedor_id)
-          AND  estado = 'VIGENTE'
-          AND  (tienda_id IS NULL OR tienda_id = i.tienda_id)
-        ORDER  BY (tienda_id IS NOT NULL) DESC
+        FROM   fichas
+        WHERE  id = COALESCE(i.ficha_id, t.ficha_activa_id)
         LIMIT  1
       ) cp ON true
       WHERE COALESCE(i.proveedor_id, t.proveedor_id) = ${id}::uuid
@@ -241,8 +238,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }))
   } catch { /* skip */ }
 
-  const contratoVigente = contratos.find(c => c.estadoCalc === 'VIGENTE' && !c.tiendaId)
-
   // Tiendas históricas: tienen incidentes con este proveedor pero ya no lo tienen asignado
   let tiendasHistoricas: any[] = []
   try {
@@ -291,8 +286,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   return NextResponse.json({
     ...base,
     ...ext,
-    niveles,
-    contratos,
     metricas: {
       totalTiendas:            tiendasData.count,
       costoTotal:              tiendasData.costoTotal,
@@ -304,7 +297,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       mttrTotal:               mttrData.total,
       incidentes30d:           totalInc30d,
       tiendasCriticas,
-      slaComprometido:         contratoVigente?.slaComprometido ?? null,
       iei30d:                  Math.round(iei30d),
       iei30dBreakdown,
       slaBreakdown,

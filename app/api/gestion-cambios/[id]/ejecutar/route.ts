@@ -87,6 +87,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   // Activar la ficha nueva si se proporcionó
+  let fichaAnteriorIdCapturada: string | null = null
   if (fichaNuevaId) {
     const [fichaData] = await db
       .select({
@@ -108,14 +109,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .limit(1)
 
     if (fichaData) {
-      // Archivar ficha activa anterior (si la hay)
-      await db.update(fichas)
-        .set({ estado: 'HISTORICA', archivadoEn: ahora })
+      // Capturar la ficha activa anterior ANTES de archivarla
+      const [fichaAnterior] = await db.select({ id: fichas.id })
+        .from(fichas)
         .where(and(
           eq(fichas.tiendaId, fichaData.tiendaId),
           eq(fichas.estado, 'ACTIVA'),
           ne(fichas.id, fichaNuevaId),
         ))
+        .limit(1)
+      fichaAnteriorIdCapturada = fichaAnterior?.id ?? null
+
+      // Archivar ficha activa anterior (si la hay)
+      if (fichaAnteriorIdCapturada) {
+        await db.update(fichas)
+          .set({ estado: 'HISTORICA', archivadoEn: ahora })
+          .where(eq(fichas.id, fichaAnteriorIdCapturada))
+      }
 
       // Activar la nueva ficha
       await db.update(fichas)
@@ -143,6 +153,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       ejecutadoPorId,
       notasEjecucion: notasEjecucion || null,
       fichaNuevaId:   fichaNuevaId ?? undefined,
+      fichaAnteriorId: fichaAnteriorIdCapturada ?? undefined,
       fechaEval30:    toDateStr(eval30),
       fechaEval90:    toDateStr(eval90),
       actualizadoEn:  ahora,

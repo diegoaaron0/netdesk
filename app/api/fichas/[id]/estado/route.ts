@@ -22,6 +22,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const [ficha] = await db
     .select({
       id:                  fichas.id,
+      codigo:              fichas.codigo,
       tiendaId:            fichas.tiendaId,
       proveedorId:         fichas.proveedorId,
       estado:              fichas.estado,
