@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import RoutersContingenciaTI from './RoutersCont'
@@ -29,28 +29,6 @@ function provColor(nombre: string | null) {
   return PROVEEDOR_COLORS[key] ?? { bg: '#f3f4f6', color: '#6b7280' }
 }
 
-function parseCSVText(text: string) {
-  const firstLine = text.trim().split(/\r?\n/)[0] ?? ''
-  const sep = firstLine.includes(';') ? ';' : ','
-  function parseLine(line: string): string[] {
-    const res: string[] = []
-    let cur = '', inQ = false
-    for (const ch of line) {
-      if (ch === '"') inQ = !inQ
-      else if (ch === sep && !inQ) { res.push(cur.trim()); cur = '' }
-      else cur += ch
-    }
-    res.push(cur.trim())
-    return res
-  }
-  const lines = text.trim().split(/\r?\n/)
-  const headers = parseLine(lines[0])
-  const rows = lines.slice(1).filter(l => l.trim()).map(l => {
-    const vals = parseLine(l)
-    return Object.fromEntries(headers.map((h, i) => [h, vals[i] ?? '']))
-  })
-  return { headers, rows }
-}
 
 function relTime(d: string) {
   const diff = Date.now() - new Date(d).getTime()
@@ -95,7 +73,6 @@ function inp(): React.CSSProperties {
 
 const PAGE_SIZE = 50
 
-const PREVIEW_COLS = ['codigo', 'nombre_cc', 'proveedor', 'distrito', 'tipo_conexion']
 
 export default function TiendasPage() {
   const { data: session } = useSession()
@@ -118,14 +95,6 @@ export default function TiendasPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; codigo: string; step: 1 | 2 } | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [tab, setTab] = useState<'tiendas' | 'routers'>('tiendas')
-
-  // Import state
-  const [showImport, setShowImport] = useState(false)
-  const [importRows, setImportRows] = useState<any[]>([])
-  const [importHeaders, setImportHeaders] = useState<string[]>([])
-  const [importing, setImporting] = useState(false)
-  const [importResult, setImportResult] = useState<{ created: number; updated: number; skipped: number; errors: string[] } | null>(null)
-  const fileRef = useRef<HTMLInputElement>(null)
 
   async function downloadMaestro() {
     setExportingMaestro(true)
@@ -190,21 +159,6 @@ export default function TiendasPage() {
 
   function setField(k: string, v: any) { setModal(m => ({ ...m, data: { ...m.data, [k]: v } })) }
 
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = ev => {
-      const text = ev.target?.result as string
-      const { headers, rows } = parseCSVText(text)
-      setImportHeaders(headers)
-      setImportRows(rows)
-      setImportResult(null)
-    }
-    reader.readAsText(file, 'iso-8859-1')
-    if (fileRef.current) fileRef.current.value = ''
-  }
-
   async function handleDelete(id: string) {
     setDeleting(true)
     const res = await fetch(`/api/tiendas/${id}`, { method: 'DELETE' })
@@ -217,20 +171,6 @@ export default function TiendasPage() {
       alert(err.error ?? 'Error al eliminar')
       setDeleteConfirm(null)
     }
-  }
-
-  async function handleImport() {
-    setImporting(true)
-    setImportResult(null)
-    const res = await fetch('/api/tiendas/import', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rows: importRows }),
-    })
-    const result = await res.json()
-    setImportResult(result)
-    setImporting(false)
-    if (!result.error) fetchTiendas()
   }
 
   const supervisores = Array.from(new Set(tiendas.map(t => t.supervisorNombre).filter(Boolean))).sort()
@@ -311,13 +251,6 @@ export default function TiendasPage() {
           )}
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          {canEdit && (
-            <button
-              onClick={() => { setShowImport(true); setImportRows([]); setImportResult(null) }}
-              style={{ padding: '7px 12px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: 'var(--foreground)' }}>
-              ↑ Importar CSV
-            </button>
-          )}
           <button onClick={downloadMaestro} disabled={exportingMaestro}
             style={{ padding: '7px 12px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: exportingMaestro ? 'not-allowed' : 'pointer', color: exportingMaestro ? 'var(--muted-foreground)' : 'var(--foreground)' }}>
             {exportingMaestro ? 'Generando...' : '↓ Exportar CSV'}
@@ -584,107 +517,6 @@ export default function TiendasPage() {
                   {h.usuarioNombre && <div style={{ marginTop: '4px', color: 'var(--muted-foreground)', fontSize: '10px' }}>por {h.usuarioNombre}</div>}
                 </div>
               ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Import CSV modal */}
-      {showImport && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', width: '100%', maxWidth: '680px', maxHeight: '90vh', overflow: 'auto' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '0.5px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: 600 }}>Importar tiendas desde CSV</div>
-                <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>
-                  Columnas: codigo, nombre_cc, proveedor, tipo_conexion, distrito, provincia, supervisor_nombre, administrador_nombre, contacto_soporte, administrador_email, telefono_fijo
-                </div>
-              </div>
-              <button onClick={() => setShowImport(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--muted-foreground)', flexShrink: 0, marginLeft: '12px' }}>✕</button>
-            </div>
-            <div style={{ padding: '16px 20px' }}>
-              {/* File picker */}
-              <input ref={fileRef} type="file" accept=".csv" onChange={handleFileSelect} style={{ display: 'none' }} />
-              <div
-                onClick={() => fileRef.current?.click()}
-                style={{ border: '1.5px dashed var(--border)', borderRadius: '10px', padding: '24px', textAlign: 'center', cursor: 'pointer', marginBottom: '16px', background: 'var(--muted)' }}>
-                <div style={{ fontSize: '24px', marginBottom: '6px' }}>📁</div>
-                <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--foreground)' }}>
-                  {importRows.length > 0 ? `${importRows.length} filas cargadas` : 'Click para seleccionar archivo CSV'}
-                </div>
-                {importRows.length > 0 && (
-                  <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '4px' }}>
-                    Columnas: {importHeaders.join(', ')}
-                  </div>
-                )}
-                {importRows.length === 0 && (
-                  <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '4px' }}>Codificación: iso-8859-1 (Latin-1)</div>
-                )}
-              </div>
-
-              {/* Preview */}
-              {importRows.length > 0 && (
-                <div style={{ marginBottom: '16px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
-                    Vista previa (primeras 3 filas)
-                  </div>
-                  <div style={{ overflow: 'auto', borderRadius: '8px', border: '0.5px solid var(--border)' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
-                      <thead>
-                        <tr style={{ background: 'var(--muted)' }}>
-                          {PREVIEW_COLS.filter(c => importHeaders.includes(c)).map(c => (
-                            <th key={c} style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600, color: 'var(--muted-foreground)', whiteSpace: 'nowrap', borderBottom: '0.5px solid var(--border)' }}>{c}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {importRows.slice(0, 3).map((row, i) => (
-                          <tr key={i} style={{ borderBottom: '0.5px solid var(--border)' }}>
-                            {PREVIEW_COLS.filter(c => importHeaders.includes(c)).map(c => (
-                              <td key={c} style={{ padding: '7px 10px', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--foreground)' }}>
-                                {row[c] || '—'}
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* Result */}
-              {importResult && !('error' in importResult) && (
-                <div style={{ padding: '12px 14px', borderRadius: '8px', background: importResult.errors?.length > 0 ? '#fffbeb' : '#f0fdf4', border: `0.5px solid ${importResult.errors?.length > 0 ? '#f59e0b' : '#22c55e'}`, marginBottom: '16px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: importResult.errors?.length > 0 ? '#92400e' : '#15803d', marginBottom: '6px' }}>
-                    Importación completada
-                  </div>
-                  <div style={{ display: 'flex', gap: '20px', fontSize: '11px', color: 'var(--muted-foreground)' }}>
-                    <span>✓ <strong style={{ color: '#15803d' }}>{importResult.created}</strong> creadas</span>
-                    <span>↺ <strong style={{ color: '#1e40af' }}>{importResult.updated}</strong> actualizadas</span>
-                    <span>— <strong>{importResult.skipped}</strong> omitidas</span>
-                  </div>
-                  {importResult.errors?.length > 0 && (
-                    <div style={{ marginTop: '8px', fontSize: '10px', color: '#92400e' }}>
-                      {importResult.errors.slice(0, 5).map((e: string, i: number) => <div key={i}>⚠ {e}</div>)}
-                      {importResult.errors.length > 5 && <div>... y {importResult.errors.length - 5} más</div>}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                <button onClick={() => setShowImport(false)}
-                  style={{ padding: '8px 16px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: 'var(--foreground)' }}>
-                  Cerrar
-                </button>
-                <button
-                  onClick={handleImport}
-                  disabled={importing || importRows.length === 0}
-                  style={{ padding: '8px 16px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: importing || importRows.length === 0 ? 'not-allowed' : 'pointer', opacity: importing || importRows.length === 0 ? 0.6 : 1 }}>
-                  {importing ? 'Importando...' : `Importar ${importRows.length} tiendas`}
-                </button>
-              </div>
             </div>
           </div>
         </div>
