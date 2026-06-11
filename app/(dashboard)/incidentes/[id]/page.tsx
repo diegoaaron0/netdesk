@@ -2203,14 +2203,15 @@ function AtcLlamadaRow({ atc, isClosed, onFin, onSaveNotas, onDelete }: {
 }) {
   const [notas, setNotas] = useState(atc.notas ?? '')
   const inicio = new Date(atc.inicio).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+  const finHora = atc.fin ? new Date(atc.fin).toLocaleTimeString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit' }) : null
   return (
     <div style={{ padding: '10px 12px', background: 'var(--card)', borderRadius: '8px', border: '1px solid var(--border)', marginBottom: '8px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <IcoPhone />
           <span style={{ fontSize: '11px', fontWeight: 600 }}>{inicio}</span>
-          {atc.fin
-            ? <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>· {atc.duracionMin != null ? minToHM(atc.duracionMin) : '—'}</span>
+          {finHora
+            ? <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>→ {finHora} · {atc.duracionMin != null ? minToHM(atc.duracionMin) : '—'}</span>
             : <span style={{ fontSize: '10px', color: '#15803d', fontWeight: 500 }}>● En curso</span>}
         </div>
         <div style={{ display: 'flex', gap: '4px' }}>

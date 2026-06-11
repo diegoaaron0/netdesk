@@ -16,14 +16,5 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     inicio: now,
   }).returning()
 
-  // Auto-set hora_respuesta en el escalamiento si todavía no tiene
-  const [esc] = await db.select({ horaRespuesta: escalamientos.horaRespuesta })
-    .from(escalamientos).where(eq(escalamientos.id, id))
-  if (esc && !esc.horaRespuesta) {
-    await db.update(escalamientos)
-      .set({ horaRespuesta: now })
-      .where(eq(escalamientos.id, id))
-  }
-
   return NextResponse.json(created, { status: 201 })
 }

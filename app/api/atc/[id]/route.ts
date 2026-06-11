@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { atcLlamadas } from '@/drizzle/schema'
+import { atcLlamadas, escalamientos } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
 import { auth } from '@/auth'
 
@@ -15,13 +15,27 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if ('notas' in body) fields.notas = body.notas ?? null
 
   if (body.finalizar) {
-    const [existing] = await db.select({ inicio: atcLlamadas.inicio })
+    const [existing] = await db.select({ inicio: atcLlamadas.inicio, escalamientoId: atcLlamadas.escalamientoId })
       .from(atcLlamadas).where(eq(atcLlamadas.id, id))
     const fin = new Date()
     fields.fin = fin
     fields.duracionMin = existing?.inicio
       ? Math.round((fin.getTime() - new Date(existing.inicio).getTime()) / 60000)
       : null
+
+    // Finalizar llamada = primera respuesta del proveedor (si el escalamiento aún no tiene)
+    if (existing?.escalamientoId) {
+      const [esc] = await db.select({ horaRespuesta: escalamientos.horaRespuesta, horaEnvioCorreo: escalamientos.horaEnvioCorreo })
+        .from(escalamientos).where(eq(escalamientos.id, existing.escalamientoId))
+      if (esc && !esc.horaRespuesta) {
+        const tiempoRespuestaMin = esc.horaEnvioCorreo
+          ? Math.round((fin.getTime() - new Date(esc.horaEnvioCorreo).getTime()) / 60000)
+          : null
+        await db.update(escalamientos)
+          .set({ horaRespuesta: fin, tiempoRespuestaMin, estadoCronometro: 'RESPONDIDO' })
+          .where(eq(escalamientos.id, existing.escalamientoId))
+      }
+    }
   }
 
   const [updated] = await db.update(atcLlamadas).set(fields).where(eq(atcLlamadas.id, id)).returning()
