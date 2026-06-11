@@ -42,7 +42,7 @@ export const usuarios = pgTable('usuarios', {
   apellido: text('apellido'),
   email:    text('email').unique().notNull(),
   celular:  text('celular'),
-  password: text('password').default('soporte123'),
+  password: text('password'),
   rol:      rolEnum('rol').notNull().default('AGENTE'),
   cluster:  clusterEnum('cluster'),
   permisos:         text('permisos').array(),

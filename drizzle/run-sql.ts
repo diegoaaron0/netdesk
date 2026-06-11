@@ -11,7 +11,8 @@ async function main() {
   await sql`ALTER TYPE "rol" ADD VALUE IF NOT EXISTS 'INFRAESTRUCTURA'`
   console.log('[startup] ✓ Enum INFRAESTRUCTURA')
 
-  await sql`ALTER TABLE "usuarios" ADD COLUMN IF NOT EXISTS "password" text DEFAULT 'soporte123'`
+  await sql`ALTER TABLE "usuarios" ADD COLUMN IF NOT EXISTS "password" text`
+  await sql`UPDATE "usuarios" SET "password" = NULL WHERE "password" = 'soporte123'`
   console.log('[startup] ✓ Columna usuarios.password')
 
   await sql`ALTER TABLE "incidentes" ADD COLUMN IF NOT EXISTS "reabrierta_info" text`
@@ -26,12 +27,12 @@ async function main() {
   // Insertar usuarios INFRAESTRUCTURA si no existen
   await sql`
     INSERT INTO "usuarios" ("nombre", "email", "password", "rol", "activo")
-    SELECT 'Edson Puelles', 'edson.puelles@footloose.pe', 'soporte123', 'INFRAESTRUCTURA', true
+    SELECT 'Edson Puelles', 'edson.puelles@footloose.pe', NULL, 'INFRAESTRUCTURA', true
     WHERE NOT EXISTS (SELECT 1 FROM "usuarios" WHERE "email" = 'edson.puelles@footloose.pe')
   `
   await sql`
     INSERT INTO "usuarios" ("nombre", "email", "password", "rol", "activo")
-    SELECT 'Valentín', 'valentin@footloose.pe', 'soporte123', 'INFRAESTRUCTURA', true
+    SELECT 'Valentín', 'valentin@footloose.pe', NULL, 'INFRAESTRUCTURA', true
     WHERE NOT EXISTS (SELECT 1 FROM "usuarios" WHERE "email" = 'valentin@footloose.pe')
   `
   console.log('[startup] ✓ Usuarios Edson Puelles y Valentín (INFRAESTRUCTURA)')
