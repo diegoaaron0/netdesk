@@ -1,10 +1,12 @@
+import 'dotenv/config'
 import postgres from 'postgres'
 
 const TA7C_ID       = 'ea2606aa-0824-43b7-91c1-9c210bb81715'
 const CONVERGIA_ID  = '6727f379-9527-4aee-b54d-d5c68ca7f496'
 
 async function main() {
-  const sql = postgres('postgresql://postgres:cbaEdUFlVULJNdlsdHdqBelVllfBMZwL@tramway.proxy.rlwy.net:10333/railway', { ssl: 'require' })
+  if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL no definida')
+  const sql = postgres(process.env.DATABASE_URL, { ssl: process.env.NODE_ENV === 'production' ? 'require' : false })
 
   // Calcular siguiente número de ficha
   const [{ max_n }] = await sql`

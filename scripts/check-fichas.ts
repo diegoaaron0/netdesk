@@ -1,7 +1,9 @@
+import 'dotenv/config'
 import postgres from 'postgres'
 
 async function main() {
-const sql = postgres('postgresql://postgres:cbaEdUFlVULJNdlsdHdqBelVllfBMZwL@tramway.proxy.rlwy.net:10333/railway', { ssl: 'require' })
+  if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL no definida')
+  const sql = postgres(process.env.DATABASE_URL, { ssl: process.env.NODE_ENV === 'production' ? 'require' : false })
 
 const [totales] = await sql`
   SELECT
