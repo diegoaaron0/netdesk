@@ -277,7 +277,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     'estado','nivelImpacto','usuariosAfectados','tipo','tipoPersonalizado','otrosClasificacion',
     'registradoPorId',
     'descripcionInicial','ticketInvgate','ticketProveedor','descartesRealizados','solucionAplicada',
-    'observaciones','horaRegistro','horaFin','mttrMinutos',
+    'observaciones','horaRegistro','horaRegistroOriginal','horaFin','mttrMinutos',
     'estadoOperacion','operacionManual','tipoOperacionManual','factorOperativo',
     'contActivadoPor','contHoraActivacion','contHoraDesactivacion','contRendimiento','contObservacion','contEsExterno','routerExternoId',
     'movActivadoPor','movHoraActivacion','movHoraDesactivacion','movRendimiento','movObservacion',
@@ -288,7 +288,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     'alcanceCorte','tuvoUps',
     'escaladoInfraId','horaEscaladoInfra','notaEscaladoInfra',
   ]
-  const dateFields = new Set(['horaRegistro','horaFin','contHoraActivacion','contHoraDesactivacion','movHoraActivacion','movHoraDesactivacion','horaEscaladoInfra','boletaHoraActivacion'])
+  const dateFields = new Set(['horaRegistro','horaRegistroOriginal','horaFin','contHoraActivacion','contHoraDesactivacion','movHoraActivacion','movHoraDesactivacion','horaEscaladoInfra','boletaHoraActivacion'])
   const intFields  = new Set(['cajasAfectadas','cajasTotales','mttrMinutos'])
   for (const k of editable) {
     if (k in body) {
