@@ -1573,8 +1573,13 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 {canEditA && (
                   <>
                     <div style={{ borderTop: '1px solid var(--border)', margin: '8px 0 6px' }} />
-                    <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '4px' }}>Hora registro</div>
-                    <input type="datetime-local" style={{ ...iStyle(), fontSize: '10px', padding: '4px 6px', marginBottom: '6px' }} value={editForm.horaRegistro} onChange={e => setEdit('horaRegistro', e.target.value)} />
+                    {/* Si el incidente fue reabierto, 'Hora reapertura' ya edita horaRegistro en la sección REABERTURA — no duplicar */}
+                    {!(inc as any).motivoReabertura && (
+                      <>
+                        <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '4px' }}>Hora registro</div>
+                        <input type="datetime-local" style={{ ...iStyle(), fontSize: '10px', padding: '4px 6px', marginBottom: '6px' }} value={editForm.horaRegistro} onChange={e => setEdit('horaRegistro', e.target.value)} />
+                      </>
+                    )}
                     <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '4px' }}>Hora fin</div>
                     <input type="datetime-local" style={{ ...iStyle(), fontSize: '10px', padding: '4px 6px' }} value={editForm.horaFin} onChange={e => setEdit('horaFin', e.target.value)} />
                   </>
