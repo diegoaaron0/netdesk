@@ -2346,6 +2346,7 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
   }
 
   async function finalizarAtc(atcId: string) {
+    if (!confirm('¿Finalizar la llamada? Esto registrará la primera respuesta del proveedor.')) return
     await fetch(`/api/atc/${atcId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ finalizar: true }) })
     onRefresh()
   }
