@@ -17,7 +17,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const wantsNoEvaluable   = body.evaluableProveedor === false
   const userRol            = (session.user as any)?.rol ?? ''
   const isSupervisor       = ['SUPERVISOR', 'DEMO'].includes(userRol)
-  const evaluableProveedor = wantsNoEvaluable ? (isSupervisor ? false : true) : true
+  const forceNoEvaluable   = resueltoPor === 'ENERGIA_ELECTRICA'
+  const evaluableProveedor = forceNoEvaluable ? false : (wantsNoEvaluable ? (isSupervisor ? false : true) : true)
 
   const [inc] = await db.select({
     horaRegistro:          incidentes.horaRegistro,

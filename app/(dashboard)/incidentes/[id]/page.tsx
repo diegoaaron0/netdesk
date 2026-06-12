@@ -172,7 +172,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   const [reopening, setReopening]   = useState(false)
   const [showGuia, setShowGuia]       = useState(false)
   const [showResolverModal, setShowResolverModal] = useState(false)
-  const [resolverMode, setResolverMode] = useState<'PROVEEDOR' | 'AGENTE' | 'INFRAESTRUCTURA' | null>(null)
+  const [resolverMode, setResolverMode] = useState<'PROVEEDOR' | 'AGENTE' | 'INFRAESTRUCTURA' | 'ENERGIA_ELECTRICA' | null>(null)
   const [skipConfirm, setSkipConfirm] = useState<{ nivel: number; saltar: number } | null>(null)
 
   // Escalamiento
@@ -374,12 +374,14 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
     fetchInc()
   }
 
-  async function doResolver(modo: 'PROVEEDOR' | 'AGENTE' | 'INFRAESTRUCTURA') {
+  async function doResolver(modo: 'PROVEEDOR' | 'AGENTE' | 'INFRAESTRUCTURA' | 'ENERGIA_ELECTRICA') {
     setShowResolverModal(false); setResolverMode(null)
     const body = modo === 'AGENTE'
-      ? { resueltoPor: 'AGENTE',           atribucionFinal: 'Gestión interna Service Desk',    evaluableProveedor: false }
+      ? { resueltoPor: 'AGENTE',             atribucionFinal: 'Gestión interna Service Desk',    evaluableProveedor: false }
       : modo === 'INFRAESTRUCTURA'
-      ? { resueltoPor: 'INFRAESTRUCTURA',  atribucionFinal: 'Gestión Infraestructura interna', evaluableProveedor: false }
+      ? { resueltoPor: 'INFRAESTRUCTURA',    atribucionFinal: 'Gestión Infraestructura interna', evaluableProveedor: false }
+      : modo === 'ENERGIA_ELECTRICA'
+      ? { resueltoPor: 'ENERGIA_ELECTRICA',  atribucionFinal: 'Regresó energía eléctrica',       evaluableProveedor: false }
       : { resueltoPor: 'PROVEEDOR' }
     const res = await fetch(`/api/incidentes/${id}/resolver`, {
       method: 'POST',
@@ -510,11 +512,11 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               {inc.estado === 'RESUELTO' && inc.resueltoPor && (
                 <span style={{
                   fontSize: '10px',
-                  background: inc.resueltoPor === 'AGENTE' ? 'rgba(59,130,246,0.25)' : inc.resueltoPor === 'INFRAESTRUCTURA' ? 'rgba(99,102,241,0.25)' : 'rgba(34,197,94,0.25)',
-                  color:      inc.resueltoPor === 'AGENTE' ? '#93c5fd'               : inc.resueltoPor === 'INFRAESTRUCTURA' ? '#a5b4fc'               : '#86efac',
+                  background: inc.resueltoPor === 'AGENTE' ? 'rgba(59,130,246,0.25)' : inc.resueltoPor === 'INFRAESTRUCTURA' ? 'rgba(99,102,241,0.25)' : inc.resueltoPor === 'ENERGIA_ELECTRICA' ? 'rgba(234,179,8,0.25)' : 'rgba(34,197,94,0.25)',
+                  color:      inc.resueltoPor === 'AGENTE' ? '#93c5fd'               : inc.resueltoPor === 'INFRAESTRUCTURA' ? '#a5b4fc'               : inc.resueltoPor === 'ENERGIA_ELECTRICA' ? '#fde047'              : '#86efac',
                   padding: '2px 8px', borderRadius: '4px', fontWeight: 600,
                 }}>
-                  {inc.resueltoPor === 'AGENTE' ? 'Resuelto por Agente' : inc.resueltoPor === 'INFRAESTRUCTURA' ? 'Resuelto por Infraestructura' : 'Resuelto por Proveedor'}
+                  {inc.resueltoPor === 'AGENTE' ? 'Resuelto por Agente' : inc.resueltoPor === 'INFRAESTRUCTURA' ? 'Resuelto por Infraestructura' : inc.resueltoPor === 'ENERGIA_ELECTRICA' ? '⚡ Regresó energía eléctrica' : 'Resuelto por Proveedor'}
                 </span>
               )}
               {(inc as any).motivoReabertura && (
@@ -739,25 +741,32 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '360px', margin: '16px' }}>
             <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '16px' }}>¿Cómo se resolvió?</div>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
               <button onClick={() => setResolverMode('PROVEEDOR')}
-                style={{ flex: 1, padding: '16px 8px', border: '1px solid var(--border)', borderRadius: '10px', background: 'var(--muted)', cursor: 'pointer', textAlign: 'center' }}>
+                style={{ flex: 1, minWidth: '80px', padding: '16px 8px', border: '1px solid var(--border)', borderRadius: '10px', background: 'var(--muted)', cursor: 'pointer', textAlign: 'center' }}>
                 <div style={{ fontSize: '22px', marginBottom: '4px' }}>🌐</div>
                 <div style={{ fontSize: '12px', fontWeight: 600 }}>Proveedor</div>
               </button>
               {isSupervisor && (inc.escaladoInfraId ? (
                 <button onClick={() => setResolverMode('INFRAESTRUCTURA')}
-                  style={{ flex: 1, padding: '16px 8px', border: '1.5px solid rgba(99,102,241,.4)', borderRadius: '10px', background: 'rgba(99,102,241,.07)', cursor: 'pointer', textAlign: 'center' }}>
+                  style={{ flex: 1, minWidth: '80px', padding: '16px 8px', border: '1.5px solid rgba(99,102,241,.4)', borderRadius: '10px', background: 'rgba(99,102,241,.07)', cursor: 'pointer', textAlign: 'center' }}>
                   <div style={{ fontSize: '22px', marginBottom: '4px' }}>🔧</div>
                   <div style={{ fontSize: '12px', fontWeight: 600, color: '#4f46e5' }}>Infraestructura</div>
                 </button>
               ) : (
                 <button onClick={() => setResolverMode('AGENTE')}
-                  style={{ flex: 1, padding: '16px 8px', border: '1px solid var(--border)', borderRadius: '10px', background: 'var(--muted)', cursor: 'pointer', textAlign: 'center' }}>
+                  style={{ flex: 1, minWidth: '80px', padding: '16px 8px', border: '1px solid var(--border)', borderRadius: '10px', background: 'var(--muted)', cursor: 'pointer', textAlign: 'center' }}>
                   <div style={{ fontSize: '22px', marginBottom: '4px' }}>👤</div>
                   <div style={{ fontSize: '12px', fontWeight: 600 }}>Agente</div>
                 </button>
               ))}
+              {inc.tipo === 'CORTE_ELECTRICO' && (
+                <button onClick={() => setResolverMode('ENERGIA_ELECTRICA')}
+                  style={{ flex: 1, minWidth: '80px', padding: '16px 8px', border: '1.5px solid rgba(234,179,8,.4)', borderRadius: '10px', background: 'rgba(234,179,8,.07)', cursor: 'pointer', textAlign: 'center' }}>
+                  <div style={{ fontSize: '22px', marginBottom: '4px' }}>⚡</div>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: '#ca8a04' }}>Regresó energía</div>
+                </button>
+              )}
             </div>
             <button onClick={() => setShowResolverModal(false)}
               style={{ width: '100%', padding: '8px', background: 'none', border: 'none', color: 'var(--muted-foreground)', fontSize: '12px', cursor: 'pointer' }}>
@@ -772,11 +781,13 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '360px', margin: '16px' }}>
             <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>
-              ¿Confirmas resolución por {resolverMode === 'PROVEEDOR' ? 'Proveedor' : resolverMode === 'INFRAESTRUCTURA' ? 'Infraestructura' : 'Agente'}?
+              {resolverMode === 'ENERGIA_ELECTRICA'
+                ? '⚡ ¿Confirmas que regresó la energía eléctrica?'
+                : `¿Confirmas resolución por ${resolverMode === 'PROVEEDOR' ? 'Proveedor' : resolverMode === 'INFRAESTRUCTURA' ? 'Infraestructura' : 'Agente'}?`}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '20px' }}>
               Se registrará la hora actual como fin del incidente.
-              {(resolverMode === 'AGENTE' || resolverMode === 'INFRAESTRUCTURA') && ' No evaluable al proveedor.'}
+              {(resolverMode === 'AGENTE' || resolverMode === 'INFRAESTRUCTURA' || resolverMode === 'ENERGIA_ELECTRICA') && ' No evaluable al proveedor.'}
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={() => setResolverMode(null)}
