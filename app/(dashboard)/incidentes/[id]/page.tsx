@@ -1505,7 +1505,14 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                         "{(inc as any).justificacionReabertura}"
                       </div>
                     )}
-                    <TimeRow label="Hora reapertura" value={new Date(inc.horaRegistro).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} color="#d97706" />
+                    {canEditA ? (
+                      <div style={{ marginBottom: '5px' }}>
+                        <div style={{ fontSize: '10px', color: '#d97706', marginBottom: '3px' }}>Hora reapertura</div>
+                        <input type="datetime-local" style={{ ...iStyle(), fontSize: '10px', padding: '4px 6px' }} value={editForm.horaRegistro} onChange={e => setEdit('horaRegistro', e.target.value)} />
+                      </div>
+                    ) : (
+                      <TimeRow label="Hora reapertura" value={new Date(inc.horaRegistro).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} color="#d97706" />
+                    )}
                     {(inc as any).horaFinAnterior && (
                       <TimeRow label="Cierre anterior" value={new Date((inc as any).horaFinAnterior).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} color="#6b7280" />
                     )}
