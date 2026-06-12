@@ -113,6 +113,7 @@ export async function GET(req: Request) {
         -- Raw fields for IEI calculation (calcImpactoRow con timestamps)
         i.hora_registro                                                                AS hora_reg_raw,
         i.hora_fin                                                                     AS hora_fin_raw,
+        COALESCE(i.iei_acumulado, 0)                                                   AS iei_acumulado_raw,
         i.estado                                                                       AS estado_raw,
         (i.cont_activado_por IS NOT NULL)                                              AS contingencia_activa_inc,
         COALESCE(i.cont_es_externo, false)                                             AS cont_es_externo,
@@ -245,7 +246,7 @@ export async function GET(req: Request) {
           venta_parcial:           r.venta_parcial,
           cajas_afectadas:         r.cajas_afectadas != null ? Number(r.cajas_afectadas) : null,
           cajas_totales:           r.cajas_totales   != null ? Number(r.cajas_totales)   : null,
-        }).impactoEstimado || null
+        }).impactoEstimado + Number(r.iei_acumulado_raw ?? 0) || null
         return [
           r.codigo, r.ticket_invgate, r.ticket_proveedor, r.tienda_codigo, r.tienda_nombre_cc, r.ubicacion,
           r.proveedor, r.cid_servicio, r.tipo_conexion, r.cluster, r.nivel_impacto,

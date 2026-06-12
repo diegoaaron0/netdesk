@@ -94,7 +94,7 @@ function calcCostoIncidente(
     cajas_totales:    inc.cajas_totales,
   })
   return {
-    costo: res.impactoEstimado,
+    costo: res.impactoEstimado + (inc.iei_acumulado ?? 0),
     ventaAfectada: res.ventaEsperadaAfectada ?? 0,
     factor: res.factorAplicado,
     motivo: res.motivoFactor,

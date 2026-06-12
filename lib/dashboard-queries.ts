@@ -39,6 +39,7 @@ export interface RawIncidente {
   cajas_afectadas: number | null
   cajas_totales: number | null
   hubo_movil: boolean
+  iei_acumulado: number
   // Campos SLA (de LATERAL joins)
   hora_correo_n1: Date | null
   hora_primera_resp: Date | null
@@ -107,6 +108,7 @@ export async function fetchIncidentesPeriodo(
       i.cajas_afectadas,
       i.cajas_totales,
       (i.mov_activado_por IS NOT NULL)             AS hubo_movil,
+      COALESCE(i.iei_acumulado, 0)::float          AS iei_acumulado,
       n1.hora_correo_n1,
       resp.hora_primera_resp,
       resp.nivel_respuesta,

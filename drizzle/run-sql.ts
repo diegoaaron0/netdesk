@@ -221,6 +221,10 @@ async function main() {
   await sql`ALTER TABLE "incidentes" ADD COLUMN IF NOT EXISTS "hora_fin_anterior" timestamp`
   console.log('[startup] ✓ Columnas reabertura (0028)')
 
+  // 0029 — IEI acumulado por períodos (reaperturas)
+  await sql`ALTER TABLE "incidentes" ADD COLUMN IF NOT EXISTS "iei_acumulado" numeric`
+  console.log('[startup] ✓ Columna iei_acumulado (0029)')
+
   console.log('[startup] Migraciones completadas.')
   await sql.end()
 }

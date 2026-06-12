@@ -581,9 +581,9 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               )}
             </div>
             <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.28)', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'right' }}>Tiempo del incidente</div>
-            <CronometroPrincipal horaRegistro={inc.horaRegistro} horaFin={inc.horaFin} tiempoAcumuladoMin={(inc as any).tiempoAcumuladoMin} />
+            <CronometroPrincipal horaRegistro={inc.horaRegistro} horaFin={inc.horaFin} tiempoAcumuladoMin={(inc as any).tiempoAcumuladoMin} horaRegistroOriginal={(inc as any).horaRegistroOriginal} />
             <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.22)', textAlign: 'right', lineHeight: 1.5 }}>
-              Creado: {new Date(inc.horaRegistro).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              Creado: {new Date((inc as any).horaRegistroOriginal ?? inc.horaRegistro).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </div>
           </div>
         </div>
@@ -1489,7 +1489,11 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               <div style={{ marginTop: '10px', padding: '10px 12px', background: 'var(--muted)', borderRadius: '8px' }}>
                 <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '8px' }}>Tiempos del incidente</div>
                 <TimeRow label="Hora inicio" value={new Date((inc as any).horaRegistroOriginal ?? inc.horaRegistro).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} />
-                <TimeRow label="Tiempo total" value={inc.mttrMinutos ? minToHM(inc.mttrMinutos) : 'En curso'} />
+                <TimeRow label="Tiempo total" value={(() => {
+                  if (!inc.horaFin) return 'En curso'
+                  const base = (inc as any).horaRegistroOriginal ?? inc.horaRegistro
+                  return minToHM(Math.round((new Date(inc.horaFin).getTime() - new Date(base).getTime()) / 60000))
+                })()} />
                 {(inc as any).tiempoAcumuladoMin != null && (
                   <TimeRow label="MTTR acumulado (prev.)" value={minToHM((inc as any).tiempoAcumuladoMin)} color="#d97706" />
                 )}

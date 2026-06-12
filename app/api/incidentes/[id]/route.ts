@@ -33,6 +33,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     motivoReabertura:        incidentes.motivoReabertura,
     justificacionReabertura: incidentes.justificacionReabertura,
     tiempoAcumuladoMin:      incidentes.tiempoAcumuladoMin,
+    ieiAcumulado:            incidentes.ieiAcumulado,
     horaRegistroOriginal:    incidentes.horaRegistroOriginal,
     horaFinAnterior:         incidentes.horaFinAnterior,
     tipoPersonalizado:  incidentes.tipoPersonalizado,
@@ -233,16 +234,21 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       boleta_rendimiento:       inc.boletaRendimiento,
       boleta_hora_activacion:   inc.boletaHoraActivacion,
     })
+    const ieiAcum = Number((inc as any).ieiAcumulado ?? 0)
+    const tieneAcum = ieiAcum > 0
     ieiCalc = {
-      impactoEstimado:       res.impactoEstimado,
-      impactoEconomicoBruto: res.impactoEconomicoBruto,
+      impactoEstimado:       (res.impactoEstimado ?? 0) + ieiAcum,
+      // Bruto y venta esperada solo son válidos para el período actual.
+      // Con acumulado, mostrar null (→ "—") para evitar que parezca que IEI > bruto.
+      impactoEconomicoBruto: tieneAcum ? null : res.impactoEconomicoBruto,
       ventaHora:             res.ventaHora,
-      ventaEsperadaAfectada: res.ventaEsperadaAfectada,
+      ventaEsperadaAfectada: tieneAcum ? null : res.ventaEsperadaAfectada,
       factorAplicado:        res.factorAplicado,
       motivoFactor:          res.motivoFactor,
       margenUsado:           res.margenUsado,
-      faltaInformacion:      res.faltaInformacion,
+      faltaInformacion:      res.faltaInformacion && !tieneAcum,
       segmentos:             res.segmentos,
+      ieiAcumulado:          ieiAcum,
     }
   } catch { /* skip */ }
 

@@ -9,23 +9,25 @@ function formatTime(ms: number) {
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
 }
 
-export function CronometroPrincipal({ horaRegistro, horaFin, tiempoAcumuladoMin }: { horaRegistro: Date | string; horaFin: Date | string | null; tiempoAcumuladoMin?: number | null }) {
+export function CronometroPrincipal({ horaRegistro, horaFin, tiempoAcumuladoMin, horaRegistroOriginal }: { horaRegistro: Date | string; horaFin: Date | string | null; tiempoAcumuladoMin?: number | null; horaRegistroOriginal?: Date | string | null }) {
   const [display, setDisplay] = useState('00:00:00')
   const [detenido, setDetenido] = useState(false)
 
   useEffect(() => {
-    const inicio = new Date(horaRegistro).getTime()
-    const acumMs = (tiempoAcumuladoMin ?? 0) * 60 * 1000
     if (horaFin) {
-      setDisplay(formatTime(new Date(horaFin).getTime() - inicio + acumMs))
+      // Cuando está resuelto: usar horaRegistroOriginal (inicio real) si existe
+      const base = horaRegistroOriginal ? new Date(horaRegistroOriginal).getTime() : new Date(horaRegistro).getTime()
+      setDisplay(formatTime(new Date(horaFin).getTime() - base))
       setDetenido(true)
       return
     }
+    const inicio = new Date(horaRegistro).getTime()
+    const acumMs = (tiempoAcumuladoMin ?? 0) * 60 * 1000
     const tick = () => setDisplay(formatTime(Date.now() - inicio + acumMs))
     tick()
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
-  }, [horaRegistro, horaFin, tiempoAcumuladoMin])
+  }, [horaRegistro, horaFin, tiempoAcumuladoMin, horaRegistroOriginal])
 
   return (
     <div style={{ textAlign: 'right' }}>

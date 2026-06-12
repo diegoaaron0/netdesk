@@ -205,6 +205,7 @@ export const incidentes = pgTable('incidentes', {
   motivoReabertura:          text('motivo_reabertura'),        // 'TIENDA_SIN_INTERNET' | 'ERROR_AGENTE'
   justificacionReabertura:   text('justificacion_reabertura'),
   tiempoAcumuladoMin:        integer('tiempo_acumulado_min'),  // MTTR acumulado de aperturas previas
+  ieiAcumulado:              numeric('iei_acumulado'),             // IEI acumulado de períodos anteriores (reaperturas)
   horaRegistroOriginal:      timestamp('hora_registro_original'), // hora de inicio original antes de cualquier reapertura
   horaFinAnterior:           timestamp('hora_fin_anterior'),       // horaFin del cierre previo a la reapertura
   proveedorId:           uuid('proveedor_id').references(() => proveedores.id),
