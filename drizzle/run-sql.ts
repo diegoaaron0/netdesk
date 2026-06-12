@@ -216,6 +216,11 @@ async function main() {
   await sql`ALTER TABLE tiendas DROP COLUMN IF EXISTS costo_mensual`
   console.log('[startup] ✓ Campos conectividad de tiendas eliminados (0027)')
 
+  // 0028 — reabertura: preservar hora inicio original y hora fin anterior
+  await sql`ALTER TABLE "incidentes" ADD COLUMN IF NOT EXISTS "hora_registro_original" timestamp`
+  await sql`ALTER TABLE "incidentes" ADD COLUMN IF NOT EXISTS "hora_fin_anterior" timestamp`
+  console.log('[startup] ✓ Columnas reabertura (0028)')
+
   console.log('[startup] Migraciones completadas.')
   await sql.end()
 }

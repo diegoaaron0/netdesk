@@ -17,8 +17,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   // Leer el incidente para acumular MTTR antes de reiniciar el reloj
   const [inc] = await db.select({
-    mttrMinutos:        incidentes.mttrMinutos,
-    tiempoAcumuladoMin: incidentes.tiempoAcumuladoMin,
+    mttrMinutos:           incidentes.mttrMinutos,
+    tiempoAcumuladoMin:    incidentes.tiempoAcumuladoMin,
+    horaRegistro:          incidentes.horaRegistro,
+    horaFin:               incidentes.horaFin,
+    horaRegistroOriginal:  incidentes.horaRegistroOriginal,
   }).from(incidentes).where(eq(incidentes.id, id))
 
   if (!inc) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
@@ -26,6 +29,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Tiempo acumulado = lo que ya estaba acumulado + MTTR de esta última resolución incorrecta
   // El tiempo que estuvo "cerrado" entre resolución y reapertura NO se suma (no es responsabilidad del proveedor)
   const tiempoAcumuladoMin = (inc.tiempoAcumuladoMin ?? 0) + (inc.mttrMinutos ?? 0)
+
+  // Preservar hora de inicio original (solo en la primera reapertura; en subsiguientes ya está guardada)
+  const horaRegistroOriginal = inc.horaRegistroOriginal ?? inc.horaRegistro
+  // Preservar el horaFin del cierre anterior para mostrarlo en el detalle
+  const horaFinAnterior = inc.horaFin
 
   const horaLima = new Date().toLocaleString('es-PE', {
     timeZone: 'America/Lima',
@@ -46,11 +54,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       estado: 'ABIERTO',
       horaFin: null,
       mttrMinutos: null,
-      horaRegistro: new Date(),     // reinicia el cronómetro desde ahora
-      tiempoAcumuladoMin,           // preserva el tiempo anterior (se sumará al resolver)
+      horaRegistro: new Date(),        // reinicia el cronómetro desde ahora (base para MTTR parcial)
+      tiempoAcumuladoMin,              // preserva el tiempo anterior (se sumará al resolver)
       motivoReabertura: motivo,
       justificacionReabertura: justificacion || null,
       reabiertaInfo,
+      horaRegistroOriginal,            // hora de inicio real del incidente
+      horaFinAnterior,                 // hora de cierre anterior (para mostrar en detalle)
       actualizadoEn: new Date(),
     })
     .where(eq(incidentes.id, id))

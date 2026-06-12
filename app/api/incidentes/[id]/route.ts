@@ -33,6 +33,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     motivoReabertura:        incidentes.motivoReabertura,
     justificacionReabertura: incidentes.justificacionReabertura,
     tiempoAcumuladoMin:      incidentes.tiempoAcumuladoMin,
+    horaRegistroOriginal:    incidentes.horaRegistroOriginal,
+    horaFinAnterior:         incidentes.horaFinAnterior,
     tipoPersonalizado:  incidentes.tipoPersonalizado,
     otrosClasificacion: incidentes.otrosClasificacion,
     actualizadoEn:      incidentes.actualizadoEn,

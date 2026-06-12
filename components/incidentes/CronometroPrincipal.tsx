@@ -9,22 +9,23 @@ function formatTime(ms: number) {
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
 }
 
-export function CronometroPrincipal({ horaRegistro, horaFin }: { horaRegistro: Date | string; horaFin: Date | string | null }) {
+export function CronometroPrincipal({ horaRegistro, horaFin, tiempoAcumuladoMin }: { horaRegistro: Date | string; horaFin: Date | string | null; tiempoAcumuladoMin?: number | null }) {
   const [display, setDisplay] = useState('00:00:00')
   const [detenido, setDetenido] = useState(false)
 
   useEffect(() => {
     const inicio = new Date(horaRegistro).getTime()
+    const acumMs = (tiempoAcumuladoMin ?? 0) * 60 * 1000
     if (horaFin) {
-      setDisplay(formatTime(new Date(horaFin).getTime() - inicio))
+      setDisplay(formatTime(new Date(horaFin).getTime() - inicio + acumMs))
       setDetenido(true)
       return
     }
-    const tick = () => setDisplay(formatTime(Date.now() - inicio))
+    const tick = () => setDisplay(formatTime(Date.now() - inicio + acumMs))
     tick()
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
-  }, [horaRegistro, horaFin])
+  }, [horaRegistro, horaFin, tiempoAcumuladoMin])
 
   return (
     <div style={{ textAlign: 'right' }}>
