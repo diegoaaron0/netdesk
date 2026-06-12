@@ -331,8 +331,9 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   async function handleSave() {
     setSaving(true)
     const body: any = { ...editForm }
-    if ('horaRegistro' in body) body.horaRegistro = fromDatetimeLocal(body.horaRegistro)
-    if ('horaFin' in body) body.horaFin = body.horaFin ? fromDatetimeLocal(body.horaFin) : null
+    if ('horaRegistro'         in body) body.horaRegistro         = fromDatetimeLocal(body.horaRegistro)
+    if ('horaRegistroOriginal' in body) body.horaRegistroOriginal = body.horaRegistroOriginal ? fromDatetimeLocal(body.horaRegistroOriginal) : null
+    if ('horaFin'              in body) body.horaFin              = body.horaFin ? fromDatetimeLocal(body.horaFin) : null
     if (body.horaRegistro && body.horaFin) {
       body.mttrMinutos = mttrFromHoras(body.horaRegistro, body.horaFin)
     } else if (body.horaFin === null) {
