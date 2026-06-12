@@ -78,12 +78,14 @@ export default function AccionDetallePage() {
   const [evalNota90, setEvalNota90] = useState('')
   const [notasEjec, setNotasEjec] = useState('')
   const [actionError, setActionError] = useState('')
+  const [deleteBusy, setDeleteBusy]   = useState(false)
   const [pendingEval, setPendingEval]   = useState<30 | 90 | null>(null)
   const [pendingReset, setPendingReset] = useState<30 | 90 | null>(null)
   const [fichasDisponibles, setFichasDisponibles] = useState<any[]>([])
   const [selectedFichaId, setSelectedFichaId] = useState<string>('')
 
-  const userRol = (session?.user as any)?.rol ?? ''
+  const userRol  = (session?.user as any)?.rol ?? ''
+  const userId   = (session?.user as any)?.id  ?? ''
   const isGerencia = userRol === 'GERENCIA' || userRol === 'DEMO'
   const isInfra    = ['INFRAESTRUCTURA', 'SUPERVISOR', 'DEMO'].includes(userRol)
 
@@ -110,6 +112,19 @@ export default function AccionDetallePage() {
       })
       .catch(() => {})
   }, [accion?.tipo, accion?.tiendaId, accion?.estado])
+
+  async function doEliminar() {
+    if (!confirm(`¿Eliminar el borrador ${accion?.codigo}? Esta acción no se puede deshacer.`)) return
+    setDeleteBusy(true)
+    const res = await fetch(`/api/gestion-cambios/${id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setActionError(data.error ?? `Error ${res.status}`)
+      setDeleteBusy(false)
+      return
+    }
+    router.push('/gestion-cambios')
+  }
 
   async function doAction(endpoint: string, body: any = {}) {
     setActBusy(true); setActionError('')
@@ -178,15 +193,25 @@ export default function AccionDetallePage() {
           <div style={{ background: '#FEE2E2', border: '1px solid #FCA5A5', borderRadius: '7px', padding: '8px 12px', fontSize: '12px', color: '#991B1B' }}>{actionError}</div>
         )}
 
-        {accion.estado === 'BORRADOR' && isInfra && (
+        {accion.estado === 'BORRADOR' && (isInfra || isGerencia || accion.creadoPorId === userId) && (
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px' }}>
             <div style={{ fontSize: '11px', fontWeight: 600, marginBottom: '10px' }}>Acciones disponibles</div>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <button onClick={() => doAction('proponer')} disabled={actBusy} style={btnStyle(true)}>Enviar a aprobación</button>
-              <button onClick={() => router.push(`/gestion-cambios/nueva`)} disabled={actBusy}
-                style={{ ...btnStyle(false), background: 'var(--muted)', color: 'var(--foreground)', border: '0.5px solid var(--border)' }}>
-                Editar (crear nueva)
-              </button>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+              {isInfra && (
+                <>
+                  <button onClick={() => doAction('proponer')} disabled={actBusy} style={btnStyle(true)}>Enviar a aprobación</button>
+                  <button onClick={() => router.push(`/gestion-cambios/nueva`)} disabled={actBusy}
+                    style={{ ...btnStyle(false), background: 'var(--muted)', color: 'var(--foreground)', border: '0.5px solid var(--border)' }}>
+                    Editar (crear nueva)
+                  </button>
+                </>
+              )}
+              {(accion.creadoPorId === userId || isGerencia || ['SUPERVISOR'].includes(userRol)) && (
+                <button onClick={doEliminar} disabled={deleteBusy || actBusy}
+                  style={{ ...btnStyle(true, '#991B1B'), marginLeft: 'auto', opacity: deleteBusy ? 0.6 : 1 }}>
+                  {deleteBusy ? 'Eliminando…' : 'Eliminar borrador'}
+                </button>
+              )}
             </div>
           </div>
         )}

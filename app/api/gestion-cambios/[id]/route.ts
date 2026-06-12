@@ -166,18 +166,24 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  if (!can(session, 'gestion-cambios.crear')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  if (!can(session, 'gestion-cambios.ver')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
-  const [current] = await db.select({ estado: accionesGestion.estado })
+  const [current] = await db.select({ estado: accionesGestion.estado, creadoPorId: accionesGestion.creadoPorId })
     .from(accionesGestion).where(eq(accionesGestion.id, id))
   if (!current) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
-  if (!['BORRADOR', 'PROPUESTO', 'RECHAZADO'].includes(current.estado))
-    return NextResponse.json({ error: 'No se puede cancelar en este estado' }, { status: 409 })
+  if (current.estado !== 'BORRADOR')
+    return NextResponse.json({ error: 'Solo se pueden eliminar borradores' }, { status: 409 })
 
-  const [updated] = await db.update(accionesGestion)
-    .set({ estado: 'CANCELADO', actualizadoEn: new Date() })
-    .where(eq(accionesGestion.id, id))
-    .returning()
+  const userId  = (session.user as any)?.id
+  const userRol = (session.user as any)?.rol ?? ''
+  const esSupervisorOGerencia = ['SUPERVISOR', 'GERENCIA', 'DEMO'].includes(userRol)
+  const esCreador = current.creadoPorId === userId
 
-  return NextResponse.json(updated)
+  if (!esCreador && !esSupervisorOGerencia)
+    return NextResponse.json({ error: 'Sin permiso para eliminar este borrador' }, { status: 403 })
+
+  await db.delete(accionesGestionTiendas).where(eq(accionesGestionTiendas.accionId, id))
+  await db.delete(accionesGestion).where(eq(accionesGestion.id, id))
+
+  return NextResponse.json({ ok: true })
 }

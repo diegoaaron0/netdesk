@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 
 function GcTabs({ active }: { active: 'acciones' | 'fichas' }) {
   const router = useRouter()
@@ -56,10 +57,26 @@ function diasParaEval(fechaStr: string | null) {
 
 export default function GestionCambiosPage() {
   const router = useRouter()
+  const { data: session } = useSession()
   const [rows, setRows]           = useState<any[]>([])
   const [loading, setLoading]     = useState(true)
   const [filtroEstado, setFiltroEstado] = useState('')
   const [filtroTipo,   setFiltroTipo]   = useState('')
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const userRol = (session?.user as any)?.rol ?? ''
+  const userId  = (session?.user as any)?.id  ?? ''
+  const puedeEliminar = (r: any) =>
+    r.estado === 'BORRADOR' && (r.creadoPorId === userId || ['SUPERVISOR', 'GERENCIA', 'DEMO'].includes(userRol))
+
+  async function eliminarBorrador(e: React.MouseEvent, id: string, codigo: string) {
+    e.stopPropagation()
+    if (!confirm(`¿Eliminar el borrador ${codigo}?`)) return
+    setDeletingId(id)
+    await fetch(`/api/gestion-cambios/${id}`, { method: 'DELETE' })
+    setDeletingId(null)
+    load()
+  }
 
   const load = useCallback(() => {
     setLoading(true)
@@ -150,7 +167,7 @@ export default function GestionCambiosPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}>
-                {['Código', 'Tipo', 'Título / Alcance', 'Proveedor', 'Estado', 'Evaluación', 'Creado'].map(h => (
+                {['Código', 'Tipo', 'Título / Alcance', 'Proveedor', 'Estado', 'Evaluación', 'Creado', ''].map(h => (
                   <th key={h} style={{ padding: '9px 12px', textAlign: 'left', fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -209,6 +226,16 @@ export default function GestionCambiosPage() {
                     <td style={{ padding: '10px 12px', fontSize: '11px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>
                       <div>{fmtFecha(r.creadoEn)}</div>
                       <div style={{ fontSize: '10px' }}>{r.creadoPorNombre}</div>
+                    </td>
+                    <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }} onClick={e => e.stopPropagation()}>
+                      {puedeEliminar(r) && (
+                        <button
+                          onClick={e => eliminarBorrador(e, r.id, r.codigo)}
+                          disabled={deletingId === r.id}
+                          style={{ padding: '4px 10px', fontSize: '10px', fontWeight: 600, background: '#FEE2E2', color: '#991B1B', border: '1px solid #FECACA', borderRadius: '6px', cursor: 'pointer', opacity: deletingId === r.id ? 0.6 : 1 }}>
+                          {deletingId === r.id ? '…' : 'Eliminar'}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 )

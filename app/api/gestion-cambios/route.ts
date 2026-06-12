@@ -57,6 +57,7 @@ export async function GET(req: NextRequest) {
     tiendaDistrito:           tiendas.distrito,
     proveedorAnteriorNombre:  provAnterior.nombre,
     proveedorNuevoNombre:     provNuevo.nombre,
+    creadoPorId:              accionesGestion.creadoPorId,
     creadoPorNombre:          creadoPor.nombre,
     creadoPorRol:             creadoPor.rol,
   })
