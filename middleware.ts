@@ -1,7 +1,7 @@
 import NextAuth from 'next-auth'
 import { NextResponse } from 'next/server'
 import authConfig from '@/auth.config'
-import { PERMISOS_POR_ROL } from '@/lib/permisos-config'
+import { resolvePermisos } from '@/lib/permisos'
 
 const { auth } = NextAuth(authConfig)
 
@@ -14,7 +14,7 @@ export default auth((req) => {
   }
 
   const rol      = (session.user as any)?.rol      ?? 'AGENTE'
-  const permisos: string[] = (session.user as any)?.permisos ?? PERMISOS_POR_ROL[rol] ?? []
+  const permisos: string[] = resolvePermisos(rol, (session.user as any)?.permisos)
 
   function canDo(permiso: string) {
     return permisos.includes(permiso)
