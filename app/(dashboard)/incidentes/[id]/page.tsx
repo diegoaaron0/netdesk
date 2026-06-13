@@ -9,6 +9,7 @@ import { GuiaEscalamiento } from '@/components/incidentes/GuiaEscalamiento'
 import { AdjuntosZona, compressImage } from '@/components/incidentes/AdjuntosZona'
 import { can } from '@/lib/permisos'
 import { parseEtaMin } from '@/lib/sla-core'
+import { apiMutate } from '@/lib/api-mutate'
 
 const TIPO_LABELS: Record<string, string> = {
   CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia',
@@ -311,20 +312,22 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   }
 
   async function handleDesactivarCont() {
-    await fetch(`/api/incidentes/${id}`, {
+    const { ok } = await apiMutate(`/api/incidentes/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contHoraDesactivacion: new Date().toISOString() }),
+      json: { contHoraDesactivacion: new Date().toISOString() },
+      errorPrefix: 'No se pudo desactivar la contingencia',
     })
+    if (!ok) return
     fetchInc()
   }
 
   async function handleDesactivarMov() {
-    await fetch(`/api/incidentes/${id}`, {
+    const { ok } = await apiMutate(`/api/incidentes/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ movHoraDesactivacion: new Date().toISOString() }),
+      json: { movHoraDesactivacion: new Date().toISOString() },
+      errorPrefix: 'No se pudo desactivar los datos móviles',
     })
+    if (!ok) return
     fetchInc()
   }
 
@@ -385,13 +388,13 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
       : modo === 'ENERGIA_ELECTRICA'
       ? { resueltoPor: 'ENERGIA_ELECTRICA',  atribucionFinal: 'Regresó energía eléctrica',       evaluableProveedor: false }
       : { resueltoPor: 'PROVEEDOR' }
-    const res = await fetch(`/api/incidentes/${id}/resolver`, {
+    const { ok, data } = await apiMutate(`/api/incidentes/${id}/resolver`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      json: body,
+      errorPrefix: 'No se pudo resolver el incidente',
     })
-    const data = await res.json().catch(() => ({}))
-    if (data.contingenciaMantieneActiva) setContNotice(true)
+    if (!ok) return
+    if (data?.contingenciaMantieneActiva) setContNotice(true)
     fetchInc()
   }
 
@@ -411,35 +414,39 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   async function handleEscalarInfra() {
     if (!infraSelectedId) { setInfraError('Selecciona un agente de infraestructura'); return }
     setInfraSaving(true)
-    await fetch(`/api/incidentes/${id}`, {
+    const { ok } = await apiMutate(`/api/incidentes/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ escaladoInfraId: infraSelectedId, horaEscaladoInfra: new Date().toISOString(), notaEscaladoInfra: infraNota || null }),
+      json: { escaladoInfraId: infraSelectedId, horaEscaladoInfra: new Date().toISOString(), notaEscaladoInfra: infraNota || null },
+      errorPrefix: 'No se pudo escalar a infraestructura',
     })
-    setInfraSaving(false); setShowInfraModal(false); fetchInc()
+    setInfraSaving(false)
+    if (!ok) return
+    setShowInfraModal(false); fetchInc()
   }
 
   async function handleCancelar() {
     if (!confirm('¿Cancelar este incidente?')) return
-    await fetch(`/api/incidentes/${id}/cancelar`, { method: 'POST' })
+    const { ok } = await apiMutate(`/api/incidentes/${id}/cancelar`, { method: 'POST', errorPrefix: 'No se pudo cancelar el incidente' })
+    if (!ok) return
     fetchInc()
   }
 
   async function handleEliminar() {
     if (!confirm(`¿Eliminar permanentemente el incidente ${inc.codigo}? Esta acción no se puede deshacer.`)) return
-    const res = await fetch(`/api/incidentes/${id}`, { method: 'DELETE' })
-    if (res.ok) router.push('/incidentes')
+    const { ok } = await apiMutate(`/api/incidentes/${id}`, { method: 'DELETE', errorPrefix: 'No se pudo eliminar el incidente' })
+    if (ok) router.push('/incidentes')
   }
 
   async function handleReopen() {
     if (!reopenMotivo) return
     setReopening(true)
-    await fetch(`/api/incidentes/${id}/reabrir`, {
+    const { ok } = await apiMutate(`/api/incidentes/${id}/reabrir`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ motivo: reopenMotivo, justificacion: reopenJustificacion }),
+      json: { motivo: reopenMotivo, justificacion: reopenJustificacion },
+      errorPrefix: 'No se pudo reabrir el incidente',
     })
     setReopening(false)
+    if (!ok) return
     setShowReopenModal(false)
     setReopenMotivo(null)
     setReopenJustificacion('')
@@ -450,10 +457,9 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
     const nivelData = inc.nivelesProveedor?.find((n: any) => n.nivel === nivel)
     const prevEscs = [...(inc.escalamientos ?? [])].sort((a: any, b: any) => a.nivel - b.nivel).filter((e: any) => e.nivel < nivel)
     const cuerpoCorreo = buildCorreo(inc, nivelData, nivel, prevEscs)
-    await fetch(`/api/incidentes/${id}/escalar`, {
+    const { ok } = await apiMutate(`/api/incidentes/${id}/escalar`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      json: {
         nivel,
         fichaNivelId:           nivelData?.id             ?? null,
         contactoEscalado:       nivelData?.nombreContacto ?? `Nivel ${nivel}`,
@@ -461,8 +467,10 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
         telefonoContacto:       nivelData?.celular        ?? null,
         tiempoEstimadoSolucion: null,
         cuerpoCorreo,
-      }),
+      },
+      errorPrefix: 'No se pudo escalar',
     })
+    if (!ok) return
     fetchInc()
     setTimeout(() => escRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200)
   }
