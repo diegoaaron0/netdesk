@@ -8,6 +8,7 @@ import { can } from '@/lib/permisos'
 export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  if (!can(session, 'incidentes.ver')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const incidenteId    = req.nextUrl.searchParams.get('incidenteId')
   const escalamientoId = req.nextUrl.searchParams.get('escalamientoId')

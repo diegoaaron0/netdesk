@@ -10,6 +10,7 @@ import { SLA_RESPUESTA_MIN, SLA_RESOLUCION_DEFAULT_MIN } from '@/lib/sla-core'
 export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  if (!can(session, 'proveedores.ver')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const { searchParams } = req.nextUrl
   const buscar     = searchParams.get('buscar')  ?? ''

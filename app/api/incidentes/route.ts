@@ -66,6 +66,7 @@ const COLS = {
 export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  if (!can(session, 'incidentes.ver')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const { searchParams } = req.nextUrl
   const estado    = searchParams.get('estado')

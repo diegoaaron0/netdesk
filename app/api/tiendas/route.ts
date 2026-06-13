@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { tiendas, proveedores, incidentes, fichas, fichasNiveles } from '@/drizzle/schema'
 import { ilike, or, eq, and, gte, sql, count } from 'drizzle-orm'
 import { auth } from '@/auth'
+import { can } from '@/lib/permisos'
 
 const PROVEEDOR_COLORS: Record<string, { bg: string; color: string }> = {
   BITEL:     { bg: '#dbeafe', color: '#1e40af' },
@@ -16,6 +17,7 @@ const PROVEEDOR_COLORS: Record<string, { bg: string; color: string }> = {
 export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  if (!can(session, 'mantenimiento.ver')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const { searchParams } = req.nextUrl
   const q           = searchParams.get('q') ?? ''

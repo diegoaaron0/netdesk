@@ -3,10 +3,12 @@ import { db } from '@/lib/db'
 import { tiendasHistorial, proveedores, usuarios } from '@/drizzle/schema'
 import { eq, and, desc, inArray } from 'drizzle-orm'
 import { auth } from '@/auth'
+import { can } from '@/lib/permisos'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  if (!can(session, 'mantenimiento.ver')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const tiendaId = req.nextUrl.searchParams.get('tiendaId')
   if (!tiendaId) return NextResponse.json({ error: 'tiendaId requerido' }, { status: 400 })

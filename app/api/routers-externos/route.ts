@@ -8,6 +8,7 @@ import { can } from '@/lib/permisos'
 export async function GET() {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  if (!can(session, 'mantenimiento.ver')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   try {
     const rows = await db.execute(sql`

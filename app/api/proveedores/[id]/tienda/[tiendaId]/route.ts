@@ -4,6 +4,7 @@ import { tiendas, proveedores, incidentes, fichas } from '@/drizzle/schema'
 import { eq, gte, sql, and, isNotNull, desc, count } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
+import { can } from '@/lib/permisos'
 import { logUnlessSchemaMissing } from '@/lib/db-errors'
 
 function fmtMttr(mins: number | null): string {
@@ -16,6 +17,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id, tiendaId } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  if (!can(session, 'proveedores.ver')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   // Base tienda info
   const [tiendaBase] = await db.select({

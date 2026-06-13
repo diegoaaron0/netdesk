@@ -3,12 +3,14 @@ import { db } from '@/lib/db'
 import { tiendas, fichas } from '@/drizzle/schema'
 import { eq, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
+import { can } from '@/lib/permisos'
 import { logUnlessSchemaMissing } from '@/lib/db-errors'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  if (!can(session, 'proveedores.ver')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const thirtyDaysAgo    = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
   const thirtyDaysAgoStr = thirtyDaysAgo.toISOString()
