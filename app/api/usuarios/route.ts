@@ -32,7 +32,11 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   if (!body.nombre?.trim()) return NextResponse.json({ error: 'El nombre es obligatorio' }, { status: 400 })
   if (!body.email?.trim()) return NextResponse.json({ error: 'El correo es obligatorio' }, { status: 400 })
-  const rawPassword = body.password ?? 'S0p0rt3!?@#'
+  // Contraseña inicial: la que envíe el admin, o el default del sistema (env var).
+  // El literal queda solo como último recurso si la env no está configurada.
+  const rawPassword = (typeof body.password === 'string' && body.password.trim())
+    ? body.password
+    : (process.env.DEFAULT_USER_PASSWORD ?? 'S0p0rt3!?@#')
   const hashedPassword = await bcrypt.hash(rawPassword, 12)
 
   const [user] = await db.insert(usuarios).values({

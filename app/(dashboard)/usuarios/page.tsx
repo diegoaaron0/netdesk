@@ -80,7 +80,9 @@ const PERMISOS_GRUPOS = [
 
 const BLANK = {
   nombre: '', apellido: '', email: '', celular: '',
-  password: 'S0p0rt3!?@#', rol: 'AGENTE', cluster: '', activo: true,
+  // Sin contraseña por defecto en el cliente (no enviar literales en el bundle).
+  // Si se deja vacío al crear, el backend asigna la contraseña por defecto del sistema.
+  password: '', rol: 'AGENTE', cluster: '', activo: true,
   permisos: PERMISOS_POR_ROL['AGENTE'] as string[],
 }
 
@@ -457,7 +459,7 @@ export default function UsuariosPage() {
               <div style={{ marginBottom: '10px' }}>
                 <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '3px' }}>Contraseña</label>
                 <div style={{ display: 'flex', gap: '6px' }}>
-                  <input type={showPass ? 'text' : 'password'} value={modal.data.password ?? ''} onChange={e => { setField('password', e.target.value); setPasswordModified(true) }} placeholder={modal.isNew ? '' : '(sin cambios)'} style={{ ...inp, flex: 1 }} />
+                  <input type={showPass ? 'text' : 'password'} value={modal.data.password ?? ''} onChange={e => { setField('password', e.target.value); setPasswordModified(true) }} placeholder={modal.isNew ? 'Vacío = contraseña por defecto del sistema' : '(sin cambios)'} style={{ ...inp, flex: 1 }} />
                   <button type="button" onClick={() => setShowPass(v => !v)}
                     style={{ padding: '7px 10px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--muted)', cursor: 'pointer', fontSize: '11px', color: 'var(--muted-foreground)' }}>
                     {showPass ? 'Ocultar' : 'Ver'}
