@@ -37,24 +37,15 @@ export async function GET(req: NextRequest) {
       CASE
         WHEN n1.hora_envio IS NULL THEN 'No escalado'
         WHEN n1.hora_resp  IS NULL THEN 'Sin respuesta'
-        WHEN EXTRACT(EPOCH FROM (n1.hora_resp - n1.hora_envio)) / 60 <= 60 THEN 'Cumplido'
+        WHEN EXTRACT(EPOCH FROM (n1.hora_resp - n1.hora_envio)) / 60 <= COALESCE(f.tiempo_respuesta_sla, 60) THEN 'Cumplido'
         ELSE 'Incumplido'
       END                                                                        AS sla_respuesta,
-      -- SLA Resolución
-      CASE i.tipo
-        WHEN 'CAIDA_TOTAL'   THEN 60
-        WHEN 'INTERMITENCIA' THEN 120
-        WHEN 'LENTITUD'      THEN 240
-        WHEN 'POS'           THEN 60
-        ELSE 120
-      END                                                                        AS sla_resolucion_limite_min,
+      -- SLA Resolución — límite del contrato (ficha) o 90 por defecto. El tipo NO influye.
+      COALESCE(f.tiempo_resolucion_sla, 90)                                      AS sla_resolucion_limite_min,
       CASE
         WHEN i.estado != 'RESUELTO' OR i.mttr_minutos IS NULL THEN 'Pendiente'
         WHEN i.evaluable_proveedor = false                     THEN 'No evaluable'
-        WHEN i.mttr_minutos <= CASE i.tipo
-          WHEN 'CAIDA_TOTAL'   THEN 60   WHEN 'INTERMITENCIA' THEN 120
-          WHEN 'LENTITUD'      THEN 240  WHEN 'POS'           THEN 60
-          ELSE 120 END                                         THEN 'Cumplido'
+        WHEN i.mttr_minutos <= COALESCE(f.tiempo_resolucion_sla, 90)            THEN 'Cumplido'
         ELSE 'Incumplido'
       END                                                                        AS sla_resolucion,
       -- Nivel máximo escalado

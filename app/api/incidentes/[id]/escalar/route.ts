@@ -17,21 +17,28 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const nuevoEstado = estadoMap[body.nivel] ?? 'ESCALADO_N1'
 
   const creadoPorId = (session.user as any)?.id ?? null
-  const [esc] = await db.insert(escalamientos).values({
-    incidenteId:      id,
-    nivel:            body.nivel,
-    fichaNivelId:     body.fichaNivelId     ?? null,
-    contactoEscalado: body.contactoEscalado,
-    emailContacto:    body.emailContacto,
-    telefonoContacto: body.telefonoContacto ?? null,
-    tiempoEstimadoSolucion: body.tiempoEstimadoSolucion ?? null,
-    cuerpoCorreo:     body.cuerpoCorreo     ?? null,
-    creadoPorId,
-  }).returning()
 
-  await db.update(incidentes)
-    .set({ estado: nuevoEstado, actualizadoEn: new Date() })
-    .where(eq(incidentes.id, id))
+  // Insert del escalamiento + cambio de estado del incidente en una sola transacción:
+  // evita un escalamiento registrado sin que el incidente refleje el estado ESCALADO_Nx.
+  const esc = await db.transaction(async (tx) => {
+    const [created] = await tx.insert(escalamientos).values({
+      incidenteId:      id,
+      nivel:            body.nivel,
+      fichaNivelId:     body.fichaNivelId     ?? null,
+      contactoEscalado: body.contactoEscalado,
+      emailContacto:    body.emailContacto,
+      telefonoContacto: body.telefonoContacto ?? null,
+      tiempoEstimadoSolucion: body.tiempoEstimadoSolucion ?? null,
+      cuerpoCorreo:     body.cuerpoCorreo     ?? null,
+      creadoPorId,
+    }).returning()
+
+    await tx.update(incidentes)
+      .set({ estado: nuevoEstado, actualizadoEn: new Date() })
+      .where(eq(incidentes.id, id))
+
+    return created
+  })
 
   return NextResponse.json(esc, { status: 201 })
 }

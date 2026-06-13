@@ -101,7 +101,7 @@ cajasAfectadas / cajasTotales / ventaParcial / boletaManual   → para cálculo 
 ### Libs de lógica de negocio (lib/)
 | Archivo | Función |
 |---------|---------|
-| `sla-core.ts` | Límites SLA por tipo de incidente — fuente única de verdad |
+| `sla-core.ts` | Defaults SLA (Respuesta=60, Resolución=90) y cálculo — fuente única de verdad |
 | `sla-contrato.ts` | Override de SLA por contrato de proveedor |
 | `impacto-calc.ts` | Cálculo del IEI (Impacto Económico del Incidente) |
 | `permisos.ts` | Sistema de permisos granular por rol |
@@ -130,9 +130,16 @@ cajasAfectadas / cajasTotales / ventaParcial / boletaManual   → para cálculo 
 
 ### SLA
 - Toda lógica SLA viene de `lib/sla-core.ts` — NUNCA duplicar constantes
-- Límites: CAIDA_TOTAL=60min, INTERMITENCIA=120min, LENTITUD=240min, POS=60min
-- `getSlaContrato()` en `lib/sla-contrato.ts` para overrides por proveedor
-- Filtrar siempre por `estado='VIGENTE'` en contratos
+- El SLA tiene SOLO dos tiempos: **Respuesta = 60 min** y **Resolución = 90 min** (defaults)
+- El **tipo de incidente NO influye** en los tiempos SLA. Nunca usar CASE por tipo
+  para derivar minutos de respuesta/resolución (eso fue eliminado: ya no existe
+  CAIDA_TOTAL=60 / INTERMITENCIA=120 / LENTITUD=240 / POS=60)
+- Override por contrato: la **ficha activa** de la tienda
+  (`fichas.tiempo_respuesta_sla` / `tiempo_resolucion_sla`) vía `getSlaContrato()`
+  en `lib/sla-contrato.ts`. En SQL: `COALESCE(f.tiempo_resolucion_sla, 90)` y
+  `COALESCE(f.tiempo_respuesta_sla, 60)`, uniendo
+  `fichas f ON f.id = COALESCE(i.ficha_id, t.ficha_activa_id)`
+- Defaults centralizados: `SLA_RESPUESTA_MIN` (60) y `SLA_RESOLUCION_DEFAULT_MIN` (90)
 
 ### Timestamps
 - Todos los timestamps se guardan en UTC en la BD

@@ -33,43 +33,49 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     sealFields.movHoraDesactivacion = horaFin
   }
 
-  const [updated] = await db.update(incidentes)
-    .set({ estado: 'CANCELADO', horaFin, actualizadoEn: horaFin, canceladoPorId, ...sealFields })
-    .where(eq(incidentes.id, id))
-    .returning()
+  // Writes relacionados en una transacción: evita dejar el incidente CANCELADO con la
+  // contingencia de tienda o el router en estado inconsistente si algún paso falla.
+  const updated = await db.transaction(async (tx) => {
+    const [upd] = await tx.update(incidentes)
+      .set({ estado: 'CANCELADO', horaFin, actualizadoEn: horaFin, canceladoPorId, ...sealFields })
+      .where(eq(incidentes.id, id))
+      .returning()
 
-  // Limpiar contingencia_activa si no quedan otras fuentes activas
-  if (inc.tiendaId && inc.contActivadoPor) {
-    const rows = await db.execute(sql`
-      SELECT COUNT(*)::int AS cnt FROM incidentes
-      WHERE tienda_id = ${inc.tiendaId}
-        AND cont_activado_por IS NOT NULL
-        AND cont_hora_desactivacion IS NULL
-        AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
-    `)
-    const standaloneRows = await db.execute(sql`
-      SELECT COUNT(*)::int AS cnt FROM contingencias
-      WHERE tienda_id = ${inc.tiendaId}
-        AND hora_desactivacion IS NULL
-    `)
-    const stillActive = Number((rows[0] as any)?.cnt ?? 0) + Number((standaloneRows[0] as any)?.cnt ?? 0)
-    if (stillActive === 0) {
-      await db.update(tiendas)
-        .set({ contingenciaActiva: false, contingenciaActivadaPor: null })
-        .where(eq(tiendas.id, inc.tiendaId))
+    // Limpiar contingencia_activa si no quedan otras fuentes activas
+    if (inc.tiendaId && inc.contActivadoPor) {
+      const rows = await tx.execute(sql`
+        SELECT COUNT(*)::int AS cnt FROM incidentes
+        WHERE tienda_id = ${inc.tiendaId}
+          AND cont_activado_por IS NOT NULL
+          AND cont_hora_desactivacion IS NULL
+          AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
+      `)
+      const standaloneRows = await tx.execute(sql`
+        SELECT COUNT(*)::int AS cnt FROM contingencias
+        WHERE tienda_id = ${inc.tiendaId}
+          AND hora_desactivacion IS NULL
+      `)
+      const stillActive = Number((rows[0] as any)?.cnt ?? 0) + Number((standaloneRows[0] as any)?.cnt ?? 0)
+      if (stillActive === 0) {
+        await tx.update(tiendas)
+          .set({ contingenciaActiva: false, contingenciaActivadaPor: null })
+          .where(eq(tiendas.id, inc.tiendaId))
+      }
     }
-  }
 
-  // Router externo: al cancelar → EN_TIENDA_INACTIVO (el router sigue físicamente en tienda)
-  if (inc.routerExternoId) {
-    const [router] = await db.select({ estado: routersExternos.estado })
-      .from(routersExternos).where(eq(routersExternos.id, inc.routerExternoId))
-    if (router?.estado === 'EN_TIENDA_ACTIVO') {
-      await db.update(routersExternos)
-        .set({ estado: 'EN_TIENDA_INACTIVO' })
-        .where(eq(routersExternos.id, inc.routerExternoId))
+    // Router externo: al cancelar → EN_TIENDA_INACTIVO (el router sigue físicamente en tienda)
+    if (inc.routerExternoId) {
+      const [router] = await tx.select({ estado: routersExternos.estado })
+        .from(routersExternos).where(eq(routersExternos.id, inc.routerExternoId))
+      if (router?.estado === 'EN_TIENDA_ACTIVO') {
+        await tx.update(routersExternos)
+          .set({ estado: 'EN_TIENDA_INACTIVO' })
+          .where(eq(routersExternos.id, inc.routerExternoId))
+      }
     }
-  }
+
+    return upd
+  })
 
   return NextResponse.json(updated)
 }

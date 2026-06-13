@@ -21,10 +21,7 @@ export async function GET(req: NextRequest) {
         COUNT(*) FILTER (
           WHERE i.estado = 'RESUELTO' AND i.mttr_minutos IS NOT NULL
             AND i.evaluable_proveedor IS NOT FALSE
-            AND i.mttr_minutos <= CASE i.tipo
-              WHEN 'CAIDA_TOTAL'   THEN 60  WHEN 'INTERMITENCIA' THEN 120
-              WHEN 'LENTITUD'      THEN 240 WHEN 'POS'           THEN 60
-              ELSE 120 END
+            AND i.mttr_minutos <= COALESCE(f.tiempo_resolucion_sla, 90)
         ) * 100.0 /
         NULLIF(COUNT(*) FILTER (
           WHERE i.estado = 'RESUELTO' AND i.evaluable_proveedor IS NOT FALSE
@@ -34,7 +31,7 @@ export async function GET(req: NextRequest) {
       ROUND(
         COUNT(*) FILTER (
           WHERE n1.hora_resp IS NOT NULL AND n1.hora_envio IS NOT NULL
-            AND EXTRACT(EPOCH FROM (n1.hora_resp - n1.hora_envio)) / 60 <= 60
+            AND EXTRACT(EPOCH FROM (n1.hora_resp - n1.hora_envio)) / 60 <= COALESCE(f.tiempo_respuesta_sla, 60)
         ) * 100.0 /
         NULLIF(COUNT(*) FILTER (WHERE n1.hora_envio IS NOT NULL), 0)
       )::int                                                                         AS sla_respuesta_pct,
@@ -92,6 +89,7 @@ export async function GET(req: NextRequest) {
       ))::int                                                                        AS iei_total_soles
     FROM incidentes i
     JOIN tiendas t ON i.tienda_id = t.id
+    LEFT JOIN fichas f ON f.id = COALESCE(i.ficha_id, t.ficha_activa_id)
     LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
     LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
     LEFT JOIN LATERAL (

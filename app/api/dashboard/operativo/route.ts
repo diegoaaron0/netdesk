@@ -51,6 +51,8 @@ export async function GET(req: NextRequest) {
         t.distrito                    AS tienda_distrito,
         t.cluster                     AS tienda_cluster,
         COALESCE(pi.nombre, pt.nombre) AS proveedor_nombre,
+        (SELECT tiempo_respuesta_sla  FROM fichas WHERE id = COALESCE(i.ficha_id, t.ficha_activa_id) LIMIT 1) AS sla_respuesta_override,
+        (SELECT tiempo_resolucion_sla FROM fichas WHERE id = COALESCE(i.ficha_id, t.ficha_activa_id) LIMIT 1) AS sla_resolucion_override,
         EXISTS (
           SELECT 1 FROM escalamientos e2
           WHERE e2.incidente_id = i.id
@@ -125,7 +127,9 @@ export async function GET(req: NextRequest) {
         t.nombre_cc AS tienda_nombre,
         t.distrito AS tienda_distrito,
         t.cluster  AS tienda_cluster,
-        COALESCE(pi.nombre, pt.nombre) AS proveedor_nombre
+        COALESCE(pi.nombre, pt.nombre) AS proveedor_nombre,
+        (SELECT tiempo_respuesta_sla  FROM fichas WHERE id = COALESCE(i.ficha_id, t.ficha_activa_id) LIMIT 1) AS sla_respuesta_override,
+        (SELECT tiempo_resolucion_sla FROM fichas WHERE id = COALESCE(i.ficha_id, t.ficha_activa_id) LIMIT 1) AS sla_resolucion_override
       FROM incidentes i
       JOIN usuarios u ON i.registrado_por_id = u.id
       JOIN tiendas  t ON i.tienda_id         = t.id

@@ -20,7 +20,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const [user] = await db.select().from(usuarios).where(eq(usuarios.email, credentials.email as string))
         if (!user || !user.activo || user.eliminadoEn) return null
 
-        const stored   = user.password ?? 'S0p0rt3!?@#'
+        // Sin contraseña registrada → acceso denegado. Nunca usar un default conocido como
+        // fallback de login (sería una puerta trasera: cualquiera con password NULL entraría).
+        if (!user.password) return null
+
+        const stored   = user.password
         const input    = credentials.password as string
         const isHashed = stored.startsWith('$2b$') || stored.startsWith('$2a$')
 

@@ -98,15 +98,16 @@ function downloadCSV(activos: any[], resoluciones: any[], fecha?: string) {
 
   const nowMs = Date.now()
 
+  // SLA: límite del contrato (ficha) o default. El tipo de incidente NO influye.
   function slaRespuestaLabel(i: any): string {
     if (!i.hora_correo_n1 || !i.hora_primera_resp) return 'No aplica'
+    const lim = i.sla_respuesta_override ?? 60
     const mins = Math.round((new Date(i.hora_primera_resp).getTime() - new Date(i.hora_correo_n1).getTime()) / 60000)
-    return mins <= 60 ? 'Cumplido' : `Incumplido (+${mins - 60}m)`
+    return mins <= lim ? 'Cumplido' : `Incumplido (+${mins - lim}m)`
   }
   function slaResolucionLabel(i: any): string {
     if (!i.mttr_minutos) return 'Pendiente'
-    const limite: Record<string, number> = { CAIDA_TOTAL: 60, INTERMITENCIA: 120, LENTITUD: 240, POS: 60 }
-    const lim = limite[i.tipo] ?? 120
+    const lim = i.sla_resolucion_override ?? 90
     return i.mttr_minutos <= lim ? 'Cumplido' : `Incumplido (+${i.mttr_minutos - lim}m)`
   }
 
