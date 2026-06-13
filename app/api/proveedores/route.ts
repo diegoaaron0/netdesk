@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { proveedores, tiendas, incidentes, escalamientos, fichas } from '@/drizzle/schema'
 import { eq, gte, sql, and, isNotNull } from 'drizzle-orm'
 import { auth } from '@/auth'
+import { can } from '@/lib/permisos'
 import { SLA_RESPUESTA_MIN, SLA_RESOLUCION_DEFAULT_MIN } from '@/lib/sla-core'
 
 export async function GET(req: NextRequest) {
@@ -150,9 +151,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  if (!['SUPERVISOR', 'INFRAESTRUCTURA'].includes((session.user as any)?.rol)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  if (!can(session, 'proveedores.editar')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   const body = await req.json()
   const baseValues: any = {
     nombre:             body.nombre,

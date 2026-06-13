@@ -4,6 +4,7 @@ import { proveedores, tiendas, incidentes, fichas } from '@/drizzle/schema'
 import { eq, sql, and, desc } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
+import { can } from '@/lib/permisos'
 
 function calcEstado(fechaFin: string | null | undefined): 'VIGENTE' | 'POR_VENCER' | 'VENCIDO' {
   if (!fechaFin) return 'VIGENTE'
@@ -313,9 +314,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  if (!['SUPERVISOR', 'INFRAESTRUCTURA'].includes((session.user as any)?.rol)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  if (!can(session, 'proveedores.editar')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   const body = await req.json()
   const baseSet: any = {}
   if ('nombre'             in body) baseSet.nombre             = body.nombre

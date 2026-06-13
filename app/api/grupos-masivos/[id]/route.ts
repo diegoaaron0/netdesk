@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { gruposMasivos, incidentes, tiendas, usuarios } from '@/drizzle/schema'
 import { eq, and } from 'drizzle-orm'
 import { auth } from '@/auth'
+import { can } from '@/lib/permisos'
 
 async function getGrupoWithIncidentes(id: string) {
   const [grupo] = await db.select().from(gruposMasivos).where(eq(gruposMasivos.id, id))
@@ -40,6 +41,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  if (!can(session, 'grupos.gestionar')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const { id } = await params
   const body = await req.json()

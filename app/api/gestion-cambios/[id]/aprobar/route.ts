@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { accionesGestion, usuarios } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
 import { auth } from '@/auth'
+import { can } from '@/lib/permisos'
 import { sendMail } from '@/lib/mailer'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -10,8 +11,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const userRol = (session.user as any)?.rol
-  if (userRol !== 'GERENCIA' && userRol !== 'DEMO')
+  if (!can(session, 'gestion-cambios.aprobar'))
     return NextResponse.json({ error: 'Solo Gerencia puede aprobar acciones' }, { status: 403 })
 
   const body = await req.json().catch(() => ({}))

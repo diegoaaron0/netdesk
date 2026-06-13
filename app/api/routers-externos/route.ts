@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { routersExternos } from '@/drizzle/schema'
 import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
+import { can } from '@/lib/permisos'
 
 export async function GET() {
   const session = await auth()
@@ -71,6 +72,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  if (!can(session, 'mantenimiento.ver')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const body = await req.json()
   if (!body.codigo?.trim()) return NextResponse.json({ error: 'Código requerido' }, { status: 400 })
