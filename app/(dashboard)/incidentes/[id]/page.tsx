@@ -2019,11 +2019,12 @@ function GrupoMasivoPanel({ inc, onRefresh }: { inc: any; onRefresh: () => void 
   }
 
   async function handleDesvincular(incidenteId: string) {
-    await fetch(`/api/grupos-masivos/${gm.id}/desvincular`, {
+    const { ok } = await apiMutate(`/api/grupos-masivos/${gm.id}/desvincular`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ incidenteId }),
+      json: { incidenteId },
+      errorPrefix: 'No se pudo desvincular el incidente',
     })
+    if (!ok) return
     onRefresh()
   }
 
@@ -2196,11 +2197,12 @@ function InfraEscalamientoPanel({ inc, isClosed, onRefresh }: { inc: any; isClos
   const fmtH = (iso: string) => new Date(iso).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 
   async function handleLiberar() {
-    await fetch(`/api/incidentes/${inc.id}`, {
+    const { ok } = await apiMutate(`/api/incidentes/${inc.id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ escaladoInfraId: null, horaEscaladoInfra: null, notaEscaladoInfra: null }),
+      json: { escaladoInfraId: null, horaEscaladoInfra: null, notaEscaladoInfra: null },
+      errorPrefix: 'No se pudo liberar el incidente de infraestructura',
     })
+    if (!ok) return
     onRefresh()
   }
 
@@ -2324,16 +2326,17 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
 
   async function saveTemplate() {
     setSavingTemplate(true)
-    await fetch(`/api/escalamientos/${esc.id}`, {
+    await apiMutate(`/api/escalamientos/${esc.id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cuerpoCorreo: templateBody }),
+      json: { cuerpoCorreo: templateBody },
+      errorPrefix: 'No se pudo guardar la plantilla',
     })
     setSavingTemplate(false)
   }
 
   async function handleEnvio() {
-    await fetch(`/api/escalamientos/${esc.id}/envio`, { method: 'PUT' })
+    const { ok } = await apiMutate(`/api/escalamientos/${esc.id}/envio`, { method: 'PUT', errorPrefix: 'No se pudo registrar el envío' })
+    if (!ok) return
     onRefresh()
   }
 
@@ -2341,21 +2344,24 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
     setSaving(true)
     const totalMin = etaH * 60 + etaM
     const tiempoEstFinal = totalMin > 0 ? String(totalMin) : ''
-    await fetch(`/api/escalamientos/${esc.id}/respuesta`, {
+    const { ok } = await apiMutate(`/api/escalamientos/${esc.id}/respuesta`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      json: {
         respuestaTexto: respuestaText,
         tiempoEstimadoSolucion: tiempoEstFinal,
         horaRespuesta: fromDatetimeLocal(horaRespManual) ?? undefined,
-      }),
+      },
+      errorPrefix: 'No se pudo registrar la respuesta',
     })
-    setSaving(false); onRefresh()
+    setSaving(false)
+    if (!ok) return
+    onRefresh()
   }
 
   async function handleSinRespuesta() {
     if (!confirm('¿Confirmar que no hubo respuesta del proveedor?')) return
-    await fetch(`/api/escalamientos/${esc.id}/sin-respuesta`, { method: 'PUT' })
+    const { ok } = await apiMutate(`/api/escalamientos/${esc.id}/sin-respuesta`, { method: 'PUT', errorPrefix: 'No se pudo registrar' })
+    if (!ok) return
     onRefresh()
   }
 
@@ -2366,43 +2372,48 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
         ? 'El cronómetro ya está corriendo. ¿Eliminar de todas formas?'
         : '¿Eliminar este escalamiento?'
     if (!confirm(msg)) return
-    await fetch(`/api/escalamientos/${esc.id}`, { method: 'DELETE' })
+    const { ok } = await apiMutate(`/api/escalamientos/${esc.id}`, { method: 'DELETE', errorPrefix: 'No se pudo eliminar el escalamiento' })
+    if (!ok) return
     onRefresh()
   }
 
   async function handleGuardarTiempos() {
     setSavingTiempos(true)
-    await fetch(`/api/escalamientos/${esc.id}`, {
+    const { ok } = await apiMutate(`/api/escalamientos/${esc.id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      json: {
         horaEnvioCorreo: fromDatetimeLocal(horaEnvioEdit),
         horaRespuesta:   fromDatetimeLocal(horaRespEdit),
-      }),
+      },
+      errorPrefix: 'No se pudieron guardar los tiempos',
     })
     setSavingTiempos(false)
+    if (!ok) return
     setEditTiempos(false)
     onRefresh()
   }
 
   async function iniciarAtc() {
-    await fetch(`/api/escalamientos/${esc.id}/atc`, { method: 'POST' })
+    const { ok } = await apiMutate(`/api/escalamientos/${esc.id}/atc`, { method: 'POST', errorPrefix: 'No se pudo iniciar la llamada ATC' })
+    if (!ok) return
     onRefresh()
   }
 
   async function finalizarAtc(atcId: string) {
     if (!confirm('¿Finalizar la llamada? Esto registrará la primera respuesta del proveedor.')) return
-    await fetch(`/api/atc/${atcId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ finalizar: true }) })
+    const { ok } = await apiMutate(`/api/atc/${atcId}`, { method: 'PUT', json: { finalizar: true }, errorPrefix: 'No se pudo finalizar la llamada' })
+    if (!ok) return
     onRefresh()
   }
 
   async function guardarNotasAtc(atcId: string, notas: string) {
-    await fetch(`/api/atc/${atcId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notas }) })
+    await apiMutate(`/api/atc/${atcId}`, { method: 'PUT', json: { notas }, errorPrefix: 'No se pudieron guardar las notas' })
   }
 
   async function eliminarAtc(atcId: string) {
     if (!confirm('¿Eliminar esta llamada ATC?')) return
-    await fetch(`/api/atc/${atcId}`, { method: 'DELETE' })
+    const { ok } = await apiMutate(`/api/atc/${atcId}`, { method: 'DELETE', errorPrefix: 'No se pudo eliminar la llamada' })
+    if (!ok) return
     onRefresh()
   }
 
@@ -2415,7 +2426,8 @@ function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
         const reader = new FileReader()
         const dataUrl = await new Promise<string>(res => { reader.onload = ev => res(ev.target!.result as string); reader.readAsDataURL(file) })
         const compressed = await compressImage(dataUrl)
-        await fetch('/api/adjuntos', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url: compressed, nombre:`captura-${Date.now()}.jpg`, tipo:'image/jpeg', tamanoBytes: Math.round(compressed.length*0.75), escalamientoId: esc.id, contexto }) })
+        const { ok } = await apiMutate('/api/adjuntos', { method: 'POST', json: { url: compressed, nombre: `captura-${Date.now()}.jpg`, tipo: 'image/jpeg', tamanoBytes: Math.round(compressed.length*0.75), escalamientoId: esc.id, contexto }, errorPrefix: 'No se pudo adjuntar la captura' })
+        if (!ok) return
         setEscAdjKey(k => k + 1)
       }
     }

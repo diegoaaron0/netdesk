@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import RoutersContingenciaTI from './RoutersCont'
+import { apiMutate } from '@/lib/api-mutate'
 
 const PROVEEDOR_COLORS: Record<string, { bg: string; color: string }> = {
   BITEL:             { bg: '#dbeafe', color: '#1e40af' },
@@ -151,8 +152,9 @@ export default function TiendasPage() {
       cluster: modal.data.cluster || null,
       proveedorId: modal.data.proveedorId || null,
     }
-    await fetch('/api/tiendas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    const { ok } = await apiMutate('/api/tiendas', { method: 'POST', json: body, errorPrefix: 'No se pudo crear la tienda' })
     setSaving(false)
+    if (!ok) return
     setModal(m => ({ ...m, open: false }))
     fetchTiendas()
   }

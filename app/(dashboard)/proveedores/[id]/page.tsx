@@ -2,6 +2,7 @@
 import { useEffect, useState, use, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { apiMutate } from '@/lib/api-mutate'
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function fmtSoles(v: string | number | null | undefined) {
   if (v == null || v === '' || Number(v) === 0) return '—'
@@ -98,12 +99,13 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
   // ── Save proveedor ──────────────────────────────────────────────────────────
   async function saveProv() {
     setSavingP(true)
-    await fetch(`/api/proveedores/${id}`, {
+    const { ok } = await apiMutate(`/api/proveedores/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(editForm),
+      json: editForm,
+      errorPrefix: 'No se pudo guardar el proveedor',
     })
     setSavingP(false)
+    if (!ok) return
     setEditProv(false)
     loadData()
   }

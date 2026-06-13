@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
+import { apiMutate } from '@/lib/api-mutate'
 
 function GcTabs({ active }: { active: 'acciones' | 'fichas' }) {
   const router = useRouter()
@@ -73,8 +74,9 @@ export default function GestionCambiosPage() {
     e.stopPropagation()
     if (!confirm(`¿Eliminar el borrador ${codigo}?`)) return
     setDeletingId(id)
-    await fetch(`/api/gestion-cambios/${id}`, { method: 'DELETE' })
+    const { ok } = await apiMutate(`/api/gestion-cambios/${id}`, { method: 'DELETE', errorPrefix: 'No se pudo eliminar el borrador' })
     setDeletingId(null)
+    if (!ok) return
     load()
   }
 

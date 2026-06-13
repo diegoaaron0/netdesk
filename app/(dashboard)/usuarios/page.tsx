@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { PERMISOS_POR_ROL, can } from '@/lib/permisos'
+import { apiMutate } from '@/lib/api-mutate'
 
 const ROL_META: Record<string, { label: string; bg: string; color: string; desc: string }> = {
   AGENTE:          { label: 'Agente TTI',      bg: '#f3f4f6', color: '#374151', desc: 'Operación diaria de incidentes' },
@@ -197,7 +198,8 @@ export default function UsuariosPage() {
   }
 
   async function toggleActivo(u: any) {
-    await fetch(`/api/usuarios/${u.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ activo: !u.activo }) })
+    const { ok } = await apiMutate(`/api/usuarios/${u.id}`, { method: 'PUT', json: { activo: !u.activo }, errorPrefix: 'No se pudo cambiar el estado del usuario' })
+    if (!ok) return
     fetchUsuarios()
   }
 

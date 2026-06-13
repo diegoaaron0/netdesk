@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import { apiMutate } from '@/lib/api-mutate'
 
 const ESTADO_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
   BORRADOR:  { label: 'Borrador',  bg: '#F1F5F9', color: '#475569' },
@@ -118,7 +119,8 @@ export default function FichaDetallePage() {
 
   async function deleteNivel(nivelId: string) {
     if (!confirm('¿Eliminar este nivel de escalamiento?')) return
-    await fetch(`/api/fichas/${id}/niveles/${nivelId}`, { method: 'DELETE' })
+    const { ok } = await apiMutate(`/api/fichas/${id}/niveles/${nivelId}`, { method: 'DELETE', errorPrefix: 'No se pudo eliminar el nivel' })
+    if (!ok) return
     loadFicha()
   }
 

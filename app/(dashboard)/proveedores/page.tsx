@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { apiMutate } from '@/lib/api-mutate'
 
 function fmtSoles(v: string | number | null | undefined) {
   if (v == null || v === '' || Number(v) === 0) return '—'
@@ -100,11 +101,12 @@ export default function ProveedoresPage() {
   async function handleCreate() {
     if (!form.nombre?.trim()) return
     setSaving(true)
-    await fetch('/api/proveedores', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
+    const { ok } = await apiMutate('/api/proveedores', {
+      method: 'POST', json: form, errorPrefix: 'No se pudo crear el proveedor',
     })
-    setSaving(false); setModal(false); setForm({}); fetchData()
+    setSaving(false)
+    if (!ok) return
+    setModal(false); setForm({}); fetchData()
   }
 
   const inp: React.CSSProperties = {

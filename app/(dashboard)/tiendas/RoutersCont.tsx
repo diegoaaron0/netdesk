@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { apiMutate } from '@/lib/api-mutate'
 
 const ALMACENES = ['Almacén Vulcano', 'Almacén Jiron']
 
@@ -117,10 +118,10 @@ function HistorialModal({ router, onClose, onSaved }: { router: any; onClose: ()
 
   async function eliminarFoto(url: string) {
     const fotos = (detail.fotos ?? []).filter((f: string) => f !== url)
-    await fetch(`/api/routers-externos/${router.id}`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fotos }),
+    const { ok } = await apiMutate(`/api/routers-externos/${router.id}`, {
+      method: 'PUT', json: { fotos }, errorPrefix: 'No se pudo eliminar la foto',
     })
+    if (!ok) return
     fetchDetail()
   }
 

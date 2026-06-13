@@ -3,6 +3,7 @@ import { useEffect, useState, use, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { can } from '@/lib/permisos'
+import { apiMutate } from '@/lib/api-mutate'
 
 const PROVEEDOR_COLORS: Record<string, { bg: string; color: string }> = {
   BITEL:             { bg: '#dbeafe', color: '#1e40af' },
@@ -219,20 +220,20 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
       tieneContingencia: !!form.tieneContingencia,
       contingenciaActiva: !!form.contingenciaActiva,
     }
-    const res = await fetch(`/api/tiendas/${id}`, {
+    const { ok, data: updated } = await apiMutate(`/api/tiendas/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      json: body,
+      errorPrefix: 'No se pudo guardar la tienda',
     })
-    const updated = await res.json()
-    if (updated.id) {
+    setSaving(false)
+    if (!ok) return   // mantener el formulario abierto para reintentar
+    if (updated?.id) {
       setTienda((prev: any) => ({ ...prev, ...updated }))
       setForm((prev: any) => ({ ...prev, ...updated }))
       fetch(`/api/tiendas/historial?tiendaId=${id}`).then(r => r.json()).then(d => {
         setHistorial(Array.isArray(d) ? d : [])
       })
     }
-    setSaving(false)
     setEditing(false)
   }
 
@@ -270,13 +271,12 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
     if (!confirmVenta) return
     setSavingVenta(true)
     try {
-      const res = await fetch(`/api/tiendas/${id}`, {
+      const { ok, data: updated } = await apiMutate(`/api/tiendas/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ventaMensualSoles: confirmVenta.nuevaMensual.toFixed(2) }),
+        json: { ventaMensualSoles: confirmVenta.nuevaMensual.toFixed(2) },
+        errorPrefix: 'No se pudo actualizar la venta',
       })
-      const updated = await res.json()
-      if (updated.id) {
+      if (ok && updated?.id) {
         setTienda((prev: any) => ({ ...prev, ...updated }))
         setForm((prev: any) => ({ ...prev, ...updated }))
         fetch(`/api/tiendas/historial?tiendaId=${id}`).then(r => r.json()).then(d => {

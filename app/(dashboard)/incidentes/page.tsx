@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Badge, estadoToVariant, impactoToVariant } from '@/components/ui/Badge'
+import { apiMutate } from '@/lib/api-mutate'
 
 
 function tiempoTranscurrido(desde: string | Date, hasta?: string | Date | null) {
@@ -152,7 +153,8 @@ export default function IncidentesPage() {
   async function handleDelete(e: React.MouseEvent, incId: string) {
     e.stopPropagation()
     if (!confirm('¿Eliminar este incidente? Esta acción no se puede deshacer.')) return
-    await fetch(`/api/incidentes/${incId}`, { method: 'DELETE' })
+    const { ok } = await apiMutate(`/api/incidentes/${incId}`, { method: 'DELETE', errorPrefix: 'No se pudo eliminar el incidente' })
+    if (!ok) return
     fetchData()
   }
 
