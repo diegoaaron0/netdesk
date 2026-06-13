@@ -4,6 +4,7 @@ import { tiendas, proveedores, incidentes, tiendasHistorial, fichas } from '@/dr
 import { eq, count, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
+import { logUnlessSchemaMissing } from '@/lib/db-errors'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -79,7 +80,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         descripcionServicio: fichas.descripcionServicio,
       }).from(fichas).where(eq(fichas.id, tienda.fichaActivaId)).limit(1)
       if (f) fichaActiva = f
-    } catch { /* fichas not migrated yet */ }
+    } catch (e) { logUnlessSchemaMissing('tiendas/[id]', e) }
   }
 
   const [{ total }] = await db.select({ total: count() })
@@ -196,7 +197,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       tResolucionPromedio:     tResolCount   > 0 ? Math.round(tResolSum     / tResolCount)     : null,
       totalEvaluables: totalEsc,
     }
-  } catch { /* skip */ }
+  } catch (e) { logUnlessSchemaMissing('tiendas/[id]', e) }
 
   return NextResponse.json({ ...tienda, ...extended, totalIncidentes: total, datosMovilesActivos: movCount > 0, slaTienda, fichaActiva })
 }

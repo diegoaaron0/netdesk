@@ -4,6 +4,7 @@ import { proveedores, tiendas, incidentes, escalamientos, fichas } from '@/drizz
 import { eq, gte, sql, and, isNotNull } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
+import { logUnlessSchemaMissing } from '@/lib/db-errors'
 import { SLA_RESPUESTA_MIN, SLA_RESOLUCION_DEFAULT_MIN } from '@/lib/sla-core'
 
 export async function GET(req: NextRequest) {
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest) {
       observaciones:  proveedores.observaciones,
     }).from(proveedores)
     for (const r of extRows) extMap[r.id] = r
-  } catch { /* skip */ }
+  } catch (e) { logUnlessSchemaMissing('proveedores', e) }
 
   // ── 3. Tiendas aggregate per provider ──────────────────────────────────────
   let tMap: Record<string, { total: number; costoTotal: string }> = {}
@@ -52,7 +53,7 @@ export async function GET(req: NextRequest) {
       .where(isNotNull(tiendas.proveedorId))
       .groupBy(tiendas.proveedorId)
     for (const t of tAgg) if (t.proveedorId) tMap[t.proveedorId] = { total: t.total, costoTotal: t.costoTotal }
-  } catch { /* skip */ }
+  } catch (e) { logUnlessSchemaMissing('proveedores', e) }
 
   // ── 4. Incidentes 30d per provider ─────────────────────────────────────────
   let iMap: Record<string, number> = {}
@@ -64,7 +65,7 @@ export async function GET(req: NextRequest) {
       .where(and(gte(incidentes.horaRegistro, thirtyDaysAgo), isNotNull(incidentes.proveedorId)))
       .groupBy(incidentes.proveedorId)
     for (const i of iAgg) if (i.proveedorId) iMap[i.proveedorId] = i.total
-  } catch { /* skip */ }
+  } catch (e) { logUnlessSchemaMissing('proveedores', e) }
 
   // ── 5. SLA Respuesta + SLA Resolución por proveedor (últimos 30d) ──────────
   const SLA_RESP_SEG  = SLA_RESPUESTA_MIN * 60
@@ -120,7 +121,7 @@ export async function GET(req: NextRequest) {
         resolucion: tr > 0 ? Math.round((resOk / tr) * 100) : null,
       }
     }
-  } catch { /* skip */ }
+  } catch (e) { logUnlessSchemaMissing('proveedores', e) }
 
   // ── Merge ───────────────────────────────────────────────────────────────────
   let result = provsList.map(p => ({

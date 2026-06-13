@@ -4,6 +4,7 @@ import { tiendas, proveedores, incidentes, fichas } from '@/drizzle/schema'
 import { eq, gte, sql, and, isNotNull, desc, count } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
+import { logUnlessSchemaMissing } from '@/lib/db-errors'
 
 function fmtMttr(mins: number | null): string {
   if (!mins) return '—'
@@ -56,7 +57,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       .orderBy(desc(fichas.activadoEn))
       .limit(1)
     contrato = c ?? null
-  } catch { /* skip */ }
+  } catch (e) { logUnlessSchemaMissing('proveedores/[id]/tienda/[tiendaId]', e) }
 
   // Métricas históricas — solo incidentes explícitamente atribuidos a este proveedor
   const incStrictWhere = and(eq(incidentes.tiendaId, tiendaId), eq(incidentes.proveedorId, id))
@@ -68,7 +69,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       mttrTotal: sql<number>`coalesce(sum(${incidentes.mttrMinutos}), 0)::int`,
     }).from(incidentes).where(incStrictWhere)
     if (r) historicData = { total: r.total, mttrAvg: r.mttrAvg, mttrTotal: r.mttrTotal }
-  } catch { /* skip */ }
+  } catch (e) { logUnlessSchemaMissing('proveedores/[id]/tienda/[tiendaId]', e) }
 
   // Incidentes 30d
   let inc30d = 0
@@ -81,7 +82,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         gte(incidentes.horaRegistro, thirtyDaysAgo),
       ))
     if (r) inc30d = r.total
-  } catch { /* skip */ }
+  } catch (e) { logUnlessSchemaMissing('proveedores/[id]/tienda/[tiendaId]', e) }
 
   // SLA Respuesta + Resolución para esta tienda con este proveedor (últimos 30d)
   let slaTienda:          number | null = null
@@ -127,7 +128,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       slaTienda          = slaRespuestaTienda
     }
     if (tr > 0) slaResolucionTienda = Math.round((Number(sr.resol_ok) / tr) * 100)
-  } catch { /* skip */ }
+  } catch (e) { logUnlessSchemaMissing('proveedores/[id]/tienda/[tiendaId]', e) }
 
   // Último incidente + historial
   const incWhere = incStrictWhere
@@ -194,7 +195,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       }
     }
     if (tieneAlguno) impacto = suma
-  } catch { /* skip */ }
+  } catch (e) { logUnlessSchemaMissing('proveedores/[id]/tienda/[tiendaId]', e) }
 
   // Proveedores anteriores: distintos a id que tienen incidentes en esta tienda
   let proveedoresAnteriores: any[] = []
@@ -239,7 +240,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       ...r,
       slaPromedio: slaMap[r.proveedorId] ?? null,
     }))
-  } catch { /* skip */ }
+  } catch (e) { logUnlessSchemaMissing('proveedores/[id]/tienda/[tiendaId]', e) }
 
   return NextResponse.json({
     tienda,

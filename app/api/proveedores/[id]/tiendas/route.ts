@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { tiendas, fichas } from '@/drizzle/schema'
 import { eq, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
+import { logUnlessSchemaMissing } from '@/lib/db-errors'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -39,7 +40,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       GROUP BY i.tienda_id
     `)
     for (const c of incCounts as any[]) if (c.tienda_id) incMap[c.tienda_id] = c.total
-  } catch { /* skip */ }
+  } catch (e) { logUnlessSchemaMissing('proveedores/[id]/tiendas', e) }
 
   // Ficha activa por tienda (incluye campos de conectividad)
   let fichaMap: Record<string, any> = {}
@@ -56,7 +57,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       WHERE t.proveedor_id = ${id}::uuid AND f.estado = 'ACTIVA'
     `)
     for (const r of fichaRows as any[]) if (r.tienda_id) fichaMap[r.tienda_id] = r
-  } catch { /* fichas table not migrated yet */ }
+  } catch (e) { logUnlessSchemaMissing('proveedores/[id]/tiendas', e) }
 
   return NextResponse.json(rows.map(t => ({
     ...t,

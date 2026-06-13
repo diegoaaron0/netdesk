@@ -5,6 +5,7 @@ import { eq, sql, and, desc } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
+import { logUnlessSchemaMissing } from '@/lib/db-errors'
 
 function calcEstado(fechaFin: string | null | undefined): 'VIGENTE' | 'POR_VENCER' | 'VENCIDO' {
   if (!fechaFin) return 'VIGENTE'
@@ -40,7 +41,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       observaciones: proveedores.observaciones,
     }).from(proveedores).where(eq(proveedores.id, id))
     if (r) ext = r
-  } catch { /* columns not migrated yet */ }
+  } catch (e) { logUnlessSchemaMissing('proveedores/[id]', e) }
 
   const thirtyDaysAgo    = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
   const thirtyDaysAgoStr = thirtyDaysAgo.toISOString()
@@ -55,7 +56,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       .leftJoin(fichas, eq(fichas.id, tiendas.fichaActivaId))
       .where(eq(tiendas.proveedorId, id))
     if (r) tiendasData = { count: r.count, costoTotal: r.costoTotal }
-  } catch { /* skip */ }
+  } catch (e) { logUnlessSchemaMissing('proveedores/[id]', e) }
 
   // Incidentes 30d por tienda
   let incPerTienda: { tiendaId: string; count: number }[] = []
@@ -68,7 +69,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         AND i.hora_registro >= ${thirtyDaysAgoStr}::timestamptz
       GROUP BY i.tienda_id
     `) as any
-  } catch { /* skip */ }
+  } catch (e) { logUnlessSchemaMissing('proveedores/[id]', e) }
 
   const totalInc30d     = incPerTienda.reduce((s, r) => s + r.count, 0)
   const tiendasCriticas = incPerTienda.filter(r => r.count >= 2).length
@@ -88,7 +89,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     `)
     const r = (rows as any[])[0]
     if (r) mttrData = { avg: r.mttr_avg, total: r.mttr_total }
-  } catch { /* skip */ }
+  } catch (e) { logUnlessSchemaMissing('proveedores/[id]', e) }
 
   // SLA
   let scoreRespuestaPromedio: number | null = null
@@ -183,7 +184,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (tRespCount    > 0) tRespuestaPromedio      = Math.round(tRespSum  / tRespCount)
     if (tResolCount   > 0) tResolucionPromedio     = Math.round(tResolSum / tResolCount)
     slaBreakdown = incidentesSla
-  } catch { /* skip */ }
+  } catch (e) { logUnlessSchemaMissing('proveedores/[id]', e) }
 
   // IEI acumulado 30d de todas las tiendas del proveedor
   let iei30d = 0
@@ -225,7 +226,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       tiendaMap[key].incidentes.push({ id: r.id, codigo: r.codigo, tipo: r.tipo, mttrMinutos: r.mttr_minutos, horaRegistro: r.hora_registro, iei: res.impactoEstimado, motivo: res.motivoFactor })
     }
     iei30dBreakdown = Object.values(tiendaMap).sort((a, b) => b.ieiTotal - a.ieiTotal)
-  } catch { /* skip */ }
+  } catch (e) { logUnlessSchemaMissing('proveedores/[id]', e) }
 
   // Costos por tienda para el panel de desglose
   let costoBreakdown: any[] = []
@@ -240,7 +241,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     costoBreakdown = (rows as any[]).map(r => ({
       codigo: r.codigo, nombre: r.nombre_cc, costo: Number(r.costo),
     }))
-  } catch { /* skip */ }
+  } catch (e) { logUnlessSchemaMissing('proveedores/[id]', e) }
 
   // Tiendas históricas: tienen incidentes con este proveedor pero ya no lo tienen asignado
   let tiendasHistoricas: any[] = []
@@ -265,7 +266,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       ))
       .groupBy(tiendas.id, tiendas.codigo, tiendas.nombreCc, tiendas.distrito, provActual.nombre)
       .orderBy(desc(sql`count(${incidentes.id})`)) as any[]
-  } catch { /* skip */ }
+  } catch (e) { logUnlessSchemaMissing('proveedores/[id]', e) }
 
   // Fecha en que cada tienda histórica fue reasignada fuera de este proveedor
   let cambioFechas: Record<string, string> = {}
@@ -280,7 +281,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     for (const c of cambios as any[]) {
       if (c.tienda_id) cambioFechas[c.tienda_id] = c.fecha_cambio
     }
-  } catch { /* skip */ }
+  } catch (e) { logUnlessSchemaMissing('proveedores/[id]', e) }
 
   tiendasHistoricas = tiendasHistoricas.map(t => ({
     ...t,
