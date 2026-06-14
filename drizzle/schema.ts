@@ -26,16 +26,6 @@ export const estadoFichaEnum = pgEnum('estado_ficha', ['BORRADOR', 'ACTIVA', 'HI
 
 export const tipoLocalEnum = pgEnum('tipo_local', ['TIENDA', 'CATALOGO', 'ENLACE', 'ALMACEN', 'RESTAURANTE'])
 
-export const tipoDecisionEnum = pgEnum('tipo_decision', [
-  'CAMBIO_PROVEEDOR', 'RENEGOCIACION_CONTRATO', 'ACTIVACION_CONTINGENCIA',
-  'REVISION_SLA', 'BAJA_TIENDA', 'CAMBIO_PLAN', 'AUDITORIA_PROVEEDOR', 'OTRO',
-])
-export const estadoDecisionEnum = pgEnum('estado_decision', [
-  'PROPUESTO', 'PENDIENTE', 'EN_EJECUCION', 'EJECUTADA', 'CANCELADA', 'RECHAZADO',
-])
-// snapDetalle / postDetalle JSON shape (CAMBIO_PROVEEDOR):
-// { slaRespuestaPct, slaResolucionPct, mttrMin, totalIncidentes, incidentesSlaVencido, ieiAcumulado, contratoSlaObjetivo }
-
 export const usuarios = pgTable('usuarios', {
   id:       uuid('id').primaryKey().defaultRandom(),
   nombre:   text('nombre').notNull(),
@@ -257,7 +247,7 @@ export const incidentes = pgTable('incidentes', {
   alcanceCorte:          alcanceCorteEnum('alcance_corte'),
   tuvoUps:               boolean('tuvo_ups'),
   // Incidente masivo
-  grupoMasivoId:         uuid('grupo_masivo_id'),
+  grupoMasivoId:         uuid('grupo_masivo_id').references((): AnyPgColumn => gruposMasivos.id, { onDelete: 'set null' }),
   // Router externo de contingencia TI
   routerExternoId:       uuid('router_externo_id').references(() => routersExternos.id, { onDelete: 'set null' }),
   // Ficha vigente al momento del registro
@@ -363,38 +353,6 @@ export const adjuntos = pgTable('adjuntos', {
   creadoEn:         timestamp('creado_en').defaultNow(),
 })
 
-export const decisiones = pgTable('decisiones', {
-  id:               uuid('id').primaryKey().defaultRandom(),
-  tipo:             tipoDecisionEnum('tipo').notNull(),
-  titulo:           text('titulo').notNull(),
-  descripcion:      text('descripcion'),
-  motivo:           text('motivo').notNull(),
-  estado:           estadoDecisionEnum('estado').default('PENDIENTE'),
-  tiendaId:         uuid('tienda_id').references(() => tiendas.id),
-  proveedorId:         uuid('proveedor_id').references(() => proveedores.id),
-  proveedorAnteriorId: uuid('proveedor_anterior_id').references(() => proveedores.id),
-  responsableId:    uuid('responsable_id').references(() => usuarios.id).notNull(),
-  fechaSeguimiento: date('fecha_seguimiento'),
-  snapSlaPct:       numeric('snap_sla_pct'),
-  snapMttrMinutos:  integer('snap_mttr_minutos'),
-  snapIei:          numeric('snap_iei'),
-  snapIncidentes:   integer('snap_incidentes'),
-  snapPeriodo:      text('snap_periodo'),
-  snapDetalle:      jsonb('snap_detalle'),
-  ejecutadaEn:      timestamp('ejecutada_en'),
-  resultadoNota:    text('resultado_nota'),
-  postSlaPct:       numeric('post_sla_pct'),
-  postMttrMinutos:  integer('post_mttr_minutos'),
-  postIei:          numeric('post_iei'),
-  postIncidentes:   integer('post_incidentes'),
-  postDetalle:      jsonb('post_detalle'),
-  aprobadoPorId:    uuid('aprobado_por_id').references(() => usuarios.id),
-  aprobadoEn:       timestamp('aprobado_en'),
-  rechazadoMotivo:  text('rechazado_motivo'),
-  creadoEn:         timestamp('creado_en').defaultNow(),
-  actualizadoEn:    timestamp('actualizado_en').defaultNow(),
-})
-
 export const contingencias = pgTable('contingencias', {
   id:                uuid('id').primaryKey().defaultRandom(),
   tiendaId:          uuid('tienda_id').references(() => tiendas.id).notNull(),
@@ -412,13 +370,11 @@ export const contingencias = pgTable('contingencias', {
 export const usuariosRelations = relations(usuarios, ({ many }) => ({
   incidentes:       many(incidentes),
   tiendasHistorial: many(tiendasHistorial),
-  decisiones:       many(decisiones),
 }))
 
 export const proveedoresRelations = relations(proveedores, ({ many }) => ({
   tiendas:    many(tiendas),
   fichas:     many(fichas),
-  decisiones: many(decisiones),
 }))
 
 export const tiendasRelations = relations(tiendas, ({ one, many }) => ({
@@ -429,7 +385,6 @@ export const tiendasRelations = relations(tiendas, ({ one, many }) => ({
   incidentes:  many(incidentes),
   historial:   many(tiendasHistorial),
   fichas:      many(fichas),
-  decisiones:  many(decisiones),
 }))
 
 export const gruposMasivosRelations = relations(gruposMasivos, ({ one, many }) => ({
@@ -476,14 +431,6 @@ export const adjuntosRelations = relations(adjuntos, ({ one }) => ({
 export const tiendasHistorialRelations = relations(tiendasHistorial, ({ one }) => ({
   tienda:  one(tiendas,  { fields: [tiendasHistorial.tiendaId],  references: [tiendas.id] }),
   usuario: one(usuarios, { fields: [tiendasHistorial.usuarioId], references: [usuarios.id] }),
-}))
-
-export const decisionesRelations = relations(decisiones, ({ one }) => ({
-  tienda:              one(tiendas,     { fields: [decisiones.tiendaId],              references: [tiendas.id] }),
-  proveedor:           one(proveedores, { fields: [decisiones.proveedorId],           references: [proveedores.id] }),
-  proveedorAnterior:   one(proveedores, { fields: [decisiones.proveedorAnteriorId],   references: [proveedores.id] }),
-  responsable:         one(usuarios,    { fields: [decisiones.responsableId],         references: [usuarios.id] }),
-  aprobadoPor:         one(usuarios,    { fields: [decisiones.aprobadoPorId],         references: [usuarios.id] }),
 }))
 
 // ── Gestión de Cambios ────────────────────────────────────────────────────────

@@ -88,76 +88,12 @@ async function main() {
   await sql`ALTER TABLE "usuarios" ADD COLUMN IF NOT EXISTS "eliminado_en" TIMESTAMP`
   console.log('[startup] ✓ Columna usuarios.eliminado_en (0006)')
 
-  // 0005_decisiones — módulo de decisiones estratégicas
-  await sql`
-    DO $$ BEGIN
-      IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tipo_decision') THEN
-        CREATE TYPE "tipo_decision" AS ENUM(
-          'CAMBIO_PROVEEDOR', 'RENEGOCIACION_CONTRATO', 'ACTIVACION_CONTINGENCIA',
-          'REVISION_SLA', 'BAJA_TIENDA', 'CAMBIO_PLAN', 'AUDITORIA_PROVEEDOR', 'OTRO'
-        );
-      END IF;
-    END $$
-  `
-  await sql`
-    DO $$ BEGIN
-      IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'estado_decision') THEN
-        CREATE TYPE "estado_decision" AS ENUM('PENDIENTE', 'EN_EJECUCION', 'EJECUTADA', 'CANCELADA');
-      END IF;
-    END $$
-  `
-  await sql`
-    CREATE TABLE IF NOT EXISTS "decisiones" (
-      "id"                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-      "tipo"                "tipo_decision"         NOT NULL,
-      "titulo"              text                    NOT NULL,
-      "descripcion"         text,
-      "motivo"              text                    NOT NULL,
-      "estado"              "estado_decision"       DEFAULT 'PENDIENTE',
-      "tienda_id"           UUID,
-      "proveedor_id"        UUID,
-      "responsable_id"      UUID                    NOT NULL,
-      "fecha_seguimiento"   date,
-      "snap_sla_pct"        numeric,
-      "snap_mttr_minutos"   integer,
-      "snap_iei"            numeric,
-      "snap_incidentes"     integer,
-      "snap_periodo"        text,
-      "ejecutada_en"        timestamp,
-      "resultado_nota"      text,
-      "post_sla_pct"        numeric,
-      "post_mttr_minutos"   integer,
-      "post_iei"            numeric,
-      "post_incidentes"     integer,
-      "creado_en"           timestamp   DEFAULT now(),
-      "actualizado_en"      timestamp   DEFAULT now()
-    )
-  `
-  await sql`
-    DO $$ BEGIN
-      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'decisiones_tienda_id_tiendas_id_fk') THEN
-        ALTER TABLE "decisiones" ADD CONSTRAINT "decisiones_tienda_id_tiendas_id_fk"
-          FOREIGN KEY ("tienda_id") REFERENCES "tiendas"("id") ON DELETE SET NULL;
-      END IF;
-    END $$
-  `
-  await sql`
-    DO $$ BEGIN
-      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'decisiones_proveedor_id_proveedores_id_fk') THEN
-        ALTER TABLE "decisiones" ADD CONSTRAINT "decisiones_proveedor_id_proveedores_id_fk"
-          FOREIGN KEY ("proveedor_id") REFERENCES "proveedores"("id") ON DELETE SET NULL;
-      END IF;
-    END $$
-  `
-  await sql`
-    DO $$ BEGIN
-      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'decisiones_responsable_id_usuarios_id_fk') THEN
-        ALTER TABLE "decisiones" ADD CONSTRAINT "decisiones_responsable_id_usuarios_id_fk"
-          FOREIGN KEY ("responsable_id") REFERENCES "usuarios"("id") ON DELETE RESTRICT;
-      END IF;
-    END $$
-  `
-  console.log('[startup] ✓ Enums tipo_decision/estado_decision + tabla decisiones (0005_decisiones)')
+  // Eliminar módulo legacy "decisiones" (reemplazado por gestión de cambios / acciones_gestion)
+  // Ver migración 0028_drop_decisiones.sql
+  await sql`DROP TABLE IF EXISTS "decisiones" CASCADE`
+  await sql`DROP TYPE IF EXISTS "tipo_decision"`
+  await sql`DROP TYPE IF EXISTS "estado_decision"`
+  console.log('[startup] ✓ Tabla y enums decisiones eliminados (drop_decisiones)')
 
   // 0009 — tabla sla_alertas para deduplicación de alertas de cron
   await sql`
@@ -181,14 +117,6 @@ async function main() {
   // 0011 — celular de tienda
   await sql`ALTER TABLE "tiendas" ADD COLUMN IF NOT EXISTS "celular_tienda" text`
   console.log('[startup] ✓ Columna tiendas.celular_tienda (0011)')
-
-  // 0010 — flujo de aprobación de decisiones
-  await sql`ALTER TYPE "estado_decision" ADD VALUE IF NOT EXISTS 'PROPUESTO'`
-  await sql`ALTER TYPE "estado_decision" ADD VALUE IF NOT EXISTS 'RECHAZADO'`
-  await sql`ALTER TABLE "decisiones" ADD COLUMN IF NOT EXISTS "aprobado_por_id" UUID REFERENCES "usuarios"("id")`
-  await sql`ALTER TABLE "decisiones" ADD COLUMN IF NOT EXISTS "aprobado_en" TIMESTAMP`
-  await sql`ALTER TABLE "decisiones" ADD COLUMN IF NOT EXISTS "rechazado_motivo" TEXT`
-  console.log('[startup] ✓ Flujo aprobación decisiones (0010)')
 
   // 0006 — índices de performance para dashboard y queries frecuentes
   await sql`CREATE INDEX IF NOT EXISTS idx_incidentes_hora_registro ON incidentes(hora_registro DESC)`
@@ -224,6 +152,23 @@ async function main() {
   // 0029 — IEI acumulado por períodos (reaperturas)
   await sql`ALTER TABLE "incidentes" ADD COLUMN IF NOT EXISTS "iei_acumulado" numeric`
   console.log('[startup] ✓ Columna iei_acumulado (0029)')
+
+  // FK faltante: incidentes.grupo_masivo_id → grupos_masivos(id)
+  // Limpia huérfanos antes de crear el constraint para que no falle
+  await sql`
+    UPDATE "incidentes" SET "grupo_masivo_id" = NULL
+    WHERE "grupo_masivo_id" IS NOT NULL
+      AND "grupo_masivo_id" NOT IN (SELECT "id" FROM "grupos_masivos")
+  `
+  await sql`
+    DO $$ BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'incidentes_grupo_masivo_id_grupos_masivos_id_fk') THEN
+        ALTER TABLE "incidentes" ADD CONSTRAINT "incidentes_grupo_masivo_id_grupos_masivos_id_fk"
+          FOREIGN KEY ("grupo_masivo_id") REFERENCES "grupos_masivos"("id") ON DELETE SET NULL;
+      END IF;
+    END $$
+  `
+  console.log('[startup] ✓ FK incidentes.grupo_masivo_id → grupos_masivos (0028_drop_decisiones)')
 
   console.log('[startup] Migraciones completadas.')
   await sql.end()

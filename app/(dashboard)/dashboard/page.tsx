@@ -399,7 +399,7 @@ export default function DashboardPage() {
   }, [fecha, isToday])
 
   const fetchDecPendientes = useCallback(async () => {
-    const res = await fetch('/api/decisiones?estado=PROPUESTO')
+    const res = await fetch('/api/gestion-cambios?estado=PROPUESTO')
     if (res.ok) {
       const data = await res.json()
       setDecPendientes(Array.isArray(data) ? data.length : null)
@@ -620,7 +620,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
     { icon: '✓',  label: 'Resueltos hoy',          value: kpis.resueltoHoy,          sub: `Agente ${kpis.resueltoHoyAgente} · Proveedor ${kpis.resueltoHoyProveedor}`, filterKey: null, colorIcon: '#27500A', bg: '#EAF3DE' },
     { icon: '👤', label: 'Agentes en gestión',     value: `${kpis.agentesEnGestion}/${kpis.totalAgentes}`, sub: undefined, filterKey: null, colorIcon: '#185FA5', bg: '#E6F1FB' },
     ...(kpis.gruposMasivosActivos > 0 ? [{ icon: '⚡', label: 'Grupos masivos', value: kpis.gruposMasivosActivos, sub: `${kpis.masivosActivos} incidente${kpis.masivosActivos !== 1 ? 's' : ''}`, filterKey: 'masivos', colorIcon: '#92400E', bg: '#FEF3C7' }] : []),
-    ...(decPendientes != null ? [{ icon: '📊', label: 'Cambios propuestos', value: decPendientes, sub: 'Esperan aprobación', filterKey: null, colorIcon: '#7C3AED', bg: '#EDE9FE', link: '/decisiones' }] : []),
+    ...(decPendientes != null ? [{ icon: '📊', label: 'Cambios propuestos', value: decPendientes, sub: 'Esperan aprobación', filterKey: null, colorIcon: '#7C3AED', bg: '#EDE9FE', link: '/gestion-cambios' }] : []),
   ]
 
   return (

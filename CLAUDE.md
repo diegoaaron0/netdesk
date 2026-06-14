@@ -44,7 +44,8 @@ en sus 156 tiendas a nivel nacional.
 | `/proveedores/[id]` | Detalle: niveles de escalamiento, contratos, tiendas vinculadas |
 | `/usuarios` | Gestión de usuarios (roles, permisos, contraseñas) |
 | `/reportes` | Generación de CSVs para Excel (gerencial, por proveedor, tiendas críticas) |
-| `/decisiones` | Módulo de decisiones gerenciales con seguimiento |
+| `/gestion-cambios` | Módulo de gestión de cambios (acciones con evaluación 30/90 días) |
+| `/gestion-cambios/fichas` | Fichas/contratos por tienda |
 
 ### API routes principales
 - `/api/incidentes` — CRUD incidentes; PUT acepta cualquier campo parcial
@@ -66,15 +67,18 @@ en sus 156 tiendas a nivel nacional.
 | `usuarios` | Agentes, supervisores, gerencia, infraestructura |
 | `tiendas` | 156 tiendas con proveedor, cluster, datos de contingencia |
 | `proveedores` | Proveedores de conectividad |
-| `niveles_escalamiento` | Contactos por nivel (N1/N2/N3) por proveedor |
-| `contratos_proveedor` | Contratos vigentes con SLA comprometido por tienda |
+| `fichas` | Contratos/conectividad por tienda (reemplaza a `contratos_proveedor`) |
+| `fichas_niveles` | Contactos de escalamiento por nivel (N1/N2/N3) de cada ficha |
 | `incidentes` | Core del sistema — ver campos importantes abajo |
 | `escalamientos` | Registro de escalamientos a proveedor con cronómetro |
 | `contingencias` | Contingencias standalone (fuera de incidente) |
 | `grupos_masivos` | Agrupación de incidentes masivos simultáneos |
 | `adjuntos` | Archivos adjuntos a incidentes o escalamientos |
 | `atc_llamadas` | Registro de llamadas ATC durante escalamientos |
-| `decisiones` | Decisiones gerenciales con snapshot de KPIs |
+| `acciones_gestion` | Gestión de cambios con snapshot de KPIs y evaluación 30/90 días |
+| `acciones_gestion_tiendas` | Tiendas en scope de acciones de alcance ZONA |
+| `routers_externos` | Inventario de routers de contingencia TI |
+| `router_historial` | Movimientos de routers entre tiendas/almacenes |
 | `tiendas_historial` | Auditoría de cambios en datos de tiendas |
 | `sla_alertas` | Registro de alertas SLA enviadas (evita duplicados) |
 
