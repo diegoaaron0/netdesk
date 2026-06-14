@@ -153,6 +153,17 @@ async function main() {
   await sql`ALTER TABLE "incidentes" ADD COLUMN IF NOT EXISTS "iei_acumulado" numeric`
   console.log('[startup] ✓ Columna iei_acumulado (0029)')
 
+  // Rate limit de cambios de contraseña (máx 3 por 24h) + auditoría
+  await sql`
+    CREATE TABLE IF NOT EXISTS "password_cambios" (
+      "id"         UUID      PRIMARY KEY DEFAULT gen_random_uuid(),
+      "usuario_id" UUID      NOT NULL REFERENCES "usuarios"("id") ON DELETE CASCADE,
+      "creado_en"  TIMESTAMP NOT NULL DEFAULT now()
+    )
+  `
+  await sql`CREATE INDEX IF NOT EXISTS idx_password_cambios_usuario ON password_cambios(usuario_id, creado_en DESC)`
+  console.log('[startup] ✓ Tabla password_cambios + índice (rate limit)')
+
   // FK faltante: incidentes.grupo_masivo_id → grupos_masivos(id)
   // Limpia huérfanos antes de crear el constraint para que no falle
   await sql`

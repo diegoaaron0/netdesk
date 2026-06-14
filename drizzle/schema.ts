@@ -330,6 +330,13 @@ export const slaAlertas = pgTable('sla_alertas', {
   enviadoEn:   timestamp('enviado_en').defaultNow().notNull(),
 })
 
+// Registro de cambios de contraseña — rate limit (máx 3 por 24h) y auditoría
+export const passwordCambios = pgTable('password_cambios', {
+  id:        uuid('id').primaryKey().defaultRandom(),
+  usuarioId: uuid('usuario_id').references(() => usuarios.id, { onDelete: 'cascade' }).notNull(),
+  creadoEn:  timestamp('creado_en').defaultNow().notNull(),
+})
+
 export const atcLlamadas = pgTable('atc_llamadas', {
   id:             uuid('id').primaryKey().defaultRandom(),
   escalamientoId: uuid('escalamiento_id').references(() => escalamientos.id).notNull(),
