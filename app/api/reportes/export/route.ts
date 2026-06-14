@@ -13,9 +13,15 @@ export async function GET(req: Request) {
 
   try {
     const { searchParams } = new URL(req.url)
-    const desde  = searchParams.get('desde') ?? new Date(Date.now() - 30 * 86400000).toISOString()
-    const hasta  = searchParams.get('hasta') ?? new Date().toISOString()
-    const estado = searchParams.get('estado') ?? ''
+    const desdeParam = searchParams.get('desde')
+    const hastaParam = searchParams.get('hasta')
+    const estado     = searchParams.get('estado') ?? ''
+
+    // Fechas en zona Lima (-05:00): incluye el día completo hasta 23:59:59 — ver CLAUDE.md
+    const hasta = hastaParam ? new Date(hastaParam + 'T23:59:59-05:00').toISOString() : new Date().toISOString()
+    const desde = desdeParam ? new Date(desdeParam + 'T00:00:00-05:00').toISOString() : (() => {
+      const d = new Date(); d.setDate(1); d.setHours(5, 0, 0, 0); return d.toISOString()
+    })()
 
     const rows = await db.execute(sql`
       SELECT
@@ -210,7 +216,7 @@ export async function GET(req: Request) {
       'Enviado N1', 'Respuesta N1', 'Enviado N2', 'Respuesta N2',
       'Enviado N3', 'Respuesta N3', 'Hora Solución', 'Comentarios',
       'MTTR (min)', 'SLA Respuesta', 'SLA Resolución', 'SLA Cumplido',
-      'IEI (S/)', 'Venta/Hora Tienda', 'Resuelto por', 'Atribución',
+      'IEI (S/)', 'Venta/Hora Tienda', 'Efectividad Contingencia', 'Resuelto por', 'Atribución',
     ]
 
     const escape = (v: unknown) => {
@@ -256,7 +262,7 @@ export async function GET(req: Request) {
           r.enviado_n1, r.respuesta_n1, r.enviado_n2, r.respuesta_n2,
           r.enviado_n3, r.respuesta_n3, r.hora_solucion, r.comentarios,
           r.mttr_min, r.sla_respuesta, r.sla_resolucion, r.sla_cumplido,
-          iei, r.venta_hora_tienda, r.resuelto_por ?? '', r.atribucion_final ?? '',
+          iei, r.venta_hora_tienda, r.efectividad_contingencia ?? '', r.resuelto_por ?? '', r.atribucion_final ?? '',
         ].map(escape).join(',')
       }),
     ]

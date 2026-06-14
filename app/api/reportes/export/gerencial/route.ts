@@ -295,6 +295,9 @@ export async function GET(req: Request) {
             ))::int                                                                 AS t_resol_prov_avg,
             COUNT(DISTINCT e2.incidente_id)::int                                   AS escalados_n2,
             COUNT(DISTINCT i.tienda_id)::int                                       AS tiendas_afectadas,
+            COUNT(*) FILTER (WHERE i.motivo_reabertura IS NOT NULL)::int           AS reaperturas,
+            ROUND(COUNT(*) FILTER (WHERE i.motivo_reabertura IS NOT NULL) * 100.0 /
+              NULLIF(COUNT(i.id), 0), 1)                                           AS tasa_reapertura,
             ${sql.raw(ieiSum())}                                                    AS iei
           FROM incidentes i
           JOIN tiendas t ON i.tienda_id = t.id
@@ -573,7 +576,7 @@ export async function GET(req: Request) {
     add('Tiendas afectadas',
       `${t0.tiendas ?? 0} de ${totalTiendas}`,
       `${t1.tiendas ?? 0} de ${totalTiendas}`,
-      '—')
+      varAbs(Number(t0.tiendas), Number(t1.tiendas)))
     add('Impacto económico estimado (IEI)',
       `S/ ${(Number(t0.iei_total) || 0).toLocaleString('es-PE')}`,
       `S/ ${(Number(t1.iei_total) || 0).toLocaleString('es-PE')}`,
@@ -585,14 +588,16 @@ export async function GET(req: Request) {
     add('Proveedor', 'Incidentes', 'Evaluables SLA',
       'SLA Respuesta %', 'SLA Resolución %', 'SLA Global %',
       'MTTR prom (min)', 'T. respuesta prom (min)', 'T. resolución prom (min)',
-      'Escalados N2+', 'Tiendas afectadas', 'IEI est (S/)')
+      'Escalados N2+', 'Tiendas afectadas', 'Reaperturas', 'Tasa reapertura %', 'IEI est (S/)')
     for (const p of provs)
       add(p.proveedor, p.incidentes, p.evaluables_sla ?? 0,
         p.sla_respuesta_pct  != null ? `${p.sla_respuesta_pct}%`  : '—',
         p.sla_resolucion_pct != null ? `${p.sla_resolucion_pct}%` : '—',
         p.sla_pct            != null ? `${p.sla_pct}%`            : '—',
         p.mttr_avg ?? '—', p.t_resp_prov_avg ?? '—', p.t_resol_prov_avg ?? '—',
-        p.escalados_n2 ?? 0, p.tiendas_afectadas, p.iei ?? 0)
+        p.escalados_n2 ?? 0, p.tiendas_afectadas,
+        p.reaperturas ?? 0, p.tasa_reapertura != null ? `${p.tasa_reapertura}%` : '0%',
+        p.iei ?? 0)
     blank()
 
     // 3. Top 15 tiendas

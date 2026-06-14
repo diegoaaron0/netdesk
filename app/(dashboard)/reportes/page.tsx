@@ -78,7 +78,7 @@ const EXPORT_CARDS = [
     Icon: IconGerencial,
     contenido: [
       { label: 'Resumen ejecutivo', detail: 'Total incidentes · MTTR prom · SLA% · Tiendas afectadas · IEI — cada métrica con variación vs período anterior' },
-      { label: 'Métricas por proveedor', detail: 'Proveedor · Evaluables SLA · SLA resp% · SLA resol% · SLA global% · MTTR prom · T. respuesta · T. resolución · Escalados N2+ · IEI' },
+      { label: 'Métricas por proveedor', detail: 'Proveedor · Evaluables SLA · SLA resp% · SLA resol% · SLA global% · MTTR prom · T. respuesta · T. resolución · Escalados N2+ · Reaperturas · Tasa% · IEI' },
       { label: 'Top 15 tiendas', detail: '# · Código · Nombre CC · Proveedor · Incidentes · MTTR prom · IEI estimado' },
       { label: 'Distribución por tipo', detail: 'Tipo · Total · % · Resueltos · Dentro SLA · SLA% · MTTR prom' },
       { label: 'Reincidentes', detail: 'Código · Proveedor · Incidentes · MTTR · Días entre caídas · Tipo frecuente · Tendencia (NUEVO / ESTABLE / EMPEORA)' },
@@ -127,7 +127,7 @@ const EXPORT_CARDS = [
     bg: '#FAEEDA',
     Icon: IconTiendas,
     contenido: [
-      { label: 'Una fila por tienda reincidente', detail: '# · Código · Nombre CC · Distrito · Proveedor · Incidentes · Tipo más frecuente · MTTR prom · Días entre caídas' },
+      { label: 'Una fila por tienda reincidente', detail: '# · Código · Nombre CC · Distrito · Proveedor · Incidentes · Tipo más frecuente · MTTR prom · SLA % · Días entre caídas' },
       { label: 'Impacto acumulado', detail: 'IEI acumulado (S/) · Contingencia disponible (Sí / No)' },
     ],
     path: '/api/reportes/export/tiendas-criticas',
