@@ -35,16 +35,44 @@ Sistema operativo desarrollado para **Inversiones Rubin's S.A.C. (Footloose Per�
 npm install
 cp .env.example .env
 # Configurar variables de conexión en .env
-npm run db:push   # aplicar schema a la base de datos
-npm run dev       # servidor de desarrollo en http://localhost:3000
+npm run db:migrate   # aplica el esquema a la BD (corre drizzle/run-sql.ts, idempotente)
+npm run dev          # servidor de desarrollo en http://localhost:3000
 ```
 
 ## Variables de entorno requeridas
 
 ```
-DATABASE_URL=        # cadena de conexión PostgreSQL
-NEXTAUTH_SECRET=     # secreto para JWT (generado con openssl rand -base64 32)
-NEXTAUTH_URL=        # URL base del sistema
+DATABASE_URL=          # cadena de conexión PostgreSQL
+NEXTAUTH_SECRET=       # secreto para JWT (generado con openssl rand -base64 32)
+NEXTAUTH_URL=          # URL base del sistema (tu dominio)
+DEFAULT_USER_PASSWORD= # contraseña inicial de usuarios nuevos
+CRON_SECRET=           # token Bearer que protege el cron de alertas SLA
+APP_URL=               # URL base usada por el cron
+# SMTP para alertas por email (opcional):
+SMTP_HOST=  SMTP_PORT=587  SMTP_USER=  SMTP_PASS=  SMTP_FROM=
+```
+
+## Migraciones de base de datos
+
+El esquema se aplica con el script **idempotente** `drizzle/run-sql.ts` (vía `npm run db:migrate`),
+que es la **fuente única de verdad** del esquema. Se puede correr cuantas veces sea necesario
+sin riesgo. Los archivos `.sql` en `drizzle/migrations/` quedan como historial de cambios,
+pero **no** son el mecanismo activo (no se usa `drizzle-kit migrate`).
+
+## Despliegue en producción (servidor propio)
+
+```bash
+npm ci                 # instalar dependencias
+cp .env.example .env   # y completar las variables (ver arriba)
+npm run db:migrate     # aplicar/actualizar el esquema (drizzle/run-sql.ts)
+npm run build          # compilar
+npm start              # next start — servir detrás de un reverse proxy con tu dominio
+```
+
+Programar el **cron de alertas SLA** (cada 5 minutos) para que invoque el endpoint protegido:
+
+```bash
+*/5 * * * * curl -s -H "Authorization: Bearer $CRON_SECRET" https://TU_DOMINIO/api/cron/sla-alert
 ```
 
 ## Roles de usuario

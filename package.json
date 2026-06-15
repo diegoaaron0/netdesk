@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "tsx drizzle/run-sql.ts",
     "db:seed": "tsx drizzle/seed.ts",
     "db:add-users": "tsx drizzle/add-users.ts",
     "geocode": "npx tsx scripts/geocode-tiendas.ts"
