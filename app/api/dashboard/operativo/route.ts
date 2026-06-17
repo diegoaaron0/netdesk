@@ -122,6 +122,7 @@ export async function GET(req: NextRequest) {
         i.resuelto_por,
         i.resuelto_por = 'PROVEEDOR' AS por_proveedor,
         i.registrado_por_id AS agente_id,
+        i.resuelto_por_usuario_id AS resolutor_id,
         u.nombre AS agente_nombre,
         t.codigo AS tienda_codigo,
         t.nombre_cc AS tienda_nombre,
@@ -143,7 +144,7 @@ export async function GET(req: NextRequest) {
 
     db.execute(sql`
       SELECT id, nombre, rol FROM usuarios
-      WHERE activo = true AND rol IN ('AGENTE','SUPERVISOR')
+      WHERE activo = true AND rol IN ('AGENTE','SUPERVISOR','INFRAESTRUCTURA')
       ORDER BY nombre
     `),
 
@@ -452,7 +453,10 @@ export async function GET(req: NextRequest) {
   // Team stats
   const equipoStats = agentes.map((ag: any) => {
     const misIncs     = activosConEstado.filter((i: any) => i.agente_id === ag.id)
-    const misRes      = resueltos.filter((r: any) => r.agente_id === ag.id)
+    // "Resuelto hoy" se atribuye a quien lo resolvió (resolutor_id). Para incidentes
+    // resueltos antes de registrar el resolutor, se cae al creador para no perder
+    // la atribución histórica.
+    const misRes      = resueltos.filter((r: any) => (r.resolutor_id ?? r.agente_id) === ag.id)
     const mttrAgenteArr   = misRes.filter((r: any) => r.resuelto_por === 'AGENTE'    && r.mttr_minutos != null).map((r: any) => r.mttr_minutos as number)
     const mttrProvArr     = misRes.filter((r: any) => r.resuelto_por === 'PROVEEDOR' && r.mttr_minutos != null).map((r: any) => r.mttr_minutos as number)
     const avg = (arr: number[]) => arr.length ? Math.round(arr.reduce((s, v) => s + v, 0) / arr.length) : null

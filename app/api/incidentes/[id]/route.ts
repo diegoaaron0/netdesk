@@ -72,6 +72,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     movRendimiento:         incidentes.movRendimiento,
     movObservacion:         incidentes.movObservacion,
     movHoraDesactivacion:   incidentes.movHoraDesactivacion,
+    mitigacionesPrevias:    incidentes.mitigacionesPrevias,
     descEnergia:         incidentes.descEnergia,
     descRouter:          incidentes.descRouter,
     descDns:             incidentes.descDns,
@@ -350,6 +351,18 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       .from(incidentes).where(eq(incidentes.id, id))
     if (!prev?.contHoraActivacion) {
       allowedFields.contHoraActivacion = new Date()
+    }
+  }
+
+  // Auto-set movHoraActivacion cuando movActivadoPor se escribe y no se proporcionó hora.
+  // Espejo del fallback de contingencia: sin esto, activar datos móviles sin tipear la
+  // hora dejaba mov_activado_por seteado pero mov_hora_activacion = NULL, lo que rompía
+  // el tiempo transcurrido en operativo, el total de la tienda y el segmento IEI.
+  if (allowedFields.movActivadoPor && !allowedFields.movHoraActivacion) {
+    const [prev] = await db.select({ movHoraActivacion: incidentes.movHoraActivacion })
+      .from(incidentes).where(eq(incidentes.id, id))
+    if (!prev?.movHoraActivacion) {
+      allowedFields.movHoraActivacion = new Date()
     }
   }
 

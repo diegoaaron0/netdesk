@@ -1075,7 +1075,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                               <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Activado por</label>
                               <div style={{ display: 'flex', gap: '6px' }}>
                                 {(['TIENDA','AGENTE','INFRAESTRUCTURA'] as const).map(opt => (
-                                  <button key={opt} type="button" disabled={movDis} onClick={() => setEdit('movActivadoPor', opt)}
+                                  <button key={opt} type="button" disabled={movDis} onClick={() => setEditForm((f: any) => ({ ...f, movActivadoPor: opt, movHoraActivacion: f.movHoraActivacion || toDatetimeLocal(new Date().toISOString()) }))}
                                     style={{ padding:'5px 11px',fontSize:'11px',borderRadius:'6px',border:'1px solid var(--border)',cursor:movDis?'default':'pointer',fontWeight:editForm.movActivadoPor===opt?600:400,background:editForm.movActivadoPor===opt?'hsl(221,83%,45%)':'var(--card)',color:editForm.movActivadoPor===opt?'white':'var(--foreground)' }}>
                                     {opt.charAt(0) + opt.slice(1).toLowerCase()}
                                   </button>
@@ -1538,9 +1538,18 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               </div>
 
               {/* Historial de contingencias — debajo de tiempos */}
-              {(inc.contActivadoPor || inc.movActivadoPor) && (() => {
-                type CEntry = { tipo: string; inicio: string | null; fin: string | null; mins: number; activo: boolean }
+              {(inc.contActivadoPor || inc.movActivadoPor || (Array.isArray(inc.mitigacionesPrevias) && inc.mitigacionesPrevias.length > 0)) && (() => {
+                type CEntry = { tipo: string; inicio: string | null; fin: string | null; mins: number; activo: boolean; previo?: boolean }
                 const entries: CEntry[] = []
+                // Mitigaciones de periodos anteriores (archivadas al reabrir) — solo lectura
+                const claseLabel: Record<string, string> = { ROUTER_PROPIO: 'Router propio', ROUTER_EXTERNO: 'Router ext.', DATOS_MOVILES: 'Datos móviles' }
+                for (const p of (Array.isArray(inc.mitigacionesPrevias) ? inc.mitigacionesPrevias : [])) {
+                  const mins = p.horaActivacion && p.horaDesactivacion
+                    ? Math.round((new Date(p.horaDesactivacion).getTime() - new Date(p.horaActivacion).getTime()) / 60000)
+                    : 0
+                  const routerSuf = p.routerExternoCodigo ? ` · ${p.routerExternoCodigo}` : ''
+                  entries.push({ tipo: `${claseLabel[p.clase] ?? p.clase}${routerSuf} (previo)`, inicio: p.horaActivacion ?? null, fin: p.horaDesactivacion ?? null, mins, activo: false, previo: true })
+                }
                 if (inc.contActivadoPor) {
                   const fin = inc.contHoraDesactivacion ?? (isClosed ? inc.horaFin : null)
                   const mins = inc.contHoraActivacion
@@ -1563,9 +1572,9 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                     {entries.map((e, i) => (
                       <div key={i} style={{ marginBottom: i < entries.length - 1 ? '8px' : 0 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '2px' }}>
-                          <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{e.tipo}</span>
-                          <span style={{ fontSize: '10px', fontWeight: 600, color: e.activo ? '#d97706' : '#15803d' }}>
-                            {e.activo ? '⏱ Activo' : '✓ Fin'}
+                          <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontStyle: e.previo ? 'italic' : 'normal' }}>{e.tipo}</span>
+                          <span style={{ fontSize: '10px', fontWeight: 600, color: e.previo ? 'var(--muted-foreground)' : (e.activo ? '#d97706' : '#15803d') }}>
+                            {e.previo ? '↻ Reapertura' : (e.activo ? '⏱ Activo' : '✓ Fin')}
                           </span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>

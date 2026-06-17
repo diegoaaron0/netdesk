@@ -181,6 +181,21 @@ async function main() {
   `
   console.log('[startup] ✓ FK incidentes.grupo_masivo_id → grupos_masivos (0028_drop_decisiones)')
 
+  // 0030 — mitigaciones previas: snapshot de cont/mov archivado al reabrir un incidente
+  await sql`ALTER TABLE "incidentes" ADD COLUMN IF NOT EXISTS "mitigaciones_previas" jsonb`
+  console.log('[startup] ✓ Columna incidentes.mitigaciones_previas (0030)')
+
+  // Backfill: datos móviles activados sin hora (mov_activado_por seteado pero
+  // mov_hora_activacion NULL) → usar hora_registro. Bug corregido en el PUT, esto
+  // sanea los incidentes ya afectados (p.ej. 00085M). Idempotente.
+  await sql`
+    UPDATE "incidentes"
+    SET "mov_hora_activacion" = "hora_registro"
+    WHERE "mov_activado_por" IS NOT NULL
+      AND "mov_hora_activacion" IS NULL
+  `
+  console.log('[startup] ✓ Backfill mov_hora_activacion faltante')
+
   console.log('[startup] Migraciones completadas.')
   await sql.end()
 }

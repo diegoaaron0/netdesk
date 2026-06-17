@@ -220,6 +220,10 @@ export const incidentes = pgTable('incidentes', {
   movRendimiento:          text('mov_rendimiento'),
   movObservacion:          text('mov_observacion'),
   movHoraDesactivacion:    timestamp('mov_hora_desactivacion'),
+  // Mitigaciones de periodos anteriores (reaperturas): snapshot de cont/mov que se
+  // autosellaron al cerrar. Ver migración 0030. Cada reabrir archiva aquí el slot vivo
+  // antes de limpiarlo, para poder activar una nueva mitigación sin perder el historial.
+  mitigacionesPrevias:     jsonb('mitigaciones_previas'),
   // Descartes Sí/No
   descEnergia:           boolean('desc_energia'),
   descRouter:            boolean('desc_router'),

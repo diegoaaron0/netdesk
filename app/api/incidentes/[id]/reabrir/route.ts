@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { incidentes, tiendas } from '@/drizzle/schema'
+import { incidentes, tiendas, routersExternos } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
@@ -29,10 +29,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     contHoraActivacion:    incidentes.contHoraActivacion,
     contHoraDesactivacion: incidentes.contHoraDesactivacion,
     contRendimiento:       incidentes.contRendimiento,
+    contObservacion:       incidentes.contObservacion,
     contEsExterno:         incidentes.contEsExterno,
+    routerExternoId:       incidentes.routerExternoId,
+    movActivadoPor:        incidentes.movActivadoPor,
     movHoraActivacion:     incidentes.movHoraActivacion,
     movHoraDesactivacion:  incidentes.movHoraDesactivacion,
     movRendimiento:        incidentes.movRendimiento,
+    movObservacion:        incidentes.movObservacion,
+    mitigacionesPrevias:   incidentes.mitigacionesPrevias,
     boletaManual:          incidentes.boletaManual,
     boletaRendimiento:     incidentes.boletaRendimiento,
     boletaHoraActivacion:  incidentes.boletaHoraActivacion,
@@ -83,6 +88,46 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Preservar el horaFin del cierre anterior para mostrarlo en el detalle
   const horaFinAnterior = inc.horaFin
 
+  // ── Archivar la mitigación viva antes de liberar el slot ──────────────────
+  // Al reabrir, el slot cont_*/mov_* se limpia para poder activar una mitigación
+  // nueva (decisión de producto). El periodo que se autoselló al cerrar se conserva
+  // en mitigaciones_previas: así no se pierde el detalle ni los minutos que ya
+  // suman en las estadísticas de la tienda. El impacto económico de este periodo
+  // ya quedó sumado en ieiAcumulado arriba.
+  const mitigacionesPrevias: any[] = Array.isArray(inc.mitigacionesPrevias) ? [...inc.mitigacionesPrevias] : []
+  if (inc.contActivadoPor) {
+    // Si fue router externo, guardar también CUÁL router se usó (id + código)
+    // para no perder esa identidad al liberar el slot.
+    let routerExternoCodigo: string | null = null
+    if (inc.contEsExterno && inc.routerExternoId) {
+      const [r] = await db.select({ codigo: routersExternos.codigo })
+        .from(routersExternos).where(eq(routersExternos.id, inc.routerExternoId))
+      routerExternoCodigo = r?.codigo ?? null
+    }
+    mitigacionesPrevias.push({
+      clase:               inc.contEsExterno ? 'ROUTER_EXTERNO' : 'ROUTER_PROPIO',
+      activadoPor:         inc.contActivadoPor,
+      horaActivacion:      inc.contHoraActivacion,
+      horaDesactivacion:   inc.contHoraDesactivacion ?? horaFinAnterior,
+      rendimiento:         inc.contRendimiento ?? null,
+      observacion:         inc.contObservacion ?? null,
+      routerExternoId:     inc.contEsExterno ? inc.routerExternoId ?? null : null,
+      routerExternoCodigo: routerExternoCodigo,
+      cerradoEn:           horaFinAnterior,
+    })
+  }
+  if (inc.movActivadoPor) {
+    mitigacionesPrevias.push({
+      clase:             'DATOS_MOVILES',
+      activadoPor:       inc.movActivadoPor,
+      horaActivacion:    inc.movHoraActivacion,
+      horaDesactivacion: inc.movHoraDesactivacion ?? horaFinAnterior,
+      rendimiento:       inc.movRendimiento ?? null,
+      observacion:       inc.movObservacion ?? null,
+      cerradoEn:         horaFinAnterior,
+    })
+  }
+
   const horaLima = new Date().toLocaleString('es-PE', {
     timeZone: 'America/Lima',
     day: '2-digit', month: '2-digit', year: 'numeric',
@@ -110,6 +155,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       reabiertaInfo,
       horaRegistroOriginal,            // hora de inicio real del incidente (nunca se pisa)
       horaFinAnterior,                 // hora de cierre anterior (para mostrar en detalle)
+      // Archivar el periodo de mitigación anterior y liberar el slot vivo para
+      // que se pueda activar cualquier mitigación nuevamente tras reabrir.
+      mitigacionesPrevias: mitigacionesPrevias.length ? mitigacionesPrevias : null,
+      estadoOperacion:       null,
+      operacionManual:       false,
+      tipoOperacionManual:   null,
+      factorOperativo:       null,
+      contActivadoPor:       null,
+      contHoraActivacion:    null,
+      contRendimiento:       null,
+      contObservacion:       null,
+      contEsExterno:         false,
+      contHoraDesactivacion: null,
+      routerExternoId:       null,
+      movActivadoPor:        null,
+      movHoraActivacion:     null,
+      movRendimiento:        null,
+      movObservacion:        null,
+      movHoraDesactivacion:  null,
       actualizadoEn: new Date(),
     })
     .where(eq(incidentes.id, id))
