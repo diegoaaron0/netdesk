@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
         i.estado,
         i.tipo,
         i.nivel_impacto,
-        i.hora_registro,
+        (i.hora_registro AT TIME ZONE 'UTC') AS hora_registro,
         i.registrado_por_id           AS agente_id,
         u.nombre                      AS agente_nombre,
         t.id                          AS tienda_id,
@@ -61,20 +61,20 @@ export async function GET(req: NextRequest) {
         ) AS pendiente_proveedor,
         i.motivo_reabertura,
         i.cont_activado_por,
-        i.cont_hora_activacion,
-        i.cont_hora_desactivacion,
+        (i.cont_hora_activacion    AT TIME ZONE 'UTC') AS cont_hora_activacion,
+        (i.cont_hora_desactivacion AT TIME ZONE 'UTC') AS cont_hora_desactivacion,
         i.cont_rendimiento,
         i.cont_es_externo,
-        i.mov_hora_activacion,
-        i.mov_hora_desactivacion,
+        (i.mov_hora_activacion    AT TIME ZONE 'UTC') AS mov_hora_activacion,
+        (i.mov_hora_desactivacion AT TIME ZONE 'UTC') AS mov_hora_desactivacion,
         i.mov_rendimiento,
         i.boleta_manual,
         i.boleta_rendimiento,
-        i.boleta_hora_activacion,
+        (i.boleta_hora_activacion AT TIME ZONE 'UTC') AS boleta_hora_activacion,
         i.escalado_infra_id,
-        i.hora_escalado_infra,
+        (i.hora_escalado_infra AT TIME ZONE 'UTC') AS hora_escalado_infra,
         infra_u.nombre AS infra_nombre,
-        mov.ultimo_movimiento,
+        (mov.ultimo_movimiento AT TIME ZONE 'UTC') AS ultimo_movimiento,
         i.grupo_masivo_id,
         gm.codigo  AS grupo_masivo_codigo,
         gm.razon   AS grupo_masivo_razon,
@@ -116,8 +116,8 @@ export async function GET(req: NextRequest) {
         i.codigo,
         i.tipo,
         i.nivel_impacto,
-        i.hora_registro,
-        i.hora_fin,
+        (i.hora_registro AT TIME ZONE 'UTC') AS hora_registro,
+        (i.hora_fin       AT TIME ZONE 'UTC') AS hora_fin,
         i.mttr_minutos,
         i.resuelto_por,
         i.resuelto_por = 'PROVEEDOR' AS por_proveedor,
@@ -149,7 +149,7 @@ export async function GET(req: NextRequest) {
 
     db.execute(sql`
       SELECT 'CREADO' AS tipo_evento, i.id, i.codigo,
-             i.hora_registro AS hora, u.nombre AS actor, NULL::text AS proveedor_nombre, NULL::int AS nivel
+             (i.hora_registro AT TIME ZONE 'UTC') AS hora, u.nombre AS actor, NULL::text AS proveedor_nombre, NULL::int AS nivel
       FROM incidentes i JOIN usuarios u ON i.registrado_por_id = u.id
       WHERE i.hora_registro >= NOW() - INTERVAL '24 hours'
       ORDER BY i.hora_registro DESC LIMIT 15
@@ -157,7 +157,7 @@ export async function GET(req: NextRequest) {
 
     db.execute(sql`
       SELECT 'ESCALADO' AS tipo_evento, i.id, i.codigo,
-             e.hora_envio_correo AS hora,
+             (e.hora_envio_correo AT TIME ZONE 'UTC') AS hora,
              COALESCE(ue.nombre, u.nombre) AS actor,
              COALESCE(pi.nombre, pt.nombre) AS proveedor_nombre, e.nivel
       FROM escalamientos e
@@ -174,7 +174,7 @@ export async function GET(req: NextRequest) {
 
     db.execute(sql`
       SELECT 'RESPUESTA_PROVEEDOR' AS tipo_evento, i.id, i.codigo,
-             e.hora_respuesta AS hora, u.nombre AS actor,
+             (e.hora_respuesta AT TIME ZONE 'UTC') AS hora, u.nombre AS actor,
              COALESCE(pi.nombre, pt.nombre) AS proveedor_nombre, NULL::int AS nivel
       FROM escalamientos e
       JOIN incidentes i ON e.incidente_id      = i.id
@@ -189,7 +189,7 @@ export async function GET(req: NextRequest) {
 
     db.execute(sql`
       SELECT 'RESUELTO' AS tipo_evento, i.id, i.codigo,
-             i.hora_fin AS hora,
+             (i.hora_fin AT TIME ZONE 'UTC') AS hora,
              COALESCE(ur.nombre, u.nombre) AS actor,
              i.resuelto_por,
              NULL::text AS proveedor_nombre, NULL::int AS nivel
@@ -204,7 +204,7 @@ export async function GET(req: NextRequest) {
 
     db.execute(sql`
       SELECT 'CANCELADO' AS tipo_evento, i.id, i.codigo,
-             i.hora_fin AS hora,
+             (i.hora_fin AT TIME ZONE 'UTC') AS hora,
              COALESCE(uc.nombre, u.nombre) AS actor,
              NULL::text AS proveedor_nombre, NULL::int AS nivel
       FROM incidentes i
@@ -218,7 +218,7 @@ export async function GET(req: NextRequest) {
 
     db.execute(sql`
       SELECT 'CERRADO' AS tipo_evento, i.id, i.codigo,
-             i.hora_fin AS hora,
+             (i.hora_fin AT TIME ZONE 'UTC') AS hora,
              COALESCE(ucr.nombre, u.nombre) AS actor,
              NULL::text AS proveedor_nombre, NULL::int AS nivel
       FROM incidentes i
@@ -241,7 +241,7 @@ export async function GET(req: NextRequest) {
         COALESCE(pi.nombre, pt.nombre) AS proveedor_nombre,
         i.id             AS incidente_id,
         i.codigo         AS incidente_codigo,
-        i.cont_hora_activacion,
+        (i.cont_hora_activacion AT TIME ZONE 'UTC') AS cont_hora_activacion,
         i.cont_rendimiento,
         i.cont_observacion,
         i.cont_es_externo,
@@ -288,7 +288,7 @@ export async function GET(req: NextRequest) {
       SELECT
         i.id                           AS incidente_id,
         i.codigo                       AS incidente_codigo,
-        i.mov_hora_activacion          AS cont_hora_activacion,
+        (i.mov_hora_activacion AT TIME ZONE 'UTC') AS cont_hora_activacion,
         t.id                           AS tienda_id,
         t.codigo                       AS tienda_codigo,
         t.nombre_cc                    AS tienda_nombre,
@@ -308,7 +308,7 @@ export async function GET(req: NextRequest) {
       SELECT
         i.id                           AS incidente_id,
         i.codigo                       AS incidente_codigo,
-        i.boleta_hora_activacion       AS cont_hora_activacion,
+        (i.boleta_hora_activacion AT TIME ZONE 'UTC') AS cont_hora_activacion,
         i.boleta_rendimiento,
         t.id                           AS tienda_id,
         t.codigo                       AS tienda_codigo,

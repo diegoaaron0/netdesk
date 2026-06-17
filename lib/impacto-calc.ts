@@ -29,7 +29,7 @@ import { DASHBOARD_CONFIG } from './dashboard-config'
 
 // ─── Normalización de rendimiento ─────────────────────────────────────────────
 
-function normContFactor(rend: string | null | undefined): number {
+export function normContFactor(rend: string | null | undefined): number {
   if (!rend) return 0.20  // activada pero sin rendimiento registrado → parcial
   const r = rend.toUpperCase()
   if (r === 'EFECTIVO' || r === 'TOTAL' || r === 'EFECTIVA') return 0.00
@@ -37,12 +37,14 @@ function normContFactor(rend: string | null | undefined): number {
   return 1.00  // NULO, FALLIDA, NO_FUNCIONO, INOPERATIVA
 }
 
-function normBoletaFactor(rend: string | null | undefined, tipo?: string): number {
+export function normBoletaFactor(rend: string | null | undefined, tipo?: string): number {
   const isCorte = tipo === 'CORTE_ELECTRICO'
-  if (!rend) return isCorte ? 0.00 : 0.10
+  // En corte eléctrico la boleta efectiva cubre la venta completa → residual 0.00
+  const residual = isCorte ? 0.00 : DASHBOARD_CONFIG.BOLETA_RESIDUAL
+  if (!rend) return residual
   const r = rend.toUpperCase()
-  if (r === 'EFECTIVA' || r === 'TOTAL') return isCorte ? 0.00 : 0.10
-  if (r === 'PARCIAL')  return 0.30
+  if (r === 'EFECTIVA' || r === 'TOTAL') return residual
+  if (r === 'PARCIAL')  return DASHBOARD_CONFIG.BOLETA_PARCIAL
   return 1.00  // NULA
 }
 

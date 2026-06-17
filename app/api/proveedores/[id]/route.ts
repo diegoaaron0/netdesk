@@ -102,10 +102,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const slaRows = await db.execute(sql`
       SELECT
         i.id, i.codigo, i.tipo, i.evaluable_proveedor,
-        i.hora_registro, i.hora_fin, i.mttr_minutos,
+        (i.hora_registro AT TIME ZONE 'UTC') AS hora_registro,
+        (i.hora_fin       AT TIME ZONE 'UTC') AS hora_fin,
+        i.mttr_minutos,
         t.codigo AS tienda_codigo, t.nombre_cc AS tienda_nombre,
-        n1.hora_correo_n1,
-        resp.hora_primera_resp,
+        (n1.hora_correo_n1      AT TIME ZONE 'UTC') AS hora_correo_n1,
+        (resp.hora_primera_resp AT TIME ZONE 'UTC') AS hora_primera_resp,
         max_n.max_nivel,
         cp.tiempo_respuesta_sla  AS sla_resp_override,
         cp.tiempo_resolucion_sla AS sla_resol_override
@@ -194,10 +196,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const { calcImpactoRow } = await import('@/lib/impacto-calc')
     const ieiRows = await db.execute(sql`
       SELECT
-        i.id, i.codigo, i.hora_registro, i.hora_fin, i.estado, i.tipo, i.mttr_minutos,
-        i.cont_hora_activacion, i.cont_hora_desactivacion, i.cont_rendimiento, i.cont_es_externo,
-        i.mov_hora_activacion,  i.mov_hora_desactivacion,  i.mov_rendimiento,
-        i.boleta_manual, i.boleta_rendimiento, i.boleta_hora_activacion,
+        i.id, i.codigo,
+        (i.hora_registro AT TIME ZONE 'UTC') AS hora_registro,
+        (i.hora_fin       AT TIME ZONE 'UTC') AS hora_fin,
+        i.estado, i.tipo, i.mttr_minutos,
+        (i.cont_hora_activacion    AT TIME ZONE 'UTC') AS cont_hora_activacion,
+        (i.cont_hora_desactivacion AT TIME ZONE 'UTC') AS cont_hora_desactivacion,
+        i.cont_rendimiento, i.cont_es_externo,
+        (i.mov_hora_activacion    AT TIME ZONE 'UTC') AS mov_hora_activacion,
+        (i.mov_hora_desactivacion AT TIME ZONE 'UTC') AS mov_hora_desactivacion,
+        i.mov_rendimiento,
+        i.boleta_manual, i.boleta_rendimiento,
+        (i.boleta_hora_activacion AT TIME ZONE 'UTC') AS boleta_hora_activacion,
         t.venta_hora_soles, t.venta_hora_fds_soles, t.cluster,
         t.codigo AS tienda_codigo, t.nombre_cc AS tienda_nombre, t.id AS tienda_id
       FROM incidentes i

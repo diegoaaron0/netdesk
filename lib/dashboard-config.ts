@@ -18,6 +18,12 @@ export const DASHBOARD_CONFIG = {
     CON_CONTINGENCIA: 0.25,
   },
 
+  // Factores de boleta manual para el IEI (conectividad, NO corte eléctrico).
+  // Representan la venta que se pierde a pesar de operar con boleta manual.
+  // En CORTE_ELECTRICO la boleta efectiva cubre el 100% → residual 0.00 (caso especial en impacto-calc).
+  BOLETA_RESIDUAL: 0.10,  // boleta EFECTIVA/TOTAL → 10% de venta perdida residual
+  BOLETA_PARCIAL:  0.30,  // boleta PARCIAL → 30% de venta perdida
+
   CLUSTER_FALLBACK_HORA: {
     A: 601, B: 360, C: 262, D: 153,
   } as Record<string, number>,

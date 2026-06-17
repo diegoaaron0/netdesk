@@ -25,10 +25,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const rows = await db.execute(sql`
     SELECT
       i.id, i.codigo, i.tipo, i.estado, i.mttr_minutos,
-      i.hora_registro, i.hora_fin,
-      i.cont_hora_activacion, i.cont_hora_desactivacion, i.cont_rendimiento, i.cont_es_externo,
-      i.mov_hora_activacion,  i.mov_hora_desactivacion,  i.mov_rendimiento,
-      i.boleta_manual, i.boleta_rendimiento, i.boleta_hora_activacion,
+      (i.hora_registro AT TIME ZONE 'UTC') AS hora_registro,
+      (i.hora_fin       AT TIME ZONE 'UTC') AS hora_fin,
+      (i.cont_hora_activacion    AT TIME ZONE 'UTC') AS cont_hora_activacion,
+      (i.cont_hora_desactivacion AT TIME ZONE 'UTC') AS cont_hora_desactivacion,
+      i.cont_rendimiento, i.cont_es_externo,
+      (i.mov_hora_activacion    AT TIME ZONE 'UTC') AS mov_hora_activacion,
+      (i.mov_hora_desactivacion AT TIME ZONE 'UTC') AS mov_hora_desactivacion,
+      i.mov_rendimiento,
+      i.boleta_manual, i.boleta_rendimiento,
+      (i.boleta_hora_activacion AT TIME ZONE 'UTC') AS boleta_hora_activacion,
       t.venta_hora_soles, t.venta_hora_fds_soles, t.cluster,
       COALESCE(p.nombre, pt.nombre) AS prov_nombre
     FROM incidentes i
@@ -80,10 +86,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   // IEI acumulado del período (todos los resueltos en el rango)
   const ieiRows = await db.execute(sql`
     SELECT
-      i.id, i.codigo, i.hora_registro, i.hora_fin, i.estado, i.tipo, i.mttr_minutos,
-      i.cont_hora_activacion, i.cont_hora_desactivacion, i.cont_rendimiento, i.cont_es_externo,
-      i.mov_hora_activacion,  i.mov_hora_desactivacion,  i.mov_rendimiento,
-      i.boleta_manual, i.boleta_rendimiento, i.boleta_hora_activacion,
+      i.id, i.codigo,
+      (i.hora_registro AT TIME ZONE 'UTC') AS hora_registro,
+      (i.hora_fin       AT TIME ZONE 'UTC') AS hora_fin,
+      i.estado, i.tipo, i.mttr_minutos,
+      (i.cont_hora_activacion    AT TIME ZONE 'UTC') AS cont_hora_activacion,
+      (i.cont_hora_desactivacion AT TIME ZONE 'UTC') AS cont_hora_desactivacion,
+      i.cont_rendimiento, i.cont_es_externo,
+      (i.mov_hora_activacion    AT TIME ZONE 'UTC') AS mov_hora_activacion,
+      (i.mov_hora_desactivacion AT TIME ZONE 'UTC') AS mov_hora_desactivacion,
+      i.mov_rendimiento,
+      i.boleta_manual, i.boleta_rendimiento,
+      (i.boleta_hora_activacion AT TIME ZONE 'UTC') AS boleta_hora_activacion,
       t.venta_hora_soles, t.venta_hora_fds_soles, t.cluster
     FROM incidentes i
     JOIN tiendas t ON i.tienda_id = t.id

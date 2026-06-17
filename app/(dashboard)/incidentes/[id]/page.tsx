@@ -13,6 +13,7 @@ import { EscalamientoCard } from '@/components/incidentes/EscalamientoCard'
 import { iStyle, taStyle, toDatetimeLocal, fromDatetimeLocal, minToHM, TIPO_LABELS, buildCorreo } from '@/components/incidentes/helpers'
 import { can } from '@/lib/permisos'
 import { apiMutate } from '@/lib/api-mutate'
+import { normContFactor, normBoletaFactor } from '@/lib/impacto-calc'
 
 const ALCANCE_LABELS: Record<string, string> = {
   SOLO_TIENDA: 'Solo la tienda', MALL: 'El mall',
@@ -1613,8 +1614,9 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
         const esResuelto = inc.estado === 'RESUELTO'
         const MARGEN = 0.35
         const FACTOR_BASE: Record<string,number> = { CAIDA_TOTAL:1.00, INTERMITENCIA:0.50, LENTITUD:0.30, CORTE_ELECTRICO:1.00 }
-        const nC = (r:string|null|undefined) => { if(!r)return 0.20;const v=r.toUpperCase();if(v==='EFECTIVO'||v==='TOTAL'||v==='EFECTIVA')return 0.00;if(v==='PARCIAL'||v==='LIMITADA')return 0.20;return 1.00 }
-        const nB = (r:string|null|undefined) => { const c=inc.tipo==='CORTE_ELECTRICO';if(!r)return c?0.00:0.10;const v=r.toUpperCase();if(v==='EFECTIVA'||v==='TOTAL')return c?0.00:0.10;if(v==='PARCIAL')return 0.30;return 1.00 }
+        // Factores desde la fuente única de verdad (lib/impacto-calc.ts) — no duplicar la fórmula aquí
+        const nC = (r:string|null|undefined) => normContFactor(r)
+        const nB = (r:string|null|undefined) => normBoletaFactor(r, inc.tipo)
         const tsMs = (v:any) => v ? new Date(v).getTime() : null
 
         // Cálculo en curso (activo) usando Date.now()
