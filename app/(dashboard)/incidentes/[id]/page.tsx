@@ -1686,7 +1686,10 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
         const fmtMs = (ms:number) => new Date(ms).toLocaleTimeString('es-PE',{timeZone:'America/Lima',hour:'2-digit',minute:'2-digit'})
         const fmtH  = (h:number)  => h < 1 ? `${Math.round(h*60)}m` : `${h.toFixed(1)}h`
 
-        const displayIei    = esResuelto ? (inc.ieiCalc?.impactoEstimado ?? 0) : ieiEnCurso
+        // IEI acumulado de periodos anteriores (reaperturas). En curso se suma al
+        // periodo actual; al resolver el backend ya lo incluye en impactoEstimado.
+        const ieiAcumPrev   = Number(inc.ieiCalc?.ieiAcumulado ?? 0)
+        const displayIei    = esResuelto ? (inc.ieiCalc?.impactoEstimado ?? 0) : (ieiEnCurso + ieiAcumPrev)
         const displayVH     = esResuelto ? inc.ieiCalc?.ventaHora : ventaHoraEnCurso
         const displaySegs   = esResuelto ? (inc.ieiCalc?.segmentos ?? []) : segmentosEnCurso
         const displayMotivo = esResuelto ? inc.ieiCalc?.motivoFactor : null
@@ -1731,7 +1734,11 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                         { label: 'Factor prom.',    value: (inc.ieiCalc?.factorAplicado ?? 0).toFixed(2) },
                       ] : [
                         { label: 'Margen aplicado', value: '35%' },
-                        { label: 'Acumulado',       value: `${Math.round((Date.now() - new Date(inc.horaRegistro).getTime()) / 60000)}m desde inicio` },
+                        { label: 'Acumulado',       value: `${Math.round((Date.now() - new Date(inc.horaRegistro).getTime()) / 60000)}m ${ieiAcumPrev > 0 ? 'desde reapertura' : 'desde inicio'}` },
+                        ...(ieiAcumPrev > 0 ? [
+                          { label: 'IEI previo',  value: `S/ ${ieiAcumPrev.toLocaleString('es-PE')}` },
+                          { label: 'IEI actual',  value: `S/ ${ieiEnCurso.toLocaleString('es-PE')}` },
+                        ] : []),
                       ]),
                     ].map(({ label, value }) => (
                       <div key={label}>
