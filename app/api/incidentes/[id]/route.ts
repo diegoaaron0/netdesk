@@ -472,15 +472,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     .returning()
 
   if (body.estado === 'RESUELTO' || body.horaFin) {
+    // Escalamientos enviados sin respuesta al cerrar → "sin respuesta" (detiene
+    // el cronómetro sin inventar una hora_respuesta, que inflaría el tiempo de
+    // respuesta del proveedor). Mismo criterio que /resolver.
     await db.execute(sql`
       UPDATE escalamientos
-      SET hora_respuesta = COALESCE(hora_respuesta, ${new Date().toISOString()}::timestamptz),
-          estado_cronometro = CASE
-            WHEN estado_cronometro = 'CORRIENDO' THEN 'VENCIDO'
-            ELSE estado_cronometro
-          END
+      SET no_hubo_respuesta = true,
+          estado_cronometro = 'VENCIDO'
       WHERE incidente_id = ${id}
+        AND hora_envio_correo IS NOT NULL
         AND hora_respuesta IS NULL
+        AND no_hubo_respuesta IS NOT TRUE
     `)
   }
 

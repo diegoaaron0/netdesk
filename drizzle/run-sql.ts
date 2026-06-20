@@ -196,6 +196,22 @@ async function main() {
   `
   console.log('[startup] ✓ Backfill mov_hora_activacion faltante')
 
+  // Backfill: escalamientos colgados de incidentes ya cerrados (enviados pero sin
+  // respuesta, con el cronómetro aún corriendo) → marcar "sin respuesta" para que
+  // el reloj se detenga y quede congelado en el cierre, sin inflar el SLA del
+  // proveedor. Idempotente. Cubre 00025P, 00051N, 00065E, 00066U, 00091W, etc.
+  await sql`
+    UPDATE escalamientos es
+    SET no_hubo_respuesta = true, estado_cronometro = 'VENCIDO'
+    FROM incidentes i
+    WHERE es.incidente_id = i.id
+      AND i.estado IN ('RESUELTO','CERRADO','CANCELADO')
+      AND es.hora_envio_correo IS NOT NULL
+      AND es.hora_respuesta IS NULL
+      AND es.no_hubo_respuesta IS NOT TRUE
+  `
+  console.log('[startup] ✓ Backfill escalamientos colgados (cronómetro detenido al cierre)')
+
   console.log('[startup] Migraciones completadas.')
   await sql.end()
 }

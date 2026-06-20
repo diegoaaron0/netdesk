@@ -80,7 +80,9 @@ export function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
 
   const isRespondido   = !!esc.horaRespuesta
   const isSinRespuesta = !!esc.noHuboRespuesta
-  const isCorriendo    = !!esc.horaEnvioCorreo && !isRespondido && !isSinRespuesta
+  // Si el incidente está cerrado, el cronómetro nunca debe seguir corriendo
+  // (defensa por si quedó un escalamiento sin sellar).
+  const isCorriendo    = !!esc.horaEnvioCorreo && !isRespondido && !isSinRespuesta && !isClosed
   const horaCreado     = new Date(esc.horaEnvioCorreo ?? esc.creadoEn).toLocaleString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
 
   async function copyTemplate() {

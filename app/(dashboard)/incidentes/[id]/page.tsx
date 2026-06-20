@@ -396,8 +396,23 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
     setTimeout(() => escRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200)
   }
 
+  // Un nivel de ficha es "infra interna" cuando su contacto es de Footloose
+  // (no un proveedor). Estos NO deben escalarse como proveedor: van por el
+  // botón morado INFRAESTRUCTURA, que pasa el incidente a alguien de infra.
+  function esNivelInfra(nd: any): boolean {
+    if (!nd) return false
+    const email  = String(nd.email ?? '').trim().toLowerCase()
+    const nombre = String(nd.nombreContacto ?? '').toLowerCase()
+    return email.endsWith('@footloose.pe') || nombre.includes('infraestructura')
+  }
+
   function handleEscalarNivel(nivel: number) {
     setShowNivelMenu(false)
+    const nivelInfra = inc.nivelesProveedor?.find((n: any) => n.nivel === nivel)
+    if (esNivelInfra(nivelInfra)) {
+      alert(`El nivel N${nivel} de esta tienda es Infraestructura interna (${nivelInfra?.nombreContacto ?? ''}).\n\nNo se escala como proveedor. Usa el botón 🔧 Infraestructura para pasar el incidente al equipo de infra.`)
+      return
+    }
     const sortedEscs = [...(inc.escalamientos ?? [])].sort((a: any, b: any) => a.nivel - b.nivel)
     const lastEsc = sortedEscs[sortedEscs.length - 1]
     if (lastEsc && !lastEsc.horaRespuesta && !lastEsc.noHuboRespuesta) {
@@ -1851,12 +1866,21 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 </button>
                 {showNivelMenu && (
                   <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: '6px', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '6px', display: 'flex', flexDirection: 'column', gap: '4px', zIndex: 50, minWidth: '160px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)' }}>
-                    {[1,2,3,4].map(n => (
-                      <button key={n} onClick={() => handleEscalarNivel(n)}
-                        style={{ padding: '7px 12px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', textAlign: 'left', color: 'var(--foreground)' }}>
-                        Escalar N{n}
-                      </button>
-                    ))}
+                    {[1,2,3,4].map(n => {
+                      const nd = inc.nivelesProveedor?.find((x: any) => x.nivel === n)
+                      if (esNivelInfra(nd)) return (
+                        <div key={n} style={{ padding: '7px 10px', background: 'rgba(99,102,241,.07)', border: '1px dashed rgba(99,102,241,.4)', borderRadius: '6px', fontSize: '10px', color: '#818cf8', lineHeight: 1.35 }}>
+                          <strong>N{n} es Infraestructura</strong><br />
+                          No escalar como proveedor → usa 🔧 Infraestructura
+                        </div>
+                      )
+                      return (
+                        <button key={n} onClick={() => handleEscalarNivel(n)}
+                          style={{ padding: '7px 12px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', textAlign: 'left', color: 'var(--foreground)' }}>
+                          Escalar N{n}
+                        </button>
+                      )
+                    })}
                     {!inc.escaladoInfraId && (
                       <>
                         <div style={{ borderTop: '1px solid var(--border)', margin: '2px 0' }} />

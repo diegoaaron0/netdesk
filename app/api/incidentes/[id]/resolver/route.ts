@@ -56,6 +56,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .where(eq(incidentes.id, id))
       .returning()
 
+    // Detener el cronómetro de los escalamientos que se enviaron pero nunca
+    // recibieron respuesta: se marcan como "sin respuesta" (igual que la acción
+    // manual). No se inventa hora_respuesta, así el SLA refleja correctamente
+    // que el proveedor no respondió, en vez de quedar el reloj corriendo.
+    await tx.execute(sql`
+      UPDATE escalamientos
+      SET no_hubo_respuesta = true,
+          estado_cronometro = 'VENCIDO'
+      WHERE incidente_id = ${id}
+        AND hora_envio_correo IS NOT NULL
+        AND hora_respuesta IS NULL
+        AND no_hubo_respuesta IS NOT TRUE
+    `)
+
     // Limpiar contingencia_activa si no quedan otras fuentes activas
     if (inc.tiendaId && inc.contActivadoPor) {
       const rows = await tx.execute(sql`
