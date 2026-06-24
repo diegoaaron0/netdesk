@@ -396,14 +396,13 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
     setTimeout(() => escRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200)
   }
 
-  // Un nivel de ficha es "infra interna" cuando su contacto es de Footloose
-  // (no un proveedor). Estos NO deben escalarse como proveedor: van por el
-  // botón morado INFRAESTRUCTURA, que pasa el incidente a alguien de infra.
+  // Un nivel de ficha es "infra interna" SOLO cuando su contacto se llama
+  // Infraestructura. NO se detecta por dominio de correo: proveedores como
+  // "Soporte Bitel Footloose" también usan @footloose.pe y NO son infra.
+  // Estos niveles no se escalan como proveedor: van por el botón INFRAESTRUCTURA.
   function esNivelInfra(nd: any): boolean {
     if (!nd) return false
-    const email  = String(nd.email ?? '').trim().toLowerCase()
-    const nombre = String(nd.nombreContacto ?? '').toLowerCase()
-    return email.endsWith('@footloose.pe') || nombre.includes('infraestructura')
+    return String(nd.nombreContacto ?? '').toLowerCase().includes('infra')
   }
 
   function handleEscalarNivel(nivel: number) {
