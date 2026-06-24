@@ -39,12 +39,12 @@ export function GrupoMasivoPanel({ inc, onRefresh }: { inc: any; onRefresh: () =
     const res = await fetch(`/api/grupos-masivos/${gm.id}/vincular`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tiendaCodigo: tiendaQ.trim() }),
+      body: JSON.stringify({ incidenteCodigo: tiendaQ.trim() }),
     })
     setSaving(false)
     const data = await res.json().catch(() => ({}))
     if (res.ok) { setTiendaQ(''); onRefresh() }
-    else setError(data.error ?? 'Error al vincular tienda')
+    else setError(data.error ?? 'No se pudo agregar el incidente')
   }
 
   async function handleDesvincular(incidenteId: string) {
@@ -162,11 +162,11 @@ export function GrupoMasivoPanel({ inc, onRefresh }: { inc: any; onRefresh: () =
                     ))}
                   </div>
 
-                  {/* Añadir tienda */}
+                  {/* Añadir incidente por código */}
                   <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
                     <input value={tiendaQ} onChange={e => setTiendaQ(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && handleAddTienda()}
-                      placeholder="Código tienda (ej: FL123)"
+                      placeholder="Código de incidente (ej: 00099K)"
                       style={{ ...iStyle(), flex: 1, fontSize: '11px' }} />
                     <button onClick={handleAddTienda} disabled={saving || !tiendaQ.trim()}
                       style={{ padding: '6px 12px', background: 'hsl(221,83%,45%)', color: 'white', border: 'none', borderRadius: '7px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
