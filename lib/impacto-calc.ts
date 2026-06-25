@@ -132,10 +132,18 @@ function isActiveAt(start: Date, end: Date | null, pointMs: number): boolean {
   return pointMs < end.getTime()
 }
 
+/** Día de la semana (0=dom..6=sab) en hora de Lima, no en la zona del servidor.
+ *  hora_registro se guarda en UTC; getDay() del servidor podía caer en otro día
+ *  cerca de medianoche y elegir la tarifa equivocada (L-J vs FDS). */
+function diaSemanaLima(d: Date): number {
+  const wd = d.toLocaleDateString('en-US', { timeZone: 'America/Lima', weekday: 'short' })
+  return ({ Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 } as Record<string, number>)[wd] ?? 1
+}
+
 function resolveVentaHora(row: ImpactoInputRow): number | null {
   if (row.ventaHoraResolvida !== undefined) return row.ventaHoraResolvida ?? null
   const d   = toDate(row.hora_registro)
-  const dow = d?.getDay() ?? 1  // 0=dom, 1-4=lun-jue, 5=vie, 6=sab
+  const dow = d ? diaSemanaLima(d) : 1  // 0=dom, 1-4=lun-jue, 5=vie, 6=sab — en hora Lima
   const isFDS = dow === 0 || dow === 5 || dow === 6
 
   if (isFDS) {

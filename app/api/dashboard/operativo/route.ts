@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
         re.codigo  AS router_externo_codigo,
         -- venta/hora según día de semana del incidente (0=dom,5=vie,6=sab = FDS)
         CASE
-          WHEN EXTRACT(DOW FROM i.hora_registro AT TIME ZONE 'America/Lima') IN (0,5,6)
+          WHEN EXTRACT(DOW FROM i.hora_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima') IN (0,5,6)
           THEN COALESCE(t.venta_hora_fds_soles, t.venta_hora_soles)
           ELSE COALESCE(t.venta_hora_soles, t.venta_hora_fds_soles)
         END AS iei_venta_hora

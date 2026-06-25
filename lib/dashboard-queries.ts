@@ -92,7 +92,7 @@ export async function fetchIncidentesPeriodo(
       COALESCE(t.tiene_contingencia, false)        AS tiene_contingencia,
       COALESCE(t.contingencia_activa, false)       AS contingencia_activa,
       COALESCE(p.nombre, pt.nombre)               AS prov_nombre,
-      EXTRACT(DOW FROM i.hora_registro AT TIME ZONE 'America/Lima')::int AS dia_semana,
+      EXTRACT(DOW FROM i.hora_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima')::int AS dia_semana,
       (i.cont_activado_por IS NOT NULL)            AS inc_cont_activa,
       COALESCE(i.cont_es_externo, false)           AS cont_es_externo,
       i.cont_rendimiento,

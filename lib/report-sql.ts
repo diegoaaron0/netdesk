@@ -2,6 +2,22 @@ export function clusterFallback(): string {
   return `CASE t.cluster WHEN 'A' THEN 601 WHEN 'B' THEN 360 WHEN 'C' THEN 262 WHEN 'D' THEN 153 ELSE 0 END`
 }
 
+/** Fallback de venta/hora FDS por cluster (DASHBOARD_CONFIG.CLUSTER_FALLBACK_HORA_FDS). */
+export function clusterFallbackFds(): string {
+  return `CASE t.cluster WHEN 'A' THEN 951 WHEN 'B' THEN 562 WHEN 'C' THEN 387 WHEN 'D' THEN 231 ELSE 0 END`
+}
+
+/** Venta/hora del incidente según el día (Lima) en que inició: FDS (dom/vie/sáb) o L-J.
+ *  Espeja resolveVentaHora de impacto-calc para que reportes, dashboard y detalle
+ *  usen la misma tarifa. Requiere aliases i = incidentes, t = tiendas. */
+export function ventaHoraDia(): string {
+  return `CASE
+    WHEN EXTRACT(DOW FROM i.hora_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima') IN (0,5,6)
+      THEN COALESCE(t.venta_hora_fds_soles, t.venta_hora_soles, ${clusterFallbackFds()})
+      ELSE COALESCE(t.venta_hora_soles, t.venta_hora_fds_soles, ${clusterFallback()})
+  END`
+}
+
 export function ieiFactor(): string {
   return `CASE
     WHEN i.tipo = 'CORTE_ELECTRICO' THEN
@@ -44,7 +60,7 @@ export function ieiFactor(): string {
 /** IEI por fila (sin SUM/ROUND) — para CTEs con iei_row */
 export function ieiPerRow(): string {
   return (
-    `COALESCE(t.venta_hora_soles, ${clusterFallback()})` +
+    `(${ventaHoraDia()})` +
     ` * (COALESCE(i.mttr_minutos, 0)::numeric / 60)` +
     ` * 0.35` +
     ` * (${ieiFactor()})`
