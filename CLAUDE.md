@@ -146,8 +146,16 @@ cajasAfectadas / cajasTotales / ventaParcial / boletaManual   → para cálculo 
 - Defaults centralizados: `SLA_RESPUESTA_MIN` (60) y `SLA_RESOLUCION_DEFAULT_MIN` (90)
 
 ### Timestamps
-- Todos los timestamps se guardan en UTC en la BD
-- Se muestran con `AT TIME ZONE 'America/Lima'` en queries SQL
+- Todos los timestamps se guardan en UTC en la BD, en columnas `timestamp` **naive**
+  (sin zona). El valor guardado ES el instante UTC.
+- Para mostrar/derivar en hora Lima en SQL hay que hacer **doble conversión**:
+  `col AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima'`.
+  ⚠️ `col AT TIME ZONE 'America/Lima'` a secas está MAL: interpreta el naive como
+  Lima y corre la fecha/hora +5h (cruza de día). Esto afectaba el día de la semana
+  del IEI (L-J vs FDS) y las fechas de reportes/CSV/v1 — corregido.
+- En JS, convertir con `toLocaleString/Date('...', { timeZone: 'America/Lima' })`
+  (los endpoints suelen mandar `col AT TIME ZONE 'UTC'` al cliente y formatear allá).
+- Para comparar contra `NOW()`: `NOW() AT TIME ZONE 'UTC'` (NOW() ya es timestamptz).
 - Fechas desde/hasta en API routes usan sufijo -05:00: `new Date(fecha + 'T00:00:00-05:00')`
 - NUNCA usar `T00:00:00` sin offset — se parsea como UTC y da datos incorrectos
 

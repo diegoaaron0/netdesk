@@ -57,7 +57,7 @@ export async function GET(req: Request) {
 
     // ── Por día (Lima timezone) ─────────────────────────────────────────────────
     db.execute(sql`
-      SELECT TO_CHAR(hora_registro AT TIME ZONE 'America/Lima','YYYY-MM-DD') AS dia,
+      SELECT TO_CHAR(hora_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima','YYYY-MM-DD') AS dia,
         COUNT(*)::int AS total,
         COUNT(*) FILTER (WHERE estado = 'RESUELTO')::int AS resueltos
       FROM incidentes
@@ -187,7 +187,7 @@ export async function GET(req: Request) {
 
     // ── Tendencia SLA 6 meses por proveedor (fixed historical window) ───────────
     db.execute(sql`
-      SELECT TO_CHAR(i.hora_registro AT TIME ZONE 'America/Lima','YYYY-MM') AS mes,
+      SELECT TO_CHAR(i.hora_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima','YYYY-MM') AS mes,
         COALESCE(pi.nombre, pt.nombre) AS nombre,
         ROUND(COUNT(*) FILTER (WHERE i.mttr_minutos <= 90
           AND i.estado = 'RESUELTO') * 100.0 /
@@ -197,7 +197,7 @@ export async function GET(req: Request) {
       JOIN tiendas t ON i.tienda_id = t.id
       LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
       LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
-      WHERE i.hora_registro >= (NOW() AT TIME ZONE 'America/Lima' - INTERVAL '6 months')
+      WHERE i.hora_registro >= (NOW() AT TIME ZONE 'UTC' - INTERVAL '6 months')
         AND i.estado != 'CANCELADO'
       GROUP BY mes, COALESCE(pi.nombre, pt.nombre)
       HAVING COUNT(*) FILTER (WHERE i.estado = 'RESUELTO') >= 2
@@ -206,12 +206,12 @@ export async function GET(req: Request) {
 
     // ── MTTR por zona, últimos 3 meses ──────────────────────────────────────────
     db.execute(sql`
-      SELECT TO_CHAR(i.hora_registro AT TIME ZONE 'America/Lima','YYYY-MM') AS mes,
+      SELECT TO_CHAR(i.hora_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima','YYYY-MM') AS mes,
         CASE WHEN LOWER(t.provincia) = 'lima' THEN 'Lima' ELSE 'Provincia' END AS zona,
         ROUND(AVG(i.mttr_minutos))::int AS mttr_avg
       FROM incidentes i
       JOIN tiendas t ON i.tienda_id = t.id
-      WHERE i.hora_registro >= (NOW() AT TIME ZONE 'America/Lima' - INTERVAL '3 months')
+      WHERE i.hora_registro >= (NOW() AT TIME ZONE 'UTC' - INTERVAL '3 months')
         AND i.estado = 'RESUELTO'
         AND i.mttr_minutos IS NOT NULL
       GROUP BY mes, zona

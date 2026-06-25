@@ -54,8 +54,8 @@ export async function GET(req: Request) {
           WHEN i.mov_activado_por  IS NOT NULL THEN COALESCE(i.mov_rendimiento, '')
           ELSE ''
         END                                                                           AS contingencia_rendimiento,
-        TO_CHAR(i.hora_registro AT TIME ZONE 'America/Lima', 'DD/MM/YYYY')             AS fecha,
-        TO_CHAR(i.hora_registro AT TIME ZONE 'America/Lima', 'HH24:MI')               AS hora_inicio,
+        TO_CHAR(i.hora_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima', 'DD/MM/YYYY')             AS fecha,
+        TO_CHAR(i.hora_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima', 'HH24:MI')               AS hora_inicio,
         CASE
           WHEN i.mttr_minutos IS NULL THEN ''
           WHEN i.mttr_minutos < 60    THEN i.mttr_minutos::text || 'm'
@@ -67,7 +67,7 @@ export async function GET(req: Request) {
         n2.respuesta                                                                   AS respuesta_n2,
         n3.enviado                                                                     AS enviado_n3,
         n3.respuesta                                                                   AS respuesta_n3,
-        TO_CHAR(i.hora_fin AT TIME ZONE 'America/Lima', 'HH24:MI DD/MM/YYYY')         AS hora_solucion,
+        TO_CHAR(i.hora_fin AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima', 'HH24:MI DD/MM/YYYY')         AS hora_solucion,
         i.observaciones                                                                AS comentarios,
         CASE
           WHEN COALESCE(i.cont_rendimiento, i.mov_rendimiento) IN ('TOTAL','EFECTIVA')              THEN 'Total'
@@ -155,8 +155,8 @@ export async function GET(req: Request) {
       -- Escalamiento N1
       LEFT JOIN LATERAL (
         SELECT
-          TO_CHAR(MIN(e.hora_envio_correo) AT TIME ZONE 'America/Lima', 'HH24:MI DD/MM/YYYY') AS enviado,
-          TO_CHAR(MIN(e.hora_respuesta)    AT TIME ZONE 'America/Lima', 'HH24:MI DD/MM/YYYY') AS respuesta,
+          TO_CHAR(MIN(e.hora_envio_correo) AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima', 'HH24:MI DD/MM/YYYY') AS enviado,
+          TO_CHAR(MIN(e.hora_respuesta)    AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima', 'HH24:MI DD/MM/YYYY') AS respuesta,
           MIN(e.hora_envio_correo)                                                              AS hora_envio_raw,
           MIN(e.hora_respuesta)                                                                 AS hora_respuesta_raw
         FROM escalamientos e
@@ -166,8 +166,8 @@ export async function GET(req: Request) {
       -- Escalamiento N2
       LEFT JOIN LATERAL (
         SELECT
-          TO_CHAR(MIN(e.hora_envio_correo) AT TIME ZONE 'America/Lima', 'HH24:MI DD/MM/YYYY') AS enviado,
-          TO_CHAR(MIN(e.hora_respuesta)    AT TIME ZONE 'America/Lima', 'HH24:MI DD/MM/YYYY') AS respuesta
+          TO_CHAR(MIN(e.hora_envio_correo) AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima', 'HH24:MI DD/MM/YYYY') AS enviado,
+          TO_CHAR(MIN(e.hora_respuesta)    AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima', 'HH24:MI DD/MM/YYYY') AS respuesta
         FROM escalamientos e
         WHERE e.incidente_id = i.id AND e.nivel = 2
       ) n2 ON true
@@ -175,8 +175,8 @@ export async function GET(req: Request) {
       -- Escalamiento N3
       LEFT JOIN LATERAL (
         SELECT
-          TO_CHAR(MIN(e.hora_envio_correo) AT TIME ZONE 'America/Lima', 'HH24:MI DD/MM/YYYY') AS enviado,
-          TO_CHAR(MIN(e.hora_respuesta)    AT TIME ZONE 'America/Lima', 'HH24:MI DD/MM/YYYY') AS respuesta
+          TO_CHAR(MIN(e.hora_envio_correo) AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima', 'HH24:MI DD/MM/YYYY') AS enviado,
+          TO_CHAR(MIN(e.hora_respuesta)    AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima', 'HH24:MI DD/MM/YYYY') AS respuesta
         FROM escalamientos e
         WHERE e.incidente_id = i.id AND e.nivel = 3
       ) n3 ON true

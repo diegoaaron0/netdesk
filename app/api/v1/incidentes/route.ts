@@ -14,9 +14,9 @@ export async function GET(req: NextRequest) {
     SELECT
       i.id,
       i.codigo,
-      TO_CHAR(i.hora_registro AT TIME ZONE 'America/Lima', 'YYYY-MM-DD')       AS fecha,
-      TO_CHAR(i.hora_registro AT TIME ZONE 'America/Lima', 'HH24:MI')          AS hora_inicio,
-      TO_CHAR(i.hora_fin     AT TIME ZONE 'America/Lima', 'HH24:MI')           AS hora_fin,
+      TO_CHAR(i.hora_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima', 'YYYY-MM-DD')       AS fecha,
+      TO_CHAR(i.hora_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima', 'HH24:MI')          AS hora_inicio,
+      TO_CHAR(i.hora_fin     AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima', 'HH24:MI')           AS hora_fin,
       i.mttr_minutos,
       i.tipo,
       i.estado,

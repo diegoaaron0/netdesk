@@ -32,15 +32,15 @@ export async function GET(req: Request) {
     const rows = await db.execute(sql`
       SELECT
         i.codigo,
-        TO_CHAR(i.hora_registro AT TIME ZONE 'America/Lima', 'DD/MM/YYYY')       AS fecha,
+        TO_CHAR(i.hora_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima', 'DD/MM/YYYY')       AS fecha,
         t.codigo                                                                   AS tienda_codigo,
         t.nombre_cc                                                                AS tienda_nombre_cc,
         t.distrito,
         COALESCE(pi.nombre, pt.nombre)                                             AS proveedor,
         i.tipo                                                                     AS tipo_incidente,
         i.estado,
-        TO_CHAR(i.hora_registro AT TIME ZONE 'America/Lima', 'HH24:MI')           AS hora_inicio,
-        TO_CHAR(i.hora_fin      AT TIME ZONE 'America/Lima', 'HH24:MI')           AS hora_resolucion,
+        TO_CHAR(i.hora_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima', 'HH24:MI')           AS hora_inicio,
+        TO_CHAR(i.hora_fin      AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima', 'HH24:MI')           AS hora_resolucion,
         i.mttr_minutos                                                             AS mttr_min,
 
         -- T. resolución proveedor (hora_fin − hora_primera_resp): reloj SLA real
