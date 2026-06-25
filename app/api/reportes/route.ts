@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
+import { ieiSum } from '@/lib/report-sql'
 
 export async function GET(req: Request) {
   const session = await auth()
@@ -33,19 +34,7 @@ export async function GET(req: Request) {
           AND i.estado = 'RESUELTO') * 100.0 /
           NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'), 0))::int AS sla_pct,
         COUNT(DISTINCT i.tienda_id)::int AS tiendas,
-        ROUND(SUM(
-          COALESCE(t.venta_hora_soles,
-            CASE t.cluster WHEN 'A' THEN 931 WHEN 'B' THEN 521
-              WHEN 'C' THEN 348 WHEN 'D' THEN 197 ELSE 0 END)
-          * (COALESCE(i.mttr_minutos, 0)::numeric / 60)
-          * 0.35
-          * CASE i.tipo
-              WHEN 'CAIDA_TOTAL'   THEN 1.00
-              WHEN 'INTERMITENCIA' THEN 0.75
-              WHEN 'LENTITUD'      THEN 0.30
-              WHEN 'POS'           THEN 0.40
-              ELSE 0.60 END
-        ))::int AS iei_total
+        ${sql.raw(ieiSum())} AS iei_total
       FROM incidentes i
       JOIN tiendas t ON i.tienda_id = t.id
       WHERE i.hora_registro >= ${desde}::timestamptz
@@ -132,19 +121,7 @@ export async function GET(req: Request) {
         COALESCE(pi.nombre, pt.nombre) AS proveedor,
         COUNT(i.id)::int AS total,
         ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int AS mttr_avg,
-        ROUND(SUM(
-          COALESCE(t.venta_hora_soles,
-            CASE t.cluster WHEN 'A' THEN 931 WHEN 'B' THEN 521
-              WHEN 'C' THEN 348 WHEN 'D' THEN 197 ELSE 0 END)
-          * (COALESCE(i.mttr_minutos, 0)::numeric / 60)
-          * 0.35
-          * CASE i.tipo
-              WHEN 'CAIDA_TOTAL'   THEN 1.00
-              WHEN 'INTERMITENCIA' THEN 0.75
-              WHEN 'LENTITUD'      THEN 0.30
-              WHEN 'POS'           THEN 0.40
-              ELSE 0.60 END
-        ))::int AS iei_acumulado
+        ${sql.raw(ieiSum())} AS iei_acumulado
       FROM incidentes i
       JOIN tiendas t ON i.tienda_id = t.id
       LEFT JOIN proveedores pi ON i.proveedor_id = pi.id

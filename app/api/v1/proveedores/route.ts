@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { apiKeyAuth, parseDateRange } from '@/lib/api-auth'
+import { ieiSum } from '@/lib/report-sql'
 
 export async function GET(req: NextRequest) {
   const authErr = apiKeyAuth(req)
@@ -44,49 +45,7 @@ export async function GET(req: NextRequest) {
       -- Tiendas
       COUNT(DISTINCT i.tienda_id)::int                                               AS tiendas_afectadas,
       -- IEI con factores 3-tier
-      ROUND(SUM(
-        COALESCE(
-          t.venta_hora_soles::numeric,
-          CASE t.cluster WHEN 'A' THEN 931 WHEN 'B' THEN 521
-            WHEN 'C' THEN 348 WHEN 'D' THEN 197 ELSE 0 END::numeric
-        )
-        * (COALESCE(i.mttr_minutos, 0)::numeric / 60)
-        * 0.35
-        * CASE i.tipo
-            WHEN 'CAIDA_TOTAL' THEN
-              CASE WHEN i.boleta_manual = true THEN 0.40
-                   WHEN i.cont_activado_por IS NOT NULL THEN
-                     CASE WHEN i.cont_rendimiento IN ('TOTAL','EFECTIVA')                    THEN 0.10
-                          WHEN i.cont_rendimiento IN ('PARCIAL','LIMITADA')                  THEN 0.30
-                          WHEN i.cont_rendimiento IN ('FALLIDA','NO_FUNCIONO','INOPERATIVA') THEN 1.00
-                          ELSE 0.25 END
-                   WHEN i.venta_parcial = true THEN 0.50
-                   ELSE 1.00 END
-            WHEN 'INTERMITENCIA' THEN
-              CASE WHEN i.cont_activado_por IS NOT NULL THEN
-                     CASE WHEN i.cont_rendimiento IN ('TOTAL','EFECTIVA')                    THEN 0.15
-                          WHEN i.cont_rendimiento IN ('PARCIAL','LIMITADA')                  THEN 0.25
-                          WHEN i.cont_rendimiento IN ('FALLIDA','NO_FUNCIONO','INOPERATIVA') THEN 0.75
-                          ELSE 0.25 END
-                   WHEN i.venta_parcial = true THEN 0.35
-                   ELSE 0.75 END
-            WHEN 'LENTITUD' THEN
-              CASE WHEN i.cont_activado_por IS NOT NULL THEN
-                     CASE WHEN i.cont_rendimiento IN ('TOTAL','EFECTIVA')                    THEN 0.10
-                          WHEN i.cont_rendimiento IN ('PARCIAL','LIMITADA')                  THEN 0.20
-                          WHEN i.cont_rendimiento IN ('FALLIDA','NO_FUNCIONO','INOPERATIVA') THEN 0.30
-                          ELSE 0.20 END
-                   WHEN i.venta_parcial = true THEN 0.25
-                   ELSE 0.30 END
-            WHEN 'POS' THEN
-              CASE WHEN i.cont_activado_por IS NOT NULL THEN
-                     CASE WHEN i.cont_rendimiento IN ('TOTAL','EFECTIVA')                    THEN 0.10
-                          WHEN i.cont_rendimiento IN ('PARCIAL','LIMITADA')                  THEN 0.20
-                          WHEN i.cont_rendimiento IN ('FALLIDA','NO_FUNCIONO','INOPERATIVA') THEN 0.40
-                          ELSE 0.20 END
-                   ELSE 0.40 END
-            ELSE 0.30 END
-      ))::int                                                                        AS iei_total_soles
+      ${sql.raw(ieiSum())}                                                           AS iei_total_soles
     FROM incidentes i
     JOIN tiendas t ON i.tienda_id = t.id
     LEFT JOIN fichas f ON f.id = COALESCE(i.ficha_id, t.ficha_activa_id)
