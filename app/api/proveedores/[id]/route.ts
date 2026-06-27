@@ -7,15 +7,6 @@ import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { logUnlessSchemaMissing } from '@/lib/db-errors'
 
-function calcEstado(fechaFin: string | null | undefined): 'VIGENTE' | 'POR_VENCER' | 'VENCIDO' {
-  if (!fechaFin) return 'VIGENTE'
-  const fin = new Date(fechaFin), hoy = new Date()
-  const en7 = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-  if (fin < hoy) return 'VENCIDO'
-  if (fin <= en7) return 'POR_VENCER'
-  return 'VIGENTE'
-}
-
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const session = await auth()

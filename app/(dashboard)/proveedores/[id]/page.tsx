@@ -3,6 +3,7 @@ import { useEffect, useState, use, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { apiMutate } from '@/lib/api-mutate'
+import { categoriaContrato, metaEstadoContrato, diasParaVencer, type CategoriaContrato } from '@/lib/contrato-estado'
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function fmtSoles(v: string | number | null | undefined) {
   if (v == null || v === '' || Number(v) === 0) return '—'
@@ -69,6 +70,8 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
   const [ieiPanelOpen, setIeiPanelOpen] = useState(false)
   const [panelMetrica, setPanelMetrica] = useState<string | null>(null)
   const [buscarT, setBuscarT] = useState('')
+  const [filtroVenc, setFiltroVenc] = useState<'TODAS' | CategoriaContrato>('TODAS')
+  const [ordenVenc, setOrdenVenc]   = useState(false) // true = próximas a vencer primero
 
   // Edit proveedor modal
   const [editProv, setEditProv]     = useState(false)
@@ -115,11 +118,24 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
   }
 
   const { metricas, niveles = [] } = data
-  const tiendasFiltradas = tiendas.filter(t => {
-    if (!buscarT) return true
-    const q = buscarT.toLowerCase()
-    return t.codigo?.toLowerCase().includes(q) || t.nombreCc?.toLowerCase().includes(q)
-  })
+  const tiendasFiltradas = tiendas
+    .filter(t => {
+      if (buscarT) {
+        const q = buscarT.toLowerCase()
+        if (!(t.codigo?.toLowerCase().includes(q) || t.nombreCc?.toLowerCase().includes(q))) return false
+      }
+      if (filtroVenc !== 'TODAS' && categoriaContrato(t.estadoContrato) !== filtroVenc) return false
+      return true
+    })
+    .sort((a, b) => {
+      if (!ordenVenc) return 0
+      const da = diasParaVencer(a.vencimientoFicha)
+      const db = diasParaVencer(b.vencimientoFicha)
+      if (da === null && db === null) return 0
+      if (da === null) return 1   // sin fecha al final
+      if (db === null) return -1
+      return da - db              // menos días (vencida / más cerca) primero
+    })
 
   const nivelContacto = niveles.find((n: any) => n.nivel === 1)
 
@@ -248,12 +264,33 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
       {/* ── Tab: Tiendas asignadas ────────────────────────────────────────────── */}
       {tab === 'tiendas' && (
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
             <input placeholder="Buscar por código o nombre..." value={buscarT}
               onChange={e => setBuscarT(e.target.value)}
-              style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', minWidth: '240px' }} />
+              style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', minWidth: '220px' }} />
+
+            {/* Chips de vencimiento */}
+            <div style={{ display: 'flex', gap: '4px' }}>
+              {([['TODAS', 'Todas'], ['ACTIVA', 'Activas'], ['POR_VENCER', 'Por vencer'], ['VENCIDA', 'Vencidas']] as const).map(([val, label]) => {
+                const activo = filtroVenc === val
+                return (
+                  <button key={val} onClick={() => setFiltroVenc(val)}
+                    style={{ padding: '5px 10px', fontSize: '11px', fontWeight: activo ? 600 : 400, borderRadius: '7px', cursor: 'pointer', whiteSpace: 'nowrap', border: `0.5px solid ${activo ? 'hsl(221,83%,33%)' : 'var(--border)'}`, background: activo ? 'hsl(221,83%,23%)' : 'var(--card)', color: activo ? '#fff' : 'var(--muted-foreground)' }}>
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Orden por vencimiento */}
+            <button onClick={() => setOrdenVenc(v => !v)}
+              title="Ordenar por fecha de vencimiento (más cercana primero)"
+              style={{ padding: '5px 10px', fontSize: '11px', fontWeight: ordenVenc ? 600 : 400, borderRadius: '7px', cursor: 'pointer', whiteSpace: 'nowrap', border: `0.5px solid ${ordenVenc ? 'hsl(221,83%,33%)' : 'var(--border)'}`, background: ordenVenc ? '#eef4ff' : 'var(--card)', color: ordenVenc ? 'hsl(221,83%,23%)' : 'var(--muted-foreground)' }}>
+              ↑ Próximas a vencer
+            </button>
+
             {!loadingT && (
-              <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap', marginLeft: 'auto' }}>
                 {tiendasFiltradas.length} tienda{tiendasFiltradas.length !== 1 ? 's' : ''}
                 {tiendasFiltradas.filter((t: any) => !t.fichaActiva).length > 0 && (
                   <span style={{ color: '#d97706', marginLeft: '6px' }}>· {tiendasFiltradas.filter((t: any) => !t.fichaActiva).length} sin ficha</span>
@@ -265,14 +302,14 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
               <thead>
                 <tr style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--muted)' }}>
-                  {['Tienda', 'Distrito', 'CID', 'Conexión', 'Cluster', 'Costo', 'Contingencia', 'Estado', 'Inc. 30d', 'Contrato SLA', ''].map(h => (
+                  {['Tienda', 'Distrito', 'CID', 'Conexión', 'Cluster', 'Costo', 'Contingencia', 'Estado', 'Inc. 30d', 'Vencimiento', 'Contrato SLA', ''].map(h => (
                     <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {loadingT && <tr><td colSpan={11} style={{ padding: '24px', textAlign: 'center', color: 'var(--muted-foreground)' }}>Cargando...</td></tr>}
-                {!loadingT && tiendasFiltradas.length === 0 && <tr><td colSpan={11} style={{ padding: '24px', textAlign: 'center', color: 'var(--muted-foreground)' }}>Sin tiendas</td></tr>}
+                {loadingT && <tr><td colSpan={12} style={{ padding: '24px', textAlign: 'center', color: 'var(--muted-foreground)' }}>Cargando...</td></tr>}
+                {!loadingT && tiendasFiltradas.length === 0 && <tr><td colSpan={12} style={{ padding: '24px', textAlign: 'center', color: 'var(--muted-foreground)' }}>Sin tiendas</td></tr>}
                 {!loadingT && tiendasFiltradas.map((t, i) => (
                   <tr key={t.id}
                     style={{ borderBottom: i < tiendasFiltradas.length - 1 ? '0.5px solid var(--border)' : 'none', cursor: 'pointer' }}
@@ -300,6 +337,21 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
                     </td>
                     <td style={{ padding: '8px 10px', textAlign: 'center' }}>
                       {t.incidentes30d > 0 ? <span style={{ fontWeight: 700, color: '#dc2626' }}>{t.incidentes30d}</span> : <span style={{ color: 'var(--muted-foreground)' }}>0</span>}
+                    </td>
+                    <td style={{ padding: '8px 10px' }}>
+                      {(() => {
+                        const meta = metaEstadoContrato(t.estadoContrato)
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <span style={{ fontSize: '10px', fontWeight: 600, padding: '1px 6px', borderRadius: '4px', background: meta.bg, color: meta.color, whiteSpace: 'nowrap', width: 'fit-content' }}>
+                              {meta.label}
+                            </span>
+                            {t.vencimientoFicha && (
+                              <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{fmtDate(t.vencimientoFicha)}</span>
+                            )}
+                          </div>
+                        )
+                      })()}
                     </td>
                     <td style={{ padding: '8px 10px' }}>
                       {t.contratoEspecifico ? (

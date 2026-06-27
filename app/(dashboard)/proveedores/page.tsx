@@ -23,15 +23,6 @@ function slaBg(v: number | null) {
   return '#fef2f2'
 }
 
-function estadoBadge(estado: string) {
-  const map: Record<string, { bg: string; color: string; label: string }> = {
-    VIGENTE:    { bg: '#d1fae5', color: '#065f46', label: 'Vigente' },
-    POR_VENCER: { bg: '#fef3c7', color: '#92400e', label: 'Por vencer' },
-    VENCIDO:    { bg: '#fee2e2', color: '#b91c1c', label: 'Vencido' },
-  }
-  return map[estado] ?? { bg: '#f3f4f6', color: '#6b7280', label: estado }
-}
-
 const SORT_OPTIONS = [
   { value: 'a-z',            label: 'A → Z' },
   { value: 'z-a',            label: 'Z → A' },
@@ -56,7 +47,7 @@ export default function ProveedoresPage() {
 
   const [lista, setLista]     = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [filtros, setFiltros] = useState({ buscar: '', tipoServicio: '', estadoContrato: '', plan: '', ordenar: '' })
+  const [filtros, setFiltros] = useState({ buscar: '', tipoServicio: '', plan: '', ordenar: '' })
   const [tiposServicio, setTiposServicio] = useState<string[]>([])
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
 
@@ -69,7 +60,6 @@ export default function ProveedoresPage() {
     const p = new URLSearchParams()
     if (filtros.buscar)         p.set('buscar',         filtros.buscar)
     if (filtros.tipoServicio)   p.set('tipoServicio',   filtros.tipoServicio)
-    if (filtros.estadoContrato) p.set('estadoContrato', filtros.estadoContrato)
     if (filtros.plan)           p.set('plan',           filtros.plan)
     if (filtros.ordenar)        p.set('ordenar',        filtros.ordenar)
     const res = await fetch(`/api/proveedores?${p}`)
@@ -96,7 +86,7 @@ export default function ProveedoresPage() {
     : null
 
   function setF(k: string, v: any) { setFiltros(f => ({ ...f, [k]: v })) }
-  const hayFiltros = filtros.buscar || filtros.tipoServicio || filtros.estadoContrato || filtros.plan || filtros.ordenar
+  const hayFiltros = filtros.buscar || filtros.tipoServicio || filtros.plan || filtros.ordenar
 
   async function handleCreate() {
     if (!form.nombre?.trim()) return
@@ -173,20 +163,13 @@ export default function ProveedoresPage() {
           <option value="">Tipo de servicio</option>
           {tiposServicio.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
-        <select value={filtros.estadoContrato} onChange={e => setF('estadoContrato', e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
-          <option value="">Estado contrato</option>
-          <option value="VIGENTE">Vigente</option>
-          <option value="POR_VENCER">Por vencer</option>
-          <option value="VENCIDO">Vencido</option>
-        </select>
         <select value={filtros.ordenar} onChange={e => setF('ordenar', e.target.value)}
           style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
           <option value="">Ordenar: A→Z</option>
           {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         {hayFiltros && (
-          <button onClick={() => setFiltros({ buscar: '', tipoServicio: '', estadoContrato: '', plan: '', ordenar: '' })}
+          <button onClick={() => setFiltros({ buscar: '', tipoServicio: '', plan: '', ordenar: '' })}
             style={{ padding: '6px 12px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', color: 'var(--muted-foreground)', cursor: 'pointer' }}>
             Limpiar
           </button>
@@ -207,19 +190,17 @@ export default function ProveedoresPage() {
               <th style={thStyle}>Costo/mes</th>
               <th style={{ ...thStyle, textAlign: 'center' }}>SLA Resp. 30d</th>
               <th style={{ ...thStyle, textAlign: 'center' }}>SLA Resol. 30d</th>
-              <th style={thStyle}>Contrato</th>
               <th style={thStyle}>Soporte</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
-              <tr><td colSpan={8} style={{ padding: '28px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Cargando...</td></tr>
+              <tr><td colSpan={7} style={{ padding: '28px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Cargando...</td></tr>
             )}
             {!loading && lista.length === 0 && (
-              <tr><td colSpan={8} style={{ padding: '28px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Sin resultados</td></tr>
+              <tr><td colSpan={7} style={{ padding: '28px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Sin resultados</td></tr>
             )}
             {!loading && lista.map((p, i) => {
-              const est    = estadoBadge(p.estadoContratoCalc)
               const sColor = slaColor(p.slaRespuesta)
               const sBg    = slaBg(p.slaRespuesta)
               const sColorR = slaColor(p.slaResolucion)
@@ -309,13 +290,6 @@ export default function ProveedoresPage() {
                     ) : (
                       <span style={{ color: 'var(--muted-foreground)', fontSize: '11px' }}>—</span>
                     )}
-                  </td>
-
-                  {/* Estado contrato */}
-                  <td style={{ padding: '10px 12px' }}>
-                    <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '5px', background: est.bg, color: est.color, whiteSpace: 'nowrap' }}>
-                      {est.label}
-                    </span>
                   </td>
 
                   {/* Soporte */}

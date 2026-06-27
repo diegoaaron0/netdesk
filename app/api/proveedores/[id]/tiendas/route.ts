@@ -5,6 +5,7 @@ import { eq, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { logUnlessSchemaMissing } from '@/lib/db-errors'
+import { calcEstadoContrato } from '@/lib/contrato-estado'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -52,6 +53,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
              f.cid_servicio, f.tipo_conexion, f.tipo_servicio, f.costo_mensual,
              f.velocidad, f.plan_aplicado, f.descripcion_servicio,
              f.vigencia_contrato, f.fecha_alta_servicio, f.estado_servicio,
+             f.fecha_fin, f.renovacion_automatica,
              f.tiempo_respuesta_sla, f.tiempo_resolucion_sla,
              (SELECT count(*)::int FROM fichas_niveles fn WHERE fn.ficha_id = f.id) AS total_niveles
       FROM fichas f
@@ -73,6 +75,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     vigenciaContrato:    fichaMap[t.id]?.vigencia_contrato     ?? null,
     fechaAltaServicio:   fichaMap[t.id]?.fecha_alta_servicio   ?? null,
     estadoServicio:      fichaMap[t.id]?.estado_servicio       ?? null,
+    vencimientoFicha:    fichaMap[t.id]?.fecha_fin             ?? null,
+    renovacionAutomatica: fichaMap[t.id]?.renovacion_automatica ?? false,
+    estadoContrato:      calcEstadoContrato(fichaMap[t.id]?.fecha_fin),
     incidentes30d:       incMap[t.id] ?? 0,
     fichaActiva:         fichaMap[t.id]
       ? { id: fichaMap[t.id].id, codigo: fichaMap[t.id].codigo, totalNiveles: fichaMap[t.id].total_niveles }
