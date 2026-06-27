@@ -50,7 +50,7 @@ const CAMPO_LABELS: Record<string, string> = {
   cidServicio: 'CID', tieneContingencia: 'Tiene contingencia', contingenciaActiva: 'Contingencia activa',
   contingenciaDescripcion: 'Desc. contingencia', contingenciaChip: 'Chip contingencia',
   contingenciaPaquete: 'Paquete contingencia', costoMensual: 'Costo mensual',
-  instruccionReporte: 'I.E.', contactoSoporte: 'Contacto soporte',
+  instruccionReporte: 'Instrucción específica', contactoSoporte: 'Contacto soporte',
   administradorNombre: 'Admin nombre', administradorEmail: 'Email',
   administradorCelular: 'Admin celular', proveedorId: 'Proveedor',
   ventaHoraSoles: 'Venta/hora S/.', formato: 'Formato', extras: 'Extras',
@@ -585,7 +585,7 @@ export default function TiendasPage() {
                 ['distrito',             'Distrito',          'text'],
                 ['provincia',            'Provincia',         'text'],
                 ['supervisorNombre',     'Supervisor',        'text'],
-                ['instruccionReporte',   'I.E.',              'textarea'],
+                ['instruccionReporte',   'Instrucción específica', 'textarea'],
                 ['administradorCelular', 'Admin celular',     'text'],
               ] as [string, string, string][]).map(([key, label, type]) => (
                 <div key={key} style={{ marginBottom: '10px' }}>

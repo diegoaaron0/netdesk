@@ -47,8 +47,7 @@ export default function ProveedoresPage() {
 
   const [lista, setLista]     = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [filtros, setFiltros] = useState({ buscar: '', tipoServicio: '', plan: '', ordenar: '' })
-  const [tiposServicio, setTiposServicio] = useState<string[]>([])
+  const [filtros, setFiltros] = useState({ buscar: '', plan: '', ordenar: '' })
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
 
   const [modal, setModal] = useState(false)
@@ -59,15 +58,12 @@ export default function ProveedoresPage() {
     setLoading(true)
     const p = new URLSearchParams()
     if (filtros.buscar)         p.set('buscar',         filtros.buscar)
-    if (filtros.tipoServicio)   p.set('tipoServicio',   filtros.tipoServicio)
     if (filtros.plan)           p.set('plan',           filtros.plan)
     if (filtros.ordenar)        p.set('ordenar',        filtros.ordenar)
     const res = await fetch(`/api/proveedores?${p}`)
     if (!res.ok) { setLoading(false); return }
     const data = await res.json()
     setLista(data)
-    const ts = Array.from(new Set(data.map((d: any) => d.tipoServicio).filter(Boolean))) as string[]
-    setTiposServicio(ts)
     setLoading(false)
   }, [filtros])
 
@@ -86,7 +82,7 @@ export default function ProveedoresPage() {
     : null
 
   function setF(k: string, v: any) { setFiltros(f => ({ ...f, [k]: v })) }
-  const hayFiltros = filtros.buscar || filtros.tipoServicio || filtros.plan || filtros.ordenar
+  const hayFiltros = filtros.buscar || filtros.plan || filtros.ordenar
 
   async function handleCreate() {
     if (!form.nombre?.trim()) return
@@ -158,18 +154,13 @@ export default function ProveedoresPage() {
         <input placeholder="Buscar proveedor..." value={filtros.buscar}
           onChange={e => setF('buscar', e.target.value)}
           style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', minWidth: '200px' }} />
-        <select value={filtros.tipoServicio} onChange={e => setF('tipoServicio', e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
-          <option value="">Tipo de servicio</option>
-          {tiposServicio.map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
         <select value={filtros.ordenar} onChange={e => setF('ordenar', e.target.value)}
           style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
           <option value="">Ordenar: A→Z</option>
           {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         {hayFiltros && (
-          <button onClick={() => setFiltros({ buscar: '', tipoServicio: '', plan: '', ordenar: '' })}
+          <button onClick={() => setFiltros({ buscar: '', plan: '', ordenar: '' })}
             style={{ padding: '6px 12px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', color: 'var(--muted-foreground)', cursor: 'pointer' }}>
             Limpiar
           </button>
@@ -223,11 +214,6 @@ export default function ProveedoresPage() {
                   <td style={{ padding: '10px 12px', minWidth: '160px' }}>
                     <div style={{ fontWeight: 700, fontSize: '12px', color: 'var(--foreground)' }}>{p.nombre}</div>
                     <div style={{ display: 'flex', gap: '5px', marginTop: '3px', flexWrap: 'wrap' }}>
-                      {p.tipoServicio && (
-                        <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: 'var(--muted)', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                          {p.tipoServicio}
-                        </span>
-                      )}
                       {(p.planContrato ?? p.planPrincipal) && (
                         <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: '#EEF4FF', color: '#185FA5', fontWeight: 600 }}>
                           {p.planContrato ?? p.planPrincipal}
@@ -325,7 +311,6 @@ export default function ProveedoresPage() {
             <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {([
                 ['nombre',          'Nombre *'],
-                ['tipoServicio',    'Tipo de servicio'],
                 ['planPrincipal',   'Plan principal'],
                 ['canalAtencion',   'Canal de atención'],
                 ['correoSoporte',   'Correo soporte'],
@@ -336,6 +321,12 @@ export default function ProveedoresPage() {
                   <input value={form[key] ?? ''} onChange={e => setForm((f: any) => ({ ...f, [key]: e.target.value }))} style={inp} />
                 </div>
               ))}
+              <div>
+                <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '3px' }}>Instrucción general</label>
+                <textarea value={form.instruccionGeneral ?? ''} onChange={e => setForm((f: any) => ({ ...f, instruccionGeneral: e.target.value }))}
+                  placeholder="Guía de escalamiento que verá el agente en el '?' al registrar un incidente"
+                  style={{ ...inp, minHeight: '60px', resize: 'vertical' }} />
+              </div>
               <div>
                 <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '3px' }}>Observaciones</label>
                 <textarea value={form.observaciones ?? ''} onChange={e => setForm((f: any) => ({ ...f, observaciones: e.target.value }))}

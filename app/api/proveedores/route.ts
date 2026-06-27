@@ -155,17 +155,28 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   if (!can(session, 'proveedores.editar')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   const body = await req.json()
+  if (!body.nombre?.trim()) {
+    return NextResponse.json({ error: 'El nombre del proveedor es obligatorio' }, { status: 400 })
+  }
   const baseValues: any = {
-    nombre:             body.nombre,
+    nombre:             body.nombre.trim(),
     correoSoporte:      body.correoSoporte      ?? null,
     telefonoSoporte:    body.telefonoSoporte    ?? null,
     instruccionGeneral: body.instruccionGeneral ?? null,
   }
-  const [p] = await db.insert(proveedores).values({
-    ...baseValues,
-    planPrincipal: body.planPrincipal ?? null,
-    canalAtencion: body.canalAtencion ?? null,
-    observaciones: body.observaciones ?? null,
-  }).returning()
-  return NextResponse.json(p, { status: 201 })
+  try {
+    const [p] = await db.insert(proveedores).values({
+      ...baseValues,
+      planPrincipal: body.planPrincipal ?? null,
+      canalAtencion: body.canalAtencion ?? null,
+      observaciones: body.observaciones ?? null,
+    }).returning()
+    return NextResponse.json(p, { status: 201 })
+  } catch (e: any) {
+    // 23505 = unique_violation (el nombre del proveedor es único)
+    if (e?.code === '23505' || /unique|duplicate/i.test(e?.message ?? '')) {
+      return NextResponse.json({ error: `Ya existe un proveedor llamado "${body.nombre.trim()}"` }, { status: 409 })
+    }
+    throw e
+  }
 }

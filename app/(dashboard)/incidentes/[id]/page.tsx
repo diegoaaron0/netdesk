@@ -517,9 +517,9 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               onMouseEnter={() => setShowGuia(true)}
               onMouseLeave={() => setShowGuia(false)}>
               <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '1.5px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help', fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.35)', userSelect: 'none' }}>?</div>
-              {inc.proveedorInstruccion && (
+              {((inc as any).tiendaInstruccion || inc.proveedorInstruccion) && (
                 <div style={{ position: 'absolute', top: '26px', right: 0, zIndex: 200, minWidth: '300px', opacity: showGuia ? 1 : 0, pointerEvents: showGuia ? 'auto' : 'none', transition: 'opacity 0.2s ease', boxShadow: '0 4px 16px rgba(0,0,0,0.3)', borderRadius: '10px', overflow: 'hidden' }}>
-                  <GuiaEscalamiento proveedor={inc.proveedorNombre} instruccion={inc.proveedorInstruccion} />
+                  <GuiaEscalamiento proveedor={inc.proveedorNombre} instruccion={(inc as any).tiendaInstruccion || inc.proveedorInstruccion} />
                 </div>
               )}
             </div>

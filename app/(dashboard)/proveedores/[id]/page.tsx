@@ -151,9 +151,6 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '20px', fontWeight: 700 }}>{data.nombre}</span>
-            {data.tipoServicio && (
-              <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '5px', background: 'var(--muted)', color: 'var(--muted-foreground)' }}>{data.tipoServicio}</span>
-            )}
           </div>
           {data.correoSoporte && <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{data.correoSoporte}{data.telefonoSoporte ? ` · ${data.telefonoSoporte}` : ''}</div>}
         </div>
@@ -203,7 +200,6 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
             <SectionTitle>Información general</SectionTitle>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
               <div><Label>Nombre</Label><Val v={data.nombre} /></div>
-              <div><Label>Tipo de servicio</Label><Val v={data.tipoServicio} /></div>
               <div><Label>Plan principal</Label><Val v={data.planPrincipal} /></div>
               <div><Label>Canal de atención</Label><Val v={data.canalAtencion} /></div>
             </div>
@@ -437,7 +433,6 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
           <FormGrid>
             {([
               ['nombre',             'Nombre *'],
-              ['tipoServicio',       'Tipo de servicio'],
               ['planPrincipal',      'Plan principal'],
               ['canalAtencion',      'Canal de atención'],
               ['correoSoporte',      'Correo soporte'],

@@ -38,7 +38,7 @@ const CAMPO_LABELS: Record<string, string> = {
   cidServicio: 'CID', tieneContingencia: 'Tiene contingencia', contingenciaActiva: 'Contingencia activa',
   contingenciaDescripcion: 'Desc. contingencia', contingenciaChip: 'Chip contingencia',
   contingenciaPaquete: 'Paquete contingencia', costoMensual: 'Costo mensual',
-  instruccionReporte: 'I.E.', contactoSoporte: 'Contacto soporte',
+  instruccionReporte: 'Instrucción específica', contactoSoporte: 'Contacto soporte',
   administradorNombre: 'Admin nombre', administradorEmail: 'Email',
   administradorCelular: 'Admin celular', proveedorId: 'Proveedor',
   ventaHoraSoles: 'Venta/hora S/.', formato: 'Formato', extras: 'Extras',
@@ -703,7 +703,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
             </div>
 
             <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '8px' }}>
-              <Field label="Instrucción específica (I.E.)" value={form.instruccionReporte ?? ''} editing={editing} onChange={v => setF('instruccionReporte', v)} type="textarea" />
+              <Field label="Instrucción específica" value={form.instruccionReporte ?? ''} editing={editing} onChange={v => setF('instruccionReporte', v)} type="textarea" />
             </div>
           </div>
 

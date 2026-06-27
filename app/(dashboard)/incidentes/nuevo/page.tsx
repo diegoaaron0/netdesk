@@ -218,9 +218,9 @@ export default function NuevoIncidentePage() {
                 onMouseEnter={() => setShowGuia(true)}
                 onMouseLeave={() => setShowGuia(false)}>
                 <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '1.5px solid var(--border)', background: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help', fontSize: '11px', fontWeight: 700, color: 'var(--muted-foreground)', userSelect: 'none' }}>?</div>
-                {tienda?.proveedor?.instruccionGeneral && (
+                {(tienda?.instruccionReporte || tienda?.proveedor?.instruccionGeneral) && (
                   <div style={{ position: 'absolute', top: '26px', right: 0, zIndex: 200, minWidth: '300px', opacity: showGuia ? 1 : 0, pointerEvents: showGuia ? 'auto' : 'none', transition: 'opacity 0.2s ease', boxShadow: '0 4px 16px rgba(0,0,0,0.15)', borderRadius: '10px', overflow: 'hidden' }}>
-                    <GuiaEscalamiento proveedor={tienda.proveedor.nombre} instruccion={tienda.proveedor.instruccionGeneral} />
+                    <GuiaEscalamiento proveedor={tienda.proveedor?.nombre ?? '—'} instruccion={tienda.instruccionReporte || tienda.proveedor?.instruccionGeneral || ''} />
                   </div>
                 )}
               </div>
