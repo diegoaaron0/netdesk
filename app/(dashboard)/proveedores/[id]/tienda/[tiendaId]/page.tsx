@@ -72,12 +72,21 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
 
   const [data, setData]               = useState<any>(null)
   const [fichaActiva, setFichaActiva] = useState<any>(null)
+  const [periodos, setPeriodos]       = useState<any[]>([])
+  const [cmpView, setCmpView]         = useState<'gestion' | 'actual'>('gestion')
 
   useEffect(() => {
     fetch(`/api/proveedores/${id}/tienda/${tiendaId}`)
       .then(r => r.json())
       .then(d => { if (d.tienda) setData(d) })
   }, [id, tiendaId])
+
+  useEffect(() => {
+    fetch(`/api/tiendas/${tiendaId}/periodos`)
+      .then(r => r.json())
+      .then(d => setPeriodos(Array.isArray(d) ? d : []))
+      .catch(() => setPeriodos([]))
+  }, [tiendaId])
 
   useEffect(() => {
     fetch(`/api/fichas?tiendaId=${tiendaId}&estado=ACTIVA`)
@@ -118,6 +127,61 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
           </h1>
         </div>
       </div>
+
+      {/* Comparativa: su gestión ↔ cómo está hoy (desempeño global) */}
+      {(() => {
+        const gestion = periodos.find((p: any) => p.proveedorId === id)
+        const actual  = periodos.find((p: any) => p.esActual)
+        if (!gestion) return null
+        const hayComparacion = !!actual && actual.proveedorId !== gestion.proveedorId
+        const sel = (hayComparacion && cmpView === 'actual') ? actual : gestion
+        const mt = sel.metricas ?? {}
+        const fmtFecha = (f: string | null) => { if (!f) return null; const [y, m, d] = f.split('-'); return `${d}/${m}/${y}` }
+        const ini = fmtFecha(sel.fechaInicio), fin = fmtFecha(sel.fechaFin)
+        const rango = sel.esActual ? (ini ? `desde ${ini}` : 'vigente') : (ini && fin ? `${ini} – ${fin}` : ini ? `desde ${ini}` : fin ? `hasta ${fin}` : 'sin fechas de ficha')
+        const cell = (label: string, value: string, color?: string) => (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span style={{ fontSize: '9px', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</span>
+            <span style={{ fontSize: '14px', fontWeight: 700, color: color ?? 'var(--foreground)' }}>{value}</span>
+          </div>
+        )
+        const tabBtn = (key: 'gestion' | 'actual', label: string, sub: string) => {
+          const on = cmpView === key
+          return (
+            <button onClick={() => setCmpView(key)}
+              style={{ flex: 1, padding: '7px 10px', border: 'none', borderRadius: '7px', cursor: 'pointer', textAlign: 'left',
+                background: on ? 'hsl(221,83%,23%)' : 'var(--muted)', color: on ? 'white' : 'var(--foreground)' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700 }}>{label}</div>
+              <div style={{ fontSize: '9px', opacity: 0.8 }}>{sub}</div>
+            </button>
+          )
+        }
+        return (
+          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '10px', flexWrap: 'wrap' }}>
+              <SectionTitle>Desempeño global en esta tienda{hayComparacion ? '' : ' — su gestión'}</SectionTitle>
+              <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{sel.nombre} · {rango}</span>
+            </div>
+            {hayComparacion && (
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                {tabBtn('gestion', `Su gestión — ${gestion.nombre}`, 'cuando era su tienda')}
+                {tabBtn('actual', `Actual — ${actual.nombre}`, 'cómo está hoy')}
+              </div>
+            )}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px 16px' }}>
+              {cell('SLA Respuesta',  mt.scoreRespuestaPromedio  != null ? `${mt.scoreRespuestaPromedio}%`  : '—', slaColor(mt.scoreRespuestaPromedio  ?? null))}
+              {cell('SLA Resolución', mt.scoreResolucionPromedio != null ? `${mt.scoreResolucionPromedio}%` : '—', slaColor(mt.scoreResolucionPromedio ?? null))}
+              {cell('MTTR promedio',  mt.mttrPromedio != null ? fmtMttr(mt.mttrPromedio) : '—')}
+              {cell('T. resp. prom.',  mt.tRespuestaPromedio  != null ? `${mt.tRespuestaPromedio} min`  : '—')}
+              {cell('T. resol. prom.', mt.tResolucionPromedio != null ? `${mt.tResolucionPromedio} min` : '—')}
+              {cell('Impacto est.', mt.impactoEstimado != null ? fmtSoles(mt.impactoEstimado) : '—', '#dc2626')}
+            </div>
+            <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '10px', paddingTop: '8px', borderTop: '0.5px solid var(--border)' }}>
+              {mt.totalEvaluables ?? 0} de {mt.totalResueltos ?? 0} evaluados · {mt.totalIncidentes ?? 0} incidente{(mt.totalIncidentes ?? 0) !== 1 ? 's' : ''} en total
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Main layout */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>

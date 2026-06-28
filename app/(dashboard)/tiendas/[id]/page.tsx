@@ -155,7 +155,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
   const [ieiPanelOpen, setIeiPanelOpen] = useState(false)
   const [historialOpen, setHistorialOpen] = useState(false)
   const [provHistOpen, setProvHistOpen] = useState(false)
-  const [provHist, setProvHist] = useState<any[]>([])
+  const [periodos, setPeriodos] = useState<any[]>([])
   const [ventasExpanded, setVentasExpanded] = useState(false)
   const [editingVentas, setEditingVentas] = useState(false)
   const [ventaMensualInput, setVentaMensualInput] = useState('')
@@ -189,9 +189,9 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
     fetch(`/api/tiendas/historial?tiendaId=${id}`).then(r => r.json()).then(d => {
       setHistorial(Array.isArray(d) ? d : [])
     })
-    fetch(`/api/tiendas/historial-proveedores?tiendaId=${id}`).then(r => r.json()).then(d => {
-      setProvHist(Array.isArray(d) ? d : [])
-    })
+    fetch(`/api/tiendas/${id}/periodos`).then(r => r.json()).then(d => {
+      setPeriodos(Array.isArray(d) ? d : [])
+    }).catch(() => setPeriodos([]))
     fetch('/api/proveedores').then(r => r.json()).then(d => {
       setProveedores(Array.isArray(d) ? d : [])
     })
@@ -941,7 +941,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
             style={{ width: '100%', background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '10px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left' }}>
             <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Historial de proveedores</span>
             <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
-              {provHist.length > 0 ? `${provHist.length} cambio${provHist.length !== 1 ? 's' : ''}` : 'Sin cambios'} →
+              {periodos.length > 0 ? `${periodos.length} proveedor${periodos.length !== 1 ? 'es' : ''}` : 'Sin datos'} →
             </span>
           </button>
         </div>
@@ -1069,34 +1069,56 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
           <div style={{ fontSize: '13px', fontWeight: 600 }}>Historial de proveedores — {tienda?.codigo}</div>
           <button onClick={() => setProvHistOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--muted-foreground)', lineHeight: 1 }}>✕</button>
         </div>
-        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {provHist.length === 0 ? (
-            <div style={{ textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px', padding: '32px 0' }}>Sin cambios de proveedor registrados</div>
-          ) : provHist.map((h: any) => {
-            const fecha = h.editadoEn
-              ? new Date(h.editadoEn).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-              : '—'
-            return (
-              <div key={h.id} style={{ background: 'var(--background)', borderRadius: '8px', padding: '10px 12px', border: '0.5px solid var(--border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px', flexWrap: 'wrap' }}>
-                  {h.anteriorNombre
-                    ? <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--muted-foreground)', textDecoration: 'line-through' }}>{h.anteriorNombre}</span>
-                    : <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>Sin proveedor</span>
-                  }
-                  <span style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>→</span>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--foreground)' }}>{h.nuevoNombre ?? '—'}</span>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {periodos.length === 0 ? (
+            <div style={{ textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px', padding: '32px 0' }}>Sin proveedores registrados para esta tienda</div>
+          ) : (() => {
+            const slaCol = (s: number | null) => s == null ? 'var(--muted-foreground)' : s >= 80 ? '#16a34a' : s >= 60 ? '#d97706' : '#dc2626'
+            const fmtFecha = (f: string | null) => {
+              if (!f) return null
+              const [y, m, d] = f.split('-')
+              return `${d}/${m}/${y}`
+            }
+            return periodos.map((p: any) => {
+              const mt = p.metricas ?? {}
+              const ini = fmtFecha(p.fechaInicio)
+              const fin = fmtFecha(p.fechaFin)
+              const rango = p.esActual
+                ? (ini ? `desde ${ini}` : null)
+                : (ini && fin ? `${ini} – ${fin}` : ini ? `desde ${ini}` : fin ? `hasta ${fin}` : null)
+              const stat = (label: string, value: string, color?: string) => (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                  <span style={{ fontSize: '9px', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: color ?? 'var(--foreground)' }}>{value}</span>
                 </div>
-                {h.via && (
-                  <div style={{ fontSize: '10px', color: '#7C3AED', fontWeight: 500, marginBottom: '3px', fontFamily: 'monospace' }}>
-                    vía {h.via}
+              )
+              return (
+                <div key={p.proveedorId} style={{ background: 'var(--background)', borderRadius: '10px', padding: '12px 13px', border: p.esActual ? '1px solid #16a34a55' : '0.5px solid var(--border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '2px' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--foreground)' }}>{p.nombre ?? '—'}</span>
+                    {p.esActual
+                      ? <span style={{ fontSize: '9px', fontWeight: 700, color: '#16a34a', background: '#16a34a18', padding: '2px 7px', borderRadius: '999px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Actual</span>
+                      : <span style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', background: 'var(--muted)', padding: '2px 7px', borderRadius: '999px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Histórico</span>
+                    }
                   </div>
-                )}
-                <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>
-                  {fecha} · por <strong>{h.usuarioNombre ?? 'Sistema'}</strong>
+                  <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '9px' }}>
+                    {rango ?? 'Sin fechas de ficha'} · desempeño global
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px 12px' }}>
+                    {stat('SLA Respuesta',  mt.scoreRespuestaPromedio  != null ? `${mt.scoreRespuestaPromedio}%`  : '—', slaCol(mt.scoreRespuestaPromedio  ?? null))}
+                    {stat('SLA Resolución', mt.scoreResolucionPromedio != null ? `${mt.scoreResolucionPromedio}%` : '—', slaCol(mt.scoreResolucionPromedio ?? null))}
+                    {stat('T. resp. prom.',  mt.tRespuestaPromedio  != null ? `${mt.tRespuestaPromedio} min`  : '—')}
+                    {stat('T. resol. prom.', mt.tResolucionPromedio != null ? `${mt.tResolucionPromedio} min` : '—')}
+                    {stat('MTTR prom.', mt.mttrPromedio != null ? `${mt.mttrPromedio} min` : '—')}
+                    {stat('Impacto est.', mt.impactoEstimado != null ? `S/ ${Math.round(mt.impactoEstimado).toLocaleString('es-PE')}` : '—', '#dc2626')}
+                  </div>
+                  <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '9px', paddingTop: '7px', borderTop: '0.5px solid var(--border)' }}>
+                    {mt.totalEvaluables ?? 0} de {mt.totalResueltos ?? 0} evaluados · {mt.totalIncidentes ?? 0} incidente{(mt.totalIncidentes ?? 0) !== 1 ? 's' : ''} en total
+                  </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })
+          })()}
         </div>
       </div>
 
