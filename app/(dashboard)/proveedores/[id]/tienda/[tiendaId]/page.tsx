@@ -73,13 +73,15 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
   const [data, setData]               = useState<any>(null)
   const [fichaActiva, setFichaActiva] = useState<any>(null)
   const [periodos, setPeriodos]       = useState<any[]>([])
-  const [cmpView, setCmpView]         = useState<'gestion' | 'actual'>('gestion')
+  // Proveedor cuya vista se está mostrando: por defecto el de la URL ("su gestión"),
+  // o el actual de la tienda si se cambia el toggle. Reescopa TODA la página.
+  const [viewProvId, setViewProvId]   = useState(id)
 
   useEffect(() => {
-    fetch(`/api/proveedores/${id}/tienda/${tiendaId}`)
+    fetch(`/api/proveedores/${viewProvId}/tienda/${tiendaId}`)
       .then(r => r.json())
-      .then(d => { if (d.tienda) setData(d) })
-  }, [id, tiendaId])
+      .then(d => { if (d.tienda) setData(d) })  // no limpiamos data: evita el flash de "Cargando" al alternar
+  }, [viewProvId, tiendaId])
 
   useEffect(() => {
     fetch(`/api/tiendas/${tiendaId}/periodos`)
@@ -103,13 +105,17 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
     : metricas?.incidentes30d === 2 ? { bg: '#fef3c7', color: '#92400e' }
     : { bg: '#d1fae5', color: '#065f46' }
 
+  // Nombres: el proveedor de la URL (dueño de la página) y el que se está viendo (según toggle)
+  const gestionNombre = periodos.find((p: any) => p.proveedorId === id)?.nombre ?? tienda.proveedorNombre
+  const viewNombre    = periodos.find((p: any) => p.proveedorId === viewProvId)?.nombre ?? tienda.proveedorNombre
+
   return (
     <div>
       {/* Breadcrumb */}
       <div style={{ marginBottom: '4px', fontSize: '11px', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '6px' }}>
         <span style={{ cursor: 'pointer' }} onClick={() => router.push('/proveedores')}>Proveedores</span>
         <span>›</span>
-        <span style={{ cursor: 'pointer' }} onClick={() => router.push(`/proveedores/${id}`)}>{tienda.proveedorNombre ?? '…'}</span>
+        <span style={{ cursor: 'pointer' }} onClick={() => router.push(`/proveedores/${id}`)}>{gestionNombre ?? '…'}</span>
         <span>›</span>
         <span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--foreground)' }}>{tienda.codigo}</span>
       </div>
@@ -122,62 +128,37 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
         </button>
         <div style={{ flex: 1 }}>
           <h1 style={{ margin: 0, fontSize: '17px', fontWeight: 700 }}>
-            {tienda.proveedorNombre} en <span style={{ fontFamily: 'monospace' }}>{tienda.codigo}</span>
+            {viewNombre} en <span style={{ fontFamily: 'monospace' }}>{tienda.codigo}</span>
             {tienda.nombreCc ? ` — ${tienda.nombreCc}` : ''}
           </h1>
         </div>
       </div>
 
-      {/* Comparativa: su gestión ↔ cómo está hoy (desempeño global) */}
+      {/* Toggle: ver la tienda como la gestionó este proveedor ↔ cómo está hoy.
+          Reescopa TODA la página (datos del servicio, rendimiento, incidentes). */}
       {(() => {
         const gestion = periodos.find((p: any) => p.proveedorId === id)
         const actual  = periodos.find((p: any) => p.esActual)
-        if (!gestion) return null
-        const hayComparacion = !!actual && actual.proveedorId !== gestion.proveedorId
-        const sel = (hayComparacion && cmpView === 'actual') ? actual : gestion
-        const mt = sel.metricas ?? {}
-        const fmtFecha = (f: string | null) => { if (!f) return null; const [y, m, d] = f.split('-'); return `${d}/${m}/${y}` }
-        const ini = fmtFecha(sel.fechaInicio), fin = fmtFecha(sel.fechaFin)
-        const rango = sel.esActual ? (ini ? `desde ${ini}` : 'vigente') : (ini && fin ? `${ini} – ${fin}` : ini ? `desde ${ini}` : fin ? `hasta ${fin}` : 'sin fechas de ficha')
-        const cell = (label: string, value: string, color?: string) => (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-            <span style={{ fontSize: '9px', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</span>
-            <span style={{ fontSize: '14px', fontWeight: 700, color: color ?? 'var(--foreground)' }}>{value}</span>
-          </div>
-        )
-        const tabBtn = (key: 'gestion' | 'actual', label: string, sub: string) => {
-          const on = cmpView === key
+        if (!gestion || !actual || actual.proveedorId === gestion.proveedorId) return null
+        const tabBtn = (provId: string, label: string, sub: string) => {
+          const on = viewProvId === provId
           return (
-            <button onClick={() => setCmpView(key)}
-              style={{ flex: 1, padding: '7px 10px', border: 'none', borderRadius: '7px', cursor: 'pointer', textAlign: 'left',
+            <button onClick={() => setViewProvId(provId)}
+              style={{ flex: 1, padding: '8px 12px', border: 'none', borderRadius: '8px', cursor: 'pointer', textAlign: 'left',
                 background: on ? 'hsl(221,83%,23%)' : 'var(--muted)', color: on ? 'white' : 'var(--foreground)' }}>
-              <div style={{ fontSize: '11px', fontWeight: 700 }}>{label}</div>
-              <div style={{ fontSize: '9px', opacity: 0.8 }}>{sub}</div>
+              <div style={{ fontSize: '12px', fontWeight: 700 }}>{label}</div>
+              <div style={{ fontSize: '10px', opacity: 0.85 }}>{sub}</div>
             </button>
           )
         }
         return (
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '14px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '10px', flexWrap: 'wrap' }}>
-              <SectionTitle>Desempeño global en esta tienda{hayComparacion ? '' : ' — su gestión'}</SectionTitle>
-              <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{sel.nombre} · {rango}</span>
+          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '12px 14px', marginBottom: '14px' }}>
+            <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '9px' }}>
+              Ver la tienda como
             </div>
-            {hayComparacion && (
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                {tabBtn('gestion', `Su gestión — ${gestion.nombre}`, 'cuando era su tienda')}
-                {tabBtn('actual', `Actual — ${actual.nombre}`, 'cómo está hoy')}
-              </div>
-            )}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px 16px' }}>
-              {cell('SLA Respuesta',  mt.scoreRespuestaPromedio  != null ? `${mt.scoreRespuestaPromedio}%`  : '—', slaColor(mt.scoreRespuestaPromedio  ?? null))}
-              {cell('SLA Resolución', mt.scoreResolucionPromedio != null ? `${mt.scoreResolucionPromedio}%` : '—', slaColor(mt.scoreResolucionPromedio ?? null))}
-              {cell('MTTR promedio',  mt.mttrPromedio != null ? fmtMttr(mt.mttrPromedio) : '—')}
-              {cell('T. resp. prom.',  mt.tRespuestaPromedio  != null ? `${mt.tRespuestaPromedio} min`  : '—')}
-              {cell('T. resol. prom.', mt.tResolucionPromedio != null ? `${mt.tResolucionPromedio} min` : '—')}
-              {cell('Impacto est.', mt.impactoEstimado != null ? fmtSoles(mt.impactoEstimado) : '—', '#dc2626')}
-            </div>
-            <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '10px', paddingTop: '8px', borderTop: '0.5px solid var(--border)' }}>
-              {mt.totalEvaluables ?? 0} de {mt.totalResueltos ?? 0} evaluados · {mt.totalIncidentes ?? 0} incidente{(mt.totalIncidentes ?? 0) !== 1 ? 's' : ''} en total
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {tabBtn(gestion.proveedorId, `Su gestión — ${gestion.nombre}`, 'cuando era su tienda')}
+              {tabBtn(actual.proveedorId, `Actual — ${actual.nombre}`, 'cómo está hoy')}
             </div>
           </div>
         )
