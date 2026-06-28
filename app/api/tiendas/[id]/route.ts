@@ -129,6 +129,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     scoreRespuestaPromedio: null, tRespuestaPromedio: null,
     scoreResolucionPromedio: null, tResolucionPromedio: null,
     totalEvaluables: 0,
+    totalResueltos: 0,
   }
   try {
     const { calcSLARow } = await import('@/lib/sla-core')
@@ -187,7 +188,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       if (!res.evaluable) continue
       totalEsc++
       scoreRespSum += res.scoreRespuesta ?? 0
-      if (res.scoreResolucion != null) { scoreResolSum += res.scoreResolucion; scoreResolCount++ }
+      // Solo promediar resolución cuando hubo tiempo de resolución medible.
+      // Un incidente "sin respuesta" tiene scoreResolucion = 0 pero tResolucionMin = null:
+      // no se cuenta para no arrastrar la resolución a 0% sin dato real → se muestra "—".
+      if (res.scoreResolucion != null && res.tResolucionMin != null) { scoreResolSum += res.scoreResolucion; scoreResolCount++ }
       if (res.tPrimeraRespuestaMin != null) { tRespSum += res.tPrimeraRespuestaMin; tRespCount++ }
       if (res.tResolucionMin != null) { tResolSum += res.tResolucionMin; tResolCount++ }
     }
@@ -197,6 +201,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       scoreResolucionPromedio: scoreResolCount > 0 ? Math.round(scoreResolSum / scoreResolCount) : null,
       tResolucionPromedio:     tResolCount   > 0 ? Math.round(tResolSum     / tResolCount)     : null,
       totalEvaluables: totalEsc,
+      totalResueltos:  (slaRows as any[]).length,
     }
   } catch (e) { logUnlessSchemaMissing('tiendas/[id]', e) }
 

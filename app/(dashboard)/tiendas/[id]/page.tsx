@@ -867,7 +867,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
           {/* SLA (30d) */}
           {tienda && (
             <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
-              <SectionTitle>SLA proveedor (30d){tienda.slaTienda?.totalEvaluables > 0 ? ` — ${tienda.slaTienda.totalEvaluables} inc. eval.` : ''}</SectionTitle>
+              <SectionTitle>SLA proveedor (30d){(tienda.slaTienda?.totalResueltos ?? 0) > 0 ? ` — ${tienda.slaTienda.totalEvaluables} de ${tienda.slaTienda.totalResueltos} evaluados` : ''}</SectionTitle>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {[
                   { label: 'SLA Respuesta',      value: tienda.slaTienda?.scoreRespuestaPromedio  != null ? `${tienda.slaTienda.scoreRespuestaPromedio}%`  : '—', score: tienda.slaTienda?.scoreRespuestaPromedio  ?? null },
