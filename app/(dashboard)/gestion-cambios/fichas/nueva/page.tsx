@@ -39,11 +39,12 @@ export default function NuevaFichaPage() {
     fetch('/api/proveedores').then(r => r.json()).then(d => setProveedores(Array.isArray(d) ? d : []))
   }, [])
 
-  // Auto-fill proveedor cuando se selecciona tienda
+  // Auto-fill proveedor con el actual de la tienda SOLO si no viene ya uno (p. ej. el
+  // proveedor nuevo cuando se crea la ficha desde un cambio de proveedor — no pisarlo).
   useEffect(() => {
     if (!form.tiendaId) return
     const t = tiendas.find((t: any) => t.id === form.tiendaId)
-    if (t?.proveedorId) setForm(p => ({ ...p, proveedorId: t.proveedorId }))
+    if (t?.proveedorId) setForm(p => (p.proveedorId ? p : { ...p, proveedorId: t.proveedorId }))
   }, [form.tiendaId, tiendas])
 
   function set(k: string, v: any) { setForm(p => ({ ...p, [k]: v })) }
