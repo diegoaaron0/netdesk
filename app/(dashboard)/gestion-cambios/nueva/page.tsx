@@ -1,6 +1,6 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 const TIPO_LABELS: Record<string, string> = {
   CAMBIO_PROVEEDOR:       'Cambio de proveedor',
@@ -24,8 +24,11 @@ const lbl: React.CSSProperties = {
   letterSpacing: '0.07em', marginBottom: '4px',
 }
 
-export default function NuevaAccionPage() {
+function NuevaAccionForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const editId = searchParams.get('id')          // si viene, estamos EDITANDO un borrador
+  const isEdit = !!editId
 
   const [tipo,      setTipo]      = useState('CAMBIO_PROVEEDOR')
   const [alcance,   setAlcance]   = useState<'TIENDA'|'ZONA'>('TIENDA')
@@ -51,6 +54,29 @@ export default function NuevaAccionPage() {
     fetch('/api/proveedores').then(r => r.json()).then(d => setProveedores(Array.isArray(d) ? d : []))
   }, [])
 
+  // Modo edición: cargar el borrador y precargar todos los campos
+  useEffect(() => {
+    if (!editId) return
+    fetch(`/api/gestion-cambios/${editId}`)
+      .then(r => r.json())
+      .then(d => {
+        if (!d?.id) return
+        if (d.estado !== 'BORRADOR') { setError('Solo se pueden editar acciones en estado Borrador'); return }
+        setTipo(d.tipo ?? 'CAMBIO_PROVEEDOR')
+        setAlcance(d.alcance === 'ZONA' ? 'ZONA' : 'TIENDA')
+        setTitulo(d.titulo ?? '')
+        setMotivo(d.motivo ?? '')
+        setDesc(d.descripcion ?? '')
+        setTiendaId(d.tiendaId ?? '')
+        setZonaDesc(d.zonaDescripcion ?? '')
+        setProvAntId(d.proveedorAnteriorId ?? '')
+        setProvNvoId(d.proveedorNuevoId ?? '')
+        setFechaPlan(d.fechaEjecucionPlanificada ?? '')
+        if (Array.isArray(d.tiendasScope)) setTiendaIds(d.tiendasScope.map((t: any) => t.tiendaId))
+      })
+      .catch(() => setError('No se pudo cargar la acción a editar'))
+  }, [editId])
+
   // Auto-cargar snapshot cuando se selecciona tienda y auto-rellenar proveedor anterior
   useEffect(() => {
     if (!tiendaId || alcance !== 'TIENDA') { setSnap(null); return }
@@ -74,9 +100,12 @@ export default function NuevaAccionPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!titulo.trim() || !motivo.trim()) { setError('Título y motivo son requeridos'); return }
+    // Todos los campos son obligatorios (la descripción adicional es lo único opcional)
+    if (!titulo.trim() || !motivo.trim()) { setError('Completa título y motivo'); return }
     if (alcance === 'TIENDA' && !tiendaId) { setError('Selecciona una tienda'); return }
-    if (alcance === 'ZONA' && tiendaIds.length === 0) { setError('Selecciona al menos una tienda para la zona'); return }
+    if (alcance === 'ZONA' && (tiendaIds.length === 0 || !zonaDesc.trim())) { setError('Indica el nombre de la zona y al menos una tienda'); return }
+    if (TIPOS_CON_PROVEEDOR.has(tipo) && (!provAntId || !provNvoId)) { setError('Indica el proveedor anterior y el nuevo'); return }
+    if (!fechaPlan) { setError('Indica la fecha de ejecución planificada'); return }
 
     setSaving(true); setError('')
     const body: any = {
@@ -86,29 +115,26 @@ export default function NuevaAccionPage() {
       fechaEjecucionPlanificada: fechaPlan || null,
       proveedorAnteriorId: provAntId || null,
       proveedorNuevoId:    provNvoId || null,
+      tiendaId:        alcance === 'TIENDA' ? tiendaId : null,
+      tiendaIds:       alcance === 'ZONA'   ? tiendaIds : [],
+      zonaDescripcion: alcance === 'ZONA'   ? (zonaDesc.trim() || null) : null,
     }
-    if (alcance === 'TIENDA') {
-      body.tiendaId = tiendaId
-      if (snap) {
-        body.snapPeriodoDias  = 90
-        body.snapSlaPct       = snap.slaRespuestaPct
-        body.snapMttrMin      = snap.mttrMin
-        body.snapIei          = snap.ieiAcumulado
-        body.snapNincidentes  = snap.totalIncidentes
-        body.snapDetalle      = snap
-      }
-    } else {
-      body.tiendaIds      = tiendaIds
-      body.zonaDescripcion = zonaDesc.trim() || null
+    if (alcance === 'TIENDA' && snap) {
+      body.snapPeriodoDias  = 90
+      body.snapSlaPct       = snap.slaRespuestaPct
+      body.snapMttrMin      = snap.mttrMin
+      body.snapIei          = snap.ieiAcumulado
+      body.snapNincidentes  = snap.totalIncidentes
+      body.snapDetalle      = snap
     }
 
-    const res = await fetch('/api/gestion-cambios', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+    const res = await fetch(isEdit ? `/api/gestion-cambios/${editId}` : '/api/gestion-cambios', {
+      method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) { setError(data.error ?? `Error ${res.status}`); setSaving(false); return }
-    router.push(`/gestion-cambios/${data.id}`)
+    router.push(`/gestion-cambios/${isEdit ? editId : data.id}`)
   }
 
   const tiendaSeleccionada = tiendas.find(t => t.id === tiendaId)
@@ -118,8 +144,8 @@ export default function NuevaAccionPage() {
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
         <button onClick={() => router.back()} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted-foreground)', fontSize: '18px', lineHeight: 1 }}>←</button>
         <div>
-          <h1 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Nueva acción de gestión</h1>
-          <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '2px 0 0' }}>Se guardará como Borrador</p>
+          <h1 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>{isEdit ? 'Editar acción de gestión' : 'Nueva acción de gestión'}</h1>
+          <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '2px 0 0' }}>{isEdit ? 'Editando un borrador' : 'Se guardará como Borrador'}</p>
         </div>
       </div>
 
@@ -263,7 +289,7 @@ export default function NuevaAccionPage() {
 
           {/* Fecha planificada */}
           <div>
-            <label style={lbl}>Fecha de ejecución planificada (opcional)</label>
+            <label style={lbl}>Fecha de ejecución planificada</label>
             <input type="date" value={fechaPlan} onChange={e => setFechaPlan(e.target.value)} style={{ ...inp, width: 'auto' }} />
           </div>
 
@@ -278,11 +304,19 @@ export default function NuevaAccionPage() {
             </button>
             <button type="submit" disabled={saving}
               style={{ padding: '8px 20px', fontSize: '12px', fontWeight: 600, background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '7px', cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.6 : 1 }}>
-              {saving ? 'Guardando…' : 'Guardar borrador'}
+              {saving ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Guardar borrador'}
             </button>
           </div>
         </div>
       </form>
     </div>
+  )
+}
+
+export default function NuevaAccionPage() {
+  return (
+    <Suspense fallback={null}>
+      <NuevaAccionForm />
+    </Suspense>
   )
 }

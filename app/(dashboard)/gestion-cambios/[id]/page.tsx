@@ -256,9 +256,9 @@ export default function AccionDetallePage() {
                       disabled={actBusy || faltaFicha}
                       title={faltaFicha ? 'Adjunta la ficha del nuevo proveedor para poder proponer' : ''}
                       style={btnStyle(!faltaFicha)}>Enviar a aprobación</button>
-                    <button onClick={() => router.push(`/gestion-cambios/nueva`)} disabled={actBusy}
+                    <button onClick={() => router.push(`/gestion-cambios/nueva?id=${accion.id}`)} disabled={actBusy}
                       style={{ ...btnStyle(false), background: 'var(--muted)', color: 'var(--foreground)', border: '0.5px solid var(--border)' }}>
-                      Editar (crear nueva)
+                      Editar
                     </button>
                   </>
                 )
@@ -412,7 +412,7 @@ export default function AccionDetallePage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '12px' }}>
             <div><span style={{ color: 'var(--muted-foreground)' }}>Registrado por</span><br /><strong>{accion.creadoPorNombre}</strong> <span style={{ color: 'var(--muted-foreground)', fontSize: '11px' }}>({accion.creadoPorRol})</span></div>
             <div><span style={{ color: 'var(--muted-foreground)' }}>Creado</span><br /><strong>{fmtFechaHora(accion.creadoEn)}</strong></div>
-            {accion.fechaEjecucionPlanificada && <div><span style={{ color: 'var(--muted-foreground)' }}>Ejecución planificada</span><br /><strong>{fmtFecha(accion.fechaEjecucionPlanificada)}</strong></div>}
+            <div><span style={{ color: 'var(--muted-foreground)' }}>Ejecución planificada</span><br /><strong>{accion.fechaEjecucionPlanificada ? fmtFecha(accion.fechaEjecucionPlanificada) : '—'}</strong></div>
             {accion.aprobadoPorNombre && <div><span style={{ color: 'var(--muted-foreground)' }}>Aprobado por</span><br /><strong>{accion.aprobadoPorNombre}</strong> · {fmtFechaHora(accion.aprobadoEn)}</div>}
             {accion.ejecutadoPorNombre && <div><span style={{ color: 'var(--muted-foreground)' }}>Ejecutado por</span><br /><strong>{accion.ejecutadoPorNombre}</strong> · {fmtFechaHora(accion.ejecutadoEn)}</div>}
             {accion.rechazadoMotivo && <div style={{ gridColumn: 'span 2' }}><span style={{ color: '#991B1B' }}>Motivo de rechazo:</span><br /><strong style={{ color: '#991B1B' }}>{accion.rechazadoMotivo}</strong></div>}

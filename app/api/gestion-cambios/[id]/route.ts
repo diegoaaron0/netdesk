@@ -132,7 +132,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 const EDITABLE = new Set([
+  'tipo', 'alcance',
   'titulo', 'descripcion', 'motivo', 'zonaDescripcion',
+  'tiendaId', 'proveedorAnteriorId', 'proveedorNuevoId',
   'fechaEjecucionPlanificada', 'notasEjecucion',
   'snapPeriodoDias', 'snapSlaPct', 'snapMttrMin', 'snapIei', 'snapNincidentes', 'snapDetalle',
   'inputTienda', 'routerExternoId',
@@ -163,6 +165,21 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     .set(patch as any)
     .where(eq(accionesGestion.id, id))
     .returning()
+
+  // Re-sincronizar tiendas de scope (alcance ZONA): se reemplazan por completo
+  if (Array.isArray(body.tiendaIds)) {
+    await db.delete(accionesGestionTiendas).where(eq(accionesGestionTiendas.accionId, id))
+    if (body.alcance === 'ZONA' && body.tiendaIds.length > 0) {
+      await db.insert(accionesGestionTiendas).values(
+        (body.tiendaIds as string[]).map(tid => ({
+          accionId:            id,
+          tiendaId:            tid,
+          proveedorAnteriorId: body.proveedorAnteriorId || null,
+          proveedorNuevoId:    body.proveedorNuevoId    || null,
+        }))
+      )
+    }
+  }
 
   return NextResponse.json(updated)
 }
