@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import {
   accionesGestion, accionesGestionTiendas,
-  tiendas, proveedores, usuarios, routersExternos,
+  tiendas, proveedores, usuarios, routersExternos, fichas,
 } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
@@ -11,6 +11,7 @@ import { can } from '@/lib/permisos'
 
 const provAnterior = alias(proveedores, 'prov_anterior')
 const provNuevo    = alias(proveedores, 'prov_nuevo')
+const fichaNueva   = alias(fichas,      'ficha_nueva')
 const creadoPor    = alias(usuarios,    'creado_por')
 const aprobadoPor  = alias(usuarios,    'aprobado_por')
 const ejecutadoPor = alias(usuarios,    'ejecutado_por')
@@ -79,6 +80,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     proveedorAnteriorNombre:  provAnterior.nombre,
     proveedorNuevoId:         accionesGestion.proveedorNuevoId,
     proveedorNuevoNombre:     provNuevo.nombre,
+    // Ficha adjunta (se elige al proponer, se activa al ejecutar)
+    fichaNuevaId:             accionesGestion.fichaNuevaId,
+    fichaNuevaCodigo:         fichaNueva.codigo,
     // Router
     routerExternoId:          accionesGestion.routerExternoId,
     routerCodigo:             routersExternos.codigo,
@@ -96,6 +100,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .leftJoin(tiendas,         eq(accionesGestion.tiendaId,            tiendas.id))
     .leftJoin(provAnterior,    eq(accionesGestion.proveedorAnteriorId, provAnterior.id))
     .leftJoin(provNuevo,       eq(accionesGestion.proveedorNuevoId,    provNuevo.id))
+    .leftJoin(fichaNueva,      eq(accionesGestion.fichaNuevaId,        fichaNueva.id))
     .leftJoin(routersExternos, eq(accionesGestion.routerExternoId,     routersExternos.id))
     .leftJoin(creadoPor,       eq(accionesGestion.creadoPorId,         creadoPor.id))
     .leftJoin(aprobadoPor,     eq(accionesGestion.aprobadoPorId,       aprobadoPor.id))

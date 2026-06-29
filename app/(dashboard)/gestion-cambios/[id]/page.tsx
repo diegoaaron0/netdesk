@@ -103,10 +103,11 @@ export default function AccionDetallePage() {
   useEffect(() => { fetchAccion() }, [fetchAccion])
 
   useEffect(() => {
+    // La ficha se elige al PROPONER (estado BORRADOR), filtrada por el proveedor nuevo.
     if (!accion || accion.tipo !== 'CAMBIO_PROVEEDOR') return
-    if (accion.estado !== 'APROBADO') return
-    if (!accion.tiendaId) return
-    fetch(`/api/fichas?tiendaId=${accion.tiendaId}&estado=BORRADOR`)
+    if (accion.estado !== 'BORRADOR') return
+    if (!accion.tiendaId || !accion.proveedorNuevoId) return
+    fetch(`/api/fichas?tiendaId=${accion.tiendaId}&proveedorId=${accion.proveedorNuevoId}&estado=BORRADOR`)
       .then(r => r.json())
       .then(rows => {
         const list = Array.isArray(rows) ? rows : []
@@ -114,7 +115,7 @@ export default function AccionDetallePage() {
         if (list.length === 1) setSelectedFichaId(list[0].id)
       })
       .catch(() => {})
-  }, [accion?.tipo, accion?.tiendaId, accion?.estado])
+  }, [accion?.tipo, accion?.tiendaId, accion?.proveedorNuevoId, accion?.estado])
 
   async function doEliminar() {
     if (!confirm(`¿Eliminar el borrador ${accion?.codigo}? Esta acción no se puede deshacer.`)) return
@@ -199,59 +200,18 @@ export default function AccionDetallePage() {
         {accion.estado === 'BORRADOR' && (isInfra || isGerencia || accion.creadoPorId === userId) && (
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px' }}>
             <div style={{ fontSize: '11px', fontWeight: 600, marginBottom: '10px' }}>Acciones disponibles</div>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-              {isInfra && (
-                <>
-                  <button onClick={() => doAction('proponer')} disabled={actBusy} style={btnStyle(true)}>Enviar a aprobación</button>
-                  <button onClick={() => router.push(`/gestion-cambios/nueva`)} disabled={actBusy}
-                    style={{ ...btnStyle(false), background: 'var(--muted)', color: 'var(--foreground)', border: '0.5px solid var(--border)' }}>
-                    Editar (crear nueva)
-                  </button>
-                </>
-              )}
-              {(accion.creadoPorId === userId || isGerencia || ['SUPERVISOR'].includes(userRol)) && (
-                <button onClick={doEliminar} disabled={deleteBusy || actBusy}
-                  style={{ ...btnStyle(true, '#991B1B'), marginLeft: 'auto', opacity: deleteBusy ? 0.6 : 1 }}>
-                  {deleteBusy ? 'Eliminando…' : 'Eliminar borrador'}
-                </button>
-              )}
-            </div>
-          </div>
-        )}
 
-        {accion.estado === 'PROPUESTO' && puedeAprobar && (
-          <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '10px', padding: '14px' }}>
-            <div style={{ fontSize: '11px', fontWeight: 700, color: '#1D4ED8', marginBottom: '10px' }}>Pendiente de tu aprobación</div>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-              <button onClick={() => doAction('aprobar')} disabled={actBusy} style={btnStyle(true, '#15803D')}>Aprobar</button>
-              <button onClick={() => setShowRechaza(v => !v)} disabled={actBusy} style={btnStyle(true, '#991B1B')}>Rechazar</button>
-            </div>
-            {showRechaza && (
-              <div style={{ marginTop: '10px' }}>
-                <textarea value={rechazaMotivo} onChange={e => setRechazaMotivo(e.target.value)}
-                  placeholder="Motivo del rechazo…" rows={2}
-                  style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
-                <button onClick={() => doAction('rechazar', { rechazadoMotivo: rechazaMotivo })} disabled={actBusy || !rechazaMotivo.trim()}
-                  style={{ ...btnStyle(!!rechazaMotivo.trim(), '#991B1B'), marginTop: '6px' }}>Confirmar rechazo</button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {accion.estado === 'APROBADO' && puedeEjecutar && (
-          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px' }}>
-            <div style={{ fontSize: '11px', fontWeight: 600, marginBottom: '8px' }}>Listo para ejecutar</div>
-
-            {accion.tipo === 'CAMBIO_PROVEEDOR' && (
+            {/* CAMBIO_PROVEEDOR: la ficha del nuevo proveedor se adjunta AHORA (obligatoria para proponer) */}
+            {accion.tipo === 'CAMBIO_PROVEEDOR' && isInfra && (
               <div style={{ marginBottom: '12px' }}>
                 <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>
-                  Ficha de servicio nueva
-                  <span style={{ fontSize: '9px', fontWeight: 400, textTransform: 'none', marginLeft: '4px' }}>(se activará automáticamente al ejecutar)</span>
+                  Ficha del nuevo proveedor *
+                  <span style={{ fontSize: '9px', fontWeight: 400, textTransform: 'none', marginLeft: '4px' }}>(obligatoria — se activará al ejecutar)</span>
                 </label>
                 {fichasDisponibles.length === 0 ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: '7px', fontSize: '11px', color: '#C2410C' }}>
                     <span>⚠</span>
-                    <span>No hay fichas en borrador para esta tienda.</span>
+                    <span>No hay fichas en borrador del proveedor nuevo. Crea una para poder proponer.</span>
                     <button
                       onClick={() => router.push(`/gestion-cambios/fichas/nueva?tiendaId=${accion.tiendaId}&proveedorId=${accion.proveedorNuevoId ?? ''}`)}
                       style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 600, padding: '3px 8px', borderRadius: '5px', background: '#7C3AED', color: '#fff', border: 'none', cursor: 'pointer' }}>
@@ -286,25 +246,80 @@ export default function AccionDetallePage() {
               </div>
             )}
 
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+              {isInfra && (() => {
+                const faltaFicha = accion.tipo === 'CAMBIO_PROVEEDOR' && !selectedFichaId
+                return (
+                  <>
+                    <button
+                      onClick={() => doAction('proponer', { fichaNuevaId: selectedFichaId || null })}
+                      disabled={actBusy || faltaFicha}
+                      title={faltaFicha ? 'Adjunta la ficha del nuevo proveedor para poder proponer' : ''}
+                      style={btnStyle(!faltaFicha)}>Enviar a aprobación</button>
+                    <button onClick={() => router.push(`/gestion-cambios/nueva`)} disabled={actBusy}
+                      style={{ ...btnStyle(false), background: 'var(--muted)', color: 'var(--foreground)', border: '0.5px solid var(--border)' }}>
+                      Editar (crear nueva)
+                    </button>
+                  </>
+                )
+              })()}
+              {(accion.creadoPorId === userId || isGerencia || ['SUPERVISOR'].includes(userRol)) && (
+                <button onClick={doEliminar} disabled={deleteBusy || actBusy}
+                  style={{ ...btnStyle(true, '#991B1B'), marginLeft: 'auto', opacity: deleteBusy ? 0.6 : 1 }}>
+                  {deleteBusy ? 'Eliminando…' : 'Eliminar borrador'}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {accion.estado === 'PROPUESTO' && puedeAprobar && (
+          <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '10px', padding: '14px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: '#1D4ED8', marginBottom: '10px' }}>Pendiente de tu aprobación</div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+              <button onClick={() => doAction('aprobar')} disabled={actBusy} style={btnStyle(true, '#15803D')}>Aprobar</button>
+              <button onClick={() => setShowRechaza(v => !v)} disabled={actBusy} style={btnStyle(true, '#991B1B')}>Rechazar</button>
+            </div>
+            {showRechaza && (
+              <div style={{ marginTop: '10px' }}>
+                <textarea value={rechazaMotivo} onChange={e => setRechazaMotivo(e.target.value)}
+                  placeholder="Motivo del rechazo…" rows={2}
+                  style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
+                <button onClick={() => doAction('rechazar', { rechazadoMotivo: rechazaMotivo })} disabled={actBusy || !rechazaMotivo.trim()}
+                  style={{ ...btnStyle(!!rechazaMotivo.trim(), '#991B1B'), marginTop: '6px' }}>Confirmar rechazo</button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {accion.estado === 'APROBADO' && puedeEjecutar && (
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 600, marginBottom: '8px' }}>Listo para ejecutar</div>
+
+            {accion.tipo === 'CAMBIO_PROVEEDOR' && (
+              <div style={{ marginBottom: '12px', padding: '8px 10px', background: '#F5F3FF', border: '1px solid #DDD6FE', borderRadius: '7px' }}>
+                <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '3px' }}>
+                  Ficha que se activará
+                </div>
+                <div style={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 700, color: '#7C3AED' }}>{accion.fichaNuevaCodigo ?? '—'}</div>
+                <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Adjuntada al proponer el cambio.</div>
+              </div>
+            )}
+
             <div style={{ marginBottom: '10px' }}>
               <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Notas de ejecución (opcional)</label>
               <textarea value={notasEjec} onChange={e => setNotasEjec(e.target.value)} rows={2} placeholder="Coordinaciones con proveedor, hora exacta, incidencias…"
                 style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
             </div>
             <button
-              onClick={() => doAction('ejecutar', { notasEjecucion: notasEjec, fichaNuevaId: selectedFichaId || null })}
-              disabled={actBusy || (accion.tipo === 'CAMBIO_PROVEEDOR' && fichasDisponibles.length > 0 && !selectedFichaId)}
-              style={btnStyle(!(accion.tipo === 'CAMBIO_PROVEEDOR' && fichasDisponibles.length > 0 && !selectedFichaId), '#7E22CE')}>
+              onClick={() => doAction('ejecutar', { notasEjecucion: notasEjec })}
+              disabled={actBusy}
+              style={btnStyle(true, '#7E22CE')}>
               Ejecutar y completar
             </button>
-            {accion.tipo === 'CAMBIO_PROVEEDOR' && selectedFichaId && (
+            {accion.tipo === 'CAMBIO_PROVEEDOR' && (
               <div style={{ fontSize: '10px', color: '#7E22CE', marginTop: '6px' }}>
-                Actualizará el proveedor de la tienda y activará la ficha seleccionada.
-              </div>
-            )}
-            {accion.tipo === 'CAMBIO_PROVEEDOR' && !selectedFichaId && fichasDisponibles.length === 0 && (
-              <div style={{ fontSize: '10px', color: '#C2410C', marginTop: '6px' }}>
-                Puedes ejecutar sin ficha — el proveedor se actualizará igualmente.
+                Actualizará el proveedor de la tienda y activará la ficha {accion.fichaNuevaCodigo ?? ''}.
               </div>
             )}
           </div>

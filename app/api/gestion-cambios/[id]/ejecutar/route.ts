@@ -26,7 +26,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const body = await req.json().catch(() => ({}))
   const notasEjecucion: string = body.notasEjecucion?.trim() ?? ''
-  const fichaNuevaId:   string | null = body.fichaNuevaId ?? null
 
   const [accion] = await db.select({
     id:                  accionesGestion.id,
@@ -36,6 +35,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     tiendaId:            accionesGestion.tiendaId,
     proveedorAnteriorId: accionesGestion.proveedorAnteriorId,
     proveedorNuevoId:    accionesGestion.proveedorNuevoId,
+    fichaNuevaId:        accionesGestion.fichaNuevaId,
     titulo:              accionesGestion.titulo,
     codigo:              accionesGestion.codigo,
   }).from(accionesGestion).where(eq(accionesGestion.id, id))
@@ -43,6 +43,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!accion) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
   if (accion.estado !== 'APROBADO')
     return NextResponse.json({ error: 'La acción debe estar APROBADA para ejecutarse' }, { status: 409 })
+
+  // La ficha se adjunta al PROPONER. En CAMBIO_PROVEEDOR es obligatoria: no se ejecuta sin ella.
+  const fichaNuevaId: string | null = accion.fichaNuevaId ?? null
+  if (accion.tipo === 'CAMBIO_PROVEEDOR' && !fichaNuevaId)
+    return NextResponse.json({ error: 'La acción no tiene ficha del nuevo proveedor. Vuelve a proponerla adjuntando la ficha.' }, { status: 409 })
 
   const ejecutadoPorId = (session.user as any)?.id
   const ahora          = new Date()

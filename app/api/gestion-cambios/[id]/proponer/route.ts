@@ -1,25 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { accionesGestion, usuarios } from '@/drizzle/schema'
+import { accionesGestion, usuarios, fichas } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { sendMail } from '@/lib/mailer'
 
-export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   if (!can(session, 'gestion-cambios.crear')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
-  const [current] = await db.select({ estado: accionesGestion.estado, titulo: accionesGestion.titulo })
-    .from(accionesGestion).where(eq(accionesGestion.id, id))
+  const body = await req.json().catch(() => ({}))
+  const fichaNuevaId: string | null = body.fichaNuevaId ?? null
+
+  const [current] = await db.select({
+    estado:           accionesGestion.estado,
+    titulo:           accionesGestion.titulo,
+    tipo:             accionesGestion.tipo,
+    tiendaId:         accionesGestion.tiendaId,
+    proveedorNuevoId: accionesGestion.proveedorNuevoId,
+  }).from(accionesGestion).where(eq(accionesGestion.id, id))
   if (!current) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
   if (current.estado !== 'BORRADOR')
     return NextResponse.json({ error: 'Solo se puede proponer desde BORRADOR' }, { status: 409 })
 
+  // CAMBIO_PROVEEDOR: la ficha del nuevo proveedor es OBLIGATORIA y se adjunta aquí, al proponer.
+  let fichaParaGuardar: string | undefined = undefined
+  if (current.tipo === 'CAMBIO_PROVEEDOR') {
+    if (!fichaNuevaId)
+      return NextResponse.json({ error: 'Debes adjuntar la ficha del nuevo proveedor antes de proponer' }, { status: 400 })
+    const [f] = await db.select({
+      tiendaId: fichas.tiendaId, proveedorId: fichas.proveedorId, estado: fichas.estado,
+    }).from(fichas).where(eq(fichas.id, fichaNuevaId)).limit(1)
+    if (!f)
+      return NextResponse.json({ error: 'La ficha indicada no existe' }, { status: 400 })
+    if (f.tiendaId !== current.tiendaId)
+      return NextResponse.json({ error: 'La ficha no pertenece a la tienda de la acción' }, { status: 400 })
+    if (current.proveedorNuevoId && f.proveedorId !== current.proveedorNuevoId)
+      return NextResponse.json({ error: 'La ficha no corresponde al proveedor nuevo' }, { status: 400 })
+    if (f.estado !== 'BORRADOR')
+      return NextResponse.json({ error: 'La ficha debe estar en BORRADOR (se activará al ejecutar)' }, { status: 400 })
+    fichaParaGuardar = fichaNuevaId
+  }
+
   const [updated] = await db.update(accionesGestion)
-    .set({ estado: 'PROPUESTO', actualizadoEn: new Date() })
+    .set({ estado: 'PROPUESTO', fichaNuevaId: fichaParaGuardar, actualizadoEn: new Date() })
     .where(eq(accionesGestion.id, id))
     .returning()
 
