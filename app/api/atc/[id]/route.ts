@@ -16,6 +16,26 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   if ('notas' in body) fields.notas = body.notas ?? null
 
+  // Corrección manual de horas de la llamada (no toca el escalamiento)
+  if ('inicio' in body || 'fin' in body) {
+    const [existing] = await db.select({ inicio: atcLlamadas.inicio, fin: atcLlamadas.fin })
+      .from(atcLlamadas).where(eq(atcLlamadas.id, id))
+    const nuevoInicio = 'inicio' in body
+      ? (body.inicio ? new Date(body.inicio) : existing?.inicio ?? null)  // inicio es NOT NULL: si llega vacío, se conserva
+      : existing?.inicio ?? null
+    const nuevoFin = 'fin' in body
+      ? (body.fin ? new Date(body.fin) : null)
+      : existing?.fin ?? null
+    if ('inicio' in body && body.inicio) fields.inicio = nuevoInicio
+    if ('fin' in body) fields.fin = nuevoFin
+    if (nuevoInicio && nuevoFin) {
+      const d = Math.round((new Date(nuevoFin).getTime() - new Date(nuevoInicio).getTime()) / 60000)
+      fields.duracionMin = d >= 0 ? d : null
+    } else {
+      fields.duracionMin = null
+    }
+  }
+
   if (body.finalizar) {
     const [existing] = await db.select({ inicio: atcLlamadas.inicio, escalamientoId: atcLlamadas.escalamientoId })
       .from(atcLlamadas).where(eq(atcLlamadas.id, id))

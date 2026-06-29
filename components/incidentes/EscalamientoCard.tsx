@@ -9,10 +9,17 @@ import { parseEtaMin } from '@/lib/sla-core'
 const IcoTrashEsc = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
 const IcoPhone  = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.43A2 2 0 0 1 3.6 1.25h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.84a16 16 0 0 0 6.07 6.07l.96-1.06a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
 
-function AtcLlamadaRow({ atc, isClosed, onFin, onSaveNotas, onDelete }: {
-  atc: any; isClosed: boolean; onFin: () => void; onSaveNotas: (n: string) => void; onDelete: () => void
+function AtcLlamadaRow({ atc, isClosed, onFin, onSaveNotas, onSaveHoras, onDelete }: {
+  atc: any; isClosed: boolean; onFin: () => void; onSaveNotas: (n: string) => void; onSaveHoras: (inicio: string, fin: string) => void; onDelete: () => void
 }) {
   const [notas, setNotas] = useState(atc.notas ?? '')
+  const [editHoras, setEditHoras] = useState(false)
+  const [inicioEdit, setInicioEdit] = useState(toDatetimeLocal(atc.inicio))
+  const [finEdit, setFinEdit] = useState(toDatetimeLocal(atc.fin))
+  useEffect(() => {
+    if (!editHoras) { setInicioEdit(toDatetimeLocal(atc.inicio)); setFinEdit(toDatetimeLocal(atc.fin)) }
+  }, [atc.inicio, atc.fin, editHoras])
+
   const inicio = new Date(atc.inicio).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
   const finHora = atc.fin ? new Date(atc.fin).toLocaleTimeString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit' }) : null
   return (
@@ -26,6 +33,10 @@ function AtcLlamadaRow({ atc, isClosed, onFin, onSaveNotas, onDelete }: {
             : <span style={{ fontSize: '10px', color: '#15803d', fontWeight: 500 }}>● En curso</span>}
         </div>
         <div style={{ display: 'flex', gap: '4px' }}>
+          {!isClosed && (
+            <button onClick={() => setEditHoras(v => !v)} title="Editar horas de la llamada"
+              style={{ width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: editHoras ? '#dbeafe' : 'rgba(0,0,0,0.06)', border: `1px solid ${editHoras ? '#93c5fd' : 'var(--border)'}`, borderRadius: '4px', color: editHoras ? '#1d4ed8' : 'var(--muted-foreground)', cursor: 'pointer', fontSize: '11px' }}>✎</button>
+          )}
           {!atc.fin && !isClosed && (
             <button onClick={onFin} style={{ padding: '2px 8px', fontSize: '10px', background: '#fee2e2', color: '#b91c1c', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '4px', cursor: 'pointer' }}>
               ■ Finalizar
@@ -38,6 +49,27 @@ function AtcLlamadaRow({ atc, isClosed, onFin, onSaveNotas, onDelete }: {
           )}
         </div>
       </div>
+      {editHoras && !isClosed && (
+        <div style={{ marginBottom: '8px', padding: '8px 12px', background: '#eff6ff', borderRadius: '8px', border: '1px solid #93c5fd', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div style={{ fontSize: '10px', fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Corregir horas de la llamada</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            <div>
+              <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '3px' }}>Inicio</div>
+              <input type="datetime-local" value={inicioEdit} onChange={e => setInicioEdit(e.target.value)}
+                style={{ width: '100%', padding: '4px 6px', fontSize: '11px', border: '1px solid #93c5fd', borderRadius: '6px', background: 'white', outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '3px' }}>Fin</div>
+              <input type="datetime-local" value={finEdit} onChange={e => setFinEdit(e.target.value)}
+                style={{ width: '100%', padding: '4px 6px', fontSize: '11px', border: '1px solid #93c5fd', borderRadius: '6px', background: 'white', outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+          </div>
+          <button onClick={() => { onSaveHoras(inicioEdit, finEdit); setEditHoras(false) }}
+            style={{ padding: '5px', background: '#1d4ed8', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>
+            Guardar horas
+          </button>
+        </div>
+      )}
       <textarea value={notas} onChange={e => setNotas(e.target.value)} onBlur={() => onSaveNotas(notas)}
         placeholder="Notas de la llamada..."
         disabled={isClosed}
@@ -170,6 +202,15 @@ export function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
     const { ok } = await apiMutate(`/api/atc/${atcId}`, { method: 'PUT', json: { finalizar: true }, errorPrefix: 'No se pudo finalizar la llamada' })
     if (!ok) return
     onRefresh()
+  }
+
+  async function guardarHorasAtc(atcId: string, inicio: string, fin: string) {
+    const { ok } = await apiMutate(`/api/atc/${atcId}`, {
+      method: 'PUT',
+      json: { inicio: fromDatetimeLocal(inicio), fin: fromDatetimeLocal(fin) },
+      errorPrefix: 'No se pudieron guardar las horas de la llamada',
+    })
+    if (ok) onRefresh()
   }
 
   async function guardarNotasAtc(atcId: string, notas: string) {
@@ -406,6 +447,7 @@ export function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
                 <AtcLlamadaRow key={atc.id} atc={atc} isClosed={isClosed}
                   onFin={() => finalizarAtc(atc.id)}
                   onSaveNotas={notas => guardarNotasAtc(atc.id, notas)}
+                  onSaveHoras={(inicio, fin) => guardarHorasAtc(atc.id, inicio, fin)}
                   onDelete={() => eliminarAtc(atc.id)}
                 />
               ))}
