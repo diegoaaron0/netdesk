@@ -9,7 +9,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  if (!can(session, 'gestion-cambios.crear')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  if (!can(session, 'gestion-cambios.crear') && !can(session, 'gestion-cambios.aprobar'))
+    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const body = await req.json().catch(() => ({}))
   const periodo: 30 | 90 = body.periodo === 90 ? 90 : 30
@@ -22,9 +23,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }).from(accionesGestion).where(eq(accionesGestion.id, id))
 
   if (!accion) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
-  if (!['EN_EVALUACION', 'COMPLETADO'].includes(accion.estado))
+  if (accion.estado !== 'COMPLETADO')
     return NextResponse.json({ error: 'Estado no permite resetear evaluación' }, { status: 409 })
 
+  // Resetear una evaluación solo limpia sus métricas; el estado se mantiene COMPLETADO.
   const patch: Record<string, any> = { actualizadoEn: new Date() }
 
   if (periodo === 30) {
@@ -37,7 +39,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     patch.eval30Detalle     = null
     patch.eval30Nota        = null
     patch.penalidadEstimada = null
-    patch.estado            = 'EJECUTADO'
   } else {
     patch.eval90Completada  = false
     patch.eval90Fecha       = null
@@ -48,7 +49,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     patch.eval90Detalle     = null
     patch.eval90Nota        = null
     patch.penalidadEstimada = null
-    patch.estado            = 'EN_EVALUACION'
   }
 
   const [updated] = await db.update(accionesGestion)

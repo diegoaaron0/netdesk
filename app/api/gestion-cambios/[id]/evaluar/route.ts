@@ -136,7 +136,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  if (!can(session, 'gestion-cambios.crear')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  if (!can(session, 'gestion-cambios.crear') && !can(session, 'gestion-cambios.aprobar'))
+    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   try {
   const body = await req.json().catch(() => ({}))
@@ -154,8 +155,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }).from(accionesGestion).where(eq(accionesGestion.id, id))
 
   if (!accion) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
-  if (!['EJECUTADO', 'EN_EVALUACION'].includes(accion.estado))
-    return NextResponse.json({ error: 'La acción debe estar EJECUTADA para evaluarse' }, { status: 409 })
+  if (accion.estado !== 'COMPLETADO')
+    return NextResponse.json({ error: 'La acción debe estar COMPLETADA para evaluarse' }, { status: 409 })
   if (!accion.ejecutadoEn)
     return NextResponse.json({ error: 'Falta fecha de ejecución' }, { status: 400 })
   if (periodo === 30 && accion.eval30Completada)
@@ -182,8 +183,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const metrics = await calcMetrics(tiendaIds, ejecutadoEn, hasta)
   const ahora   = new Date()
 
+  // La evaluación solo guarda métricas; NO cambia el estado (la acción ya está COMPLETADA).
   const patch: Record<string, any> = {
-    estado:        'EN_EVALUACION',
     actualizadoEn: ahora,
   }
 
@@ -207,8 +208,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     patch.eval90Detalle     = metrics
     patch.eval90Nota        = nota || null
     patch.penalidadEstimada = metrics.penalidadEstimada
-    // Al completar la evaluación de 90d → pasar a COMPLETADO
-    if (accion.eval30Completada) patch.estado = 'COMPLETADO'
   }
 
   const [updated] = await db.update(accionesGestion)

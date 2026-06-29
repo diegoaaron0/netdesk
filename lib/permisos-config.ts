@@ -37,7 +37,7 @@ export const PERMISOS_POR_ROL: Record<string, string[]> = {
     'dashboard.ver', 'reportes.ver', 'reportes.exportar',
     'usuarios.ver', 'usuarios.editar', 'usuarios.crear',
     'proveedores.ver', 'proveedores.editar',
-    'gestion-cambios.ver', 'gestion-cambios.crear',
+    'gestion-cambios.ver', 'gestion-cambios.crear', 'gestion-cambios.aprobar',
     'contingencias.gestionar', 'grupos.gestionar',
   ],
   GERENCIA: [

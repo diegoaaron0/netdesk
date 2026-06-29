@@ -15,14 +15,11 @@ const ESTADO_CONFIG: Record<string, { label: string; bg: string; color: string }
   BORRADOR:      { label: 'Borrador',      bg: '#F1F5F9', color: '#475569' },
   PROPUESTO:     { label: 'Propuesto',     bg: '#EFF6FF', color: '#1D4ED8' },
   APROBADO:      { label: 'Aprobado',      bg: '#F0FDF4', color: '#15803D' },
-  EN_EJECUCION:  { label: 'En ejecución',  bg: '#FFF7ED', color: '#C2410C' },
-  EJECUTADO:     { label: 'Ejecutado',     bg: '#FDF4FF', color: '#7E22CE' },
-  EN_EVALUACION: { label: 'En evaluación', bg: '#FFFBEB', color: '#92400E' },
   COMPLETADO:    { label: 'Completado',    bg: '#ECFDF5', color: '#065F46' },
   RECHAZADO:     { label: 'Rechazado',     bg: '#FEF2F2', color: '#991B1B' },
   CANCELADO:     { label: 'Cancelado',     bg: '#F8FAFC', color: '#94A3B8' },
 }
-const FLOW = ['BORRADOR','PROPUESTO','APROBADO','EJECUTADO','EN_EVALUACION','COMPLETADO']
+const FLOW = ['BORRADOR','PROPUESTO','APROBADO','COMPLETADO']
 
 function fmtFecha(d: string | null) {
   if (!d) return '—'
@@ -74,6 +71,8 @@ export default function AccionDetallePage() {
   const [actBusy, setActBusy]   = useState(false)
   const [rechazaMotivo, setRechazaMotivo] = useState('')
   const [showRechaza, setShowRechaza]     = useState(false)
+  const [cancelaMotivo, setCancelaMotivo] = useState('')
+  const [showCancela, setShowCancela]     = useState(false)
   const [evalNota30, setEvalNota30] = useState('')
   const [evalNota90, setEvalNota90] = useState('')
   const [notasEjec, setNotasEjec] = useState('')
@@ -88,6 +87,10 @@ export default function AccionDetallePage() {
   const userId   = (session?.user as any)?.id  ?? ''
   const isGerencia = userRol === 'GERENCIA' || userRol === 'DEMO'
   const isInfra    = ['INFRAESTRUCTURA', 'SUPERVISOR', 'DEMO'].includes(userRol)
+  // Quién aprueba: supervisor + gerencia. Quién ejecuta/evalúa: infra + supervisor + gerencia.
+  // (El estado APROBADO sigue siendo el guard real para que nada se ejecute sin aprobación.)
+  const puedeAprobar  = ['SUPERVISOR', 'GERENCIA', 'DEMO'].includes(userRol)
+  const puedeEjecutar = ['INFRAESTRUCTURA', 'SUPERVISOR', 'GERENCIA', 'DEMO'].includes(userRol)
 
   const fetchAccion = useCallback(() => {
     setLoading(true)
@@ -101,7 +104,7 @@ export default function AccionDetallePage() {
 
   useEffect(() => {
     if (!accion || accion.tipo !== 'CAMBIO_PROVEEDOR') return
-    if (!['APROBADO', 'EN_EJECUCION'].includes(accion.estado)) return
+    if (accion.estado !== 'APROBADO') return
     if (!accion.tiendaId) return
     fetch(`/api/fichas?tiendaId=${accion.tiendaId}&estado=BORRADOR`)
       .then(r => r.json())
@@ -216,7 +219,7 @@ export default function AccionDetallePage() {
           </div>
         )}
 
-        {accion.estado === 'PROPUESTO' && isGerencia && (
+        {accion.estado === 'PROPUESTO' && puedeAprobar && (
           <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '10px', padding: '14px' }}>
             <div style={{ fontSize: '11px', fontWeight: 700, color: '#1D4ED8', marginBottom: '10px' }}>Pendiente de tu aprobación</div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
@@ -235,7 +238,7 @@ export default function AccionDetallePage() {
           </div>
         )}
 
-        {accion.estado === 'APROBADO' && isInfra && (
+        {accion.estado === 'APROBADO' && puedeEjecutar && (
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px' }}>
             <div style={{ fontSize: '11px', fontWeight: 600, marginBottom: '8px' }}>Listo para ejecutar</div>
 
@@ -292,7 +295,7 @@ export default function AccionDetallePage() {
               onClick={() => doAction('ejecutar', { notasEjecucion: notasEjec, fichaNuevaId: selectedFichaId || null })}
               disabled={actBusy || (accion.tipo === 'CAMBIO_PROVEEDOR' && fichasDisponibles.length > 0 && !selectedFichaId)}
               style={btnStyle(!(accion.tipo === 'CAMBIO_PROVEEDOR' && fichasDisponibles.length > 0 && !selectedFichaId), '#7E22CE')}>
-              Marcar como ejecutado
+              Ejecutar y completar
             </button>
             {accion.tipo === 'CAMBIO_PROVEEDOR' && selectedFichaId && (
               <div style={{ fontSize: '10px', color: '#7E22CE', marginTop: '6px' }}>
@@ -307,9 +310,33 @@ export default function AccionDetallePage() {
           </div>
         )}
 
-        {['EJECUTADO','EN_EVALUACION'].includes(accion.estado) && (
+        {['PROPUESTO', 'APROBADO'].includes(accion.estado) && (isInfra || isGerencia || accion.creadoPorId === userId) && (
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px' }}>
+            {!showCancela ? (
+              <button onClick={() => setShowCancela(true)} disabled={actBusy}
+                style={{ ...btnStyle(true, '#64748B'), background: 'transparent', color: '#64748B', border: '0.5px solid #CBD5E1' }}>
+                Cancelar acción
+              </button>
+            ) : (
+              <div>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>Cancelar esta acción (no se ejecutará)</div>
+                <textarea value={cancelaMotivo} onChange={e => setCancelaMotivo(e.target.value)}
+                  placeholder="Motivo de la cancelación…" rows={2}
+                  style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
+                <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                  <button onClick={() => doAction('cancelar', { motivo: cancelaMotivo })} disabled={actBusy || !cancelaMotivo.trim()}
+                    style={btnStyle(!!cancelaMotivo.trim(), '#991B1B')}>Confirmar cancelación</button>
+                  <button onClick={() => { setShowCancela(false); setCancelaMotivo('') }} disabled={actBusy}
+                    style={{ ...btnStyle(false), background: 'var(--muted)', color: 'var(--foreground)', border: '0.5px solid var(--border)' }}>No, volver</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {accion.estado === 'COMPLETADO' && (
           <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: '10px', padding: '14px' }}>
-            <div style={{ fontSize: '11px', fontWeight: 700, color: '#92400E', marginBottom: '10px' }}>Evaluación de resultados</div>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: '#92400E', marginBottom: '10px' }}>Evaluación de resultados <span style={{ fontWeight: 400, fontSize: '10px', color: '#A16207' }}>(opcional — no afecta el estado)</span></div>
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               {!accion.eval30Completada && (
                 <div style={{ flex: 1, minWidth: '240px' }}>
@@ -449,7 +476,7 @@ export default function AccionDetallePage() {
                   <div style={{ fontSize: '10px', fontWeight: 700, color: '#D97706', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     Evaluación 30 días — {fmtFechaHora(accion.eval30Fecha)}
                   </div>
-                  {isInfra && (pendingReset === 30 ? (
+                  {puedeEjecutar && (pendingReset === 30 ? (
                     <div style={{ display: 'flex', gap: '6px', alignItems: 'center', fontSize: '11px' }}>
                       <span style={{ color: '#92400E' }}>¿Borrar y recalcular?</span>
                       <button onClick={() => { setPendingReset(null); doAction('resetear-eval', { periodo: 30 }) }} disabled={actBusy}
@@ -485,7 +512,7 @@ export default function AccionDetallePage() {
                   <div style={{ fontSize: '10px', fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     Evaluación 90 días — {fmtFechaHora(accion.eval90Fecha)}
                   </div>
-                  {isInfra && (pendingReset === 90 ? (
+                  {puedeEjecutar && (pendingReset === 90 ? (
                     <div style={{ display: 'flex', gap: '6px', alignItems: 'center', fontSize: '11px' }}>
                       <span style={{ color: '#065F46' }}>¿Borrar y recalcular?</span>
                       <button onClick={() => { setPendingReset(null); doAction('resetear-eval', { periodo: 90 }) }} disabled={actBusy}

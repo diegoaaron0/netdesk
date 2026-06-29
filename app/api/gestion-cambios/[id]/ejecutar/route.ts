@@ -8,11 +8,21 @@ import { eq, and, isNull, ne, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 
+// Error con código HTTP para abortar (y revertir) la transacción con un mensaje claro
+class HttpError extends Error {
+  constructor(public status: number, message: string, public extra: Record<string, unknown> = {}) {
+    super(message)
+  }
+}
+
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  if (!can(session, 'gestion-cambios.crear')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  // Ejecutar: lo puede hacer quien crea (infra/supervisor) o quien aprueba (supervisor/gerencia).
+  // El guard de estado (APROBADO) garantiza que nada se ejecute sin aprobación previa.
+  if (!can(session, 'gestion-cambios.crear') && !can(session, 'gestion-cambios.aprobar'))
+    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const body = await req.json().catch(() => ({}))
   const notasEjecucion: string = body.notasEjecucion?.trim() ?? ''
@@ -37,115 +47,125 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const ejecutadoPorId = (session.user as any)?.id
   const ahora          = new Date()
 
-  // Calcular fechas de evaluación
+  // Calcular fechas de evaluación (las evaluaciones 30/90 son opcionales y no cambian el estado)
   const eval30 = new Date(ahora); eval30.setDate(eval30.getDate() + 30)
   const eval90 = new Date(ahora); eval90.setDate(eval90.getDate() + 90)
   const toDateStr = (d: Date) => d.toISOString().slice(0, 10)
 
-  // ── CAMBIO_PROVEEDOR: lógica específica ──────────────────────────────────────
-  if (accion.tipo === 'CAMBIO_PROVEEDOR') {
-    if (!accion.proveedorNuevoId)
-      return NextResponse.json({ error: 'Falta proveedor nuevo' }, { status: 400 })
+  try {
+    // Toda la ejecución es atómica: o se aplica completa, o no se aplica nada.
+    const updated = await db.transaction(async (tx) => {
+      // ── CAMBIO_PROVEEDOR: lógica específica ──────────────────────────────────
+      if (accion.tipo === 'CAMBIO_PROVEEDOR') {
+        if (!accion.proveedorNuevoId)
+          throw new HttpError(400, 'Falta proveedor nuevo')
 
-    if (accion.alcance === 'TIENDA') {
-      if (!accion.tiendaId)
-        return NextResponse.json({ error: 'Falta tienda' }, { status: 400 })
+        if (accion.alcance === 'TIENDA') {
+          if (!accion.tiendaId)
+            throw new HttpError(400, 'Falta tienda')
 
-      // Bloquear si hay incidentes abiertos
-      const [{ cnt }] = await db.execute(sql`
-        SELECT COUNT(*)::int AS cnt FROM incidentes
-        WHERE tienda_id = ${accion.tiendaId}
-          AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
-      `) as any[]
-      if (Number(cnt) > 0)
-        return NextResponse.json({
-          error: `La tienda tiene ${cnt} incidente${cnt > 1 ? 's' : ''} abierto${cnt > 1 ? 's' : ''}. Resuelve todos antes de ejecutar.`,
-          incidentesAbiertos: cnt,
-        }, { status: 409 })
+          // Bloquear si hay incidentes abiertos
+          const [{ cnt }] = await tx.execute(sql`
+            SELECT COUNT(*)::int AS cnt FROM incidentes
+            WHERE tienda_id = ${accion.tiendaId}
+              AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
+          `) as any[]
+          if (Number(cnt) > 0)
+            throw new HttpError(409,
+              `La tienda tiene ${cnt} incidente${Number(cnt) > 1 ? 's' : ''} abierto${Number(cnt) > 1 ? 's' : ''}. Resuelve todos antes de ejecutar.`,
+              { incidentesAbiertos: Number(cnt) })
 
-      await _cambiarProveedorTienda(accion.tiendaId, accion.proveedorAnteriorId, accion.proveedorNuevoId, ejecutadoPorId, `${accion.codigo}: ${accion.titulo}`)
+          await _cambiarProveedorTienda(tx, accion.tiendaId, accion.proveedorAnteriorId, accion.proveedorNuevoId, ejecutadoPorId, `${accion.codigo}: ${accion.titulo}`)
 
-    } else {
-      // ZONA: iterar cada tienda del scope
-      const tScope = await db.select().from(accionesGestionTiendas)
-        .where(eq(accionesGestionTiendas.accionId, id))
+        } else {
+          // ZONA: iterar cada tienda del scope
+          const tScope = await tx.select().from(accionesGestionTiendas)
+            .where(eq(accionesGestionTiendas.accionId, id))
 
-      for (const row of tScope) {
-        const [{ cnt }] = await db.execute(sql`
-          SELECT COUNT(*)::int AS cnt FROM incidentes
-          WHERE tienda_id = ${row.tiendaId}
-            AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
-        `) as any[]
-        if (Number(cnt) > 0) continue // omitir tiendas con incidentes abiertos (no bloquear toda la zona)
+          for (const row of tScope) {
+            const [{ cnt }] = await tx.execute(sql`
+              SELECT COUNT(*)::int AS cnt FROM incidentes
+              WHERE tienda_id = ${row.tiendaId}
+                AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
+            `) as any[]
+            if (Number(cnt) > 0) continue // omitir tiendas con incidentes abiertos (no bloquear toda la zona)
 
-        const pAnterior = row.proveedorAnteriorId ?? accion.proveedorAnteriorId
-        const pNuevo    = row.proveedorNuevoId    ?? accion.proveedorNuevoId
-        await _cambiarProveedorTienda(row.tiendaId, pAnterior, pNuevo!, ejecutadoPorId, `${accion.codigo}: ${accion.titulo}`)
-        await db.update(accionesGestionTiendas).set({ ejecutada: true }).where(eq(accionesGestionTiendas.id, row.id))
-      }
-    }
-  }
-
-  // Activar la ficha nueva si se proporcionó
-  let fichaAnteriorIdCapturada: string | null = null
-  if (fichaNuevaId) {
-    const [fichaData] = await db
-      .select({ id: fichas.id, tiendaId: fichas.tiendaId })
-      .from(fichas)
-      .where(eq(fichas.id, fichaNuevaId))
-      .limit(1)
-
-    if (fichaData) {
-      // Capturar la ficha activa anterior ANTES de archivarla
-      const [fichaAnterior] = await db.select({ id: fichas.id })
-        .from(fichas)
-        .where(and(
-          eq(fichas.tiendaId, fichaData.tiendaId),
-          eq(fichas.estado, 'ACTIVA'),
-          ne(fichas.id, fichaNuevaId),
-        ))
-        .limit(1)
-      fichaAnteriorIdCapturada = fichaAnterior?.id ?? null
-
-      // Archivar ficha activa anterior (si la hay)
-      if (fichaAnteriorIdCapturada) {
-        await db.update(fichas)
-          .set({ estado: 'HISTORICA', archivadoEn: ahora })
-          .where(eq(fichas.id, fichaAnteriorIdCapturada))
+            const pAnterior = row.proveedorAnteriorId ?? accion.proveedorAnteriorId
+            const pNuevo    = row.proveedorNuevoId    ?? accion.proveedorNuevoId
+            await _cambiarProveedorTienda(tx, row.tiendaId, pAnterior, pNuevo!, ejecutadoPorId, `${accion.codigo}: ${accion.titulo}`)
+            await tx.update(accionesGestionTiendas).set({ ejecutada: true }).where(eq(accionesGestionTiendas.id, row.id))
+          }
+        }
       }
 
-      // Activar la nueva ficha
-      await db.update(fichas)
-        .set({ estado: 'ACTIVA', activadoEn: ahora })
-        .where(eq(fichas.id, fichaNuevaId))
+      // Activar la ficha nueva si se proporcionó
+      let fichaAnteriorIdCapturada: string | null = null
+      if (fichaNuevaId) {
+        const [fichaData] = await tx
+          .select({ id: fichas.id, tiendaId: fichas.tiendaId })
+          .from(fichas)
+          .where(eq(fichas.id, fichaNuevaId))
+          .limit(1)
 
-      // Actualizar puntero de ficha activa en la tienda
-      await db.update(tiendas)
-        .set({ fichaActivaId: fichaNuevaId })
-        .where(eq(tiendas.id, fichaData.tiendaId))
-    }
-  }
+        if (fichaData) {
+          // Capturar la ficha activa anterior ANTES de archivarla
+          const [fichaAnterior] = await tx.select({ id: fichas.id })
+            .from(fichas)
+            .where(and(
+              eq(fichas.tiendaId, fichaData.tiendaId),
+              eq(fichas.estado, 'ACTIVA'),
+              ne(fichas.id, fichaNuevaId),
+            ))
+            .limit(1)
+          fichaAnteriorIdCapturada = fichaAnterior?.id ?? null
 
-  // Marcar como EJECUTADO
-  const [updated] = await db.update(accionesGestion)
-    .set({
-      estado:         'EJECUTADO',
-      ejecutadoEn:    ahora,
-      ejecutadoPorId,
-      notasEjecucion: notasEjecucion || null,
-      fichaNuevaId:   fichaNuevaId ?? undefined,
-      fichaAnteriorId: fichaAnteriorIdCapturada ?? undefined,
-      fechaEval30:    toDateStr(eval30),
-      fechaEval90:    toDateStr(eval90),
-      actualizadoEn:  ahora,
+          // Archivar ficha activa anterior (si la hay)
+          if (fichaAnteriorIdCapturada) {
+            await tx.update(fichas)
+              .set({ estado: 'HISTORICA', archivadoEn: ahora })
+              .where(eq(fichas.id, fichaAnteriorIdCapturada))
+          }
+
+          // Activar la nueva ficha
+          await tx.update(fichas)
+            .set({ estado: 'ACTIVA', activadoEn: ahora })
+            .where(eq(fichas.id, fichaNuevaId))
+
+          // Actualizar puntero de ficha activa en la tienda
+          await tx.update(tiendas)
+            .set({ fichaActivaId: fichaNuevaId })
+            .where(eq(tiendas.id, fichaData.tiendaId))
+        }
+      }
+
+      // Ejecutar = la acción queda COMPLETADA. Las evaluaciones 30/90 son opcionales y posteriores.
+      const [u] = await tx.update(accionesGestion)
+        .set({
+          estado:          'COMPLETADO',
+          ejecutadoEn:     ahora,
+          ejecutadoPorId,
+          notasEjecucion:  notasEjecucion || null,
+          fichaNuevaId:    fichaNuevaId ?? undefined,
+          fichaAnteriorId: fichaAnteriorIdCapturada ?? undefined,
+          fechaEval30:     toDateStr(eval30),
+          fechaEval90:     toDateStr(eval90),
+          actualizadoEn:   ahora,
+        })
+        .where(eq(accionesGestion.id, id))
+        .returning()
+      return u
     })
-    .where(eq(accionesGestion.id, id))
-    .returning()
 
-  return NextResponse.json(updated)
+    return NextResponse.json(updated)
+  } catch (e) {
+    if (e instanceof HttpError)
+      return NextResponse.json({ error: e.message, ...e.extra }, { status: e.status })
+    throw e
+  }
 }
 
 async function _cambiarProveedorTienda(
+  tx: any,
   tiendaId: string,
   proveedorAnteriorId: string | null | undefined,
   proveedorNuevoId: string,
@@ -155,7 +175,7 @@ async function _cambiarProveedorTienda(
   // Backfill: incidentes históricos sin proveedor_id explícito → atribuir al proveedor anterior
   // Esto preserva la historia aunque cambie tiendas.proveedor_id (evita que COALESCE los mueva)
   if (proveedorAnteriorId) {
-    await db.update(incidentes)
+    await tx.update(incidentes)
       .set({ proveedorId: proveedorAnteriorId } as any)
       .where(and(
         eq(incidentes.tiendaId, tiendaId),
@@ -164,12 +184,12 @@ async function _cambiarProveedorTienda(
   }
 
   // Actualizar proveedor de la tienda
-  await db.update(tiendas)
+  await tx.update(tiendas)
     .set({ proveedorId: proveedorNuevoId } as any)
     .where(eq(tiendas.id, tiendaId))
 
   // Auditoría
-  await db.insert(tiendasHistorial).values({
+  await tx.insert(tiendasHistorial).values({
     tiendaId,
     usuarioId,
     campoEditado:  'proveedor_id',

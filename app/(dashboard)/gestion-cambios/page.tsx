@@ -35,9 +35,6 @@ const ESTADO_CONFIG: Record<string, { label: string; bg: string; color: string }
   BORRADOR:      { label: 'Borrador',       bg: '#F1F5F9', color: '#475569' },
   PROPUESTO:     { label: 'Propuesto',      bg: '#EFF6FF', color: '#1D4ED8' },
   APROBADO:      { label: 'Aprobado',       bg: '#F0FDF4', color: '#15803D' },
-  EN_EJECUCION:  { label: 'En ejecución',   bg: '#FFF7ED', color: '#C2410C' },
-  EJECUTADO:     { label: 'Ejecutado',      bg: '#FDF4FF', color: '#7E22CE' },
-  EN_EVALUACION: { label: 'En evaluación',  bg: '#FFFBEB', color: '#92400E' },
   COMPLETADO:    { label: 'Completado',     bg: '#ECFDF5', color: '#065F46' },
   RECHAZADO:     { label: 'Rechazado',      bg: '#FEF2F2', color: '#991B1B' },
   CANCELADO:     { label: 'Cancelado',      bg: '#F8FAFC', color: '#94A3B8' },
@@ -94,7 +91,8 @@ export default function GestionCambiosPage() {
   useEffect(() => { load() }, [load])
 
   const pendientesAprobacion = rows.filter(r => r.estado === 'PROPUESTO').length
-  const enEvaluacion = rows.filter(r => ['EJECUTADO','EN_EVALUACION'].includes(r.estado))
+  // Acciones completadas con evaluaciones 30/90 aún pendientes (la evaluación es opcional)
+  const enEvaluacion = rows.filter(r => r.estado === 'COMPLETADO')
 
   return (
     <div>
