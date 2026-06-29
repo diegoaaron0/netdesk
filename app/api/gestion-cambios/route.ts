@@ -116,15 +116,10 @@ export async function POST(req: NextRequest) {
   if (!creadoPorId) return NextResponse.json({ error: 'No se pudo identificar al usuario de la sesión' }, { status: 401 })
 
   try {
-  // Auto-generar código de forma segura
-  const countResult = await db.execute(sql`SELECT COUNT(*)::int AS n FROM acciones_gestion`)
-  const n = Number((countResult as any[])[0]?.n ?? 0)
-  const codigo = `AC-${String(n + 1).padStart(3, '0')}`
-
-  const [accion] = await db.insert(accionesGestion).values({
-    codigo,
+  // Valores base (el código se asigna en el loop con reintento)
+  const baseValues = {
     tipo:                     tipo as any,
-    estado:                   'BORRADOR',
+    estado:                   'BORRADOR' as const,
     alcance:                  (alcance ?? 'TIENDA') as any,
     titulo:                   titulo.trim(),
     descripcion:              descripcion?.trim() ?? null,
@@ -142,7 +137,27 @@ export async function POST(req: NextRequest) {
     snapIei:                  snapIei          ?? null,
     snapNincidentes:          snapNincidentes  ?? null,
     snapDetalle:              snapDetalle      ?? null,
-  }).returning()
+  }
+
+  // Código robusto: MAX(número)+1 (no COUNT, que colisiona si hay borrados/huecos),
+  // con reintento ante colisión del único (carreras o gaps).
+  let accion: typeof accionesGestion.$inferSelect | undefined
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const maxRows = await db.execute(sql`
+      SELECT COALESCE(MAX(NULLIF(regexp_replace(codigo, '[^0-9]', '', 'g'), '')::int), 0) AS maxn
+      FROM acciones_gestion
+    `) as any[]
+    const maxn = Number(maxRows[0]?.maxn ?? 0)
+    const codigo = `AC-${String(maxn + 1 + attempt).padStart(3, '0')}`
+    try {
+      ;[accion] = await db.insert(accionesGestion).values({ codigo, ...baseValues }).returning()
+      break
+    } catch (e: any) {
+      if (e?.code === '23505' && attempt < 4) continue // codigo duplicado → reintentar con el siguiente
+      throw e
+    }
+  }
+  if (!accion) return NextResponse.json({ error: 'No se pudo generar el código de la acción' }, { status: 500 })
 
   // Insertar tiendas para alcance ZONA
   if (alcance === 'ZONA' && tiendaIds?.length) {
