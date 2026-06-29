@@ -156,8 +156,8 @@ export default function FichasPage() {
                     <td style={{ padding: '10px 12px' }}>
                       {r.nivelesStr
                         ? <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                            {r.nivelesStr.split(' ').map((n: string) => (
-                              <span key={n} style={{ background: '#EFF6FF', color: '#1D4ED8', padding: '1px 7px', borderRadius: '4px', fontWeight: 700, fontSize: '10px', fontFamily: 'monospace' }}>{n}</span>
+                            {r.nivelesStr.split(' ').map((n: string, i: number) => (
+                              <span key={`${n}-${i}`} style={{ background: '#EFF6FF', color: '#1D4ED8', padding: '1px 7px', borderRadius: '4px', fontWeight: 700, fontSize: '10px', fontFamily: 'monospace' }}>{n}</span>
                             ))}
                           </div>
                         : <span style={{ color: '#DC2626', fontSize: '10px' }}>Sin niveles</span>}
