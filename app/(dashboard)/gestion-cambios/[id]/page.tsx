@@ -85,6 +85,7 @@ export default function AccionDetallePage() {
   const [pendingReset, setPendingReset] = useState<30 | 90 | null>(null)
   const [fichasDisponibles, setFichasDisponibles] = useState<any[]>([])
   const [selectedFichaId, setSelectedFichaId] = useState<string>('')
+  const [fichaActual, setFichaActual] = useState<any>(null)
 
   const userRol  = (session?.user as any)?.rol ?? ''
   const userId   = (session?.user as any)?.id  ?? ''
@@ -106,18 +107,20 @@ export default function AccionDetallePage() {
   useEffect(() => { fetchAccion() }, [fetchAccion])
 
   useEffect(() => {
-    // La ficha se elige al PROPONER (estado BORRADOR), filtrada por el proveedor nuevo.
+    // La ficha se elige al PROPONER (estado BORRADOR), filtrada por el proveedor objetivo.
     if (!accion || !TIPOS_CON_FICHA.includes(accion.tipo)) return
     if (accion.estado !== 'BORRADOR') return
     const proveedorObjetivo = accion.proveedorNuevoId ?? accion.proveedorAnteriorId
     if (!accion.tiendaId || !proveedorObjetivo) return
+    // Ficha actual de la tienda (referencia — la que se archivará)
+    fetch(`/api/fichas?tiendaId=${accion.tiendaId}&estado=ACTIVA`)
+      .then(r => r.json())
+      .then(rows => setFichaActual(Array.isArray(rows) && rows[0] ? rows[0] : null))
+      .catch(() => setFichaActual(null))
+    // Fichas candidatas a activar (BORRADOR del proveedor objetivo). Sin auto-selección: el usuario elige.
     fetch(`/api/fichas?tiendaId=${accion.tiendaId}&proveedorId=${proveedorObjetivo}&estado=BORRADOR`)
       .then(r => r.json())
-      .then(rows => {
-        const list = Array.isArray(rows) ? rows : []
-        setFichasDisponibles(list)
-        if (list.length === 1) setSelectedFichaId(list[0].id)
-      })
+      .then(rows => setFichasDisponibles(Array.isArray(rows) ? rows : []))
       .catch(() => {})
   }, [accion?.tipo, accion?.tiendaId, accion?.proveedorNuevoId, accion?.proveedorAnteriorId, accion?.estado])
 
@@ -208,9 +211,28 @@ export default function AccionDetallePage() {
             {/* Tipos con ficha: se adjunta AHORA (obligatoria para proponer) */}
             {TIPOS_CON_FICHA.includes(accion.tipo) && isInfra && (
               <div style={{ marginBottom: '12px' }}>
+                {/* Ficha ACTUAL de la tienda (referencia — se archivará). No seleccionable, sí clickeable para ver. */}
+                {fichaActual && (
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>
+                      Ficha actual
+                      <span style={{ fontSize: '9px', fontWeight: 400, textTransform: 'none', marginLeft: '4px' }}>(se archivará al ejecutar)</span>
+                    </label>
+                    <div onClick={() => router.push(`/gestion-cambios/fichas/${fichaActual.id}`)}
+                      title="Ver contenido de la ficha"
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', cursor: 'pointer' }}>
+                      <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 700 }}>{fichaActual.codigo}</span>
+                      <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>
+                        {fichaActual.proveedorNombre}{fichaActual.tipoConexion ? ` · ${fichaActual.tipoConexion}` : ''}
+                      </span>
+                      <span style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 600, color: '#7C3AED' }}>ver ↗</span>
+                    </div>
+                  </div>
+                )}
+
                 <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>
                   Ficha a activar *
-                  <span style={{ fontSize: '9px', fontWeight: 400, textTransform: 'none', marginLeft: '4px' }}>(obligatoria — se activará al ejecutar)</span>
+                  <span style={{ fontSize: '9px', fontWeight: 400, textTransform: 'none', marginLeft: '4px' }}>(obligatoria — selecciona una)</span>
                 </label>
                 {fichasDisponibles.length === 0 ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: '7px', fontSize: '11px', color: '#C2410C' }}>
@@ -233,6 +255,11 @@ export default function AccionDetallePage() {
                             <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 700, color: '#7C3AED' }}>{f.codigo}</span>
                             {f.tipoConexion && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{f.tipoConexion}</span>}
                             {f.velocidad && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>· {f.velocidad}</span>}
+                            <button type="button" title="Ver contenido de la ficha"
+                              onClick={e => { e.preventDefault(); e.stopPropagation(); router.push(`/gestion-cambios/fichas/${f.id}`) }}
+                              style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 600, color: '#7C3AED', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                              ver ↗
+                            </button>
                           </div>
                           {f.descripcionServicio && (
                             <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{f.descripcionServicio}</div>
