@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { accionesGestion, usuarios, fichas } from '@/drizzle/schema'
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { sendMail } from '@/lib/mailer'
@@ -54,11 +54,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .where(eq(accionesGestion.id, id))
     .returning()
 
-  // Notificar a gerencia
+  // Notificar a quienes pueden aprobar: gerencia y supervisores
   try {
     const gerentes = await db.select({ email: usuarios.email, nombre: usuarios.nombre })
       .from(usuarios)
-      .where(eq(usuarios.rol, 'GERENCIA'))
+      .where(inArray(usuarios.rol, ['GERENCIA', 'SUPERVISOR']))
     for (const g of gerentes) {
       if (g.email) {
         sendMail({

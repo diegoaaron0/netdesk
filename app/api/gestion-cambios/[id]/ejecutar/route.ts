@@ -50,13 +50,32 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (TIPOS_CON_FICHA.includes(accion.tipo) && !fichaNuevaId)
     return NextResponse.json({ error: 'La acción no tiene ficha adjunta. Vuelve a proponerla adjuntando la ficha.' }, { status: 409 })
 
+  // Re-validar la ficha al EJECUTAR (por si la editaron/activaron entre proponer y ejecutar)
+  if (fichaNuevaId) {
+    const proveedorObjetivo = accion.proveedorNuevoId ?? accion.proveedorAnteriorId
+    const [f] = await db.select({ tiendaId: fichas.tiendaId, proveedorId: fichas.proveedorId, estado: fichas.estado })
+      .from(fichas).where(eq(fichas.id, fichaNuevaId)).limit(1)
+    if (!f)
+      return NextResponse.json({ error: 'La ficha adjunta ya no existe' }, { status: 409 })
+    if (f.tiendaId !== accion.tiendaId)
+      return NextResponse.json({ error: 'La ficha adjunta no pertenece a la tienda de la acción' }, { status: 409 })
+    if (proveedorObjetivo && f.proveedorId !== proveedorObjetivo)
+      return NextResponse.json({ error: 'La ficha adjunta ya no corresponde al proveedor de la acción' }, { status: 409 })
+    if (f.estado !== 'BORRADOR')
+      return NextResponse.json({ error: 'La ficha adjunta ya no está en BORRADOR' }, { status: 409 })
+  }
+
   const ejecutadoPorId = (session.user as any)?.id
   const ahora          = new Date()
 
-  // Calcular fechas de evaluación (las evaluaciones 30/90 son opcionales y no cambian el estado)
-  const eval30 = new Date(ahora); eval30.setDate(eval30.getDate() + 30)
-  const eval90 = new Date(ahora); eval90.setDate(eval90.getDate() + 90)
-  const toDateStr = (d: Date) => d.toISOString().slice(0, 10)
+  // Fechas de evaluación (opcionales, no cambian el estado): fecha CALENDARIO en Lima + 30/90 días.
+  // (Usar UTC correría el día cerca de medianoche.)
+  const limaDateStr = (base: Date, plusDays: number) => {
+    const lima = new Date(base.toLocaleString('en-US', { timeZone: 'America/Lima' }))
+    lima.setDate(lima.getDate() + plusDays)
+    const p = (n: number) => String(n).padStart(2, '0')
+    return `${lima.getFullYear()}-${p(lima.getMonth() + 1)}-${p(lima.getDate())}`
+  }
 
   try {
     // Toda la ejecución es atómica: o se aplica completa, o no se aplica nada.
@@ -153,8 +172,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           notasEjecucion:  notasEjecucion || null,
           fichaNuevaId:    fichaNuevaId ?? undefined,
           fichaAnteriorId: fichaAnteriorIdCapturada ?? undefined,
-          fechaEval30:     toDateStr(eval30),
-          fechaEval90:     toDateStr(eval90),
+          fechaEval30:     limaDateStr(ahora, 30),
+          fechaEval90:     limaDateStr(ahora, 90),
           actualizadoEn:   ahora,
         })
         .where(eq(accionesGestion.id, id))
