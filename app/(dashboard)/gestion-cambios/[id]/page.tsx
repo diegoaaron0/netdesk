@@ -215,11 +215,11 @@ export default function AccionDetallePage() {
                 {fichasDisponibles.length === 0 ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: '7px', fontSize: '11px', color: '#C2410C' }}>
                     <span>⚠</span>
-                    <span>No hay fichas en borrador para esta acción. Crea una para poder proponer.</span>
+                    <span>No hay fichas en borrador para esta acción. Créala en la sección Fichas y vuelve a seleccionarla.</span>
                     <button
-                      onClick={() => router.push(`/gestion-cambios/fichas/nueva?tiendaId=${accion.tiendaId}&proveedorId=${accion.proveedorNuevoId ?? accion.proveedorAnteriorId ?? ''}`)}
-                      style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 600, padding: '3px 8px', borderRadius: '5px', background: '#7C3AED', color: '#fff', border: 'none', cursor: 'pointer' }}>
-                      + Nueva ficha
+                      onClick={() => router.push('/gestion-cambios/fichas')}
+                      style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 600, padding: '3px 8px', borderRadius: '5px', background: '#7C3AED', color: '#fff', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      Ir a Fichas →
                     </button>
                   </div>
                 ) : (
@@ -240,11 +240,6 @@ export default function AccionDetallePage() {
                         </div>
                       </label>
                     ))}
-                    <button
-                      onClick={() => router.push(`/gestion-cambios/fichas/nueva?tiendaId=${accion.tiendaId}&proveedorId=${accion.proveedorNuevoId ?? accion.proveedorAnteriorId ?? ''}`)}
-                      style={{ fontSize: '10px', fontWeight: 600, padding: '4px 8px', borderRadius: '5px', background: 'var(--muted)', color: 'var(--muted-foreground)', border: '0.5px solid var(--border)', cursor: 'pointer', alignSelf: 'flex-start' }}>
-                      + Nueva ficha
-                    </button>
                   </div>
                 )}
               </div>
