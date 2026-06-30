@@ -3,6 +3,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 
+// Tipos que generan/activan una ficha en el flujo (la ficha se adjunta al proponer)
+const TIPOS_CON_FICHA = ['CAMBIO_PROVEEDOR', 'RENEGOCIACION_CONTRATO', 'ACTUALIZACION_PLAN']
+
 const TIPO_LABELS: Record<string, string> = {
   CAMBIO_PROVEEDOR:       'Cambio de proveedor',
   RENEGOCIACION_CONTRATO: 'Renegociación de contrato',
@@ -104,10 +107,11 @@ export default function AccionDetallePage() {
 
   useEffect(() => {
     // La ficha se elige al PROPONER (estado BORRADOR), filtrada por el proveedor nuevo.
-    if (!accion || accion.tipo !== 'CAMBIO_PROVEEDOR') return
+    if (!accion || !TIPOS_CON_FICHA.includes(accion.tipo)) return
     if (accion.estado !== 'BORRADOR') return
-    if (!accion.tiendaId || !accion.proveedorNuevoId) return
-    fetch(`/api/fichas?tiendaId=${accion.tiendaId}&proveedorId=${accion.proveedorNuevoId}&estado=BORRADOR`)
+    const proveedorObjetivo = accion.proveedorNuevoId ?? accion.proveedorAnteriorId
+    if (!accion.tiendaId || !proveedorObjetivo) return
+    fetch(`/api/fichas?tiendaId=${accion.tiendaId}&proveedorId=${proveedorObjetivo}&estado=BORRADOR`)
       .then(r => r.json())
       .then(rows => {
         const list = Array.isArray(rows) ? rows : []
@@ -115,7 +119,7 @@ export default function AccionDetallePage() {
         if (list.length === 1) setSelectedFichaId(list[0].id)
       })
       .catch(() => {})
-  }, [accion?.tipo, accion?.tiendaId, accion?.proveedorNuevoId, accion?.estado])
+  }, [accion?.tipo, accion?.tiendaId, accion?.proveedorNuevoId, accion?.proveedorAnteriorId, accion?.estado])
 
   async function doEliminar() {
     if (!confirm(`¿Eliminar el borrador ${accion?.codigo}? Esta acción no se puede deshacer.`)) return
@@ -201,19 +205,19 @@ export default function AccionDetallePage() {
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px' }}>
             <div style={{ fontSize: '11px', fontWeight: 600, marginBottom: '10px' }}>Acciones disponibles</div>
 
-            {/* CAMBIO_PROVEEDOR: la ficha del nuevo proveedor se adjunta AHORA (obligatoria para proponer) */}
-            {accion.tipo === 'CAMBIO_PROVEEDOR' && isInfra && (
+            {/* Tipos con ficha: se adjunta AHORA (obligatoria para proponer) */}
+            {TIPOS_CON_FICHA.includes(accion.tipo) && isInfra && (
               <div style={{ marginBottom: '12px' }}>
                 <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>
-                  Ficha del nuevo proveedor *
+                  Ficha a activar *
                   <span style={{ fontSize: '9px', fontWeight: 400, textTransform: 'none', marginLeft: '4px' }}>(obligatoria — se activará al ejecutar)</span>
                 </label>
                 {fichasDisponibles.length === 0 ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: '7px', fontSize: '11px', color: '#C2410C' }}>
                     <span>⚠</span>
-                    <span>No hay fichas en borrador del proveedor nuevo. Crea una para poder proponer.</span>
+                    <span>No hay fichas en borrador para esta acción. Crea una para poder proponer.</span>
                     <button
-                      onClick={() => router.push(`/gestion-cambios/fichas/nueva?tiendaId=${accion.tiendaId}&proveedorId=${accion.proveedorNuevoId ?? ''}`)}
+                      onClick={() => router.push(`/gestion-cambios/fichas/nueva?tiendaId=${accion.tiendaId}&proveedorId=${accion.proveedorNuevoId ?? accion.proveedorAnteriorId ?? ''}`)}
                       style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 600, padding: '3px 8px', borderRadius: '5px', background: '#7C3AED', color: '#fff', border: 'none', cursor: 'pointer' }}>
                       + Nueva ficha
                     </button>
@@ -237,7 +241,7 @@ export default function AccionDetallePage() {
                       </label>
                     ))}
                     <button
-                      onClick={() => router.push(`/gestion-cambios/fichas/nueva?tiendaId=${accion.tiendaId}&proveedorId=${accion.proveedorNuevoId ?? ''}`)}
+                      onClick={() => router.push(`/gestion-cambios/fichas/nueva?tiendaId=${accion.tiendaId}&proveedorId=${accion.proveedorNuevoId ?? accion.proveedorAnteriorId ?? ''}`)}
                       style={{ fontSize: '10px', fontWeight: 600, padding: '4px 8px', borderRadius: '5px', background: 'var(--muted)', color: 'var(--muted-foreground)', border: '0.5px solid var(--border)', cursor: 'pointer', alignSelf: 'flex-start' }}>
                       + Nueva ficha
                     </button>
@@ -248,7 +252,7 @@ export default function AccionDetallePage() {
 
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
               {isInfra && (() => {
-                const faltaFicha = accion.tipo === 'CAMBIO_PROVEEDOR' && !selectedFichaId
+                const faltaFicha = TIPOS_CON_FICHA.includes(accion.tipo) && !selectedFichaId
                 return (
                   <>
                     <button
@@ -296,13 +300,13 @@ export default function AccionDetallePage() {
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px' }}>
             <div style={{ fontSize: '11px', fontWeight: 600, marginBottom: '8px' }}>Listo para ejecutar</div>
 
-            {accion.tipo === 'CAMBIO_PROVEEDOR' && (
+            {TIPOS_CON_FICHA.includes(accion.tipo) && (
               <div style={{ marginBottom: '12px', padding: '8px 10px', background: '#F5F3FF', border: '1px solid #DDD6FE', borderRadius: '7px' }}>
                 <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '3px' }}>
                   Ficha que se activará
                 </div>
                 <div style={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 700, color: '#7C3AED' }}>{accion.fichaNuevaCodigo ?? '—'}</div>
-                <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Adjuntada al proponer el cambio.</div>
+                <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Adjuntada al proponer la acción.</div>
               </div>
             )}
 
@@ -317,9 +321,11 @@ export default function AccionDetallePage() {
               style={btnStyle(true, '#7E22CE')}>
               Ejecutar y completar
             </button>
-            {accion.tipo === 'CAMBIO_PROVEEDOR' && (
+            {TIPOS_CON_FICHA.includes(accion.tipo) && (
               <div style={{ fontSize: '10px', color: '#7E22CE', marginTop: '6px' }}>
-                Actualizará el proveedor de la tienda y activará la ficha {accion.fichaNuevaCodigo ?? ''}.
+                {accion.tipo === 'CAMBIO_PROVEEDOR'
+                  ? `Actualizará el proveedor de la tienda y activará la ficha ${accion.fichaNuevaCodigo ?? ''}.`
+                  : `Activará la ficha ${accion.fichaNuevaCodigo ?? ''} en la tienda.`}
               </div>
             )}
           </div>

@@ -160,22 +160,26 @@ export default function FichaDetallePage() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          {/* Activación directa SOLO como alta inicial (la tienda no tiene ficha activa).
+              Con ficha activa, el reemplazo se hace por Gestión de Cambios. */}
           {data.estado === 'BORRADOR' && (
-            <button onClick={() => cambiarEstado('ACTIVA')}
-              style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 600, background: '#059669', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
-              Activar ficha
-            </button>
-          )}
-          {data.estado === 'ACTIVA' && (
-            <button onClick={() => cambiarEstado('HISTORICA')}
-              style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 600, background: 'var(--muted)', color: 'var(--muted-foreground)', border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'pointer' }}>
-              Archivar
-            </button>
+            !data.tiendaFichaActivaId ? (
+              <button onClick={() => cambiarEstado('ACTIVA')} title="Alta inicial: la tienda aún no tiene ficha activa"
+                style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 600, background: '#059669', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+                Activar ficha
+              </button>
+            ) : (
+              <span title="El reemplazo de la ficha activa se realiza por Gestión de Cambios"
+                style={{ alignSelf: 'center', padding: '7px 12px', fontSize: '11px', color: 'var(--muted-foreground)', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px' }}>
+                Se activa vía Gestión de Cambios
+              </span>
+            )
           )}
           {!editing ? (
             <button onClick={startEdit}
-              style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 600, background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
-              Editar
+              title={data.estado === 'ACTIVA' ? 'edición activa por ahora' : 'Editar ficha'}
+              style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 14px', fontSize: '12px', fontWeight: 600, background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+              <span aria-hidden>✎</span> Editar
             </button>
           ) : (
             <>

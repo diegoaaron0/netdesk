@@ -44,10 +44,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (accion.estado !== 'APROBADO')
     return NextResponse.json({ error: 'La acción debe estar APROBADA para ejecutarse' }, { status: 409 })
 
-  // La ficha se adjunta al PROPONER. En CAMBIO_PROVEEDOR es obligatoria: no se ejecuta sin ella.
+  // La ficha se adjunta al PROPONER. En los tipos que generan ficha es obligatoria: no se ejecuta sin ella.
+  const TIPOS_CON_FICHA = ['CAMBIO_PROVEEDOR', 'RENEGOCIACION_CONTRATO', 'ACTUALIZACION_PLAN']
   const fichaNuevaId: string | null = accion.fichaNuevaId ?? null
-  if (accion.tipo === 'CAMBIO_PROVEEDOR' && !fichaNuevaId)
-    return NextResponse.json({ error: 'La acción no tiene ficha del nuevo proveedor. Vuelve a proponerla adjuntando la ficha.' }, { status: 409 })
+  if (TIPOS_CON_FICHA.includes(accion.tipo) && !fichaNuevaId)
+    return NextResponse.json({ error: 'La acción no tiene ficha adjunta. Vuelve a proponerla adjuntando la ficha.' }, { status: 409 })
 
   const ejecutadoPorId = (session.user as any)?.id
   const ahora          = new Date()

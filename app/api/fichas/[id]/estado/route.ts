@@ -34,6 +34,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!ficha) return NextResponse.json({ error: 'No encontrada' }, { status: 404 })
   if (ficha.estado === estado) return NextResponse.json({ error: 'La ficha ya tiene ese estado' }, { status: 400 })
 
+  // Gobierno: la activación directa solo se permite como ALTA INICIAL (la tienda aún no
+  // tiene ficha activa). Si ya tiene una, el reemplazo va por Gestión de Cambios.
+  if (estado === 'ACTIVA') {
+    const [t] = await db.select({ fichaActivaId: tiendas.fichaActivaId })
+      .from(tiendas).where(eq(tiendas.id, ficha.tiendaId)).limit(1)
+    if (t?.fichaActivaId && t.fichaActivaId !== id)
+      return NextResponse.json({ error: 'La tienda ya tiene una ficha activa. El reemplazo se realiza por Gestión de Cambios.' }, { status: 409 })
+  }
+  // El archivado directo no está permitido: ocurre al activar un reemplazo vía Gestión de Cambios.
+  if (estado === 'HISTORICA')
+    return NextResponse.json({ error: 'Archivar una ficha se hace activando su reemplazo por Gestión de Cambios.' }, { status: 409 })
+
   if (estado === 'ACTIVA') {
     // Leer el proveedor actual de la tienda ANTES de sincronizar
     const [tiendaActual] = await db

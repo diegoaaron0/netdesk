@@ -18,6 +18,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       tiendaId:             fichas.tiendaId,
       tiendaCodigo:         tiendas.codigo,
       tiendaNombreCc:       tiendas.nombreCc,
+      tiendaFichaActivaId:  tiendas.fichaActivaId,
       proveedorId:          fichas.proveedorId,
       proveedorNombre:      proveedores.nombre,
       estado:               fichas.estado,
