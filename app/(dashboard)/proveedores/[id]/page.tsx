@@ -3,6 +3,7 @@ import { useEffect, useState, use, useCallback, Fragment } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { apiMutate } from '@/lib/api-mutate'
+import { can } from '@/lib/permisos'
 import { categoriaContrato, metaEstadoContrato, diasParaVencer, type CategoriaContrato } from '@/lib/contrato-estado'
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function fmtSoles(v: string | number | null | undefined) {
@@ -63,7 +64,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
   const { id } = use(params)
   const router = useRouter()
   const { data: session } = useSession()
-  const canEdit = ['SUPERVISOR', 'INFRAESTRUCTURA'].includes((session?.user as any)?.rol ?? '')
+  const canEdit = can(session, 'proveedores.editar')
 
   const [data, setData]   = useState<any>(null)
   const [tab, setTab]     = useState<'resumen' | 'tiendas' | 'historicas' | 'escalamientos'>('resumen')

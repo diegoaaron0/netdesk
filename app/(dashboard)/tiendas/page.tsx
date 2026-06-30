@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import RoutersContingenciaTI from './RoutersCont'
 import { apiMutate } from '@/lib/api-mutate'
+import { can } from '@/lib/permisos'
 
 const PROVEEDOR_COLORS: Record<string, { bg: string; color: string }> = {
   BITEL:             { bg: '#dbeafe', color: '#1e40af' },
@@ -78,8 +79,7 @@ const PAGE_SIZE = 50
 export default function TiendasPage() {
   const { data: session } = useSession()
   const router = useRouter()
-  const userRol = (session?.user as any)?.rol ?? 'AGENTE'
-  const canEdit = ['SUPERVISOR', 'INFRAESTRUCTURA'].includes(userRol)
+  const canEdit = can(session, 'mantenimiento.editar')
 
   const [tiendas, setTiendas] = useState<any[]>([])
   const [allProveedores, setAllProveedores] = useState<{ id: string; nombre: string }[]>([])

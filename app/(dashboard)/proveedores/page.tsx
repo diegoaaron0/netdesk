@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { apiMutate } from '@/lib/api-mutate'
+import { can } from '@/lib/permisos'
 
 function fmtSoles(v: string | number | null | undefined) {
   if (v == null || v === '' || Number(v) === 0) return '—'
@@ -43,7 +44,7 @@ const thStyle: React.CSSProperties = {
 export default function ProveedoresPage() {
   const { data: session } = useSession()
   const router = useRouter()
-  const canEdit = ['SUPERVISOR', 'INFRAESTRUCTURA'].includes((session?.user as any)?.rol ?? '')
+  const canEdit = can(session, 'proveedores.editar')
 
   const [lista, setLista]     = useState<any[]>([])
   const [loading, setLoading] = useState(true)
