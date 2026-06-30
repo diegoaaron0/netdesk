@@ -212,6 +212,51 @@ async function main() {
   `
   console.log('[startup] ✓ Backfill escalamientos colgados (cronómetro detenido al cierre)')
 
+  // ── Escalamientos por defecto del proveedor (molde) ──────────────────────────
+  await sql`
+    CREATE TABLE IF NOT EXISTS "proveedores_niveles" (
+      "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      "proveedor_id" uuid NOT NULL REFERENCES "proveedores"("id") ON DELETE CASCADE,
+      "nivel" integer NOT NULL,
+      "nombre_contacto" text NOT NULL,
+      "email" text,
+      "celular" text,
+      "tiempo_resp_sev1" text,
+      "tiempo_resp_sev2" text,
+      "tiempo_resp_sev3" text,
+      "correos_copia" text[],
+      "whatsapp" text,
+      "canal" text DEFAULT 'correo',
+      "horario_atencion" text,
+      "tiempo_esperado_solucion" integer,
+      "instruccion" text,
+      "activo" boolean DEFAULT true,
+      "creado_en" timestamp DEFAULT now()
+    )
+  `
+  // Marca de sincronización en los niveles de cada ficha (false = sigue el default del proveedor)
+  await sql`ALTER TABLE "fichas_niveles" ADD COLUMN IF NOT EXISTS "personalizado" boolean DEFAULT false`
+  console.log('[startup] ✓ Tabla proveedores_niveles + columna fichas_niveles.personalizado')
+
+  // Sembrado: para cada proveedor SIN defaults aún, copiar el nivel más reciente por
+  // cada N (de sus fichas existentes). Idempotente (solo proveedores sin moldes).
+  await sql`
+    INSERT INTO "proveedores_niveles"
+      ("proveedor_id","nivel","nombre_contacto","email","celular","tiempo_resp_sev1",
+       "tiempo_resp_sev2","tiempo_resp_sev3","correos_copia","whatsapp","canal",
+       "horario_atencion","tiempo_esperado_solucion","instruccion","activo")
+    SELECT DISTINCT ON (f."proveedor_id", fn."nivel")
+      f."proveedor_id", fn."nivel", fn."nombre_contacto", fn."email", fn."celular",
+      fn."tiempo_resp_sev1", fn."tiempo_resp_sev2", fn."tiempo_resp_sev3", fn."correos_copia",
+      fn."whatsapp", fn."canal", fn."horario_atencion", fn."tiempo_esperado_solucion",
+      fn."instruccion", fn."activo"
+    FROM "fichas_niveles" fn
+    JOIN "fichas" f ON fn."ficha_id" = f."id"
+    WHERE NOT EXISTS (SELECT 1 FROM "proveedores_niveles" pn WHERE pn."proveedor_id" = f."proveedor_id")
+    ORDER BY f."proveedor_id", fn."nivel", f."activado_en" DESC NULLS LAST, f."creado_en" DESC
+  `
+  console.log('[startup] ✓ Sembrado de escalamientos por defecto desde fichas existentes')
+
   console.log('[startup] Migraciones completadas.')
   await sql.end()
 }

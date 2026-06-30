@@ -36,6 +36,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: 'Sin campos para actualizar' }, { status: 400 })
   }
 
+  // Editar un nivel dentro de la ficha lo "despega" del default del proveedor:
+  // queda personalizado y ya no recibe la propagación.
+  allowed.personalizado = true
+
   const [updated] = await db
     .update(fichasNiveles)
     .set(allowed as any)

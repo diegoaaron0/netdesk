@@ -48,6 +48,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     tiempoEsperadoSolucion: body.tiempoEsperadoSolucion ?? null,
     instruccion:           body.instruccion           ?? null,
     activo:                body.activo                ?? true,
+    // Nivel agregado a mano dentro de una ficha = personalizado (no lo pisa la
+    // propagación del default del proveedor).
+    personalizado:         true,
   }).returning()
 
   return NextResponse.json(nivel, { status: 201 })

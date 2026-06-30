@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, use, useCallback } from 'react'
+import { useEffect, useState, use, useCallback, Fragment } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { apiMutate } from '@/lib/api-mutate'
@@ -66,7 +66,10 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
   const canEdit = ['SUPERVISOR', 'INFRAESTRUCTURA'].includes((session?.user as any)?.rol ?? '')
 
   const [data, setData]   = useState<any>(null)
-  const [tab, setTab]     = useState<'resumen' | 'tiendas' | 'historicas'>('resumen')
+  const [tab, setTab]     = useState<'resumen' | 'tiendas' | 'historicas' | 'escalamientos'>('resumen')
+  const [nivelesDefault, setNivelesDefault] = useState<any[]>([])
+  const [nivelForm, setNivelForm]   = useState<any | null>(null)
+  const [savingNivel, setSavingNivel] = useState(false)
   const [ieiPanelOpen, setIeiPanelOpen] = useState(false)
   const [panelMetrica, setPanelMetrica] = useState<string | null>(null)
   const [buscarT, setBuscarT] = useState('')
@@ -96,8 +99,34 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
     setLoadingT(false)
   }, [id])
 
+  const loadNiveles = useCallback(async () => {
+    const res = await fetch(`/api/proveedores/${id}/niveles`)
+    if (res.ok) setNivelesDefault(await res.json())
+  }, [id])
+
   useEffect(() => { loadData() }, [loadData])
   useEffect(() => { if (tab === 'tiendas') loadTiendas() }, [tab, loadTiendas])
+  useEffect(() => { if (tab === 'escalamientos') loadNiveles() }, [tab, loadNiveles])
+
+  // ── Escalamientos por defecto ───────────────────────────────────────────────
+  async function saveNivel() {
+    if (!nivelForm?.nombreContacto?.trim() || !nivelForm?.nivel) return
+    setSavingNivel(true)
+    const isEdit = !!nivelForm.id
+    const url = isEdit ? `/api/proveedores/${id}/niveles/${nivelForm.id}` : `/api/proveedores/${id}/niveles`
+    const { ok } = await apiMutate(url, {
+      method: isEdit ? 'PUT' : 'POST', json: nivelForm,
+      errorPrefix: 'No se pudo guardar el nivel',
+    })
+    setSavingNivel(false)
+    if (ok) { setNivelForm(null); loadNiveles() }
+  }
+
+  async function deleteNivel(nivelId: string) {
+    if (!confirm('¿Eliminar este nivel del default del proveedor?\n\nLas fichas que ya lo tienen lo CONSERVAN (deja de propagarse). Solo afecta a futuras fichas y a la propagación de cambios.')) return
+    const { ok } = await apiMutate(`/api/proveedores/${id}/niveles/${nivelId}`, { method: 'DELETE', errorPrefix: 'No se pudo eliminar' })
+    if (ok) loadNiveles()
+  }
 
   // ── Save proveedor ──────────────────────────────────────────────────────────
   async function saveProv() {
@@ -165,9 +194,10 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '2px', borderBottom: '0.5px solid var(--border)', marginBottom: '16px' }}>
         {([
-          { id: 'resumen',    label: 'Resumen' },
-          { id: 'tiendas',    label: 'Tiendas asignadas' },
-          { id: 'historicas', label: 'Históricas' },
+          { id: 'resumen',       label: 'Resumen' },
+          { id: 'tiendas',       label: 'Tiendas asignadas' },
+          { id: 'historicas',    label: 'Históricas' },
+          { id: 'escalamientos', label: 'Escalamientos por defecto' },
         ] as const).map(t => (
           <button key={t.id} onClick={() => setTab(t.id as any)}
             style={{ padding: '8px 16px', fontSize: '12px', fontWeight: tab === t.id ? 600 : 400, background: 'none', border: 'none', cursor: 'pointer', color: tab === t.id ? 'var(--foreground)' : 'var(--muted-foreground)', borderBottom: tab === t.id ? '2px solid hsl(221,83%,23%)' : '2px solid transparent', transition: 'color 0.15s' }}>
@@ -424,6 +454,100 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* ── Tab: Escalamientos por defecto ───────────────────────────────────── */}
+      {tab === 'escalamientos' && (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '14px', flexWrap: 'wrap' }}>
+            <div style={{ maxWidth: '620px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700 }}>Escalamientos por defecto (N1, N2, N3…)</div>
+              <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px', lineHeight: 1.5 }}>
+                Estos contactos se <strong>copian a cada ficha nueva</strong> de este proveedor. Al editarlos aquí, se
+                actualizan automáticamente en las fichas que <strong>no</strong> los hayan modificado a mano. Las que sí
+                fueron personalizadas se respetan.
+              </div>
+            </div>
+            {canEdit && (
+              <button onClick={() => setNivelForm({ nivel: nivelesDefault.length ? Math.max(...nivelesDefault.map((n: any) => n.nivel)) + 1 : 1, nombreContacto: '', canal: 'correo' })}
+                style={{ padding: '8px 14px', fontSize: '12px', fontWeight: 600, background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                + Agregar nivel
+              </button>
+            )}
+          </div>
+
+          {nivelesDefault.length === 0 ? (
+            <div style={{ textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px', padding: '32px 0', background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px' }}>
+              Este proveedor aún no tiene escalamientos por defecto.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {nivelesDefault.map((n: any) => (
+                <div key={n.id} style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#1D4ED8', background: '#EFF6FF', padding: '2px 8px', borderRadius: '999px' }}>N{n.nivel}</span>
+                      <span style={{ fontSize: '13px', fontWeight: 600 }}>{n.nombreContacto || <span style={{ color: '#DC2626', fontStyle: 'italic' }}>sin nombre</span>}</span>
+                    </div>
+                    {canEdit && (
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button onClick={() => setNivelForm({ ...n })}
+                          style={{ fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', background: 'var(--muted)', color: 'var(--foreground)', border: '0.5px solid var(--border)', cursor: 'pointer' }}>Editar</button>
+                        <button onClick={() => deleteNivel(n.id)}
+                          style={{ fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', background: 'rgba(220,38,38,0.1)', color: '#dc2626', border: '0.5px solid rgba(220,38,38,0.3)', cursor: 'pointer' }}>Eliminar</button>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '6px', fontSize: '11px', color: 'var(--muted-foreground)' }}>
+                    {n.email     && <span>✉ {n.email}</span>}
+                    {n.celular   && <span>📱 {n.celular}</span>}
+                    {n.whatsapp  && <span>🟢 {n.whatsapp}</span>}
+                    {n.horarioAtencion && <span>🕒 {n.horarioAtencion}</span>}
+                    {n.canal     && <span>· {n.canal}</span>}
+                  </div>
+                  {n.instruccion && <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '4px', fontStyle: 'italic' }}>{n.instruccion}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Form agregar/editar */}
+          {nivelForm && (
+            <div onClick={() => !savingNivel && setNivelForm(null)} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+              <div onClick={e => e.stopPropagation()} style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '20px', width: '460px', maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+                <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '14px' }}>{nivelForm.id ? `Editar nivel N${nivelForm.nivel}` : 'Nuevo nivel de escalamiento'}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr', gap: '10px', alignItems: 'center' }}>
+                  {([
+                    ['nivel', 'Nivel (N)', 'number'],
+                    ['nombreContacto', 'Nombre *', 'text'],
+                    ['email', 'Email', 'text'],
+                    ['celular', 'Celular', 'text'],
+                    ['whatsapp', 'WhatsApp', 'text'],
+                    ['horarioAtencion', 'Horario', 'text'],
+                    ['canal', 'Canal', 'text'],
+                    ['instruccion', 'Instrucción', 'text'],
+                  ] as [string, string, string][]).map(([k, label, type]) => (
+                    <Fragment key={k}>
+                      <label style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{label}</label>
+                      <input type={type} value={nivelForm[k] ?? ''}
+                        disabled={k === 'nivel' && !!nivelForm.id}
+                        onChange={e => setNivelForm((p: any) => ({ ...p, [k]: type === 'number' ? Number(e.target.value) : e.target.value }))}
+                        style={{ padding: '6px 8px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '6px', background: (k === 'nivel' && nivelForm.id) ? 'var(--muted)' : 'var(--background)', boxSizing: 'border-box' }} />
+                    </Fragment>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '16px' }}>
+                  <button onClick={() => setNivelForm(null)} disabled={savingNivel}
+                    style={{ padding: '7px 14px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', color: 'var(--foreground)', cursor: 'pointer' }}>Cancelar</button>
+                  <button onClick={saveNivel} disabled={savingNivel || !nivelForm.nombreContacto?.trim()}
+                    style={{ padding: '7px 16px', fontSize: '12px', fontWeight: 600, background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '7px', cursor: savingNivel ? 'wait' : 'pointer', opacity: nivelForm.nombreContacto?.trim() ? 1 : 0.5 }}>
+                    {savingNivel ? 'Guardando…' : 'Guardar'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

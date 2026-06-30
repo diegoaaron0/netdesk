@@ -126,5 +126,19 @@ export async function POST(req: NextRequest) {
   }
   if (!nueva) return NextResponse.json({ error: 'No se pudo generar el código de la ficha' }, { status: 500 })
 
+  // Copiar los escalamientos por DEFECTO del proveedor a la ficha (sincronizados: personalizado=false).
+  // Editables luego dentro de la ficha; al editarlos se marcan como personalizados.
+  await db.execute(sql`
+    INSERT INTO fichas_niveles
+      (ficha_id, nivel, nombre_contacto, email, celular, tiempo_resp_sev1, tiempo_resp_sev2,
+       tiempo_resp_sev3, correos_copia, whatsapp, canal, horario_atencion, tiempo_esperado_solucion,
+       instruccion, activo, personalizado)
+    SELECT ${nueva.id}, pn.nivel, pn.nombre_contacto, pn.email, pn.celular, pn.tiempo_resp_sev1,
+           pn.tiempo_resp_sev2, pn.tiempo_resp_sev3, pn.correos_copia, pn.whatsapp, pn.canal,
+           pn.horario_atencion, pn.tiempo_esperado_solucion, pn.instruccion, pn.activo, false
+    FROM proveedores_niveles pn
+    WHERE pn.proveedor_id = ${proveedorId}
+  `)
+
   return NextResponse.json(nueva, { status: 201 })
 }

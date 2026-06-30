@@ -160,6 +160,31 @@ export const fichasNiveles = pgTable('fichas_niveles', {
   tiempoEsperadoSolucion: integer('tiempo_esperado_solucion'),
   instruccion:            text('instruccion'),
   activo:                 boolean('activo').default(true),
+  // false = sincronizado con el default del proveedor (recibe propagación);
+  // true  = personalizado en esta ficha (no se pisa al editar el default del proveedor)
+  personalizado:          boolean('personalizado').default(false),
+  creadoEn:               timestamp('creado_en').defaultNow(),
+})
+
+// Escalamientos por DEFECTO de un proveedor (molde). Se copian a fichas_niveles al
+// crear una ficha; al editar el default se propaga a los niveles sincronizados.
+export const proveedoresNiveles = pgTable('proveedores_niveles', {
+  id:                     uuid('id').primaryKey().defaultRandom(),
+  proveedorId:            uuid('proveedor_id').references(() => proveedores.id, { onDelete: 'cascade' }).notNull(),
+  nivel:                  integer('nivel').notNull(),
+  nombreContacto:         text('nombre_contacto').notNull(),
+  email:                  text('email'),
+  celular:                text('celular'),
+  tiempoRespSev1:         text('tiempo_resp_sev1'),
+  tiempoRespSev2:         text('tiempo_resp_sev2'),
+  tiempoRespSev3:         text('tiempo_resp_sev3'),
+  correosCopia:           text('correos_copia').array(),
+  whatsapp:               text('whatsapp'),
+  canal:                  text('canal').default('correo'),
+  horarioAtencion:        text('horario_atencion'),
+  tiempoEsperadoSolucion: integer('tiempo_esperado_solucion'),
+  instruccion:            text('instruccion'),
+  activo:                 boolean('activo').default(true),
   creadoEn:               timestamp('creado_en').defaultNow(),
 })
 
