@@ -26,6 +26,12 @@ const FLOW = ['BORRADOR','PROPUESTO','APROBADO','COMPLETADO']
 
 function fmtFecha(d: string | null) {
   if (!d) return '—'
+  // Fecha-solo-día (YYYY-MM-DD, ej. fecha planificada): formatear directo, SIN conversión de
+  // zona — convertirla a Lima correría el día un día atrás.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+    const [y, m, dd] = d.split('-')
+    return `${dd}/${m}/${y}`
+  }
   const raw = typeof d === 'string' && !d.includes('Z') && !d.includes('+') ? d + 'Z' : d
   return new Date(raw).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Lima' })
 }
