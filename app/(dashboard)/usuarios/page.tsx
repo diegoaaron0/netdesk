@@ -301,6 +301,10 @@ export default function UsuariosPage() {
                       <div>
                         <div style={{ fontSize: '12px', fontWeight: 500 }}>{nombreCompleto}</div>
                         {!u.activo && <div style={{ fontSize: '9px', color: '#dc2626', fontWeight: 600 }}>INACTIVO</div>}
+                        {u.sinPassword && (
+                          <div title="Este usuario no tiene contraseña y no puede iniciar sesión. Edítalo para asignarle una."
+                            style={{ fontSize: '9px', color: '#b45309', fontWeight: 600 }}>⚠ SIN CONTRASEÑA</div>
+                        )}
                       </div>
                     </div>
                   </td>
