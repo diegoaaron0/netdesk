@@ -4,9 +4,10 @@ import { useRouter, useParams } from 'next/navigation'
 import { apiMutate } from '@/lib/api-mutate'
 
 const ESTADO_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
-  BORRADOR:  { label: 'Borrador',  bg: '#F1F5F9', color: '#475569' },
-  ACTIVA:    { label: 'Activa',    bg: '#ECFDF5', color: '#065F46' },
-  HISTORICA: { label: 'Desactivada', bg: '#F8FAFC', color: '#94A3B8' },
+  BORRADOR:     { label: 'Borrador',     bg: '#F1F5F9', color: '#475569' },
+  ACTIVA:       { label: 'Activa',       bg: '#ECFDF5', color: '#065F46' },
+  HISTORICA:    { label: 'Desactivada',  bg: '#F8FAFC', color: '#94A3B8' },
+  DADA_DE_BAJA: { label: 'Dada de Baja', bg: '#FEF2F2', color: '#B91C1C' },
 }
 
 function Field({ label, value, editing, name, onChange, type = 'text', textarea = false, defaultValue }: {

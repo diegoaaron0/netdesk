@@ -22,7 +22,7 @@ export const alcanceCorteEnum = pgEnum('alcance_corte', [
   'SOLO_TIENDA', 'MALL', 'CUADRA_CALLE', 'ZONA_AMPLIA',
 ])
 
-export const estadoFichaEnum = pgEnum('estado_ficha', ['BORRADOR', 'ACTIVA', 'HISTORICA'])
+export const estadoFichaEnum = pgEnum('estado_ficha', ['BORRADOR', 'ACTIVA', 'HISTORICA', 'DADA_DE_BAJA'])
 
 export const tipoLocalEnum = pgEnum('tipo_local', ['TIENDA', 'CATALOGO', 'ENLACE', 'ALMACEN', 'RESTAURANTE'])
 
@@ -472,7 +472,7 @@ export const tiendasHistorialRelations = relations(tiendasHistorial, ({ one }) =
 // ── Gestión de Cambios ────────────────────────────────────────────────────────
 
 export const tipoAccionEnum = pgEnum('tipo_accion', [
-  'CAMBIO_PROVEEDOR', 'RENEGOCIACION_CONTRATO', 'ACTUALIZACION_PLAN',
+  'RENOVACION_CONTRATO', 'CAMBIO_CONTRATO', 'BAJA_CONTRATO',
   'AUDITORIA_PROVEEDOR', 'ADQUISICION_EQUIPO', 'PLAN_MEJORA',
 ])
 export const estadoAccionEnum = pgEnum('estado_accion', [
@@ -504,7 +504,7 @@ export const accionesGestion = pgTable('acciones_gestion', {
   proveedorAnteriorId:      uuid('proveedor_anterior_id').references(() => proveedores.id),
   proveedorNuevoId:         uuid('proveedor_nuevo_id').references(() => proveedores.id),
 
-  // Fichas vinculadas (CAMBIO_PROVEEDOR / RENEGOCIACION_CONTRATO)
+  // Fichas vinculadas (CAMBIO_CONTRATO / RENOVACION_CONTRATO)
   fichaAnteriorId:          uuid('ficha_anterior_id').references(() => fichas.id, { onDelete: 'set null' }),
   fichaNuevaId:             uuid('ficha_nueva_id').references(() => fichas.id, { onDelete: 'set null' }),
 

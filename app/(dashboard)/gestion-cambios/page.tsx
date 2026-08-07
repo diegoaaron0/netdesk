@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { apiMutate } from '@/lib/api-mutate'
+import { TIPO_LABELS } from '@/lib/gestion-cambios-config'
 
 function GcTabs({ active }: { active: 'acciones' | 'fichas' }) {
   const router = useRouter()
@@ -20,15 +21,6 @@ function GcTabs({ active }: { active: 'acciones' | 'fichas' }) {
       ))}
     </div>
   )
-}
-
-const TIPO_LABELS: Record<string, string> = {
-  CAMBIO_PROVEEDOR:      'Cambio de proveedor',
-  RENEGOCIACION_CONTRATO:'Renegociación de contrato',
-  ACTUALIZACION_PLAN:    'Actualización de plan',
-  AUDITORIA_PROVEEDOR:   'Auditoría de proveedor',
-  ADQUISICION_EQUIPO:    'Adquisición / baja de equipo',
-  PLAN_MEJORA:           'Plan de mejora',
 }
 
 const ESTADO_CONFIG: Record<string, { label: string; bg: string; color: string }> = {

@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   const conditions = []
   if (tiendaId)    conditions.push(eq(fichas.tiendaId, tiendaId))
   if (proveedorId) conditions.push(eq(fichas.proveedorId, proveedorId))
-  if (estado)      conditions.push(eq(fichas.estado, estado as 'BORRADOR' | 'ACTIVA' | 'HISTORICA'))
+  if (estado)      conditions.push(eq(fichas.estado, estado as 'BORRADOR' | 'ACTIVA' | 'HISTORICA' | 'DADA_DE_BAJA'))
   if (buscar)      conditions.push(ilike(fichas.codigo, `%${buscar}%`))
 
   const rows = await db

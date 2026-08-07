@@ -6,7 +6,7 @@ import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 
 // PATCH /api/fichas/[id]/estado
-// body: { estado: 'BORRADOR' | 'ACTIVA' | 'HISTORICA' }
+// body: { estado: 'BORRADOR' | 'ACTIVA' | 'HISTORICA' | 'DADA_DE_BAJA' }
 // Activar: archiva la ficha ACTIVA anterior de la tienda y sincroniza tiendas.*
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -15,7 +15,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!can(session, 'gestion-cambios.crear')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { estado } = await req.json()
-  if (!['BORRADOR', 'ACTIVA', 'HISTORICA'].includes(estado)) {
+  if (!['BORRADOR', 'ACTIVA', 'HISTORICA', 'DADA_DE_BAJA'].includes(estado)) {
     return NextResponse.json({ error: 'Estado inválido' }, { status: 400 })
   }
 
@@ -45,6 +45,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // El archivado directo no está permitido: ocurre al activar un reemplazo vía Gestión de Cambios.
   if (estado === 'HISTORICA')
     return NextResponse.json({ error: 'Archivar una ficha se hace activando su reemplazo por Gestión de Cambios.' }, { status: 409 })
+  // La baja tampoco es directa: ocurre al ejecutar una acción de tipo "Dar de Baja" en Gestión de Cambios.
+  if (estado === 'DADA_DE_BAJA')
+    return NextResponse.json({ error: 'Dar de baja una ficha se hace por Gestión de Cambios.' }, { status: 409 })
 
   if (estado === 'ACTIVA') {
     // Leer el proveedor actual de la tienda ANTES de sincronizar

@@ -68,7 +68,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
            ${valores.tiempoEsperadoSolucion}, ${valores.instruccion}, ${valores.activo}, false
     FROM fichas f
     WHERE f.proveedor_id = ${id}
-      AND f.estado <> 'HISTORICA'
+      AND f.estado NOT IN ('HISTORICA', 'DADA_DE_BAJA')
       AND NOT EXISTS (SELECT 1 FROM fichas_niveles fn WHERE fn.ficha_id = f.id AND fn.nivel = ${valores.nivel})
   `)
 

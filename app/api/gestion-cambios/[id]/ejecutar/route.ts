@@ -7,6 +7,7 @@ import {
 import { eq, and, isNull, ne, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
+import { TIPOS_CON_FICHA } from '@/lib/gestion-cambios-config'
 
 // Error con código HTTP para abortar (y revertir) la transacción con un mensaje claro
 class HttpError extends Error {
@@ -45,12 +46,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'La acción debe estar APROBADA para ejecutarse' }, { status: 409 })
 
   // La ficha se adjunta al PROPONER. En los tipos que generan ficha es obligatoria: no se ejecuta sin ella.
-  const TIPOS_CON_FICHA = ['CAMBIO_PROVEEDOR', 'RENEGOCIACION_CONTRATO', 'ACTUALIZACION_PLAN']
+  // BAJA_CONTRATO no está en TIPOS_CON_FICHA: no lleva ficha nueva, archiva la actual.
   const fichaNuevaId: string | null = accion.fichaNuevaId ?? null
   if (TIPOS_CON_FICHA.includes(accion.tipo) && !fichaNuevaId)
     return NextResponse.json({ error: 'La acción no tiene ficha adjunta. Vuelve a proponerla adjuntando la ficha.' }, { status: 409 })
 
   // Re-validar la ficha al EJECUTAR (por si la editaron/activaron entre proponer y ejecutar)
+  let fichaProveedorId: string | null = null
   if (fichaNuevaId) {
     const proveedorObjetivo = accion.proveedorNuevoId ?? accion.proveedorAnteriorId
     const [f] = await db.select({ tiendaId: fichas.tiendaId, proveedorId: fichas.proveedorId, estado: fichas.estado })
@@ -63,7 +65,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'La ficha adjunta ya no corresponde al proveedor de la acción' }, { status: 409 })
     if (f.estado !== 'BORRADOR')
       return NextResponse.json({ error: 'La ficha adjunta ya no está en BORRADOR' }, { status: 409 })
+    fichaProveedorId = f.proveedorId
   }
+
+  // CAMBIO_CONTRATO (tipo fusionado: antes CAMBIO_PROVEEDOR + ACTUALIZACION_PLAN):
+  // el bloqueo de incidentes abiertos y el cambio de tiendas.proveedor_id solo
+  // aplican si el proveedor REALMENTE cambia — no por el nombre del tipo. Se
+  // determina comparando el proveedor anterior capturado en la acción contra
+  // el proveedor de la ficha que se está activando. Si no se puede confirmar
+  // que son el mismo (dato faltante), se trata como cambio (más seguro).
+  const proveedorCambiaEnTienda =
+    !(accion.proveedorAnteriorId && fichaProveedorId && accion.proveedorAnteriorId === fichaProveedorId)
 
   const ejecutadoPorId = (session.user as any)?.id
   const ahora          = new Date()
@@ -80,51 +92,67 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     // Toda la ejecución es atómica: o se aplica completa, o no se aplica nada.
     const updated = await db.transaction(async (tx) => {
-      // ── CAMBIO_PROVEEDOR: lógica específica ──────────────────────────────────
-      if (accion.tipo === 'CAMBIO_PROVEEDOR') {
-        if (!accion.proveedorNuevoId)
+      // ── CAMBIO_CONTRATO: cambia el proveedor de la tienda solo si el
+      // proveedor realmente cambia (ver proveedorCambiaEnTienda arriba) ──────
+      if (accion.tipo === 'CAMBIO_CONTRATO' && proveedorCambiaEnTienda) {
+        const proveedorNuevoReal = fichaProveedorId ?? accion.proveedorNuevoId
+        if (!proveedorNuevoReal)
           throw new HttpError(400, 'Falta proveedor nuevo')
 
         if (accion.alcance === 'TIENDA') {
           if (!accion.tiendaId)
             throw new HttpError(400, 'Falta tienda')
 
-          // Bloquear si hay incidentes abiertos
-          const [{ cnt }] = await tx.execute(sql`
-            SELECT COUNT(*)::int AS cnt FROM incidentes
-            WHERE tienda_id = ${accion.tiendaId}
-              AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
-          `) as any[]
-          if (Number(cnt) > 0)
-            throw new HttpError(409,
-              `La tienda tiene ${cnt} incidente${Number(cnt) > 1 ? 's' : ''} abierto${Number(cnt) > 1 ? 's' : ''}. Resuelve todos antes de ejecutar.`,
-              { incidentesAbiertos: Number(cnt) })
-
-          await _cambiarProveedorTienda(tx, accion.tiendaId, accion.proveedorAnteriorId, accion.proveedorNuevoId, ejecutadoPorId, `${accion.codigo}: ${accion.titulo}`)
+          await _bloquearSiIncidentesAbiertos(tx, accion.tiendaId)
+          await _cambiarProveedorTienda(tx, accion.tiendaId, accion.proveedorAnteriorId, proveedorNuevoReal, ejecutadoPorId, `${accion.codigo}: ${accion.titulo}`)
 
         } else {
-          // ZONA: iterar cada tienda del scope
+          // ZONA: iterar cada tienda del scope (sin ficha por tienda hoy — igual que antes)
           const tScope = await tx.select().from(accionesGestionTiendas)
             .where(eq(accionesGestionTiendas.accionId, id))
 
           for (const row of tScope) {
-            const [{ cnt }] = await tx.execute(sql`
-              SELECT COUNT(*)::int AS cnt FROM incidentes
-              WHERE tienda_id = ${row.tiendaId}
-                AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
-            `) as any[]
-            if (Number(cnt) > 0) continue // omitir tiendas con incidentes abiertos (no bloquear toda la zona)
-
             const pAnterior = row.proveedorAnteriorId ?? accion.proveedorAnteriorId
-            const pNuevo    = row.proveedorNuevoId    ?? accion.proveedorNuevoId
+            const pNuevo    = row.proveedorNuevoId    ?? proveedorNuevoReal
+            if (pAnterior && pNuevo && pAnterior === pNuevo) continue // sin cambio real de proveedor para esta tienda
+
+            const cnt = await _contarIncidentesAbiertos(tx, row.tiendaId)
+            if (cnt > 0) continue // omitir tiendas con incidentes abiertos (no bloquear toda la zona)
+
             await _cambiarProveedorTienda(tx, row.tiendaId, pAnterior, pNuevo!, ejecutadoPorId, `${accion.codigo}: ${accion.titulo}`)
             await tx.update(accionesGestionTiendas).set({ ejecutada: true }).where(eq(accionesGestionTiendas.id, row.id))
           }
         }
       }
 
-      // Activar la ficha nueva si se proporcionó
+      // ── BAJA_CONTRATO: bloquea SIEMPRE por incidentes abiertos (igual de
+      // estricto que CAMBIO_PROVEEDOR antes). No lleva ficha nueva: archiva la
+      // ficha ACTIVA de la tienda a DADA_DE_BAJA (no HISTORICA — no hay
+      // reemplazo) y deja la tienda sin proveedor/ficha activa. ────────────────
       let fichaAnteriorIdCapturada: string | null = null
+      if (accion.tipo === 'BAJA_CONTRATO') {
+        if (accion.alcance === 'TIENDA') {
+          if (!accion.tiendaId)
+            throw new HttpError(400, 'Falta tienda')
+
+          await _bloquearSiIncidentesAbiertos(tx, accion.tiendaId)
+          fichaAnteriorIdCapturada = await _darDeBajaContrato(tx, accion.tiendaId, ejecutadoPorId, `${accion.codigo}: ${accion.titulo}`, ahora)
+
+        } else {
+          const tScope = await tx.select().from(accionesGestionTiendas)
+            .where(eq(accionesGestionTiendas.accionId, id))
+
+          for (const row of tScope) {
+            const cnt = await _contarIncidentesAbiertos(tx, row.tiendaId)
+            if (cnt > 0) continue // omitir tiendas con incidentes abiertos (no bloquear toda la zona)
+
+            await _darDeBajaContrato(tx, row.tiendaId, ejecutadoPorId, `${accion.codigo}: ${accion.titulo}`, ahora)
+            await tx.update(accionesGestionTiendas).set({ ejecutada: true }).where(eq(accionesGestionTiendas.id, row.id))
+          }
+        }
+      }
+
+      // Activar la ficha nueva si se proporcionó (RENOVACION_CONTRATO / CAMBIO_CONTRATO)
       if (fichaNuevaId) {
         const [fichaData] = await tx
           .select({ id: fichas.id, tiendaId: fichas.tiendaId })
@@ -189,6 +217,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 }
 
+async function _contarIncidentesAbiertos(tx: any, tiendaId: string): Promise<number> {
+  const [{ cnt }] = await tx.execute(sql`
+    SELECT COUNT(*)::int AS cnt FROM incidentes
+    WHERE tienda_id = ${tiendaId}
+      AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
+  `) as any[]
+  return Number(cnt)
+}
+
+async function _bloquearSiIncidentesAbiertos(tx: any, tiendaId: string): Promise<void> {
+  const cnt = await _contarIncidentesAbiertos(tx, tiendaId)
+  if (cnt > 0)
+    throw new HttpError(409,
+      `La tienda tiene ${cnt} incidente${cnt > 1 ? 's' : ''} abierto${cnt > 1 ? 's' : ''}. Resuelve todos antes de ejecutar.`,
+      { incidentesAbiertos: cnt })
+}
+
 async function _cambiarProveedorTienda(
   tx: any,
   tiendaId: string,
@@ -221,4 +266,43 @@ async function _cambiarProveedorTienda(
     valorAnterior: proveedorAnteriorId ?? null,
     valorNuevo:    `${proveedorNuevoId} — vía ${referencia}`,
   })
+}
+
+// Archiva la ficha ACTIVA de la tienda a DADA_DE_BAJA y deja la tienda sin
+// proveedor/ficha activa. Devuelve el id de la ficha archivada (o null si la
+// tienda no tenía ficha activa), para registrarlo como fichaAnteriorId de la acción.
+async function _darDeBajaContrato(
+  tx: any,
+  tiendaId: string,
+  usuarioId: string,
+  referencia: string,
+  ahora: Date,
+): Promise<string | null> {
+  const [fichaActiva] = await tx.select({ id: fichas.id })
+    .from(fichas)
+    .where(and(eq(fichas.tiendaId, tiendaId), eq(fichas.estado, 'ACTIVA')))
+    .limit(1)
+
+  if (fichaActiva) {
+    await tx.update(fichas)
+      .set({ estado: 'DADA_DE_BAJA', archivadoEn: ahora })
+      .where(eq(fichas.id, fichaActiva.id))
+  }
+
+  const [tiendaActual] = await tx.select({ proveedorId: tiendas.proveedorId })
+    .from(tiendas).where(eq(tiendas.id, tiendaId)).limit(1)
+
+  await tx.update(tiendas)
+    .set({ fichaActivaId: null, proveedorId: null } as any)
+    .where(eq(tiendas.id, tiendaId))
+
+  await tx.insert(tiendasHistorial).values({
+    tiendaId,
+    usuarioId,
+    campoEditado:  'proveedor_id',
+    valorAnterior: tiendaActual?.proveedorId ?? null,
+    valorNuevo:    `null (contrato dado de baja) — vía ${referencia}`,
+  })
+
+  return fichaActiva?.id ?? null
 }

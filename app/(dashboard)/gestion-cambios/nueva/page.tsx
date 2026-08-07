@@ -1,17 +1,7 @@
 'use client'
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-
-const TIPO_LABELS: Record<string, string> = {
-  CAMBIO_PROVEEDOR:       'Cambio de proveedor',
-  RENEGOCIACION_CONTRATO: 'Renegociación de contrato',
-  ACTUALIZACION_PLAN:     'Actualización de plan',
-  AUDITORIA_PROVEEDOR:    'Auditoría de proveedor',
-  ADQUISICION_EQUIPO:     'Adquisición / baja de equipo',
-  PLAN_MEJORA:            'Plan de mejora',
-}
-
-const TIPOS_CON_PROVEEDOR = new Set(['CAMBIO_PROVEEDOR', 'RENEGOCIACION_CONTRATO', 'ACTUALIZACION_PLAN', 'AUDITORIA_PROVEEDOR'])
+import { TIPO_LABELS, TIPOS_CON_PROVEEDOR } from '@/lib/gestion-cambios-config'
 
 const inp: React.CSSProperties = {
   width: '100%', padding: '7px 10px', fontSize: '12px',
@@ -30,7 +20,7 @@ function NuevaAccionForm() {
   const editId = searchParams.get('id')          // si viene, estamos EDITANDO un borrador
   const isEdit = !!editId
 
-  const [tipo,      setTipo]      = useState('CAMBIO_PROVEEDOR')
+  const [tipo,      setTipo]      = useState('CAMBIO_CONTRATO')
   const [alcance,   setAlcance]   = useState<'TIENDA'|'ZONA'>('TIENDA')
   const [titulo,    setTitulo]    = useState('')
   const [motivo,    setMotivo]    = useState('')
@@ -62,7 +52,7 @@ function NuevaAccionForm() {
       .then(d => {
         if (!d?.id) return
         if (d.estado !== 'BORRADOR') { setError('Solo se pueden editar acciones en estado Borrador'); return }
-        setTipo(d.tipo ?? 'CAMBIO_PROVEEDOR')
+        setTipo(d.tipo ?? 'CAMBIO_CONTRATO')
         setAlcance(d.alcance === 'ZONA' ? 'ZONA' : 'TIENDA')
         setTitulo(d.titulo ?? '')
         setMotivo(d.motivo ?? '')

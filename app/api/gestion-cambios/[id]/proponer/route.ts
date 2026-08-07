@@ -5,6 +5,7 @@ import { eq, inArray } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { sendMail } from '@/lib/mailer'
+import { TIPOS_CON_FICHA } from '@/lib/gestion-cambios-config'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -28,8 +29,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'Solo se puede proponer desde BORRADOR' }, { status: 409 })
 
   // Tipos que generan/activan una ficha: la ficha es OBLIGATORIA y se adjunta aquí, al proponer.
-  // CAMBIO_PROVEEDOR → ficha del proveedor nuevo; renegociación/actualización → mismo proveedor.
-  const TIPOS_CON_FICHA = ['CAMBIO_PROVEEDOR', 'RENEGOCIACION_CONTRATO', 'ACTUALIZACION_PLAN']
+  // CAMBIO_CONTRATO → ficha del proveedor nuevo (o mismo proveedor si es solo plan);
+  // RENOVACION_CONTRATO → mismo proveedor. BAJA_CONTRATO no lleva ficha nueva.
   let fichaParaGuardar: string | undefined = undefined
   if (TIPOS_CON_FICHA.includes(current.tipo)) {
     const proveedorObjetivo = current.proveedorNuevoId ?? current.proveedorAnteriorId

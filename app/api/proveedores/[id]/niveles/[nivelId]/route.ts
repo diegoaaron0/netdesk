@@ -48,7 +48,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       AND f.proveedor_id = ${id}
       AND fn.nivel = ${actual.nivel}
       AND fn.personalizado = false
-      AND f.estado <> 'HISTORICA'
+      AND f.estado NOT IN ('HISTORICA', 'DADA_DE_BAJA')
   `)
 
   return NextResponse.json(updated)

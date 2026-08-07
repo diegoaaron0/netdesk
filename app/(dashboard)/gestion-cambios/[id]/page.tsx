@@ -2,18 +2,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-
-// Tipos que generan/activan una ficha en el flujo (la ficha se adjunta al proponer)
-const TIPOS_CON_FICHA = ['CAMBIO_PROVEEDOR', 'RENEGOCIACION_CONTRATO', 'ACTUALIZACION_PLAN']
-
-const TIPO_LABELS: Record<string, string> = {
-  CAMBIO_PROVEEDOR:       'Cambio de proveedor',
-  RENEGOCIACION_CONTRATO: 'Renegociación de contrato',
-  ACTUALIZACION_PLAN:     'Actualización de plan',
-  AUDITORIA_PROVEEDOR:    'Auditoría de proveedor',
-  ADQUISICION_EQUIPO:     'Adquisición / baja de equipo',
-  PLAN_MEJORA:            'Plan de mejora',
-}
+import { TIPO_LABELS, TIPOS_CON_FICHA } from '@/lib/gestion-cambios-config'
 const ESTADO_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
   BORRADOR:      { label: 'Borrador',      bg: '#F1F5F9', color: '#475569' },
   PROPUESTO:     { label: 'Propuesto',     bg: '#EFF6FF', color: '#1D4ED8' },
@@ -351,9 +340,14 @@ export default function AccionDetallePage() {
             </button>
             {TIPOS_CON_FICHA.includes(accion.tipo) && (
               <div style={{ fontSize: '10px', color: '#7E22CE', marginTop: '6px' }}>
-                {accion.tipo === 'CAMBIO_PROVEEDOR'
+                {accion.tipo === 'CAMBIO_CONTRATO' && accion.proveedorAnteriorId && accion.proveedorNuevoId && accion.proveedorAnteriorId !== accion.proveedorNuevoId
                   ? `Actualizará el proveedor de la tienda y activará la ficha ${accion.fichaNuevaCodigo ?? ''}.`
                   : `Activará la ficha ${accion.fichaNuevaCodigo ?? ''} en la tienda.`}
+              </div>
+            )}
+            {accion.tipo === 'BAJA_CONTRATO' && (
+              <div style={{ fontSize: '10px', color: '#7E22CE', marginTop: '6px' }}>
+                Dará de baja el contrato: la ficha activa quedará archivada (Dada de Baja) y la tienda quedará sin proveedor ni ficha activa.
               </div>
             )}
           </div>
