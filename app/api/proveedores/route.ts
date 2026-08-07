@@ -5,7 +5,7 @@ import { eq, gte, sql, and, isNotNull } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { logUnlessSchemaMissing } from '@/lib/db-errors'
-import { SLA_RESPUESTA_MIN, SLA_RESOLUCION_DEFAULT_MIN } from '@/lib/sla-core'
+import { slaProveedorJoins, slaRespuestaPctExpr, slaResolucionPctExpr } from '@/lib/sla-sql'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -69,57 +69,27 @@ export async function GET(req: NextRequest) {
   } catch (e) { logUnlessSchemaMissing('proveedores', e) }
 
   // ── 5. SLA Respuesta + SLA Resolución por proveedor (últimos 30d) ──────────
-  const SLA_RESP_SEG  = SLA_RESPUESTA_MIN * 60
-  const SLA_RESOL_SEG = SLA_RESOLUCION_DEFAULT_MIN * 60
+  // Ficha-aware: usa COALESCE(i.ficha_id, t.ficha_activa_id) vía lib/sla-sql.ts,
+  // el mismo fragmento canónico que el detalle y el detalle proveedor↔tienda.
   let slaMap: Record<string, { respuesta: number | null; resolucion: number | null }> = {}
   try {
     const slaRows = await db.execute(sql`
       SELECT
         i.proveedor_id,
-        count(*) filter (
-          where n1.hora_correo_n1 IS NOT NULL
-        ) AS total_escalados,
-        count(*) filter (
-          where n1.hora_correo_n1 IS NOT NULL
-            AND resp.hora_primera_resp IS NOT NULL
-            AND EXTRACT(epoch FROM (resp.hora_primera_resp - n1.hora_correo_n1)) <= ${SLA_RESP_SEG}
-        ) AS resp_ok,
-        count(*) filter (
-          where n1.hora_correo_n1 IS NOT NULL
-            AND resp.hora_primera_resp IS NOT NULL
-            AND i.hora_fin IS NOT NULL
-        ) AS total_resolvibles,
-        count(*) filter (
-          where n1.hora_correo_n1 IS NOT NULL
-            AND resp.hora_primera_resp IS NOT NULL
-            AND i.hora_fin IS NOT NULL
-            AND EXTRACT(epoch FROM (i.hora_fin - resp.hora_primera_resp)) <= ${SLA_RESOL_SEG}
-        ) AS resol_ok
+        ${sql.raw(slaRespuestaPctExpr())}  AS sla_respuesta_pct,
+        ${sql.raw(slaResolucionPctExpr())} AS sla_resolucion_pct
       FROM incidentes i
-      LEFT JOIN LATERAL (
-        SELECT MIN(hora_envio_correo) AS hora_correo_n1
-        FROM   escalamientos
-        WHERE  incidente_id = i.id AND hora_envio_correo IS NOT NULL
-      ) n1 ON true
-      LEFT JOIN LATERAL (
-        SELECT hora_respuesta AS hora_primera_resp
-        FROM   escalamientos
-        WHERE  incidente_id = i.id AND hora_respuesta IS NOT NULL AND no_hubo_respuesta IS NOT TRUE
-        ORDER  BY hora_respuesta LIMIT 1
-      ) resp ON true
+      JOIN tiendas t ON i.tienda_id = t.id
+      ${sql.raw(slaProveedorJoins())}
       WHERE i.hora_registro >= ${thirtyDaysAgoStr}::timestamptz
-        AND i.estado = 'RESUELTO'
         AND i.proveedor_id IS NOT NULL
-        AND i.evaluable_proveedor IS NOT FALSE
       GROUP BY i.proveedor_id
     `)
     for (const r of slaRows as any[]) {
       if (!r.proveedor_id) continue
-      const te = Number(r.total_escalados), ro = Number(r.resp_ok)
-      const tr = Number(r.total_resolvibles), resOk = Number(r.resol_ok)
       slaMap[r.proveedor_id] = {
-        respuesta:  te > 0 ? Math.round((ro   / te) * 100) : null,
-        resolucion: tr > 0 ? Math.round((resOk / tr) * 100) : null,
+        respuesta:  r.sla_respuesta_pct  != null ? Number(r.sla_respuesta_pct)  : null,
+        resolucion: r.sla_resolucion_pct != null ? Number(r.sla_resolucion_pct) : null,
       }
     }
   } catch (e) { logUnlessSchemaMissing('proveedores', e) }

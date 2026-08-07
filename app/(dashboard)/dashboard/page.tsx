@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import DashboardAnalitico from './components/DashboardAnalitico'
 import { SLA_RESOLUCION_DEFAULT_MIN } from '@/lib/sla-core'
+import { DASHBOARD_CONFIG } from '@/lib/dashboard-config'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const TIPO_LABELS: Record<string, string> = {
@@ -139,7 +140,7 @@ function downloadCSV(activos: any[], resoluciones: any[], fecha?: string) {
     const tipoCont = tipoContingenciaLabel(r)
     const rendCont = r.boleta_manual ? (r.boleta_rendimiento ?? '') : (r.cont_activado_por ? (r.cont_rendimiento ?? '') : (r.mov_activado_por ? (r.mov_rendimiento ?? '') : ''))
     const iei = r.iei_venta_hora
-      ? Math.round(Number(r.iei_venta_hora) * (r.mttr_minutos ?? 0) / 60 * 0.35)
+      ? Math.round(Number(r.iei_venta_hora) * (r.mttr_minutos ?? 0) / 60 * DASHBOARD_CONFIG.MARGEN_BRUTO)
       : ''
     return [
       r.codigo ?? '',
@@ -189,11 +190,14 @@ function initials(nombre: string): string {
   return nombre.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
 }
 const _FACTOR_BASE: Record<string, number> = { CAIDA_TOTAL: 1.00, INTERMITENCIA: 0.50, LENTITUD: 0.30, CORTE_ELECTRICO: 1.00 }
-const _MARGEN = 0.35
-function _normCont(r: string | null | undefined) { if (!r) return 0.20; const v = r.toUpperCase(); if (v==='EFECTIVO'||v==='TOTAL'||v==='EFECTIVA') return 0.00; if (v==='PARCIAL'||v==='LIMITADA') return 0.20; return 1.00 }
+// Se lee DASHBOARD_CONFIG.MARGEN_BRUTO directamente en el punto de uso (no en
+// una constante de módulo) para que un cambio en tiempo de ejecución se refleje
+// siempre, sin depender de cuándo se evaluó este archivo por primera vez.
+function _normCont(r: string | null | undefined) { if (!r) return 0.20; const v = r.toUpperCase(); if (v==='EFECTIVO') return 0.00; if (v==='PARCIAL') return 0.20; return 1.00 }
 function _normBoleta(r: string | null | undefined, tipo?: string) { const c=tipo==='CORTE_ELECTRICO'; if (!r) return c?0.00:0.10; const v = r.toUpperCase(); if (v==='EFECTIVA'||v==='TOTAL') return c?0.00:0.10; if (v==='PARCIAL') return 0.30; return 1.00 }
 
-function calcIeiLive(inc: any, nowMs: number): number {
+// Exportada solo para poder probarla en test (mismo cálculo, sin cambios de lógica).
+export function calcIeiLive(inc: any, nowMs: number): number {
   const vh = inc.iei_venta_hora ? Number(inc.iei_venta_hora) : 0
   if (!vh) return 0
   const startMs = tsMs(inc.hora_registro)
@@ -224,7 +228,7 @@ function calcIeiLive(inc: any, nowMs: number): number {
       if (bolActiva) opts.push(bolF!)
       if (!opts.length) opts.push(_FACTOR_BASE[inc.tipo] ?? 1.00)
     }
-    iei += vh * h * _MARGEN * Math.min(...opts)
+    iei += vh * h * DASHBOARD_CONFIG.MARGEN_BRUTO * Math.min(...opts)
   }
   return Math.round(iei)
 }

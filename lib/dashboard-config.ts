@@ -1,6 +1,18 @@
 // TOTAL_TIENDAS_ACTIVAS eliminado — usar getTotalTiendas() de lib/tiendas-stats.ts
 
 export const DASHBOARD_CONFIG = {
+  // Margen bruto usado en el cálculo del IEI (Impacto Económico del Incidente).
+  // Decisión de negocio confirmada: un solo margen fijo para las 156 tiendas,
+  // sin diferenciar por formato/categoría. No es un placeholder ni deuda técnica.
+  //
+  // Fuente única: si el negocio cambia este número en el futuro, basta con
+  // editar el valor de abajo — no hay que tocar nada más. Todos los puntos que
+  // calculan IEI leen de aquí (ninguno tiene su propio literal duplicado):
+  //   - lib/impacto-calc.ts (calcImpactoRow)
+  //   - lib/report-sql.ts (ieiPerRow/ieiSum — SQL crudo de los reportes; el
+  //     margen se pasa como parámetro con este valor por defecto)
+  //   - app/(dashboard)/dashboard/page.tsx (ticker de IEI en vivo + fila de CSV)
+  //   - app/(dashboard)/incidentes/[id]/page.tsx (bloque IEI del detalle)
   MARGEN_BRUTO: 0.35,
   HORAS_ATENCION: 12,
   SLA_META_PORCENTAJE: 90,

@@ -124,14 +124,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     // columnas no migradas aún — se retornan null
   }
 
-  // Métricas SLA (30d)
+  // Métricas SLA (30d) — % real de cumplimiento (ficha-aware), no score de
+  // proximidad. Fragmentos canónicos de lib/sla-sql.ts — mismo criterio que
+  // Proveedores (Lista, Detalle, Detalle proveedor↔tienda).
   let slaTienda: Record<string, any> = {
-    scoreRespuestaPromedio: null, tRespuestaPromedio: null,
-    scoreResolucionPromedio: null, tResolucionPromedio: null,
+    slaRespuestaPct: null, tRespuestaPromedio: null,
+    slaResolucionPct: null, tResolucionPromedio: null,
     totalEvaluables: 0,
   }
   try {
     const { calcSLARow } = await import('@/lib/sla-core')
+    const { slaProveedorJoins, slaRespuestaPctExpr, slaResolucionPctExpr } = await import('@/lib/sla-sql')
     const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
     const thirtyDaysAgoStr = thirtyDaysAgo.toISOString()
 
@@ -168,8 +171,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     `)
 
     let totalEsc = 0
-    let scoreRespSum = 0
-    let scoreResolSum = 0, scoreResolCount = 0
     let tRespSum = 0, tRespCount = 0
     let tResolSum = 0, tResolCount = 0
     for (const row of slaRows as any[]) {
@@ -186,16 +187,31 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       })
       if (!res.evaluable) continue
       totalEsc++
-      scoreRespSum += res.scoreRespuesta ?? 0
-      if (res.scoreResolucion != null) { scoreResolSum += res.scoreResolucion; scoreResolCount++ }
       if (res.tPrimeraRespuestaMin != null) { tRespSum += res.tPrimeraRespuestaMin; tRespCount++ }
       if (res.tResolucionMin != null) { tResolSum += res.tResolucionMin; tResolCount++ }
     }
+
+    let slaRespuestaPct: number | null = null
+    let slaResolucionPct: number | null = null
+    const pctRows = await db.execute(sql`
+      SELECT
+        ${sql.raw(slaRespuestaPctExpr())}  AS sla_respuesta_pct,
+        ${sql.raw(slaResolucionPctExpr())} AS sla_resolucion_pct
+      FROM incidentes i
+      JOIN tiendas t ON i.tienda_id = t.id
+      ${sql.raw(slaProveedorJoins())}
+      WHERE i.tienda_id = ${id}
+        AND i.hora_registro >= ${thirtyDaysAgoStr}::timestamptz
+    `)
+    const pr = (pctRows as any[])[0]
+    slaRespuestaPct  = pr?.sla_respuesta_pct  != null ? Number(pr.sla_respuesta_pct)  : null
+    slaResolucionPct = pr?.sla_resolucion_pct != null ? Number(pr.sla_resolucion_pct) : null
+
     slaTienda = {
-      scoreRespuestaPromedio:  totalEsc      > 0 ? Math.round(scoreRespSum  / totalEsc)       : null,
-      tRespuestaPromedio:      tRespCount    > 0 ? Math.round(tRespSum      / tRespCount)      : null,
-      scoreResolucionPromedio: scoreResolCount > 0 ? Math.round(scoreResolSum / scoreResolCount) : null,
-      tResolucionPromedio:     tResolCount   > 0 ? Math.round(tResolSum     / tResolCount)     : null,
+      slaRespuestaPct,
+      tRespuestaPromedio:  tRespCount  > 0 ? Math.round(tRespSum  / tRespCount)  : null,
+      slaResolucionPct,
+      tResolucionPromedio: tResolCount > 0 ? Math.round(tResolSum / tResolCount) : null,
       totalEvaluables: totalEsc,
     }
   } catch (e) { logUnlessSchemaMissing('tiendas/[id]', e) }

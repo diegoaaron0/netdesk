@@ -1,3 +1,5 @@
+import { DASHBOARD_CONFIG } from './dashboard-config'
+
 export function clusterFallback(): string {
   return `CASE t.cluster WHEN 'A' THEN 601 WHEN 'B' THEN 360 WHEN 'C' THEN 262 WHEN 'D' THEN 153 ELSE 0 END`
 }
@@ -57,19 +59,21 @@ export function ieiFactor(): string {
   END`
 }
 
-/** IEI por fila (sin SUM/ROUND) — para CTEs con iei_row */
-export function ieiPerRow(): string {
+/** IEI por fila (sin SUM/ROUND) — para CTEs con iei_row.
+ *  El margen se lee de DASHBOARD_CONFIG.MARGEN_BRUTO por defecto (fuente única) —
+ *  el parámetro solo existe para poder pasar un valor distinto en tests. */
+export function ieiPerRow(margen: number = DASHBOARD_CONFIG.MARGEN_BRUTO): string {
   return (
     `(${ventaHoraDia()})` +
     ` * (COALESCE(i.mttr_minutos, 0)::numeric / 60)` +
-    ` * 0.35` +
+    ` * ${margen}` +
     ` * (${ieiFactor()})`
   )
 }
 
 /** IEI agregado: ROUND(SUM(...))::int — para queries con GROUP BY */
-export function ieiSum(): string {
-  return `ROUND(SUM(${ieiPerRow()}))::int`
+export function ieiSum(margen: number = DASHBOARD_CONFIG.MARGEN_BRUTO): string {
+  return `ROUND(SUM(${ieiPerRow(margen)}))::int`
 }
 
 /** Extrae el mensaje de error real de PostgreSQL desde un error de Drizzle */

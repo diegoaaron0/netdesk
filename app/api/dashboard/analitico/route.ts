@@ -616,13 +616,14 @@ async function buildCards(
   // ── CARD 7: Proveedor crítico ───────────────────────────────────────────
   const provMetricas = new Map<string, {
     nombre: string; incidentes: number; mttrSum: number; mttrCount: number
-    slaOk: number; slaTotal: number; costo: number; tiendas: Set<string>
+    slaRespOk: number; slaRespTotal: number; slaResolOk: number; slaResolTotal: number
+    costo: number; tiendas: Set<string>
   }>()
 
   for (const i of incs) {
     const prov = i.prov_nombre ?? '—'
     if (!provMetricas.has(prov)) {
-      provMetricas.set(prov, { nombre: prov, incidentes: 0, mttrSum: 0, mttrCount: 0, slaOk: 0, slaTotal: 0, costo: 0, tiendas: new Set() })
+      provMetricas.set(prov, { nombre: prov, incidentes: 0, mttrSum: 0, mttrCount: 0, slaRespOk: 0, slaRespTotal: 0, slaResolOk: 0, slaResolTotal: 0, costo: 0, tiendas: new Set() })
     }
     const m = provMetricas.get(prov)!
     m.incidentes++
@@ -630,7 +631,16 @@ async function buildCards(
     if (i.mttr_minutos) { m.mttrSum += i.mttr_minutos; m.mttrCount++ }
     const sla7 = getSlaParaIncidente(i.sla_respuesta_override, i.sla_resolucion_override)
     const slaRes7 = calcSLARow({ tipo: i.tipo, hora_correo_n1: i.hora_correo_n1, hora_primera_resp: i.hora_primera_resp, hora_fin: i.hora_fin, hora_registro: i.hora_registro, max_nivel: i.max_nivel, slaRespuestaOverride: sla7.respuestaMin, slaResolucionOverride: sla7.resolucionMin })
-    if (slaRes7.evaluable) { m.slaTotal++; if (slaRes7.slaGeneral) m.slaOk++ }
+    // % respuesta y % resolución por separado (Paso 2/3 de la consolidación SLA
+    // proveedor) — antes era un ratio combinado (slaGeneral: ambos a la vez).
+    if (slaRes7.evaluable) {
+      m.slaRespTotal++
+      if (slaRes7.slaRespuesta) m.slaRespOk++
+      if (slaRes7.tResolucionMin != null) {
+        m.slaResolTotal++
+        if (slaRes7.slaResolucion) m.slaResolOk++
+      }
+    }
     m.costo += calcCostoIncidente(i, ventasDiarias).costo
   }
 
@@ -641,14 +651,21 @@ async function buildCards(
     reincByProv.set(prov, (reincByProv.get(prov) ?? 0) + 1)
   }
 
-  const provList = [...provMetricas.values()].map((m) => ({
-    nombre: m.nombre,
-    incidentes: m.incidentes,
-    mttrMinutos: m.mttrCount > 0 ? Math.round(m.mttrSum / m.mttrCount) : 0,
-    slaPct: m.slaTotal > 0 ? Math.round(m.slaOk / m.slaTotal * 100) : 100,
-    costo: Math.round(m.costo),
-    reincidenciaTiendas: reincByProv.get(m.nombre) ?? 0,
-  }))
+  const provList = [...provMetricas.values()].map((m) => {
+    const slaRespPct  = m.slaRespTotal  > 0 ? Math.round(m.slaRespOk  / m.slaRespTotal  * 100) : null
+    const slaResolPct = m.slaResolTotal > 0 ? Math.round(m.slaResolOk / m.slaResolTotal * 100) : null
+    const slaPct = slaRespPct != null && slaResolPct != null
+      ? Math.round((slaRespPct + slaResolPct) / 2)
+      : slaRespPct ?? slaResolPct ?? 100
+    return {
+      nombre: m.nombre,
+      incidentes: m.incidentes,
+      mttrMinutos: m.mttrCount > 0 ? Math.round(m.mttrSum / m.mttrCount) : 0,
+      slaPct,
+      costo: Math.round(m.costo),
+      reincidenciaTiendas: reincByProv.get(m.nombre) ?? 0,
+    }
+  })
 
   const maximos = {
     costo:               Math.max(...provList.map((p) => p.costo), 1),

@@ -177,11 +177,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
-  // Métricas SLA del incidente
+  // Métricas SLA del incidente — % de cumplimiento (cumple/no cumple), no
+  // score de proximidad. Fragmentos canónicos de lib/sla-sql.ts, ficha vía
+  // COALESCE(i.ficha_id, t.ficha_activa_id) — igual criterio que Proveedores
+  // y tiendas/[id]. A diferencia de esas rutas (agregados de N incidentes
+  // RESUELTOS), acá es un solo incidente que puede seguir abierto: Respuesta
+  // se evalúa en cuanto hay primera respuesta (no exige RESUELTO, igual que
+  // antes); Resolución exige hora_fin — si el incidente sigue abierto queda
+  // en null ("en curso"), nunca se fuerza a 0%.
   let slaMetrics: Record<string, any> | null = null
   try {
     const { calcSLARow } = await import('@/lib/sla-core')
-    const { getSlaContrato } = await import('@/lib/sla-contrato')
+    const { slaProveedorJoins, slaRespuestaCumpleExpr, slaResolucionCumpleExpr } = await import('@/lib/sla-sql')
 
     const horaCorreoN1  = escs.reduce((min: Date | null, e: any) => {
       if (!e.horaEnvioCorreo) return min
@@ -192,7 +199,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }, null)
     const maxNivel = escs.reduce((max: number, e: any) => Math.max(max, e.nivel ?? 0), 0)
 
-    const slaContrato = inc.proveedorId ? await getSlaContrato(inc.proveedorId, inc.tiendaId) : null
+    const [cr] = await db.execute(sql`
+      SELECT
+        cp.tiempo_respuesta_sla  AS sla_resp_override,
+        cp.tiempo_resolucion_sla AS sla_resol_override,
+        ${sql.raw(slaRespuestaCumpleExpr())}  AS cumple_respuesta,
+        ${sql.raw(slaResolucionCumpleExpr())} AS cumple_resolucion
+      FROM incidentes i
+      JOIN tiendas t ON i.tienda_id = t.id
+      ${sql.raw(slaProveedorJoins())}
+      WHERE i.id = ${id}::uuid
+    `) as any[]
+
     const res = calcSLARow({
       tipo: inc.tipo,
       hora_correo_n1:    horaCorreoN1,
@@ -200,14 +218,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       hora_fin:          inc.horaFin,
       hora_registro:     inc.horaRegistro,
       max_nivel:         maxNivel,
-      slaRespuestaOverride:  slaContrato?.respuestaMin,
-      slaResolucionOverride: slaContrato?.resolucionMin,
+      slaRespuestaOverride:  cr?.sla_resp_override  ?? undefined,
+      slaResolucionOverride: cr?.sla_resol_override ?? undefined,
     })
+
+    const slaRespuestaPct  = horaPrimeraResp == null ? 0 : (cr?.cumple_respuesta ? 100 : 0)
+    const slaResolucionPct = horaPrimeraResp == null ? 0 : (inc.horaFin == null ? null : (cr?.cumple_resolucion ? 100 : 0))
+
     slaMetrics = {
       evaluable:            res.evaluable,
-      scoreRespuesta:       res.scoreRespuesta,
+      slaRespuestaPct,
       tPrimeraRespuestaMin: res.tPrimeraRespuestaMin,
-      scoreResolucion:      res.scoreResolucion,
+      slaResolucionPct,
       tResolucionMin:       res.tResolucionMin,
       tPrimerEnvioMin:      res.tPrimerEnvioMin,
       nivelFinal:           res.nivelFinal,

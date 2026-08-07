@@ -214,8 +214,8 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '14px' }}>
             {[
               { label: 'Tiendas asignadas', value: String(metricas?.totalTiendas ?? 0), color: 'hsl(221,83%,23%)' },
-              { label: 'SLA Respuesta 30d', value: metricas?.scoreRespuestaPromedio  != null ? `${metricas.scoreRespuestaPromedio}%`  : '—', color: slaColor(metricas?.scoreRespuestaPromedio  ?? null) },
-              { label: 'SLA Resolución 30d', value: metricas?.scoreResolucionPromedio != null ? `${metricas.scoreResolucionPromedio}%` : '—', color: slaColor(metricas?.scoreResolucionPromedio ?? null) },
+              { label: 'SLA Respuesta 30d', value: metricas?.slaRespuestaPct  != null ? `${metricas.slaRespuestaPct}%`  : '—', color: slaColor(metricas?.slaRespuestaPct  ?? null) },
+              { label: 'SLA Resolución 30d', value: metricas?.slaResolucionPct != null ? `${metricas.slaResolucionPct}%` : '—', color: slaColor(metricas?.slaResolucionPct ?? null) },
               { label: 'Incidentes 30d', value: String(metricas?.incidentes30d ?? 0), color: (metricas?.incidentes30d ?? 0) > 0 ? '#b45309' : '#6b7280' },
             ].map(k => (
               <div key={k.label} style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '14px 16px' }}>
@@ -264,9 +264,9 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
               <SectionTitle>Métricas (30 días)</SectionTitle>
               {[
                 { label: 'Costo mensual total ↗',       value: fmtSoles(metricas?.costoTotal), onClick: () => setPanelMetrica('costo') },
-                { label: 'SLA Respuesta (30d) ↗',      value: metricas?.scoreRespuestaPromedio  != null ? `${metricas.scoreRespuestaPromedio}%`  : '—', color: slaColor(metricas?.scoreRespuestaPromedio  ?? null), onClick: () => setPanelMetrica('slaResp') },
+                { label: 'SLA Respuesta (30d) ↗',      value: metricas?.slaRespuestaPct  != null ? `${metricas.slaRespuestaPct}%`  : '—', color: slaColor(metricas?.slaRespuestaPct  ?? null), onClick: () => setPanelMetrica('slaResp') },
                 { label: 'T. respuesta promedio ↗',    value: metricas?.tRespuestaPromedio != null ? `${metricas.tRespuestaPromedio} min` : '—', onClick: () => setPanelMetrica('tResp') },
-                { label: 'SLA Resolución (30d) ↗',     value: metricas?.scoreResolucionPromedio != null ? `${metricas.scoreResolucionPromedio}%` : '—', color: slaColor(metricas?.scoreResolucionPromedio ?? null), onClick: () => setPanelMetrica('slaResol') },
+                { label: 'SLA Resolución (30d) ↗',     value: metricas?.slaResolucionPct != null ? `${metricas.slaResolucionPct}%` : '—', color: slaColor(metricas?.slaResolucionPct ?? null), onClick: () => setPanelMetrica('slaResol') },
                 { label: 'T. resolución promedio ↗',   value: metricas?.tResolucionPromedio != null ? `${metricas.tResolucionPromedio} min` : '—', onClick: () => setPanelMetrica('tResol') },
                 { label: 'MTTR promedio ↗',            value: fmtMttr(metricas?.mttrPromedio), onClick: () => setPanelMetrica('mttr') },
                 { label: 'Incidentes (30d)',            value: String(metricas?.incidentes30d ?? 0) },

@@ -6,6 +6,7 @@ import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { logUnlessSchemaMissing } from '@/lib/db-errors'
+import { slaProveedorJoins, slaRespuestaPctExpr, slaResolucionPctExpr } from '@/lib/sla-sql'
 
 function fmtMttr(mins: number | null): string {
   if (!mins) return '—'
@@ -87,49 +88,26 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   } catch (e) { logUnlessSchemaMissing('proveedores/[id]/tienda/[tiendaId]', e) }
 
   // SLA Respuesta + Resolución para esta tienda con este proveedor (últimos 30d)
+  // Ficha-aware vía lib/sla-sql.ts — mismo criterio que Lista y Detalle.
   let slaTienda:          number | null = null
   let slaRespuestaTienda:  number | null = null
   let slaResolucionTienda: number | null = null
   try {
     const slaRows = await db.execute(sql`
       SELECT
-        count(*) filter (where n1.hora_correo_n1 IS NOT NULL) AS total_escalados,
-        count(*) filter (
-          where n1.hora_correo_n1 IS NOT NULL AND resp.hora_primera_resp IS NOT NULL
-            AND EXTRACT(epoch FROM (resp.hora_primera_resp - n1.hora_correo_n1)) <= 3600
-        ) AS resp_ok,
-        count(*) filter (
-          where n1.hora_correo_n1 IS NOT NULL AND resp.hora_primera_resp IS NOT NULL AND i.hora_fin IS NOT NULL
-        ) AS total_resolvibles,
-        count(*) filter (
-          where n1.hora_correo_n1 IS NOT NULL AND resp.hora_primera_resp IS NOT NULL AND i.hora_fin IS NOT NULL
-            AND EXTRACT(epoch FROM (i.hora_fin - resp.hora_primera_resp)) <= 3600
-        ) AS resol_ok
+        ${sql.raw(slaRespuestaPctExpr())}  AS sla_respuesta_pct,
+        ${sql.raw(slaResolucionPctExpr())} AS sla_resolucion_pct
       FROM incidentes i
-      LEFT JOIN LATERAL (
-        SELECT MIN(hora_envio_correo) AS hora_correo_n1
-        FROM   escalamientos
-        WHERE  incidente_id = i.id AND hora_envio_correo IS NOT NULL
-      ) n1 ON true
-      LEFT JOIN LATERAL (
-        SELECT hora_respuesta AS hora_primera_resp
-        FROM   escalamientos
-        WHERE  incidente_id = i.id AND hora_respuesta IS NOT NULL AND no_hubo_respuesta IS NOT TRUE
-        ORDER  BY hora_respuesta LIMIT 1
-      ) resp ON true
+      JOIN tiendas t ON i.tienda_id = t.id
+      ${sql.raw(slaProveedorJoins())}
       WHERE i.tienda_id    = ${tiendaId}
         AND i.proveedor_id = ${id}
         AND i.hora_registro >= ${thirtyDaysAgoStr}::timestamptz
-        AND i.estado = 'RESUELTO'
     `)
     const sr = (slaRows as any[])[0]
-    const te = Number(sr?.total_escalados ?? 0)
-    const tr = Number(sr?.total_resolvibles ?? 0)
-    if (te > 0) {
-      slaRespuestaTienda = Math.round((Number(sr.resp_ok)  / te) * 100)
-      slaTienda          = slaRespuestaTienda
-    }
-    if (tr > 0) slaResolucionTienda = Math.round((Number(sr.resol_ok) / tr) * 100)
+    slaRespuestaTienda  = sr?.sla_respuesta_pct  != null ? Number(sr.sla_respuesta_pct)  : null
+    slaResolucionTienda = sr?.sla_resolucion_pct != null ? Number(sr.sla_resolucion_pct) : null
+    slaTienda           = slaRespuestaTienda
   } catch (e) { logUnlessSchemaMissing('proveedores/[id]/tienda/[tiendaId]', e) }
 
   // Último incidente + historial
@@ -179,14 +157,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       .groupBy(incidentes.proveedorId, provAnterior.nombre)
       .orderBy(desc(sql`count(${incidentes.id})`)) as any[]
 
-    // SLA por proveedor anterior (misma lógica que slaTienda)
+    // SLA por proveedor anterior (mismo criterio ficha-aware que slaTienda —
+    // % de cumplimiento de respuesta, no el conteo de estado_cronometro)
     const slaRows = await db.execute(sql`
       SELECT
         i.proveedor_id,
-        count(*) filter (where e.estado_cronometro in ('RESPONDIDO','VENCIDO')) as total_closed,
-        count(*) filter (where e.estado_cronometro = 'RESPONDIDO')              as respondidos
-      FROM escalamientos e
-      JOIN incidentes i ON e.incidente_id = i.id
+        ${sql.raw(slaRespuestaPctExpr())} AS sla_respuesta_pct
+      FROM incidentes i
+      JOIN tiendas t ON i.tienda_id = t.id
+      ${sql.raw(slaProveedorJoins())}
       WHERE i.tienda_id    = ${tiendaId}
         AND i.proveedor_id IS NOT NULL
         AND i.proveedor_id != ${id}::uuid
@@ -194,8 +173,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     `)
     const slaMap: Record<string, number | null> = {}
     for (const r of slaRows as any[]) {
-      const tc = Number(r.total_closed ?? 0)
-      slaMap[r.proveedor_id] = tc > 0 ? Math.round((Number(r.respondidos) / tc) * 100) : null
+      slaMap[r.proveedor_id] = r.sla_respuesta_pct != null ? Number(r.sla_respuesta_pct) : null
     }
 
     proveedoresAnteriores = rows.map((r: any) => ({

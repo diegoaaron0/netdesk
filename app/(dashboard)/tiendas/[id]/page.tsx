@@ -870,9 +870,9 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               <SectionTitle>SLA proveedor (30d){tienda.slaTienda?.totalEvaluables > 0 ? ` — ${tienda.slaTienda.totalEvaluables} inc. eval.` : ''}</SectionTitle>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {[
-                  { label: 'SLA Respuesta',      value: tienda.slaTienda?.scoreRespuestaPromedio  != null ? `${tienda.slaTienda.scoreRespuestaPromedio}%`  : '—', score: tienda.slaTienda?.scoreRespuestaPromedio  ?? null },
+                  { label: 'SLA Respuesta',      value: tienda.slaTienda?.slaRespuestaPct  != null ? `${tienda.slaTienda.slaRespuestaPct}%`  : '—', score: tienda.slaTienda?.slaRespuestaPct  ?? null },
                   { label: 'T. resp. promedio',  value: tienda.slaTienda?.tRespuestaPromedio      != null ? `${tienda.slaTienda.tRespuestaPromedio} min`    : '—', score: null },
-                  { label: 'SLA Resolución',     value: tienda.slaTienda?.scoreResolucionPromedio != null ? `${tienda.slaTienda.scoreResolucionPromedio}%` : '—', score: tienda.slaTienda?.scoreResolucionPromedio ?? null },
+                  { label: 'SLA Resolución',     value: tienda.slaTienda?.slaResolucionPct != null ? `${tienda.slaTienda.slaResolucionPct}%` : '—', score: tienda.slaTienda?.slaResolucionPct ?? null },
                   { label: 'T. resol. promedio', value: tienda.slaTienda?.tResolucionPromedio     != null ? `${tienda.slaTienda.tResolucionPromedio} min`   : '—', score: null },
                 ].map(r => (
                   <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '0.5px solid var(--border)' }}>

@@ -6,6 +6,7 @@ import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { logUnlessSchemaMissing } from '@/lib/db-errors'
+import { slaProveedorJoins, slaRespuestaPctExpr, slaResolucionPctExpr } from '@/lib/sla-sql'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -180,6 +181,28 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     slaBreakdown = incidentesSla
   } catch (e) { logUnlessSchemaMissing('proveedores/[id]', e) }
 
+  // % cumplimiento SLA Respuesta + Resolución (ficha-aware, vía lib/sla-sql.ts —
+  // mismo criterio que Lista y Detalle proveedor↔tienda). Distinto de
+  // scoreRespuestaPromedio/scoreResolucionPromedio arriba, que son un score de
+  // proximidad 0-100 (no un % de incidentes que cumplieron el SLA).
+  let slaRespuestaPct:  number | null = null
+  let slaResolucionPct: number | null = null
+  try {
+    const pctRows = await db.execute(sql`
+      SELECT
+        ${sql.raw(slaRespuestaPctExpr())}  AS sla_respuesta_pct,
+        ${sql.raw(slaResolucionPctExpr())} AS sla_resolucion_pct
+      FROM incidentes i
+      JOIN tiendas t ON i.tienda_id = t.id
+      ${sql.raw(slaProveedorJoins())}
+      WHERE COALESCE(i.proveedor_id, t.proveedor_id) = ${id}::uuid
+        AND i.hora_registro >= ${thirtyDaysAgoStr}::timestamptz
+    `)
+    const pr = (pctRows as any[])[0]
+    slaRespuestaPct  = pr?.sla_respuesta_pct  != null ? Number(pr.sla_respuesta_pct)  : null
+    slaResolucionPct = pr?.sla_resolucion_pct != null ? Number(pr.sla_resolucion_pct) : null
+  } catch (e) { logUnlessSchemaMissing('proveedores/[id]', e) }
+
   // IEI acumulado 30d de todas las tiendas del proveedor
   let iei30d = 0
   let iei30dBreakdown: any[] = []
@@ -300,6 +323,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       tRespuestaPromedio,
       scoreResolucionPromedio,
       tResolucionPromedio,
+      slaRespuestaPct,
+      slaResolucionPct,
       mttrPromedio:            mttrData.avg,
       mttrTotal:               mttrData.total,
       incidentes30d:           totalInc30d,

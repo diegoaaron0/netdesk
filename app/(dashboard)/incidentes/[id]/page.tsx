@@ -14,6 +14,7 @@ import { iStyle, taStyle, toDatetimeLocal, fromDatetimeLocal, minToHM, TIPO_LABE
 import { can } from '@/lib/permisos'
 import { apiMutate } from '@/lib/api-mutate'
 import { normContFactor, normBoletaFactor } from '@/lib/impacto-calc'
+import { DASHBOARD_CONFIG } from '@/lib/dashboard-config'
 
 const ALCANCE_LABELS: Record<string, string> = {
   SOLO_TIENDA: 'Solo la tienda', MALL: 'El mall',
@@ -1635,7 +1636,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
       {/* ── Block IEI — Impacto Económico Estimado ── */}
       {(() => {
         const esResuelto = inc.estado === 'RESUELTO'
-        const MARGEN = 0.35
+        const MARGEN = DASHBOARD_CONFIG.MARGEN_BRUTO
         const FACTOR_BASE: Record<string,number> = { CAIDA_TOTAL:1.00, INTERMITENCIA:0.50, LENTITUD:0.30, CORTE_ELECTRICO:1.00 }
         // Factores desde la fuente única de verdad (lib/impacto-calc.ts) — no duplicar la fórmula aquí
         const nC = (r:string|null|undefined) => normContFactor(r)
@@ -1811,9 +1812,9 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
           </div>
           <div style={{ padding: '14px 18px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
             {[
-              { label: 'SLA Respuesta', value: inc.slaMetrics.scoreRespuesta != null ? `${inc.slaMetrics.scoreRespuesta}%` : '—', sub: inc.slaMetrics.tPrimeraRespuestaMin != null ? `${inc.slaMetrics.tPrimeraRespuestaMin} min` : 'Sin respuesta', score: inc.slaMetrics.scoreRespuesta },
+              { label: 'SLA Respuesta', value: inc.slaMetrics.slaRespuestaPct != null ? `${inc.slaMetrics.slaRespuestaPct}%` : '—', sub: inc.slaMetrics.tPrimeraRespuestaMin != null ? `${inc.slaMetrics.tPrimeraRespuestaMin} min` : 'Sin respuesta', score: inc.slaMetrics.slaRespuestaPct },
               { label: 'T. Primera Respuesta', value: inc.slaMetrics.tPrimeraRespuestaMin != null ? `${inc.slaMetrics.tPrimeraRespuestaMin} min` : '—', sub: `límite ${inc.slaMetrics.slaRespuestaObj} min`, score: null },
-              { label: 'SLA Resolución', value: inc.slaMetrics.scoreResolucion != null ? `${inc.slaMetrics.scoreResolucion}%` : (inc.slaMetrics.scoreRespuesta === 0 ? '0%' : '—'), sub: inc.slaMetrics.tResolucionMin != null ? `${inc.slaMetrics.tResolucionMin} min` : (inc.slaMetrics.scoreRespuesta === 0 ? 'Sin respuesta' : 'En curso'), score: inc.slaMetrics.scoreResolucion },
+              { label: 'SLA Resolución', value: inc.slaMetrics.slaResolucionPct != null ? `${inc.slaMetrics.slaResolucionPct}%` : (inc.slaMetrics.slaRespuestaPct === 0 ? '0%' : '—'), sub: inc.slaMetrics.tResolucionMin != null ? `${inc.slaMetrics.tResolucionMin} min` : (inc.slaMetrics.slaRespuestaPct === 0 ? 'Sin respuesta' : 'En curso'), score: inc.slaMetrics.slaResolucionPct },
               { label: 'T. Resolución', value: inc.slaMetrics.tResolucionMin != null ? `${inc.slaMetrics.tResolucionMin} min` : '—', sub: `límite ${inc.slaMetrics.slaResolucionObj} min`, score: null },
             ].map(m => (
               <div key={m.label} style={{ background: 'var(--background)', borderRadius: '8px', padding: '10px 14px', border: '0.5px solid var(--border)' }}>
