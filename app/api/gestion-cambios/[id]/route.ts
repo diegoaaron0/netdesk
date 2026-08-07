@@ -155,6 +155,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (current.estado !== 'BORRADOR')
     return NextResponse.json({ error: 'Solo se puede editar en estado BORRADOR' }, { status: 409 })
 
+  // Mismo bloqueo temporal que POST /api/gestion-cambios: no depende solo de
+  // que el botón esté oculto — PUT también podría usarse para cambiar el
+  // alcance de un borrador existente a ZONA.
+  if (body.alcance === 'ZONA')
+    return NextResponse.json({ error: 'Alcance por zona no disponible temporalmente.' }, { status: 400 })
+
   const patch: Record<string, unknown> = {}
   for (const key of Object.keys(body)) {
     if (EDITABLE.has(key)) patch[key] = body[key] ?? null

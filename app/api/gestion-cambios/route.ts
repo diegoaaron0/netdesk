@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { accionesGestion, accionesGestionTiendas, tiendas, proveedores, usuarios } from '@/drizzle/schema'
-import { eq, desc, and, sql } from 'drizzle-orm'
+import { eq, desc, and, count, inArray, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
@@ -69,18 +69,21 @@ export async function GET(req: NextRequest) {
     .where(conds.length ? and(...conds) : undefined)
     .orderBy(desc(accionesGestion.creadoEn))
 
-  // Para acciones de ZONA, adjuntar conteo de tiendas
+  // Para acciones de ZONA, adjuntar conteo de tiendas. Nota: antes esto usaba
+  // SQL crudo con `= ANY(${ids}::uuid[])`, que el driver postgres-js no
+  // serializa como literal de array de Postgres (falla con "literal de array
+  // mal formado" en cuanto existe al menos una acción ZONA) — bug preexistente,
+  // nunca antes ejercitado porque netdesk_test no tenía filas ZONA. inArray()
+  // de drizzle-orm arma el parámetro correctamente.
   const ids = rows.filter(r => r.alcance === 'ZONA').map(r => r.id)
   let zonaCounts: Record<string, number> = {}
   if (ids.length) {
-    const counts = await db.execute(sql`
-      SELECT accion_id, COUNT(*)::int AS total
-      FROM acciones_gestion_tiendas
-      WHERE accion_id = ANY(${ids}::uuid[])
-      GROUP BY accion_id
-    `)
-    for (const row of counts as any[]) {
-      zonaCounts[row.accion_id] = row.total
+    const counts = await db.select({ accionId: accionesGestionTiendas.accionId, total: count() })
+      .from(accionesGestionTiendas)
+      .where(inArray(accionesGestionTiendas.accionId, ids))
+      .groupBy(accionesGestionTiendas.accionId)
+    for (const row of counts) {
+      zonaCounts[row.accionId] = row.total
     }
   }
 
@@ -107,6 +110,11 @@ export async function POST(req: NextRequest) {
 
   if (!tipo || !titulo?.trim() || !motivo?.trim())
     return NextResponse.json({ error: 'tipo, titulo y motivo son requeridos' }, { status: 400 })
+  // Decisión de negocio temporal: alcance ZONA deshabilitado para acciones
+  // nuevas (se puede retomar más adelante). No depende de que el botón esté
+  // oculto en el frontend — se rechaza igual aunque llegue por fuera de la UI.
+  if (alcance === 'ZONA')
+    return NextResponse.json({ error: 'Alcance por zona no disponible temporalmente.' }, { status: 400 })
   if (alcance === 'ZONA' && (!tiendaIds?.length))
     return NextResponse.json({ error: 'Zona requiere al menos una tienda en tiendaIds' }, { status: 400 })
   if (alcance !== 'ZONA' && !tiendaId)
