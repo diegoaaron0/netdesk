@@ -49,7 +49,10 @@ export async function GET(req: NextRequest) {
     })
       .from(tiendas)
       .leftJoin(fichas, eq(fichas.id, tiendas.fichaActivaId))
-      .where(or(ilike(tiendas.codigo, pattern), ilike(tiendas.nombreCc, pattern)))
+      .where(and(
+        eq(tiendas.estado, 'ACTIVA'),
+        or(ilike(tiendas.codigo, pattern), ilike(tiendas.nombreCc, pattern)),
+      ))
       .limit(8)
 
     const result = await Promise.all(rows.map(async t => {

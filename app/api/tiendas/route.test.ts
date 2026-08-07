@@ -8,7 +8,9 @@ vi.mock('@/auth', () => ({
 
 let tiendaActivaId: string
 let tiendaArchivadaId: string
+let tiendaAutocompleteArchivadaId: string
 const FECHA_BAJA = '2026-01-15T12:00:00.000Z'
+const Q_AUTOCOMPLETE = 'AUTOCOMPLETEARCHIVADA'
 
 beforeAll(async () => {
   const { db } = await import('@/lib/db')
@@ -34,6 +36,17 @@ beforeAll(async () => {
     await db.update(schema.tiendas).set({ estado: 'ARCHIVADA', archivadaEn: new Date(FECHA_BAJA), archivadaMotivo: 'Cierre de prueba' } as any).where(eq(schema.tiendas.id, b.id))
   }
   tiendaArchivadaId = b.id
+
+  let [c] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.codigo, `T-${Q_AUTOCOMPLETE}-01`))
+  if (!c) {
+    [c] = await db.insert(schema.tiendas).values({
+      codigo: `T-${Q_AUTOCOMPLETE}-01`, nombreCc: 'Tienda archivada — autocompletado', distrito: 'Test', cluster: 'B',
+      estado: 'ARCHIVADA', archivadaEn: new Date(), archivadaMotivo: 'Cierre de prueba',
+    }).returning()
+  } else {
+    await db.update(schema.tiendas).set({ estado: 'ARCHIVADA', archivadaEn: new Date(), archivadaMotivo: 'Cierre de prueba' } as any).where(eq(schema.tiendas.id, c.id))
+  }
+  tiendaAutocompleteArchivadaId = c.id
 })
 
 describe('GET /api/tiendas — filtro por estado (ACTIVA por defecto, excluye ARCHIVADA)', () => {
@@ -77,5 +90,15 @@ describe('GET /api/tiendas — filtro por estado (ACTIVA por defecto, excluye AR
 
     expect(data.some((t: any) => t.id === tiendaActivaId)).toBe(true)
     expect(data.some((t: any) => t.id === tiendaArchivadaId)).toBe(true)
+  })
+})
+
+describe('GET /api/tiendas?q= — autocompletado (usado al crear un incidente)', () => {
+  it('una tienda ARCHIVADA no aparece en los resultados de q=', async () => {
+    const { GET } = await import('./route')
+    const res = await GET(new NextRequest(`http://localhost/api/tiendas?q=${Q_AUTOCOMPLETE}`))
+    const data = await res.json()
+
+    expect(data.some((t: any) => t.id === tiendaAutocompleteArchivadaId)).toBe(false)
   })
 })
