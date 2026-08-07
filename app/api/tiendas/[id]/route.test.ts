@@ -133,3 +133,45 @@ describe('GET /api/tiendas/[id] — SLA de tienda usa % real de cumplimiento, no
     expect(data.slaTienda.totalEvaluables).toBe(4)
   })
 })
+
+describe('DELETE /api/tiendas/[id] — camino angosto, acotado por fichas además de incidentes', () => {
+  it('bloquea si la tienda tiene alguna ficha (aunque sea BORRADOR y no tenga incidentes)', async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    const { DELETE } = await import('./route')
+
+    let [t] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.codigo, 'T-DELETE-CON-FICHA'))
+    if (!t) {
+      [t] = await db.insert(schema.tiendas).values({ codigo: 'T-DELETE-CON-FICHA', nombreCc: 'Tienda — delete con ficha', distrito: 'Test', cluster: 'B' }).returning()
+    }
+    let [proveedor] = await db.select().from(schema.proveedores).where(eq(schema.proveedores.nombre, 'DELETE TEST PROV'))
+    if (!proveedor) [proveedor] = await db.insert(schema.proveedores).values({ nombre: 'DELETE TEST PROV' }).returning()
+    await db.delete(schema.fichas).where(eq(schema.fichas.codigo, 'FC-DELETE-TEST-01'))
+    await db.insert(schema.fichas).values({ codigo: 'FC-DELETE-TEST-01', tiendaId: t.id, proveedorId: proveedor.id, estado: 'BORRADOR' })
+
+    const res = await DELETE({} as any, { params: Promise.resolve({ id: t.id }) })
+    expect(res.status).toBe(409)
+    const data = await res.json()
+    expect(data.error).toMatch(/ficha/i)
+
+    const [stillThere] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.id, t.id))
+    expect(stillThere).toBeTruthy() // no se borró
+  })
+
+  it('sin ficha ni incidentes → elimina de verdad (el caso angosto: se creó por error)', async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    const { DELETE } = await import('./route')
+
+    let [t] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.codigo, 'T-DELETE-LIMPIA'))
+    if (!t) {
+      [t] = await db.insert(schema.tiendas).values({ codigo: 'T-DELETE-LIMPIA', nombreCc: 'Tienda — delete limpia (creada por error)', distrito: 'Test', cluster: 'B' }).returning()
+    }
+
+    const res = await DELETE({} as any, { params: Promise.resolve({ id: t.id }) })
+    expect(res.status).toBe(200)
+
+    const [gone] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.id, t.id))
+    expect(gone).toBeUndefined()
+  })
+})

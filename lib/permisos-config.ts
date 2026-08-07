@@ -1,7 +1,7 @@
 const TODOS_LOS_PERMISOS = [
   'incidentes.ver', 'incidentes.crear', 'incidentes.reabrir', 'incidentes.editar', 'incidentes.eliminar', 'incidentes.cancelar',
   'escalamientos.crear', 'escalamientos.respuesta',
-  'mantenimiento.ver', 'mantenimiento.editar', 'mantenimiento.agregar',
+  'mantenimiento.ver', 'mantenimiento.editar', 'mantenimiento.agregar', 'mantenimiento.eliminar',
   'proveedores.ver', 'proveedores.editar',
   'dashboard.ver', 'reportes.ver', 'reportes.exportar',
   'gestion-cambios.ver', 'gestion-cambios.crear', 'gestion-cambios.aprobar',
@@ -33,7 +33,7 @@ export const PERMISOS_POR_ROL: Record<string, string[]> = {
     'incidentes.ver', 'incidentes.crear', 'incidentes.reabrir',
     'incidentes.editar', 'incidentes.eliminar', 'incidentes.cancelar',
     'escalamientos.crear', 'escalamientos.respuesta',
-    'mantenimiento.ver', 'mantenimiento.editar', 'mantenimiento.agregar',
+    'mantenimiento.ver', 'mantenimiento.editar', 'mantenimiento.agregar', 'mantenimiento.eliminar',
     'dashboard.ver', 'reportes.ver', 'reportes.exportar',
     'usuarios.ver', 'usuarios.editar', 'usuarios.crear',
     'proveedores.ver', 'proveedores.editar',

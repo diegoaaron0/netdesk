@@ -138,8 +138,11 @@ export async function POST(req: NextRequest) {
   const [user] = await db.select({ id: usuarios.id }).from(usuarios).where(eq(usuarios.email, session.user!.email!))
   if (!user) return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 })
 
-  const [tiendaRow] = await db.select({ proveedorId: tiendas.proveedorId, fichaActivaId: tiendas.fichaActivaId })
+  const [tiendaRow] = await db.select({ proveedorId: tiendas.proveedorId, fichaActivaId: tiendas.fichaActivaId, estado: tiendas.estado })
     .from(tiendas).where(eq(tiendas.id, body.tiendaId))
+
+  if (tiendaRow?.estado === 'ARCHIVADA')
+    return NextResponse.json({ error: 'La tienda está archivada (dada de baja). No se pueden registrar incidentes nuevos.' }, { status: 409 })
 
   const values = {
     tiendaId:              body.tiendaId,

@@ -349,6 +349,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   return NextResponse.json(updated)
 }
 
+// DELETE definitivo — camino angosto, solo para una tienda creada por error
+// (nunca tuvo ficha ni incidente). Cualquier tienda que ya operó de verdad se
+// da de baja (archivado) vía POST /api/tiendas/[id]/baja, nunca se borra.
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const session = await auth()
@@ -364,7 +367,18 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   if (total > 0) {
     return NextResponse.json(
-      { error: `No se puede eliminar: la tienda tiene ${total} incidente(s) registrado(s).` },
+      { error: `No se puede eliminar: la tienda tiene ${total} incidente(s) registrado(s). Usa "Dar de baja" en su lugar.` },
+      { status: 409 },
+    )
+  }
+
+  const [{ totalFichas }] = await db.select({ totalFichas: count() })
+    .from(fichas)
+    .where(eq(fichas.tiendaId, id))
+
+  if (totalFichas > 0) {
+    return NextResponse.json(
+      { error: `No se puede eliminar: la tienda tiene ${totalFichas} ficha(s) de contrato registrada(s). Usa "Dar de baja" en su lugar.` },
       { status: 409 },
     )
   }

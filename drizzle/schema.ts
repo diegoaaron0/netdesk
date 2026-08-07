@@ -26,6 +26,8 @@ export const estadoFichaEnum = pgEnum('estado_ficha', ['BORRADOR', 'ACTIVA', 'HI
 
 export const tipoLocalEnum = pgEnum('tipo_local', ['TIENDA', 'CATALOGO', 'ENLACE', 'ALMACEN', 'RESTAURANTE'])
 
+export const estadoTiendaEnum = pgEnum('estado_tienda', ['ACTIVA', 'ARCHIVADA'])
+
 export const usuarios = pgTable('usuarios', {
   id:       uuid('id').primaryKey().defaultRandom(),
   nombre:   text('nombre').notNull(),
@@ -97,6 +99,12 @@ export const tiendas = pgTable('tiendas', {
   tipoLocal:                     tipoLocalEnum('tipo_local').notNull().default('TIENDA'),
   tiendaPadreId:                 uuid('tienda_padre_id').references((): AnyPgColumn => tiendas.id, { onDelete: 'set null' }),
   creadoEn:                      timestamp('creado_en').defaultNow(),
+
+  // Alta/baja de tienda como entidad (archivado, nunca delete — ver dar de baja)
+  estado:                        estadoTiendaEnum('estado').notNull().default('ACTIVA'),
+  archivadaEn:                   timestamp('archivada_en'),
+  archivadaPorId:                uuid('archivada_por_id').references(() => usuarios.id, { onDelete: 'set null' }),
+  archivadaMotivo:               text('archivada_motivo'),
 })
 
 
@@ -196,6 +204,10 @@ export const tiendasHistorial = pgTable('tiendas_historial', {
   valorAnterior: text('valor_anterior'),
   valorNuevo:    text('valor_nuevo'),
   editadoEn:     timestamp('editado_en').defaultNow(),
+  // Solo obligatorio en código para acciones sensibles (dar de baja de tienda);
+  // default '' para no romper los demás call sites de esta tabla genérica
+  // (cambio de proveedor, activación de ficha) que no pasan motivo.
+  motivo:        text('motivo').notNull().default(''),
 })
 
 export const incidentes = pgTable('incidentes', {

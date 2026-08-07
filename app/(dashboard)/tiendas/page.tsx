@@ -80,6 +80,7 @@ export default function TiendasPage() {
   const { data: session } = useSession()
   const router = useRouter()
   const canEdit = can(session, 'mantenimiento.editar')
+  const canBaja = can(session, 'mantenimiento.eliminar')
 
   const [tiendas, setTiendas] = useState<any[]>([])
   const [allProveedores, setAllProveedores] = useState<{ id: string; nombre: string }[]>([])
@@ -96,6 +97,11 @@ export default function TiendasPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; codigo: string; step: 1 | 2 } | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [tab, setTab] = useState<'tiendas' | 'routers'>('tiendas')
+  const [verArchivadas, setVerArchivadas] = useState(false)
+  const [archivadaDesde, setArchivadaDesde] = useState('')
+  const [archivadaHasta, setArchivadaHasta] = useState('')
+  const [bajaModal, setBajaModal] = useState<{ id: string; codigo: string; motivo: string; error: string } | null>(null)
+  const [bajaSaving, setBajaSaving] = useState(false)
 
   async function downloadMaestro() {
     setExportingMaestro(true)
@@ -120,12 +126,15 @@ export default function TiendasPage() {
     if (filtros.proveedor)  params.set('proveedor', filtros.proveedor)
     if (filtros.cluster)    params.set('cluster', filtros.cluster)
     if (filtros.supervisor) params.set('supervisor', filtros.supervisor)
+    params.set('estado', verArchivadas ? 'ARCHIVADA' : 'ACTIVA')
+    if (verArchivadas && archivadaDesde) params.set('archivadaDesde', archivadaDesde)
+    if (verArchivadas && archivadaHasta) params.set('archivadaHasta', archivadaHasta)
     const res = await fetch(`/api/tiendas?${params}`)
     if (!res.ok) return
     const data = await res.json()
     if (!Array.isArray(data)) return
     setTiendas(data)
-  }, [filtros.proveedor, filtros.cluster, filtros.supervisor])
+  }, [filtros.proveedor, filtros.cluster, filtros.supervisor, verArchivadas, archivadaDesde, archivadaHasta])
 
   useEffect(() => { fetchTiendas() }, [fetchTiendas])
 
@@ -172,6 +181,27 @@ export default function TiendasPage() {
       const err = await res.json()
       alert(err.error ?? 'Error al eliminar')
       setDeleteConfirm(null)
+    }
+  }
+
+  async function handleBaja() {
+    if (!bajaModal) return
+    if (!bajaModal.motivo.trim()) {
+      setBajaModal(m => m ? { ...m, error: 'El motivo es obligatorio' } : m)
+      return
+    }
+    setBajaSaving(true)
+    const res = await fetch(`/api/tiendas/${bajaModal.id}/baja`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ motivo: bajaModal.motivo.trim() }),
+    })
+    setBajaSaving(false)
+    if (res.ok) {
+      setBajaModal(null)
+      fetchTiendas()
+    } else {
+      const err = await res.json().catch(() => ({}))
+      setBajaModal(m => m ? { ...m, error: err.error ?? 'No se pudo dar de baja la tienda' } : m)
     }
   }
 
@@ -260,6 +290,11 @@ export default function TiendasPage() {
           <button onClick={openHistorial}
             style={{ padding: '7px 12px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: 'var(--foreground)' }}>
             Historial
+          </button>
+          <button onClick={() => { setVerArchivadas(v => !v); setPage(1) }}
+            title="Las tiendas dadas de baja no se borran, quedan archivadas"
+            style={{ padding: '7px 12px', background: verArchivadas ? '#f3f4f6' : 'var(--muted)', border: verArchivadas ? '0.5px solid #9ca3af' : '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: verArchivadas ? '#374151' : 'var(--foreground)', fontWeight: verArchivadas ? 600 : 400 }}>
+            {verArchivadas ? '✓ Viendo archivadas' : 'Ver archivadas'}
           </button>
           {canEdit && (
             <button onClick={() => setModal({ open: true, data: { ...BLANK } })}
@@ -355,6 +390,20 @@ export default function TiendasPage() {
           <option value="">Ordenar: Código</option>
           <option value="incidentes">Ordenar: Mayor incidentes</option>
         </select>
+        {verArchivadas && (
+          <>
+            <label style={{ fontSize: '11px', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              Baja desde
+              <input type="date" value={archivadaDesde} onChange={e => { setArchivadaDesde(e.target.value); setPage(1) }}
+                style={{ padding: '6px 8px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)' }} />
+            </label>
+            <label style={{ fontSize: '11px', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              hasta
+              <input type="date" value={archivadaHasta} onChange={e => { setArchivadaHasta(e.target.value); setPage(1) }}
+                style={{ padding: '6px 8px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)' }} />
+            </label>
+          </>
+        )}
       </div>
 
       {/* Table */}
@@ -378,6 +427,7 @@ export default function TiendasPage() {
             {paginated.map(t => {
               const prov = provColor(t.proveedorNombre)
               const isInactive = t.estadoServicio === 'INACTIVO'
+              const isArchived = t.estado === 'ARCHIVADA'
               const isHovered = hoveredRow === t.id
               return (
                 <tr
@@ -393,7 +443,8 @@ export default function TiendasPage() {
                       ? 'rgba(245,158,11,0.05)'
                       : 'transparent',
                     borderBottom: '0.5px solid var(--border)',
-                    opacity: isInactive ? 0.55 : 1,
+                    opacity: isArchived ? 0.5 : isInactive ? 0.55 : 1,
+                    filter: isArchived ? 'grayscale(1)' : undefined,
                     borderLeft: t.contingenciaActiva ? '3px solid #f59e0b' : '3px solid transparent',
                   }}>
                   <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontSize: '12px', fontWeight: 700, color: 'var(--foreground)', whiteSpace: 'nowrap' }}>
@@ -424,7 +475,9 @@ export default function TiendasPage() {
                     {t.supervisorNombre || '—'}
                   </td>
                   <td style={{ padding: '10px 12px' }}>
-                    {isInactive ? (
+                    {isArchived ? (
+                      <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: '#e5e7eb', color: '#4b5563', fontWeight: 600 }}>ARCHIVADA</span>
+                    ) : isInactive ? (
                       <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: '#f3f4f6', color: '#6b7280', fontWeight: 600 }}>INACTIVO</span>
                     ) : (
                       <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: '#dcfce7', color: '#15803d', fontWeight: 600 }}>ACTIVO</span>
@@ -434,22 +487,28 @@ export default function TiendasPage() {
                     {Number(t.incidentCount) || 0}
                   </td>
                   <td style={{ padding: '10px 14px', textAlign: 'right' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end' }}>
-                      {t.contingenciaActiva && (
-                        <span style={{ fontSize: '10px', background: '#fef3c7', color: '#92400e', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>⚠</span>
-                      )}
-                      {canEdit && (
-                        <button
-                          onClick={e => { e.stopPropagation(); setDeleteConfirm({ id: t.id, codigo: t.codigo, step: 1 }) }}
-                          title="Eliminar tienda"
-                          style={{ background: 'none', border: '0.5px solid transparent', borderRadius: '5px', padding: '2px 5px', cursor: 'pointer', fontSize: '12px', color: '#9ca3af', lineHeight: 1, transition: 'color 0.1s, border-color 0.1s' }}
-                          onMouseEnter={e => { const b = e.currentTarget; b.style.color = '#ef4444'; b.style.borderColor = '#fecaca' }}
-                          onMouseLeave={e => { const b = e.currentTarget; b.style.color = '#9ca3af'; b.style.borderColor = 'transparent' }}
-                        >
-                          ×
-                        </button>
-                      )}
-                    </div>
+                    {isArchived ? (
+                      <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>
+                        Baja: {t.archivadaEn ? new Date(t.archivadaEn).toLocaleDateString('es-PE', { timeZone: 'America/Lima' }) : '—'}
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end' }}>
+                        {t.contingenciaActiva && (
+                          <span style={{ fontSize: '10px', background: '#fef3c7', color: '#92400e', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>⚠</span>
+                        )}
+                        {canBaja && (
+                          <button
+                            onClick={e => { e.stopPropagation(); setBajaModal({ id: t.id, codigo: t.codigo, motivo: '', error: '' }) }}
+                            title="Dar de baja"
+                            style={{ background: 'none', border: '0.5px solid transparent', borderRadius: '5px', padding: '2px 5px', cursor: 'pointer', fontSize: '12px', color: '#9ca3af', lineHeight: 1, transition: 'color 0.1s, border-color 0.1s' }}
+                            onMouseEnter={e => { const b = e.currentTarget; b.style.color = '#ef4444'; b.style.borderColor = '#fecaca' }}
+                            onMouseLeave={e => { const b = e.currentTarget; b.style.color = '#9ca3af'; b.style.borderColor = 'transparent' }}
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </td>
                 </tr>
               )
@@ -530,9 +589,9 @@ export default function TiendasPage() {
           <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', width: '100%', maxWidth: '400px', padding: '22px 24px' }}>
             {deleteConfirm.step === 1 ? (
               <>
-                <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Eliminar tienda</div>
+                <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Eliminar tienda (solo errores de carga)</div>
                 <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '22px' }}>
-                  ¿Deseas eliminar la tienda <strong style={{ color: 'var(--foreground)' }}>{deleteConfirm.codigo}</strong>? Solo se puede eliminar si no tiene incidentes registrados.
+                  Este camino es distinto de "Dar de baja" y mucho más angosto: solo funciona si <strong style={{ color: 'var(--foreground)' }}>{deleteConfirm.codigo}</strong> nunca tuvo ninguna ficha de contrato ni ningún incidente registrado — es decir, si se creó por error. Cualquier tienda que ya operó debe darse de baja, no eliminarse.
                 </div>
                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                   <button onClick={() => setDeleteConfirm(null)}
@@ -549,7 +608,7 @@ export default function TiendasPage() {
               <>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: '#b91c1c', marginBottom: '6px' }}>Confirmar eliminación</div>
                 <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '22px' }}>
-                  Esta acción es <strong>permanente</strong>. La tienda <strong style={{ color: 'var(--foreground)' }}>{deleteConfirm.codigo}</strong> y toda su configuración serán eliminadas.
+                  Esta acción es <strong>permanente</strong> y no queda registro. La tienda <strong style={{ color: 'var(--foreground)' }}>{deleteConfirm.codigo}</strong> y toda su configuración serán eliminadas. Si tiene alguna ficha o incidente, esto va a fallar — usa "Dar de baja" en su lugar.
                 </div>
                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                   <button onClick={() => setDeleteConfirm(null)}
@@ -563,6 +622,50 @@ export default function TiendasPage() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Dar de baja modal */}
+      {bajaModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', width: '100%', maxWidth: '420px', padding: '22px 24px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Dar de baja</div>
+            <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '14px' }}>
+              La tienda <strong style={{ color: 'var(--foreground)' }}>{bajaModal.codigo}</strong> quedará archivada, no se borra — sigue disponible en "Ver archivadas" con su historial. Se bloquea si tiene ficha de contrato activa (dar de baja el contrato primero en Gestión de Cambios), un router externo asignado, o incidentes abiertos.
+            </div>
+            <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>
+              Motivo (obligatorio)
+            </label>
+            <textarea
+              value={bajaModal.motivo}
+              onChange={e => setBajaModal(m => m ? { ...m, motivo: e.target.value, error: '' } : m)}
+              placeholder="Ej: local cerrado definitivamente, cierre de operaciones en la zona…"
+              rows={3}
+              style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit', marginBottom: '10px' }}
+            />
+            {bajaModal.error && (
+              <div style={{ background: '#FEE2E2', border: '1px solid #FCA5A5', borderRadius: '7px', padding: '8px 12px', fontSize: '12px', color: '#991B1B', marginBottom: '14px' }}>
+                {bajaModal.error}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'space-between', alignItems: 'center' }}>
+              <button
+                onClick={() => { const b = bajaModal; setBajaModal(null); setDeleteConfirm({ id: b.id, codigo: b.codigo, step: 1 }) }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: 'var(--muted-foreground)', textDecoration: 'underline', padding: 0 }}>
+                ¿Se creó por error? Eliminar en su lugar
+              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => setBajaModal(null)}
+                  style={{ padding: '8px 16px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: 'var(--foreground)' }}>
+                  Cancelar
+                </button>
+                <button onClick={handleBaja} disabled={bajaSaving}
+                  style={{ padding: '8px 16px', background: '#b91c1c', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: bajaSaving ? 'not-allowed' : 'pointer', opacity: bajaSaving ? 0.6 : 1 }}>
+                  {bajaSaving ? 'Guardando...' : 'Dar de baja'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

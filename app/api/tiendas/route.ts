@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { tiendas, proveedores, incidentes, fichas, fichasNiveles } from '@/drizzle/schema'
-import { ilike, or, eq, and, gte, sql, count } from 'drizzle-orm'
+import { ilike, or, eq, and, gte, lte, sql, count } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 
@@ -24,6 +24,12 @@ export async function GET(req: NextRequest) {
   const proveedorF  = searchParams.get('proveedor') ?? ''
   const clusterF    = searchParams.get('cluster') ?? ''
   const supervisorF = searchParams.get('supervisor') ?? ''
+  // Por defecto el listado de mantenimiento solo muestra tiendas ACTIVA.
+  // estado=ARCHIVADA muestra solo las dadas de baja (filtrable por fecha de
+  // archivado con archivadaDesde/archivadaHasta); estado=TODAS muestra ambas.
+  const estadoF         = (searchParams.get('estado') ?? 'ACTIVA').toUpperCase()
+  const archivadaDesde  = searchParams.get('archivadaDesde') ?? ''
+  const archivadaHasta  = searchParams.get('archivadaHasta') ?? ''
 
   // ── Autocomplete mode (q presente) ──────────────────────────
   if (q.length >= 2) {
@@ -75,6 +81,10 @@ export async function GET(req: NextRequest) {
   // ── Full list mode (para mantenimiento) ─────────────────────
   const conditions = []
   if (clusterF) conditions.push(eq(tiendas.cluster, clusterF as any))
+  if (estadoF === 'ACTIVA' || estadoF === 'ARCHIVADA') conditions.push(eq(tiendas.estado, estadoF as any))
+  // estado=TODAS no agrega condición — trae ambas
+  if (estadoF === 'ARCHIVADA' && archivadaDesde) conditions.push(gte(tiendas.archivadaEn, new Date(archivadaDesde + 'T00:00:00-05:00')))
+  if (estadoF === 'ARCHIVADA' && archivadaHasta) conditions.push(lte(tiendas.archivadaEn, new Date(archivadaHasta + 'T23:59:59-05:00')))
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
 
@@ -98,6 +108,9 @@ export async function GET(req: NextRequest) {
       contingenciaDescripcion: tiendas.contingenciaDescripcion,
       contingenciaActivadaPor: tiendas.contingenciaActivadaPor,
       estadoServicio: fichas.estadoServicio,
+      estado: tiendas.estado,
+      archivadaEn: tiendas.archivadaEn,
+      archivadaMotivo: tiendas.archivadaMotivo,
     })
       .from(tiendas)
       .leftJoin(proveedores, eq(tiendas.proveedorId, proveedores.id))
