@@ -11,7 +11,9 @@
     "db:migrate": "tsx drizzle/run-sql.ts",
     "db:seed": "tsx drizzle/seed.ts",
     "db:add-users": "tsx drizzle/add-users.ts",
-    "geocode": "npx tsx scripts/geocode-tiendas.ts"
+    "geocode": "npx tsx scripts/geocode-tiendas.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.2",
@@ -52,6 +54,7 @@
     "eslint-config-next": "16.2.4",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   }
 }

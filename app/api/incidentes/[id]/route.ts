@@ -7,6 +7,8 @@ import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 
 const infraUser = alias(usuarios, 'infra_user')
+const provInc   = alias(proveedores, 'pi')   // proveedor histórico del incidente
+const provTda   = alias(proveedores, 'pt')   // proveedor actual de la tienda (fallback)
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -105,19 +107,21 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     infraApellido:        infraUser.apellido,
     infraEmail:           infraUser.email,
     infraCelular:         infraUser.celular,
-    // Proveedor → via incidentes.proveedorId (registro histórico del momento del incidente)
-    // Esto garantiza que si la tienda cambia de proveedor en el futuro, el incidente
-    // sigue mostrando quién era el proveedor responsable cuando ocurrió.
-    proveedorId:          incidentes.proveedorId,
-    proveedorNombre:      proveedores.nombre,
-    proveedorInstruccion: proveedores.instruccionGeneral,
-    proveedorTelefono:    proveedores.telefonoSoporte,
+    // Proveedor → primero el proveedor histórico del incidente; si no hay
+    // (incidentes antiguos pre-módulo, o casos donde quedó vacío), cae al
+    // proveedor actual de la tienda. Mismo patrón que la lista, el dashboard
+    // operativo y los reportes (COALESCE histórico → actual).
+    proveedorId:          sql<string | null>`COALESCE(${incidentes.proveedorId}, ${tiendas.proveedorId})`,
+    proveedorNombre:      sql<string>`COALESCE(pi.nombre, pt.nombre)`,
+    proveedorInstruccion: sql<string>`COALESCE(pi.instruccion_general, pt.instruccion_general)`,
+    proveedorTelefono:    sql<string>`COALESCE(pi.telefono_soporte, pt.telefono_soporte)`,
     agenteNombre: usuarios.nombre,
     agenteEmail:  usuarios.email,
   })
     .from(incidentes)
     .leftJoin(tiendas,     eq(incidentes.tiendaId,       tiendas.id))
-    .leftJoin(proveedores,  eq(incidentes.proveedorId,    proveedores.id))
+    .leftJoin(provInc,     eq(incidentes.proveedorId,    provInc.id))
+    .leftJoin(provTda,     eq(tiendas.proveedorId,       provTda.id))
     .leftJoin(usuarios,    eq(incidentes.registradoPorId, usuarios.id))
     .leftJoin(infraUser,   eq(incidentes.escaladoInfraId, infraUser.id))
     .where(eq(incidentes.id, id))
@@ -272,11 +276,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const body = await req.json()
   const userRol = (session.user as any)?.rol ?? ''
-  if (!['SUPERVISOR', 'DEMO'].includes(userRol)) {
+  if (!['SUPERVISOR', 'DEMO', 'INFRAESTRUCTURA'].includes(userRol)) {
     const [currentInc] = await db.select({ estado: incidentes.estado })
       .from(incidentes).where(eq(incidentes.id, id))
     if (currentInc && ['RESUELTO', 'CANCELADO', 'CERRADO'].includes(currentInc.estado)) {
-      return NextResponse.json({ error: 'Solo supervisores pueden editar incidentes cerrados' }, { status: 403 })
+      return NextResponse.json({ error: 'Solo supervisores o infraestructura pueden editar incidentes cerrados' }, { status: 403 })
     }
   }
 

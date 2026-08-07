@@ -17,15 +17,17 @@ export async function GET(req: NextRequest) {
       COUNT(i.id) FILTER (WHERE i.estado = 'RESUELTO')::int                         AS resueltos,
       COUNT(i.id) FILTER (WHERE i.estado NOT IN ('RESUELTO','CANCELADO','CERRADO'))::int AS activos,
       ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int          AS mttr_promedio_min,
-      -- SLA resolución
+      -- SLA resolución: hora_fin − hora_primera_resp (tiempo del proveedor,
+      -- NO el MTTR total) vs. límite del contrato. Mismo patrón que
+      -- reportes/export/proveedores.ts (evaluables_sla / sla_pct).
       ROUND(
         COUNT(*) FILTER (
-          WHERE i.estado = 'RESUELTO' AND i.mttr_minutos IS NOT NULL
+          WHERE i.estado = 'RESUELTO' AND n1.hora_envio IS NOT NULL AND n1.hora_resp IS NOT NULL AND i.hora_fin IS NOT NULL
             AND i.evaluable_proveedor IS NOT FALSE
-            AND i.mttr_minutos <= COALESCE(f.tiempo_resolucion_sla, 90)
+            AND EXTRACT(EPOCH FROM (i.hora_fin - n1.hora_resp)) / 60 <= COALESCE(f.tiempo_resolucion_sla, 90)
         ) * 100.0 /
         NULLIF(COUNT(*) FILTER (
-          WHERE i.estado = 'RESUELTO' AND i.evaluable_proveedor IS NOT FALSE
+          WHERE i.estado = 'RESUELTO' AND n1.hora_envio IS NOT NULL AND i.evaluable_proveedor IS NOT FALSE
         ), 0)
       )::int                                                                         AS sla_resolucion_pct,
       -- SLA respuesta N1

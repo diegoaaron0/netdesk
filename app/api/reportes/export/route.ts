@@ -70,9 +70,9 @@ export async function GET(req: Request) {
         TO_CHAR(i.hora_fin AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima', 'HH24:MI DD/MM/YYYY')         AS hora_solucion,
         i.observaciones                                                                AS comentarios,
         CASE
-          WHEN COALESCE(i.cont_rendimiento, i.mov_rendimiento) IN ('TOTAL','EFECTIVA')              THEN 'Total'
-          WHEN COALESCE(i.cont_rendimiento, i.mov_rendimiento) IN ('PARCIAL','LIMITADA')            THEN 'Parcial'
-          WHEN COALESCE(i.cont_rendimiento, i.mov_rendimiento) IN ('FALLIDA','NO_FUNCIONO','INOPERATIVA') THEN 'Fallida'
+          WHEN COALESCE(i.cont_rendimiento, i.mov_rendimiento) = 'EFECTIVO' THEN 'Total'
+          WHEN COALESCE(i.cont_rendimiento, i.mov_rendimiento) = 'PARCIAL'  THEN 'Parcial'
+          WHEN COALESCE(i.cont_rendimiento, i.mov_rendimiento) = 'NULO'     THEN 'Fallida'
           ELSE COALESCE(i.cont_rendimiento, i.mov_rendimiento)
         END                                                                            AS efectividad_contingencia,
         i.mttr_minutos                                                                 AS mttr_min,

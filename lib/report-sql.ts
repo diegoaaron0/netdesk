@@ -31,17 +31,17 @@ export function ieiFactor(): string {
       CASE i.tipo WHEN 'CAIDA_TOTAL' THEN 1.00 WHEN 'INTERMITENCIA' THEN 0.50 WHEN 'LENTITUD' THEN 0.30 ELSE 1.00 END,
       CASE WHEN i.cont_activado_por IS NOT NULL THEN
         CASE
-          WHEN i.cont_rendimiento IS NULL                                               THEN 0.20
-          WHEN UPPER(i.cont_rendimiento) IN ('EFECTIVO','TOTAL','EFECTIVA')            THEN 0.00
-          WHEN UPPER(i.cont_rendimiento) IN ('PARCIAL','LIMITADA')                    THEN 0.20
+          WHEN i.cont_rendimiento IS NULL             THEN 0.20
+          WHEN UPPER(i.cont_rendimiento) = 'EFECTIVO' THEN 0.00
+          WHEN UPPER(i.cont_rendimiento) = 'PARCIAL'  THEN 0.20
           ELSE 1.00
         END
       ELSE 9.99 END,
       CASE WHEN i.mov_activado_por IS NOT NULL THEN
         CASE
-          WHEN i.mov_rendimiento IS NULL                                                THEN 0.20
-          WHEN UPPER(i.mov_rendimiento) IN ('EFECTIVO','TOTAL','EFECTIVA')             THEN 0.00
-          WHEN UPPER(i.mov_rendimiento) IN ('PARCIAL','LIMITADA')                     THEN 0.20
+          WHEN i.mov_rendimiento IS NULL             THEN 0.20
+          WHEN UPPER(i.mov_rendimiento) = 'EFECTIVO' THEN 0.00
+          WHEN UPPER(i.mov_rendimiento) = 'PARCIAL'  THEN 0.20
           ELSE 1.00
         END
       ELSE 9.99 END,

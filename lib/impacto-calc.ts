@@ -32,9 +32,9 @@ import { DASHBOARD_CONFIG } from './dashboard-config'
 export function normContFactor(rend: string | null | undefined): number {
   if (!rend) return 0.20  // activada pero sin rendimiento registrado → parcial
   const r = rend.toUpperCase()
-  if (r === 'EFECTIVO' || r === 'TOTAL' || r === 'EFECTIVA') return 0.00
-  if (r === 'PARCIAL'  || r === 'LIMITADA')                  return 0.20
-  return 1.00  // NULO, FALLIDA, NO_FUNCIONO, INOPERATIVA
+  if (r === 'EFECTIVO') return 0.00
+  if (r === 'PARCIAL')  return 0.20
+  return 1.00  // NULO (o cualquier valor no reconocido)
 }
 
 export function normBoletaFactor(rend: string | null | undefined, tipo?: string): number {

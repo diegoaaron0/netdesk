@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { apiKeyAuth, parseDateRange } from '@/lib/api-auth'
-import { calcImpactoRow } from '@/lib/impacto-calc'
+import { ieiPerRow } from '@/lib/report-sql'
 
 export async function GET(req: NextRequest) {
   const authErr = apiKeyAuth(req)
@@ -42,10 +42,16 @@ export async function GET(req: NextRequest) {
       END                                                                        AS sla_respuesta,
       -- SLA Resolución — límite del contrato (ficha) o 90 por defecto. El tipo NO influye.
       COALESCE(f.tiempo_resolucion_sla, 90)                                      AS sla_resolucion_limite_min,
+      -- Tiempo del proveedor: hora_fin − hora_primera_resp (NO el MTTR total,
+      -- que también incluye la demora del agente en escalar y la del proveedor
+      -- en responder — eso ya se mide aparte en sla_respuesta). Mismo patrón
+      -- que fuera-sla / gerencial / tiendas-criticas / reportes/export/*.
       CASE
-        WHEN i.estado != 'RESUELTO' OR i.mttr_minutos IS NULL THEN 'Pendiente'
-        WHEN i.evaluable_proveedor = false                     THEN 'No evaluable'
-        WHEN i.mttr_minutos <= COALESCE(f.tiempo_resolucion_sla, 90)            THEN 'Cumplido'
+        WHEN i.estado != 'RESUELTO' OR i.hora_fin IS NULL OR i.mttr_minutos IS NULL THEN 'Pendiente'
+        WHEN i.evaluable_proveedor = false                                          THEN 'No evaluable'
+        WHEN n1.hora_resp IS NULL                                                   THEN 'Incumplido'
+        WHEN EXTRACT(EPOCH FROM (i.hora_fin - n1.hora_resp)) / 60
+          <= COALESCE(f.tiempo_resolucion_sla, 90)                                  THEN 'Cumplido'
         ELSE 'Incumplido'
       END                                                                        AS sla_resolucion,
       -- Nivel máximo escalado
@@ -54,30 +60,20 @@ export async function GET(req: NextRequest) {
       CASE WHEN i.cont_activado_por IS NOT NULL THEN 'Sí' ELSE 'No' END        AS tuvo_contingencia,
       i.cont_activado_por                                                        AS cont_activado_por,
       CASE
-        WHEN i.cont_rendimiento IN ('TOTAL','EFECTIVA')              THEN 'Total'
-        WHEN i.cont_rendimiento IN ('PARCIAL','LIMITADA')            THEN 'Parcial'
-        WHEN i.cont_rendimiento IN ('FALLIDA','NO_FUNCIONO','INOPERATIVA') THEN 'Fallida'
+        WHEN i.cont_rendimiento = 'EFECTIVO' THEN 'Total'
+        WHEN i.cont_rendimiento = 'PARCIAL'  THEN 'Parcial'
+        WHEN i.cont_rendimiento = 'NULO'     THEN 'Fallida'
         ELSE i.cont_rendimiento
       END                                                                        AS cont_rendimiento,
       -- Resolución
       i.resuelto_por,
       i.atribucion_final,
       CASE WHEN i.evaluable_proveedor = false THEN 'No' ELSE 'Sí' END          AS evaluable_proveedor,
-      -- Campos raw para IEI en JS
-      i.hora_registro                                                            AS hora_reg_raw,
-      i.hora_fin                                                                 AS hora_fin_raw,
-      i.estado                                                                   AS estado_raw,
-      (i.cont_activado_por IS NOT NULL)                                          AS contingencia_activa_inc,
-      COALESCE(i.cont_es_externo, false)                                         AS cont_es_externo,
-      i.cont_rendimiento                                                         AS cont_rendimiento_raw,
-      (i.mov_activado_por IS NOT NULL)                                           AS hubo_movil,
-      i.mov_rendimiento                                                          AS mov_rendimiento_raw,
-      i.boleta_manual,
-      i.venta_parcial,
-      i.cajas_afectadas,
-      i.cajas_totales,
-      t.venta_hora_soles,
-      t.cluster                                                                  AS cluster_raw
+      -- IEI — misma fórmula canónica que usan los 7 endpoints de reportes
+      -- (ieiPerRow de report-sql.ts). Antes se recalculaba aparte en JS con
+      -- calcImpactoRow en modo booleano legado, que ni siquiera leía
+      -- boleta_rendimiento ni boleta_hora_activacion.
+      ROUND((${sql.raw(ieiPerRow())}))::int                                       AS iei_estimado_soles
     FROM incidentes i
     JOIN tiendas t ON i.tienda_id = t.id
     LEFT JOIN fichas f ON f.id = COALESCE(i.ficha_id, t.ficha_activa_id)
@@ -98,24 +94,6 @@ export async function GET(req: NextRequest) {
   `) as unknown as any[]
 
   const data = rows.map((r: any) => {
-    const iei = calcImpactoRow({
-      hora_registro:    r.hora_reg_raw,
-      hora_fin:         r.hora_fin_raw,
-      estado:           r.estado_raw,
-      tipo:             r.tipo,
-      venta_hora_soles: r.venta_hora_soles != null ? Number(r.venta_hora_soles) : null,
-      cluster:          r.cluster_raw,
-      contingencia_activa: Boolean(r.contingencia_activa_inc),
-      cont_es_externo:     Boolean(r.cont_es_externo),
-      cont_rendimiento:    r.cont_rendimiento_raw,
-      hubo_movil:          Boolean(r.hubo_movil),
-      mov_rendimiento:     r.mov_rendimiento_raw,
-      boleta_manual:       r.boleta_manual,
-      venta_parcial:    r.venta_parcial,
-      cajas_afectadas:  r.cajas_afectadas != null ? Number(r.cajas_afectadas) : null,
-      cajas_totales:    r.cajas_totales   != null ? Number(r.cajas_totales)   : null,
-    }).impactoEstimado || null
-
     return {
       id:                      r.id,
       codigo:                  r.codigo,
@@ -146,7 +124,7 @@ export async function GET(req: NextRequest) {
       resuelto_por:            r.resuelto_por,
       atribucion_final:        r.atribucion_final,
       evaluable_proveedor:     r.evaluable_proveedor,
-      iei_estimado_soles:      iei,
+      iei_estimado_soles:      r.iei_estimado_soles,
     }
   })
 

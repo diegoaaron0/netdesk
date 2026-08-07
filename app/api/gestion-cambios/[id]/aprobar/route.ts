@@ -12,7 +12,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   if (!can(session, 'gestion-cambios.aprobar'))
-    return NextResponse.json({ error: 'Solo Gerencia puede aprobar acciones' }, { status: 403 })
+    return NextResponse.json({ error: 'Solo Gerencia o Supervisor pueden aprobar acciones' }, { status: 403 })
 
   const body = await req.json().catch(() => ({}))
   const notasAprobacion: string = body.notasAprobacion?.trim() ?? ''

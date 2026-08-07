@@ -1,6 +1,6 @@
 const TODOS_LOS_PERMISOS = [
   'incidentes.ver', 'incidentes.crear', 'incidentes.reabrir', 'incidentes.editar', 'incidentes.eliminar', 'incidentes.cancelar',
-  'escalamientos.crear', 'escalamientos.envio', 'escalamientos.respuesta',
+  'escalamientos.crear', 'escalamientos.respuesta',
   'mantenimiento.ver', 'mantenimiento.editar', 'mantenimiento.agregar',
   'proveedores.ver', 'proveedores.editar',
   'dashboard.ver', 'reportes.ver', 'reportes.exportar',
@@ -13,7 +13,7 @@ const TODOS_LOS_PERMISOS = [
 export const PERMISOS_POR_ROL: Record<string, string[]> = {
   AGENTE: [
     'incidentes.ver', 'incidentes.crear', 'incidentes.reabrir', 'incidentes.editar', 'incidentes.cancelar',
-    'escalamientos.crear', 'escalamientos.envio', 'escalamientos.respuesta',
+    'escalamientos.crear', 'escalamientos.respuesta',
     'dashboard.ver',
     'mantenimiento.ver',
     'proveedores.ver',
@@ -21,7 +21,7 @@ export const PERMISOS_POR_ROL: Record<string, string[]> = {
   ],
   INFRAESTRUCTURA: [
     'incidentes.ver', 'incidentes.crear', 'incidentes.reabrir', 'incidentes.editar', 'incidentes.cancelar',
-    'escalamientos.crear', 'escalamientos.envio', 'escalamientos.respuesta',
+    'escalamientos.crear', 'escalamientos.respuesta',
     'mantenimiento.ver', 'mantenimiento.editar',
     'dashboard.ver', 'reportes.ver', 'reportes.exportar',
     'proveedores.ver', 'proveedores.editar',
@@ -32,7 +32,7 @@ export const PERMISOS_POR_ROL: Record<string, string[]> = {
   SUPERVISOR: [
     'incidentes.ver', 'incidentes.crear', 'incidentes.reabrir',
     'incidentes.editar', 'incidentes.eliminar', 'incidentes.cancelar',
-    'escalamientos.crear', 'escalamientos.envio', 'escalamientos.respuesta',
+    'escalamientos.crear', 'escalamientos.respuesta',
     'mantenimiento.ver', 'mantenimiento.editar', 'mantenimiento.agregar',
     'dashboard.ver', 'reportes.ver', 'reportes.exportar',
     'usuarios.ver', 'usuarios.editar', 'usuarios.crear',

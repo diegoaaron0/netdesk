@@ -27,7 +27,6 @@ const PERMISOS_GRUPOS = [
     key: 'ESCALAMIENTOS',
     items: [
       { key: 'escalamientos.crear',     label: 'Escalar incidente' },
-      { key: 'escalamientos.envio',     label: 'Registrar envío de correo' },
       { key: 'escalamientos.respuesta', label: 'Registrar respuesta proveedor' },
     ],
   },

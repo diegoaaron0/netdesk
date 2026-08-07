@@ -150,8 +150,21 @@ export async function POST(req: NextRequest) {
     tipo:                  body.tipo,
     tipoPersonalizado:     body.tipoPersonalizado  ?? null,
     otrosClasificacion:    body.tipo === 'OTROS' ? (body.otrosClasificacion ?? null) : null,
+    // proveedorId y fichaId quedan CONGELADOS al momento de crear el incidente
+    // (snapshot del proveedor/ficha vigente de la tienda en este instante).
+    // Es intencional, no un bug: si la tienda cambia de proveedor mientras este
+    // incidente sigue abierto, el incidente se mantiene asociado al proveedor
+    // con el que fue abierto (ver COALESCE histórico en incidentes/[id]/route.ts
+    // y en la lista/dashboard/reportes). Y como fichaId también queda congelado,
+    // los contactos de escalamiento que se muestran (nivelesProveedor, derivados
+    // de fichaId) son los vigentes al abrir el caso — si el proveedor cambia sus
+    // contactos mientras el incidente sigue abierto, este NO se entera; preserva
+    // a quién se le escaló realmente en su momento.
     proveedorId:           body.tipo === 'CORTE_ELECTRICO' ? null : (tiendaRow?.proveedorId ?? null),
     fichaId:               body.tipo === 'CORTE_ELECTRICO' ? null : (tiendaRow?.fichaActivaId ?? null),
+    // Corte eléctrico NUNCA es evaluable para el proveedor de internet, sin
+    // excepción — decisión de negocio fija, aunque el corte hubiera coincidido
+    // con una falla real de conectividad. La causa raíz no es la red.
     evaluableProveedor:    body.tipo === 'CORTE_ELECTRICO' ? false : true,
     alcanceCorte:          body.tipo === 'CORTE_ELECTRICO' ? (body.alcanceCorte ?? 'SOLO_TIENDA') : null,
     tuvoUps:               body.tipo === 'CORTE_ELECTRICO' ? (body.tuvoUps ?? false) : null,

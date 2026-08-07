@@ -1900,6 +1900,11 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 ? Math.round((Date.now() - new Date(inc.horaFin).getTime()) / 60000)
                 : 0
               setMinutosDesdeResolucion(mins)
+              // +30 min desde el cierre → advertencia blanda, NUNCA bloqueo.
+              // Decisión de negocio confirmada: se sugiere registrar un incidente
+              // nuevo en vez de reabrir (ver showReopenWarning), pero el agente
+              // puede igual reabrir si corresponde. La API de reabrir no repite
+              // esta validación — el único freno es esta advertencia en pantalla.
               if (mins > 30) {
                 setShowReopenWarning(true)
               } else {
