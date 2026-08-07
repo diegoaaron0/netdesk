@@ -3,6 +3,12 @@ import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { TIPO_LABELS, TIPOS_CON_PROVEEDOR } from '@/lib/gestion-cambios-config'
 
+// Decisión de negocio temporal: alcance ZONA queda oculto en la creación de
+// acciones nuevas (se puede retomar más adelante — no se borra el código).
+// El backend (POST /api/gestion-cambios) también lo rechaza de forma
+// independiente, no depende de que este flag esté en false.
+const ZONA_HABILITADA = false
+
 const inp: React.CSSProperties = {
   width: '100%', padding: '7px 10px', fontSize: '12px',
   border: '0.5px solid var(--border)', borderRadius: '7px',
@@ -172,18 +178,22 @@ function NuevaAccionForm() {
               rows={2} style={{ ...inp, resize: 'vertical', fontFamily: 'inherit' }} />
           </div>
 
-          {/* Alcance */}
-          <div>
-            <label style={lbl}>Alcance</label>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              {(['TIENDA', 'ZONA'] as const).map(a => (
-                <button key={a} type="button" onClick={() => setAlcance(a)}
-                  style={{ padding: '7px 18px', fontSize: '12px', borderRadius: '7px', fontWeight: alcance === a ? 700 : 400, border: `1px solid ${alcance === a ? 'hsl(221,83%,23%)' : 'var(--border)'}`, background: alcance === a ? 'hsl(221,83%,23%)' : 'var(--card)', color: alcance === a ? 'white' : 'var(--foreground)', cursor: 'pointer' }}>
-                  {a === 'TIENDA' ? 'Tienda individual' : 'Zona geográfica'}
-                </button>
-              ))}
+          {/* Alcance — el selector solo se muestra si ZONA está habilitada; con
+              una sola opción disponible (TIENDA) no tiene sentido mostrar un
+              selector. Ver ZONA_HABILITADA arriba. */}
+          {ZONA_HABILITADA && (
+            <div>
+              <label style={lbl}>Alcance</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {(['TIENDA', 'ZONA'] as const).map(a => (
+                  <button key={a} type="button" onClick={() => setAlcance(a)}
+                    style={{ padding: '7px 18px', fontSize: '12px', borderRadius: '7px', fontWeight: alcance === a ? 700 : 400, border: `1px solid ${alcance === a ? 'hsl(221,83%,23%)' : 'var(--border)'}`, background: alcance === a ? 'hsl(221,83%,23%)' : 'var(--card)', color: alcance === a ? 'white' : 'var(--foreground)', cursor: 'pointer' }}>
+                    {a === 'TIENDA' ? 'Tienda individual' : 'Zona geográfica'}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Selección de tienda(s) */}
           {alcance === 'TIENDA' ? (
