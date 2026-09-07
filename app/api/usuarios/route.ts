@@ -16,7 +16,6 @@ export async function GET() {
     email:    usuarios.email,
     celular:  usuarios.celular,
     rol:      usuarios.rol,
-    cluster:  usuarios.cluster,
     permisos: usuarios.permisos,
     activo:   usuarios.activo,
     // Nunca exponer el hash; solo si el usuario tiene o no contraseña, para que
@@ -49,7 +48,6 @@ export async function POST(req: NextRequest) {
     celular:  body.celular ?? null,
     password: hashedPassword,
     rol:      body.rol ?? 'AGENTE',
-    cluster:  body.cluster ?? null,
     permisos: body.permisos ?? null,
     activo:   body.activo ?? true,
   }).returning()
