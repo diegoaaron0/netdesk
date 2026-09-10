@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeAll } from 'vitest'
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import { eq } from 'drizzle-orm'
 
 vi.mock('@/auth', () => ({
@@ -25,6 +25,55 @@ beforeAll(async () => {
   idA = a.id
   idB = b.id
 })
+
+// ─── Aislamiento del resguardo de "último administrador" ─────────────────────
+// contarAdminsActivos() cuenta TODOS los usuarios activos del sistema con el
+// permiso usuarios.editar, no sólo los de este archivo. netdesk_test arrastra
+// usuarios SUPERVISOR de otros orígenes (semillas, pruebas manuales), así que
+// "sembrar un único admin" no alcanzaba: el guard veía 4 y devolvía 200 donde
+// el test esperaba 409. Los tests fallaban o no según qué hubiera en la BD.
+//
+// Acá se desactivan los admins ajenos antes de la corrida y se restauran al
+// final. Se usa el mismo resolvePermisos + permiso que usa el endpoint, para
+// que la definición de "admin" del test no pueda divergir de la del guard.
+//
+// Es seguro contra corridas en paralelo: ningún otro archivo de test crea
+// usuarios SUPERVISOR ni DEMO (los únicos roles con usuarios.editar), así que
+// la población de admins no se mueve mientras esto corre.
+const PREFIJO_FIXTURE = 'admin-guard-'
+let adminsAjenosDesactivados: string[] = []
+
+async function aislarAdminsDeGuardia(): Promise<void> {
+  const { db } = await import('@/lib/db')
+  const schema = await import('@/drizzle/schema')
+  const { and, isNull } = await import('drizzle-orm')
+  const { resolvePermisos } = await import('@/lib/permisos')
+
+  const activos = await db.select({ id: schema.usuarios.id, email: schema.usuarios.email, rol: schema.usuarios.rol, permisos: schema.usuarios.permisos })
+    .from(schema.usuarios)
+    .where(and(eq(schema.usuarios.activo, true), isNull(schema.usuarios.eliminadoEn)))
+
+  const ajenos = activos.filter(u =>
+    !u.email?.startsWith(PREFIJO_FIXTURE) &&
+    resolvePermisos(u.rol, u.permisos).includes('usuarios.editar'))
+
+  adminsAjenosDesactivados = ajenos.map(u => u.id)
+  for (const id of adminsAjenosDesactivados) {
+    await db.update(schema.usuarios).set({ activo: false } as any).where(eq(schema.usuarios.id, id))
+  }
+}
+
+async function restaurarAdminsAjenos(): Promise<void> {
+  const { db } = await import('@/lib/db')
+  const schema = await import('@/drizzle/schema')
+  for (const id of adminsAjenosDesactivados) {
+    await db.update(schema.usuarios).set({ activo: true } as any).where(eq(schema.usuarios.id, id))
+  }
+  adminsAjenosDesactivados = []
+}
+
+beforeAll(aislarAdminsDeGuardia)
+afterAll(restaurarAdminsAjenos)
 
 describe('PUT /api/usuarios/[id] — validación de email único', () => {
   it('cambiar el email de B al email de A → 400, no cambia nada', async () => {
