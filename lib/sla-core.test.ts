@@ -84,7 +84,7 @@ describe('sla-core — SLA por defecto (respuesta 60min / resolución 90min)', (
     const correoN1 = minDespues(T0, 5)
     const respuesta = minDespues(correoN1, 50)
     const fin = minDespues(respuesta, 80)
-    for (const tipo of ['CAIDA_TOTAL', 'INTERMITENCIA', 'LENTITUD', 'POS']) {
+    for (const tipo of ['CAIDA_TOTAL', 'INTERMITENCIA', 'LENTITUD', 'OTROS']) {
       const res = calcSLARow({
         tipo, hora_correo_n1: correoN1, hora_primera_resp: respuesta,
         hora_fin: fin, hora_registro: T0, max_nivel: 1,

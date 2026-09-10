@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { NextRequest } from 'next/server'
+import { fechaLimaStr } from './impacto-calc'
 
 vi.mock('@/auth', () => ({
   auth: vi.fn().mockResolvedValue({ user: { email: 'agente-test@netdesk-test.local', rol: 'SUPERVISOR', id: 'sup-test-id' } }),
@@ -157,10 +158,14 @@ describe('Paso 3 — el slaPct del Analítico ahora es el promedio de % respuest
   // respuesta 75% (Paso 2), resolución 50% (Paso 2) → promedio (75+50)/2 = 62.5 → 63 (round-half-up JS)
   const ESPERADO_SLA_PCT = 63
 
+  // fechaLimaStr (no .toISOString().slice(0,10), que toma el día UTC) — la ruta
+  // interpreta desde/hasta como día calendario Lima, así que el fixture tiene que
+  // armarlos igual, o diverge cuando la suite corre entre 00:00 y 04:59 UTC.
+  const desde = fechaLimaStr(BASE)
+  const hasta = fechaLimaStr(masHoras(BASE, 15))
+
   it('[Analítico → getScoreProveedor] slaPct = promedio de % respuesta/resolución, ya no el ratio combinado (slaGeneral)', async () => {
     const { GET } = await import('@/app/api/dashboard/analitico/route')
-    const desde = BASE.toISOString().slice(0, 10)
-    const hasta = masHoras(BASE, 15).toISOString().slice(0, 10)
     const req = new NextRequest(`http://localhost/api/dashboard/analitico?desde=${desde}&hasta=${hasta}&proveedorId=${encodeURIComponent(PROVEEDOR_NOMBRE)}`)
     const res = await GET(req)
     const data = await res.json()
@@ -173,8 +178,6 @@ describe('Paso 3 — el slaPct del Analítico ahora es el promedio de % respuest
   it('el nuevo slaPct alimenta correctamente getScoreProveedor() sin cambiar su firma ni el umbral >= 30', async () => {
     const { getScoreProveedor } = await import('@/lib/dashboard-calculations')
     const { GET } = await import('@/app/api/dashboard/analitico/route')
-    const desde = BASE.toISOString().slice(0, 10)
-    const hasta = masHoras(BASE, 15).toISOString().slice(0, 10)
     const req = new NextRequest(`http://localhost/api/dashboard/analitico?desde=${desde}&hasta=${hasta}&proveedorId=${encodeURIComponent(PROVEEDOR_NOMBRE)}`)
     const res = await GET(req)
     const data = await res.json()
