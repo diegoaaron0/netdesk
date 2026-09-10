@@ -16,7 +16,6 @@ export async function GET() {
     email:    usuarios.email,
     celular:  usuarios.celular,
     rol:      usuarios.rol,
-    cluster:  usuarios.cluster,
     permisos: usuarios.permisos,
     activo:   usuarios.activo,
   }).from(usuarios).where(isNull(usuarios.eliminadoEn)).orderBy(usuarios.nombre)
@@ -31,10 +30,16 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json()
   if (!body.nombre?.trim()) return NextResponse.json({ error: 'El nombre es obligatorio' }, { status: 400 })
-  if (!body.email?.trim()) return NextResponse.json({ error: 'El correo es obligatorio' }, { status: 400 })
+  const email: string = body.email?.trim() ?? ''
+  if (!email) return NextResponse.json({ error: 'El correo es obligatorio' }, { status: 400 })
+
+  const [existente] = await db.select({ id: usuarios.id }).from(usuarios).where(eq(usuarios.email, email))
+  if (existente) return NextResponse.json({ error: 'Ese correo ya está registrado' }, { status: 400 })
+
   // Contraseña inicial: la que envíe el admin, o el default del sistema (env var).
   // El literal queda solo como último recurso si la env no está configurada.
-  const rawPassword = (typeof body.password === 'string' && body.password.trim())
+  const tienePasswordExplicito = typeof body.password === 'string' && body.password.trim().length > 0
+  const rawPassword = tienePasswordExplicito
     ? body.password
     : (process.env.DEFAULT_USER_PASSWORD ?? 'S0p0rt3!?@#')
   const hashedPassword = await bcrypt.hash(rawPassword, 12)
@@ -42,13 +47,15 @@ export async function POST(req: NextRequest) {
   const [user] = await db.insert(usuarios).values({
     nombre:   body.nombre,
     apellido: body.apellido ?? null,
-    email:    body.email,
+    email,
     celular:  body.celular ?? null,
     password: hashedPassword,
     rol:      body.rol ?? 'AGENTE',
-    cluster:  body.cluster ?? null,
     permisos: body.permisos ?? null,
     activo:   body.activo ?? true,
+    // Contraseña por defecto → debe cambiarla en el primer login. Si el admin
+    // eligió una contraseña explícita, no se fuerza el cambio.
+    debeCambiarPassword: !tienePasswordExplicito,
   }).returning()
 
   return NextResponse.json(user, { status: 201 })

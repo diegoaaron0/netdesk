@@ -263,6 +263,16 @@ async function main() {
   await sql`ALTER TABLE "router_historial" ADD COLUMN IF NOT EXISTS "tiempo_uso_min" integer`
   console.log('[startup] ✓ Columna router_historial.tiempo_uso_min (deriva de esquema corregida)')
 
+  // Auditoría del módulo Usuarios (Paso 9): cluster en usuarios no filtraba ni
+  // restringía nada en el sistema, era solo un dato mostrado sin edición posible
+  // desde la pantalla. tiendas.cluster NO se toca — sigue en uso pleno.
+  await sql`ALTER TABLE usuarios DROP COLUMN IF EXISTS cluster`
+  console.log('[startup] ✓ Columna usuarios.cluster eliminada (tiendas.cluster no se toca)')
+
+  // Forzar cambio de contraseña en el primer login (auditoría del módulo Usuarios)
+  await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS debe_cambiar_password BOOLEAN NOT NULL DEFAULT false`
+  console.log('[startup] ✓ Columna usuarios.debe_cambiar_password')
+
   // Fase 2 (Paso 1) — mitigaciones por tramos. Solo el schema, todavía no lo usa
   // ningún endpoint. Reemplazará a futuro cont_*/mov_*/boleta_*/mitigaciones_previas
   // en incidentes (que conviven sin tocar por ahora — ver diseño de la iniciativa).

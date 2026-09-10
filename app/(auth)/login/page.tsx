@@ -1,19 +1,7 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-
-const ROL_LABEL: Record<string, string> = {
-  AGENTE: 'Agente TTI',
-  SUPERVISOR: 'Supervisor',
-  GERENCIA: 'Gerencia',
-  INFRAESTRUCTURA: 'Infraestructura',
-  DEMO: 'Demo',
-}
-
-function initials(name: string) {
-  return name.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
-}
 
 // Logo animado — barra chart estilo NetDesk
 function NetDeskLogo({ size = 64 }: { size?: number }) {
@@ -61,41 +49,23 @@ function NetDeskLogo({ size = 64 }: { size?: number }) {
 
 export default function LoginPage() {
   const router = useRouter()
-  const [phase, setPhase]       = useState<'splash' | 'login'>('splash')
-  const [visible, setVisible]   = useState(true)
-  const [usuarios, setUsuarios] = useState<any[]>([])
-  const [selected, setSelected] = useState<any>(null)
+  const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
 
-  useEffect(() => {
-    fetch('/api/usuarios/publico').then(r => r.json()).then(setUsuarios)
-  }, [])
-
-  function enterLogin() {
-    setVisible(false)
-    setTimeout(() => { setPhase('login'); setVisible(true) }, 280)
-  }
-
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
-    if (!selected) return
+    if (!email || !password) return
     setLoading(true)
     setError('')
-    const res = await signIn('credentials', { email: selected.email, password, redirect: false })
+    const res = await signIn('credentials', { email, password, redirect: false })
     setLoading(false)
     if (res?.error) {
-      setError('Contraseña incorrecta')
+      setError('Correo o contraseña incorrectos')
     } else {
       router.push('/incidentes')
     }
-  }
-
-  const fadeStyle: React.CSSProperties = {
-    opacity: visible ? 1 : 0,
-    transform: visible ? 'translateY(0)' : 'translateY(12px)',
-    transition: 'opacity 0.28s ease, transform 0.28s ease',
   }
 
   return (
@@ -126,119 +96,44 @@ export default function LoginPage() {
         `}</style>
       </div>
 
-      {/* ── FASE SPLASH ── */}
-      {phase === 'splash' && (
-        <div
-          onClick={enterLogin}
-          style={{ ...fadeStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', userSelect: 'none', gap: '0' }}
-        >
-          <div style={{ marginBottom: '20px' }}>
-            <NetDeskLogo size={96} />
+      <div style={{ width: '100%', maxWidth: '380px', position: 'relative' }}>
+        <div style={{ marginBottom: '28px', textAlign: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '6px' }}>
+            <NetDeskLogo size={36} />
+            <div style={{ fontSize: '28px', fontWeight: 700, color: 'white', letterSpacing: '-0.03em', lineHeight: 1 }}>NetDesk</div>
           </div>
-          <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.28)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '6px' }}>
-            Service Desk
-          </div>
-          <div style={{ fontSize: '48px', fontWeight: 700, color: 'white', letterSpacing: '-0.04em', lineHeight: 1, marginBottom: '8px' }}>
-            NetDesk
-          </div>
-          <div style={{ fontSize: '12px', color: 'rgba(56,189,248,0.7)', letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: '40px' }}>
-            Monitoreo Footloose Perú
-          </div>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: '8px',
-            fontSize: '12px', color: 'rgba(255,255,255,0.3)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: '20px', padding: '8px 20px',
-            animation: 'pulse 2s ease-in-out infinite',
-          }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(56,189,248,0.6)', display: 'inline-block', animation: 'blink 1.4s ease-in-out infinite' }} />
-            Toca para ingresar
-          </div>
-          <style>{`
-            @keyframes pulse {
-              0%, 100% { opacity: 0.7; } 50% { opacity: 1; }
-            }
-            @keyframes blink {
-              0%, 100% { opacity: 0.4; } 50% { opacity: 1; }
-            }
-          `}</style>
+          <div style={{ fontSize: '10px', color: 'rgba(56,189,248,0.6)', letterSpacing: '0.16em', textTransform: 'uppercase' }}>Monitoreo Footloose Perú</div>
         </div>
-      )}
 
-      {/* ── FASE LOGIN ── */}
-      {phase === 'login' && (
-        <div style={{ ...fadeStyle, width: '100%', maxWidth: '520px' }}>
-          <div style={{ marginBottom: '28px', textAlign: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '6px' }}>
-              <NetDeskLogo size={36} />
-              <div style={{ fontSize: '28px', fontWeight: 700, color: 'white', letterSpacing: '-0.03em', lineHeight: 1 }}>NetDesk</div>
-            </div>
-            <div style={{ fontSize: '10px', color: 'rgba(56,189,248,0.6)', letterSpacing: '0.16em', textTransform: 'uppercase' }}>Monitoreo Footloose Perú</div>
-          </div>
-
-          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)', marginBottom: '14px', textAlign: 'center' }}>
-            Selecciona tu usuario
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '20px' }}>
-            {usuarios.map(u => (
-              <button key={u.id} onClick={() => { setSelected(u); setPassword(''); setError('') }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '10px',
-                  padding: '12px 14px', borderRadius: '10px',
-                  background: selected?.id === u.id ? 'rgba(56,189,248,0.12)' : 'rgba(255,255,255,0.04)',
-                  border: selected?.id === u.id ? '1px solid rgba(56,189,248,0.4)' : '1px solid rgba(255,255,255,0.07)',
-                  cursor: 'pointer', textAlign: 'left',
-                }}
-                onMouseEnter={e => { if (selected?.id !== u.id) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.07)' }}
-                onMouseLeave={e => { if (selected?.id !== u.id) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.04)' }}
-              >
-                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(56,189,248,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 600, color: 'rgba(147,197,253,0.9)', flexShrink: 0 }}>
-                  {initials(u.nombre)}
-                </div>
-                <div>
-                  <div style={{ fontSize: '12px', fontWeight: 500, color: 'rgba(255,255,255,0.8)' }}>{u.nombre}</div>
-                  <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '1px' }}>{ROL_LABEL[u.rol] ?? u.rol}</div>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          {selected && (
-            <form onSubmit={handleLogin}
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '20px' }}>
-              <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '14px' }}>
-                Ingresando como <span style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 500 }}>{selected.nombre}</span>
-              </div>
-              <input
-                type="password" autoFocus
-                placeholder="Contraseña"
-                value={password}
-                onChange={e => { setPassword(e.target.value); setError('') }}
-                style={{ width: '100%', padding: '9px 12px', fontSize: '13px', border: error ? '1px solid rgba(239,68,68,0.5)' : '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', color: 'white', outline: 'none', marginBottom: '8px', boxSizing: 'border-box' }}
-              />
-              {error && <div style={{ fontSize: '11px', color: '#f87171', marginBottom: '10px' }}>{error}</div>}
-              <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                <button type="button" onClick={() => setSelected(null)}
-                  style={{ flex: 1, padding: '8px', fontSize: '12px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}>
-                  Cancelar
-                </button>
-                <button type="submit" disabled={loading || !password}
-                  style={{ flex: 2, padding: '8px', fontSize: '12px', fontWeight: 500, background: loading || !password ? 'rgba(56,189,248,0.2)' : 'hsl(221,83%,45%)', color: 'white', border: 'none', borderRadius: '8px', cursor: loading || !password ? 'default' : 'pointer' }}>
-                  {loading ? 'Ingresando...' : 'Ingresar'}
-                </button>
-              </div>
-            </form>
-          )}
-
-          <div style={{ marginTop: '16px', textAlign: 'center' }}>
-            <button onClick={() => { setPhase('splash'); setSelected(null); setError('') }}
-              style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', background: 'none', border: 'none', cursor: 'pointer' }}>
-              ← Volver
-            </button>
-          </div>
-        </div>
-      )}
+        <form onSubmit={handleLogin}
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '20px' }}>
+          <label style={{ display: 'block', fontSize: '10px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '5px' }}>
+            Correo
+          </label>
+          <input
+            type="email" autoFocus autoComplete="username"
+            placeholder="tu.correo@footloose.pe"
+            value={email}
+            onChange={e => { setEmail(e.target.value); setError('') }}
+            style={{ width: '100%', padding: '9px 12px', fontSize: '13px', border: error ? '1px solid rgba(239,68,68,0.5)' : '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', color: 'white', outline: 'none', marginBottom: '14px', boxSizing: 'border-box' }}
+          />
+          <label style={{ display: 'block', fontSize: '10px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '5px' }}>
+            Contraseña
+          </label>
+          <input
+            type="password" autoComplete="current-password"
+            placeholder="Contraseña"
+            value={password}
+            onChange={e => { setPassword(e.target.value); setError('') }}
+            style={{ width: '100%', padding: '9px 12px', fontSize: '13px', border: error ? '1px solid rgba(239,68,68,0.5)' : '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', color: 'white', outline: 'none', marginBottom: '8px', boxSizing: 'border-box' }}
+          />
+          {error && <div style={{ fontSize: '11px', color: '#f87171', marginBottom: '10px' }}>{error}</div>}
+          <button type="submit" disabled={loading || !email || !password}
+            style={{ width: '100%', marginTop: '8px', padding: '9px', fontSize: '12px', fontWeight: 500, background: loading || !email || !password ? 'rgba(56,189,248,0.2)' : 'hsl(221,83%,45%)', color: 'white', border: 'none', borderRadius: '8px', cursor: loading || !email || !password ? 'default' : 'pointer' }}>
+            {loading ? 'Ingresando...' : 'Ingresar'}
+          </button>
+        </form>
+      </div>
     </div>
   )
 }

@@ -38,7 +38,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   const hash = await bcrypt.hash(passwordNueva, 12)
-  await db.update(usuarios).set({ password: hash }).where(eq(usuarios.id, user.id))
+  await db.update(usuarios).set({ password: hash, debeCambiarPassword: false }).where(eq(usuarios.id, user.id))
   await db.insert(passwordCambios).values({ usuarioId: user.id })
 
   return NextResponse.json({ ok: true })

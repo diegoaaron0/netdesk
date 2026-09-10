@@ -41,9 +41,11 @@ export const usuarios = pgTable('usuarios', {
   celular:  text('celular'),
   password: text('password'),
   rol:      rolEnum('rol').notNull().default('AGENTE'),
-  cluster:  clusterEnum('cluster'),
   permisos:         text('permisos').array(),
   modulosVisibles:  text('modulos_visibles').array(),
+  // true = debe cambiar su contraseña antes de poder usar el sistema (se creó con
+  // la contraseña por defecto, o un Supervisor le reseteó la contraseña).
+  debeCambiarPassword: boolean('debe_cambiar_password').notNull().default(false),
   activo:      boolean('activo').default(true),
   eliminadoEn: timestamp('eliminado_en'),
   creadoEn:    timestamp('creado_en').defaultNow(),

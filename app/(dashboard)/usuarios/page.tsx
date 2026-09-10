@@ -26,8 +26,7 @@ const PERMISOS_GRUPOS = [
   {
     key: 'ESCALAMIENTOS',
     items: [
-      { key: 'escalamientos.crear',     label: 'Escalar incidente' },
-      { key: 'escalamientos.respuesta', label: 'Registrar respuesta proveedor' },
+      { key: 'escalamientos.crear', label: 'Escalar incidente / registrar respuesta' },
     ],
   },
   {
@@ -36,6 +35,7 @@ const PERMISOS_GRUPOS = [
       { key: 'mantenimiento.ver',     label: 'Ver módulo tiendas' },
       { key: 'mantenimiento.editar',  label: 'Editar datos de tiendas' },
       { key: 'mantenimiento.agregar', label: 'Agregar nueva tienda' },
+      { key: 'mantenimiento.eliminar', label: 'Dar de baja tienda' },
     ],
   },
   {
@@ -50,7 +50,6 @@ const PERMISOS_GRUPOS = [
     items: [
       { key: 'dashboard.ver',     label: 'Ver dashboards' },
       { key: 'reportes.ver',      label: 'Ver reportes' },
-      { key: 'reportes.exportar', label: 'Exportar CSV de reportes' },
     ],
   },
   {
@@ -72,9 +71,8 @@ const PERMISOS_GRUPOS = [
   {
     key: 'OPERACIONES',
     items: [
-      { key: 'incidentes.cancelar',     label: 'Cancelar incidentes' },
-      { key: 'contingencias.gestionar', label: 'Gestionar contingencias standalone' },
-      { key: 'grupos.gestionar',        label: 'Gestionar grupos masivos' },
+      { key: 'incidentes.cancelar', label: 'Cancelar incidentes' },
+      { key: 'grupos.gestionar',    label: 'Gestionar grupos masivos y contingencias standalone' },
     ],
   },
 ]
@@ -83,7 +81,7 @@ const BLANK = {
   nombre: '', apellido: '', email: '', celular: '',
   // Sin contraseña por defecto en el cliente (no enviar literales en el bundle).
   // Si se deja vacío al crear, el backend asigna la contraseña por defecto del sistema.
-  password: '', rol: 'AGENTE', cluster: '', activo: true,
+  password: '', rol: 'AGENTE', activo: true,
   permisos: PERMISOS_POR_ROL['AGENTE'] as string[],
 }
 
@@ -133,7 +131,6 @@ export default function UsuariosPage() {
       data: {
         ...u,
         password: '',
-        cluster: u.cluster ?? '',
         permisos: u.permisos ?? PERMISOS_POR_ROL[u.rol] ?? [],
       },
     })
@@ -158,7 +155,6 @@ export default function UsuariosPage() {
       currentPerms.every(p => defaultPerms.includes(p))
     const body: any = {
       ...modal.data,
-      cluster: modal.data.cluster || null,
       permisos: esDefault ? null : currentPerms,
     }
     if (!modal.isNew && !passwordModified) delete body.password
@@ -277,7 +273,7 @@ export default function UsuariosPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: 'var(--muted)' }}>
-              {['Usuario', 'Correo', 'Celular', 'Cluster', 'Rol', 'Estado', ''].map(h => (
+              {['Usuario', 'Correo', 'Celular', 'Rol', 'Estado', ''].map(h => (
                 <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
@@ -305,7 +301,6 @@ export default function UsuariosPage() {
                   </td>
                   <td style={{ padding: '10px 14px', fontSize: '11px', color: 'var(--muted-foreground)' }}>{u.email}</td>
                   <td style={{ padding: '10px 14px', fontSize: '11px', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{u.celular || '—'}</td>
-                  <td style={{ padding: '10px 14px', fontSize: '11px', color: 'var(--muted-foreground)' }}>{u.cluster || <span style={{ color: 'var(--border)' }}>—</span>}</td>
                   <td style={{ padding: '10px 14px' }}>
                     <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: rc.bg, color: rc.color }}>{rc.label}</span>
                     {u.permisos && Array.isArray(u.permisos) && u.permisos.length > 0 && (
