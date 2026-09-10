@@ -221,7 +221,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 // Campos que cambian solo al activar una ficha — no se trackean aquí
 const TRACKED_FIELDS = [
-  'celularTienda',
+  'codigo', 'celularTienda',
   'nombreCc', 'formato', 'direccion', 'referencia', 'distrito', 'provincia',
   'ubicacion', 'cluster', 'supervisorNombre', 'supervisorCelular', 'perfilSupervisor',
   'tieneContingencia', 'contingenciaActiva', 'contingenciaDescripcion',
@@ -324,7 +324,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
     const [r] = await db.update(tiendas).set(fullValues).where(eq(tiendas.id, id)).returning()
     updated = r
-  } catch {
+  } catch (e) {
+    logUnlessSchemaMissing('tiendas/[id] PUT', e)
     const [r] = await db.update(tiendas).set(baseValues).where(eq(tiendas.id, id)).returning()
     updated = r
   }
@@ -356,8 +357,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  const rol = (session.user as any)?.rol
-  if (!['SUPERVISOR', 'INFRAESTRUCTURA'].includes(rol)) {
+  if (!can(session, 'mantenimiento.eliminar')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
@@ -28,15 +28,24 @@ function fmtFecha(v: unknown): string {
   } catch { return String(v) }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   if (!can(session, 'reportes.ver')) return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
+
+  // Mismo criterio por defecto que la pantalla de Tiendas: solo ACTIVA.
+  // estado=ARCHIVADA / estado=TODAS para incluir explícitamente las dadas de baja.
+  const estadoF = (req.nextUrl.searchParams.get('estado') ?? 'ACTIVA').toUpperCase()
+  const whereEstado =
+    estadoF === 'ARCHIVADA' ? sql`WHERE t.estado = 'ARCHIVADA'` :
+    estadoF === 'TODAS'     ? sql`` :
+    sql`WHERE t.estado = 'ACTIVA'`
 
   try {
     const rows = await db.execute(sql`
       SELECT
         t.codigo,
+        t.estado,
         t.nombre_cc,
         t.referencia,
         t.formato,
@@ -76,11 +85,12 @@ export async function GET() {
       FROM tiendas t
       LEFT JOIN proveedores p ON t.proveedor_id = p.id
       LEFT JOIN fichas f ON f.id = t.ficha_activa_id
+      ${whereEstado}
       ORDER BY t.codigo
     `)
 
     const headers = [
-      'Código Tienda', 'Nombre CC', 'Grupo', 'Formato',
+      'Código Tienda', 'Estado', 'Nombre CC', 'Grupo', 'Formato',
       'Dirección', 'Distrito', 'Provincia', 'Ubicación',
       'Proveedor', 'Tipo Conexión', 'Tipo Servicio', 'CID Servicio', 'Descripción Servicio',
       'Costo Mensual (S/.)', 'Venta/Hora (S/.)', 'Velocidad', 'Plan Aplicado',
@@ -96,6 +106,7 @@ export async function GET() {
       headers.join(','),
       ...(rows as any[]).map(r => [
         r.codigo,
+        r.estado,
         r.nombre_cc ?? '',
         r.referencia ?? '',
         r.formato ?? '',

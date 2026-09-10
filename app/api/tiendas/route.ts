@@ -140,14 +140,19 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  const rol = (session.user as any)?.rol
-  if (!['SUPERVISOR', 'INFRAESTRUCTURA'].includes(rol)) {
+  if (!can(session, 'mantenimiento.agregar')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const body = await req.json()
+  const codigo: string = typeof body.codigo === 'string' ? body.codigo.trim() : ''
+  if (!codigo) return NextResponse.json({ error: 'El código es requerido' }, { status: 400 })
+
+  const [existente] = await db.select({ id: tiendas.id }).from(tiendas).where(eq(tiendas.codigo, codigo))
+  if (existente) return NextResponse.json({ error: 'Ese código ya existe' }, { status: 400 })
+
   const [t] = await db.insert(tiendas).values({
-    codigo:              body.codigo,
+    codigo,
     nombreCc:            body.nombreCc ?? null,
     formato:             body.formato ?? null,
     direccion:           body.direccion ?? null,

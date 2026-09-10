@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { tiendas, tiendasHistorial, incidentes, routersExternos } from '@/drizzle/schema'
+import { tiendas, tiendasHistorial, incidentes, routersExternos, contingencias } from '@/drizzle/schema'
 import { eq, and, count, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }).from(tiendas).where(eq(tiendas.id, id))
   if (!tienda) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
   if (tienda.estado === 'ARCHIVADA')
-    return NextResponse.json({ error: 'La tienda ya está archivada' }, { status: 400 })
+    return NextResponse.json({ error: 'La tienda ya está archivada' }, { status: 409 })
 
   if (tienda.fichaActivaId)
     return NextResponse.json(
@@ -53,21 +53,39 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       { status: 409 },
     )
 
+  const [{ totalContingenciasMovil }] = await db.select({ totalContingenciasMovil: count() })
+    .from(contingencias)
+    .where(and(
+      eq(contingencias.tiendaId, id),
+      eq(contingencias.tipo, 'DATOS_MOVILES'),
+      sql`${contingencias.horaDesactivacion} IS NULL`,
+    ))
+  if (totalContingenciasMovil > 0)
+    return NextResponse.json(
+      { error: 'La tienda tiene una contingencia de datos móviles activa. Desactívala antes de dar de baja.' },
+      { status: 409 },
+    )
+
   const usuarioId = (session.user as any)?.id ?? null
   const ahora = new Date()
 
-  const [actualizada] = await db.update(tiendas)
-    .set({ estado: 'ARCHIVADA', archivadaEn: ahora, archivadaPorId: usuarioId, archivadaMotivo: motivo })
-    .where(eq(tiendas.id, id))
-    .returning()
+  // Atómico: si el registro de auditoría falla, la tienda tampoco queda archivada.
+  const actualizada = await db.transaction(async (tx) => {
+    const [row] = await tx.update(tiendas)
+      .set({ estado: 'ARCHIVADA', archivadaEn: ahora, archivadaPorId: usuarioId, archivadaMotivo: motivo })
+      .where(eq(tiendas.id, id))
+      .returning()
 
-  await db.insert(tiendasHistorial).values({
-    tiendaId: id,
-    usuarioId,
-    campoEditado: 'estado',
-    valorAnterior: 'ACTIVA',
-    valorNuevo: 'ARCHIVADA',
-    motivo,
+    await tx.insert(tiendasHistorial).values({
+      tiendaId: id,
+      usuarioId,
+      campoEditado: 'estado',
+      valorAnterior: 'ACTIVA',
+      valorNuevo: 'ARCHIVADA',
+      motivo,
+    })
+
+    return row
   })
 
   return NextResponse.json(actualizada)

@@ -3,7 +3,16 @@ import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
-import { calcImpactoRow } from '@/lib/impacto-calc'
+import { getTramosPorIncidentes, calcIeiIncidente, type IncidenteMitigacionInput } from '@/lib/mitigacion-tramos'
+
+const MOTIVO_LABEL: Record<string, string> = {
+  ROUTER_PROPIO: 'router propio', ROUTER_EXTERNO: 'router externo',
+  DATOS_MOVILES: 'datos móviles', BOLETA_MANUAL: 'boleta manual',
+}
+function motivoDeSegmentos(segmentos: { tipo: string }[]): string {
+  const tipos = [...new Set(segmentos.filter(s => s.tipo !== 'SIN_MITIGACION').map(s => s.tipo))]
+  return tipos.length > 0 ? tipos.map(t => MOTIVO_LABEL[t] ?? t).join(' + ') : 'sin mitigación'
+}
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -27,9 +36,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       i.id, i.codigo, i.tipo, i.estado, i.mttr_minutos,
       (i.hora_registro AT TIME ZONE 'UTC') AS hora_registro,
       (i.hora_fin       AT TIME ZONE 'UTC') AS hora_fin,
+      i.cont_activado_por,
       (i.cont_hora_activacion    AT TIME ZONE 'UTC') AS cont_hora_activacion,
       (i.cont_hora_desactivacion AT TIME ZONE 'UTC') AS cont_hora_desactivacion,
       i.cont_rendimiento, i.cont_es_externo,
+      i.mov_activado_por,
       (i.mov_hora_activacion    AT TIME ZONE 'UTC') AS mov_hora_activacion,
       (i.mov_hora_desactivacion AT TIME ZONE 'UTC') AS mov_hora_desactivacion,
       i.mov_rendimiento,
@@ -48,25 +59,23 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     ORDER BY i.hora_registro DESC
   `)
 
+  const tramosDeRows = await getTramosPorIncidentes((rows as any[]).map(r => r.id))
+
   const result = (rows as any[]).map(r => {
-    const iei = calcImpactoRow({
-      hora_registro:           r.hora_registro,
-      hora_fin:                r.hora_fin,
-      estado:                  r.estado,
-      tipo:                    r.tipo,
-      venta_hora_soles:        r.venta_hora_soles,
-      venta_hora_fds_soles:    r.venta_hora_fds_soles,
-      cluster:                 r.cluster,
-      cont_hora_activacion:    r.cont_hora_activacion,
-      cont_hora_desactivacion: r.cont_hora_desactivacion,
-      cont_rendimiento:        r.cont_rendimiento,
-      cont_es_externo:         r.cont_es_externo,
-      mov_hora_activacion:     r.mov_hora_activacion,
-      mov_hora_desactivacion:  r.mov_hora_desactivacion,
-      mov_rendimiento:         r.mov_rendimiento,
-      boleta_manual:           r.boleta_manual,
-      boleta_rendimiento:      r.boleta_rendimiento,
-      boleta_hora_activacion:  r.boleta_hora_activacion,
+    const incidenteMitigacion: IncidenteMitigacionInput = {
+      tipo: r.tipo, estado: r.estado, horaRegistro: r.hora_registro, horaFin: r.hora_fin,
+      // Ambos necesitan su activado_por, no solo el timestamp — bug real
+      // confirmado en producción: un timestamp fantasma (sin activado_por)
+      // se contaba como mitigación activa.
+      contActivadoPor: r.cont_activado_por, contHoraActivacion: r.cont_hora_activacion,
+      contHoraDesactivacion: r.cont_hora_desactivacion, contRendimiento: r.cont_rendimiento, contEsExterno: r.cont_es_externo,
+      movActivadoPor: r.mov_activado_por, movHoraActivacion: r.mov_hora_activacion,
+      movHoraDesactivacion: r.mov_hora_desactivacion, movRendimiento: r.mov_rendimiento,
+      boletaManual: r.boleta_manual, boletaRendimiento: r.boleta_rendimiento, boletaHoraActivacion: r.boleta_hora_activacion,
+    }
+    const tramos = tramosDeRows.get(r.id) ?? []
+    const { iei, segmentos } = calcIeiIncidente(incidenteMitigacion, tramos, {
+      ventaHoraSoles: r.venta_hora_soles, ventaHoraFdsSoles: r.venta_hora_fds_soles, cluster: r.cluster,
     })
     return {
       id:            r.id,
@@ -77,9 +86,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       hora_registro: r.hora_registro,
       hora_fin:      r.hora_fin,
       prov_nombre:   r.prov_nombre ?? null,
-      iei:           iei.impactoEstimado,
-      ieiFalta:      iei.faltaInformacion,
-      ieiMotivo:     iei.motivoFactor,
+      iei,
+      ieiFalta:      r.estado !== 'RESUELTO' || !r.hora_fin,
+      ieiMotivo:     motivoDeSegmentos(segmentos),
     }
   })
 
@@ -90,9 +99,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       (i.hora_registro AT TIME ZONE 'UTC') AS hora_registro,
       (i.hora_fin       AT TIME ZONE 'UTC') AS hora_fin,
       i.estado, i.tipo, i.mttr_minutos,
+      i.cont_activado_por,
       (i.cont_hora_activacion    AT TIME ZONE 'UTC') AS cont_hora_activacion,
       (i.cont_hora_desactivacion AT TIME ZONE 'UTC') AS cont_hora_desactivacion,
       i.cont_rendimiento, i.cont_es_externo,
+      i.mov_activado_por,
       (i.mov_hora_activacion    AT TIME ZONE 'UTC') AS mov_hora_activacion,
       (i.mov_hora_desactivacion AT TIME ZONE 'UTC') AS mov_hora_desactivacion,
       i.mov_rendimiento,
@@ -107,30 +118,32 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       AND i.hora_registro <  ${hasta}::timestamptz
   `)
 
+  const tramosDeIeiRows = await getTramosPorIncidentes((ieiRows as any[]).map(r => r.id))
+
   let ieiTotal = 0
   const breakdownAll: any[] = []
   for (const r of ieiRows as any[]) {
-    const res = calcImpactoRow({
-      hora_registro: r.hora_registro, hora_fin: r.hora_fin,
-      estado: r.estado, tipo: r.tipo,
-      venta_hora_soles: r.venta_hora_soles, venta_hora_fds_soles: r.venta_hora_fds_soles,
-      cluster: r.cluster,
-      cont_hora_activacion: r.cont_hora_activacion, cont_hora_desactivacion: r.cont_hora_desactivacion,
-      cont_rendimiento: r.cont_rendimiento, cont_es_externo: r.cont_es_externo,
-      mov_hora_activacion: r.mov_hora_activacion, mov_hora_desactivacion: r.mov_hora_desactivacion,
-      mov_rendimiento: r.mov_rendimiento,
-      boleta_manual: r.boleta_manual, boleta_rendimiento: r.boleta_rendimiento,
-      boleta_hora_activacion: r.boleta_hora_activacion,
+    const incidenteMitigacion: IncidenteMitigacionInput = {
+      tipo: r.tipo, estado: r.estado, horaRegistro: r.hora_registro, horaFin: r.hora_fin,
+      contActivadoPor: r.cont_activado_por, contHoraActivacion: r.cont_hora_activacion,
+      contHoraDesactivacion: r.cont_hora_desactivacion, contRendimiento: r.cont_rendimiento, contEsExterno: r.cont_es_externo,
+      movActivadoPor: r.mov_activado_por, movHoraActivacion: r.mov_hora_activacion,
+      movHoraDesactivacion: r.mov_hora_desactivacion, movRendimiento: r.mov_rendimiento,
+      boletaManual: r.boleta_manual, boletaRendimiento: r.boleta_rendimiento, boletaHoraActivacion: r.boleta_hora_activacion,
+    }
+    const tramos = tramosDeIeiRows.get(r.id) ?? []
+    const { iei, segmentos } = calcIeiIncidente(incidenteMitigacion, tramos, {
+      ventaHoraSoles: r.venta_hora_soles, ventaHoraFdsSoles: r.venta_hora_fds_soles, cluster: r.cluster,
     })
-    ieiTotal += res.impactoEstimado
+    ieiTotal += iei
     breakdownAll.push({
       id:           r.id,
       codigo:       r.codigo,
       tipo:         r.tipo,
       mttrMinutos:  r.mttr_minutos,
       horaRegistro: r.hora_registro,
-      iei:          res.impactoEstimado,
-      motivo:       res.motivoFactor,
+      iei,
+      motivo:       motivoDeSegmentos(segmentos),
     })
   }
   const breakdown = breakdownAll.filter(r => r.iei > 0).sort((a, b) => b.iei - a.iei)

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 
 vi.mock('@/auth', () => ({
   auth: vi.fn().mockResolvedValue({ user: { email: 'agente-test@netdesk-test.local', rol: 'SUPERVISOR', id: 'sup-test-id' } }),
@@ -173,5 +173,92 @@ describe('DELETE /api/tiendas/[id] — camino angosto, acotado por fichas ademá
 
     const [gone] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.id, t.id))
     expect(gone).toBeUndefined()
+  })
+})
+
+describe('PUT /api/tiendas/[id] — auditoría de cambio de código', () => {
+  it('un cambio de código queda registrado en tiendas_historial', async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    const { auth } = await import('@/auth')
+    const { PUT } = await import('./route')
+
+    const [ref] = await db.select().from(schema.incidentes).where(eq(schema.incidentes.codigo, 'TST-P1-001'))
+    vi.mocked(auth).mockResolvedValueOnce({ user: { email: 'supervisor-test@netdesk-test.local', rol: 'SUPERVISOR', id: ref.registradoPorId } } as any)
+
+    const [previo] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.codigo, 'T-PUT-CODIGO-NUEVO'))
+    if (previo) {
+      await db.delete(schema.tiendasHistorial).where(eq(schema.tiendasHistorial.tiendaId, previo.id))
+      await db.delete(schema.tiendas).where(eq(schema.tiendas.id, previo.id))
+    }
+    let [t] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.codigo, 'T-PUT-CODIGO-VIEJO'))
+    if (!t) {
+      [t] = await db.insert(schema.tiendas).values({ codigo: 'T-PUT-CODIGO-VIEJO', nombreCc: 'Tienda — auditoría código', distrito: 'Test', cluster: 'B' }).returning()
+    } else {
+      await db.update(schema.tiendas).set({ codigo: 'T-PUT-CODIGO-VIEJO' }).where(eq(schema.tiendas.id, t.id))
+    }
+    await db.delete(schema.tiendasHistorial).where(and(eq(schema.tiendasHistorial.tiendaId, t.id), eq(schema.tiendasHistorial.campoEditado, 'codigo')))
+
+    const res = await PUT({ json: async () => ({ codigo: 'T-PUT-CODIGO-NUEVO' }) } as any, { params: Promise.resolve({ id: t.id }) })
+    expect(res.status).toBe(200)
+
+    const [hist] = await db.select().from(schema.tiendasHistorial)
+      .where(and(eq(schema.tiendasHistorial.tiendaId, t.id), eq(schema.tiendasHistorial.campoEditado, 'codigo')))
+    expect(hist).toBeTruthy()
+    expect(hist.valorAnterior).toBe('T-PUT-CODIGO-VIEJO')
+    expect(hist.valorNuevo).toBe('T-PUT-CODIGO-NUEVO')
+  })
+})
+
+describe('PUT /api/tiendas/[id] — no traga en silencio errores reales del primer intento (fullValues)', () => {
+  it('si el primer UPDATE falla por algo que NO es columna/tabla no migrada, se loguea antes de reintentar con baseValues', async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    const { PUT } = await import('./route')
+
+    let [t] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.codigo, 'T-PUT-LOG-SILENCIOSO'))
+    if (!t) {
+      [t] = await db.insert(schema.tiendas).values({ codigo: 'T-PUT-LOG-SILENCIOSO', nombreCc: 'Tienda — no tragar errores', distrito: 'Test', cluster: 'B' }).returning()
+    }
+
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const updateSpy = vi.spyOn(db, 'update').mockImplementationOnce(() => {
+      const err: any = new Error('Simulated non-schema update failure')
+      err.code = '55000' // no es 42703/42P01 → no es el caso esperado de columna/tabla no migrada
+      throw err
+    })
+
+    try {
+      const res = await PUT({ json: async () => ({ nombreCc: 'Actualizado tras fallo simulado' }) } as any, { params: Promise.resolve({ id: t.id }) })
+      // El reintento con baseValues sí debe funcionar (degradación elegante intacta)
+      expect(res.status).toBe(200)
+      expect(errorSpy).toHaveBeenCalled()
+      const loggedArgs = errorSpy.mock.calls.flat().map(String).join(' ')
+      expect(loggedArgs).toMatch(/Simulated non-schema update failure/)
+    } finally {
+      updateSpy.mockRestore()
+      errorSpy.mockRestore()
+    }
+  })
+})
+
+describe('DELETE /api/tiendas/[id] — permisos (mantenimiento.eliminar, no rol crudo)', () => {
+  it('INFRAESTRUCTURA no puede hacer hard-delete (403) — no tiene mantenimiento.eliminar', async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    const { auth } = await import('@/auth')
+    const { DELETE } = await import('./route')
+
+    let [t] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.codigo, 'T-DELETE-PERM-INFRA'))
+    if (!t) {
+      [t] = await db.insert(schema.tiendas).values({ codigo: 'T-DELETE-PERM-INFRA', nombreCc: 'Tienda — delete permiso infra', distrito: 'Test', cluster: 'B' }).returning()
+    }
+
+    vi.mocked(auth).mockResolvedValueOnce({ user: { email: 'infra-test@netdesk-test.local', rol: 'INFRAESTRUCTURA', id: 'infra-test-id' } } as any)
+    const res = await DELETE({} as any, { params: Promise.resolve({ id: t.id }) })
+    expect(res.status).toBe(403)
+
+    const [stillThere] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.id, t.id))
+    expect(stillThere).toBeTruthy()
   })
 })

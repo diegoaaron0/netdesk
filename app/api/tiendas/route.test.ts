@@ -102,3 +102,60 @@ describe('GET /api/tiendas?q= — autocompletado (usado al crear un incidente)',
     expect(data.some((t: any) => t.id === tiendaAutocompleteArchivadaId)).toBe(false)
   })
 })
+
+function reqConBody(body: Record<string, unknown>) {
+  return { json: async () => body } as any
+}
+
+describe('POST /api/tiendas — permisos (mantenimiento.agregar, no rol crudo)', () => {
+  it('INFRAESTRUCTURA puede crear (201) — tiene mantenimiento.agregar', async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    await db.delete(schema.tiendas).where(eq(schema.tiendas.codigo, 'T-POST-PERM-INFRA-01'))
+
+    const { auth } = await import('@/auth')
+    vi.mocked(auth).mockResolvedValueOnce({ user: { email: 'infra-test@netdesk-test.local', rol: 'INFRAESTRUCTURA' } } as any)
+    const { POST } = await import('./route')
+
+    const res = await POST(reqConBody({ codigo: 'T-POST-PERM-INFRA-01' }))
+    expect(res.status).toBe(201)
+  })
+
+  it('AGENTE no puede crear (403) — no tiene mantenimiento.agregar', async () => {
+    const { auth } = await import('@/auth')
+    vi.mocked(auth).mockResolvedValueOnce({ user: { email: 'agente-test@netdesk-test.local', rol: 'AGENTE' } } as any)
+    const { POST } = await import('./route')
+
+    const res = await POST(reqConBody({ codigo: 'T-POST-PERM-AGENTE-01' }))
+    expect(res.status).toBe(403)
+  })
+})
+
+describe('POST /api/tiendas — validación de código', () => {
+  it('sin código → 400 con mensaje de negocio, no 500', async () => {
+    const { POST } = await import('./route')
+    const res = await POST(reqConBody({ nombreCc: 'Sin código' }))
+    expect(res.status).toBe(400)
+    const data = await res.json()
+    expect(data.error).toMatch(/código.*requerido|requerido.*código/i)
+  })
+
+  it('código en blanco → 400', async () => {
+    const { POST } = await import('./route')
+    const res = await POST(reqConBody({ codigo: '   ' }))
+    expect(res.status).toBe(400)
+  })
+
+  it('código ya existente → 400 con mensaje de negocio, no 500', async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    await db.delete(schema.tiendas).where(eq(schema.tiendas.codigo, 'T-POST-CODIGO-DUP'))
+    await db.insert(schema.tiendas).values({ codigo: 'T-POST-CODIGO-DUP', nombreCc: 'Original', distrito: 'Test', cluster: 'B' })
+
+    const { POST } = await import('./route')
+    const res = await POST(reqConBody({ codigo: 'T-POST-CODIGO-DUP' }))
+    expect(res.status).toBe(400)
+    const data = await res.json()
+    expect(data.error).toMatch(/ya existe/i)
+  })
+})

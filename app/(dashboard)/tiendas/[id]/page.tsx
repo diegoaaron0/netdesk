@@ -4,6 +4,18 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { can } from '@/lib/permisos'
 import { apiMutate } from '@/lib/api-mutate'
+import { setupIncidenteAutoRefresh } from '@/components/incidentes/helpers'
+
+// Refresco liviano de solo `tienda` (ej. estado de contingencia activa) para el
+// auto-refresh periódico/al recuperar foco. A propósito NO recibe un setter de
+// `form` — así, aunque haya una edición en curso (editing=true), el refresco
+// en vivo no puede pisarla (loadData() sí hace setForm(d), por eso no se reusa aquí).
+export async function loadTiendaOnly(id: string, opts: { fetchImpl?: typeof fetch; setTienda: (d: any) => void }): Promise<void> {
+  const fetchImpl = opts.fetchImpl ?? fetch
+  const res = await fetchImpl(`/api/tiendas/${id}`)
+  const d = await res.json()
+  if (d?.id) opts.setTienda(d)
+}
 
 const PROVEEDOR_COLORS: Record<string, { bg: string; color: string }> = {
   BITEL:             { bg: '#dbeafe', color: '#1e40af' },
@@ -91,7 +103,7 @@ function estadoBadge(est: string | null | undefined): { bg: string; color: strin
 function tipoLabel(t: string | null | undefined) {
   const m: Record<string, string> = {
     CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia',
-    LENTITUD: 'Lentitud', POS: 'POS', CORTE_ELECTRICO: 'Corte eléctrico', OTROS: 'Otros',
+    LENTITUD: 'Lentitud', CORTE_ELECTRICO: 'Corte eléctrico', OTROS: 'Otros',
   }
   return m[t ?? ''] ?? t ?? '—'
 }
@@ -168,7 +180,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
 
   const loadPeriodData = useCallback((desde: string, hasta: string) => {
     if (!id) return
-    fetch(`/api/tiendas/${id}/incidentes-recientes?desde=${desde}&hasta=${hasta}`)
+    fetch(`/api/tiendas/${id}/impacto-economico?desde=${desde}&hasta=${hasta}`)
       .then(r => r.json())
       .then(d => {
         setIncRecientes(Array.isArray(d?.incidentes) ? d.incidentes : [])
@@ -206,6 +218,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
 
   useEffect(() => { loadData() }, [loadData])
   useEffect(() => { loadPeriodData(filtroDesde, filtroHasta) }, [filtroDesde, filtroHasta, loadPeriodData])
+  useEffect(() => setupIncidenteAutoRefresh(() => loadTiendaOnly(id, { setTienda }), { enabled: !!id }), [id])
 
   function setF(k: string, v: any) { setForm((f: any) => ({ ...f, [k]: v })) }
 
@@ -977,7 +990,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
           ) : (() => {
             const TIPO_LABEL: Record<string, string> = {
               CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia',
-              LENTITUD: 'Lentitud', CORTE_ELECTRICO: 'Corte eléctrico', OTROS: 'Otros', POS: 'POS',
+              LENTITUD: 'Lentitud', CORTE_ELECTRICO: 'Corte eléctrico', OTROS: 'Otros',
             }
             return iei30dBreakdown.map((inc: any) => {
               const esCorte = inc.tipo === 'CORTE_ELECTRICO'

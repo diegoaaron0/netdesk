@@ -14,6 +14,7 @@ interface Fixture {
   tiendaConFicha: string
   tiendaConRouter: string
   tiendaConIncidenteAbierto: string
+  tiendaConContingenciaMovil: string
   tiendaLimpia: string
   tiendaMotivoVacio: string
 }
@@ -76,13 +77,24 @@ async function sembrarFixture(): Promise<Fixture> {
     nivelImpacto: 'ALTO', tipo: 'CAIDA_TOTAL', estado: 'ABIERTO', horaRegistro: new Date(),
   })
 
+  // Tienda con contingencia standalone de datos móviles activa → debe bloquear
+  const tiendaConContingenciaMovil = await tiendaLimpia('T-BAJA-06-CONT-MOVIL')
+  await db.delete(schema.contingencias).where(eq(schema.contingencias.tiendaId, tiendaConContingenciaMovil))
+  await db.insert(schema.contingencias).values({
+    tiendaId: tiendaConContingenciaMovil, tipo: 'DATOS_MOVILES', activadoPor: 'Test',
+    usuarioId, justificacion: 'Contingencia móvil de prueba', horaActivacion: new Date(),
+  })
+
   // Tienda limpia → debe darse de baja con éxito
   const tiendaLimpiaId = await tiendaLimpia('T-BAJA-04-LIMPIA')
 
   // Tienda limpia, para el caso de motivo vacío (no debe cambiar nada)
   const tiendaMotivoVacio = await tiendaLimpia('T-BAJA-05-MOTIVO-VACIO')
 
-  return { usuarioId, tiendaConFicha, tiendaConRouter, tiendaConIncidenteAbierto, tiendaLimpia: tiendaLimpiaId, tiendaMotivoVacio }
+  return {
+    usuarioId, tiendaConFicha, tiendaConRouter, tiendaConIncidenteAbierto,
+    tiendaConContingenciaMovil, tiendaLimpia: tiendaLimpiaId, tiendaMotivoVacio,
+  }
 }
 
 beforeAll(async () => { fx = await sembrarFixture() })
@@ -110,6 +122,14 @@ describe('POST /api/tiendas/[id]/baja', () => {
     expect(res.status).toBe(409)
     const data = await res.json()
     expect(data.incidentesAbiertos).toBe(1)
+  })
+
+  it('bloquea si hay una contingencia standalone de datos móviles activa (409)', async () => {
+    const { POST } = await import('./route')
+    const res = await POST(reqCon({ motivo: 'cierre definitivo' }), { params: Promise.resolve({ id: fx.tiendaConContingenciaMovil }) })
+    expect(res.status).toBe(409)
+    const data = await res.json()
+    expect(data.error).toMatch(/contingencia.*(móvil|activa)/i)
   })
 
   it('motivo vacío → 400, no cambia nada', async () => {
@@ -157,9 +177,52 @@ describe('POST /api/tiendas/[id]/baja', () => {
     expect(hist.usuarioId).toBe(fx.usuarioId)
   })
 
-  it('una tienda ya ARCHIVADA no se puede volver a dar de baja (400)', async () => {
+  it('una tienda ya ARCHIVADA no se puede volver a dar de baja (409, igual que los demás bloqueos)', async () => {
     const { POST } = await import('./route')
     const res = await POST(reqCon({ motivo: 'de nuevo' }), { params: Promise.resolve({ id: fx.tiendaLimpia }) })
-    expect(res.status).toBe(400)
+    expect(res.status).toBe(409)
+  })
+
+  it('una falla simulada en el insert de tiendas_historial no deja la tienda archivada sin su registro de auditoría (transacción atómica)', async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    const { eq: eqLocal, and: andLocal } = await import('drizzle-orm')
+    const { POST } = await import('./route')
+
+    let [t] = await db.select().from(schema.tiendas).where(eqLocal(schema.tiendas.codigo, 'T-BAJA-06-TX-ATOMIC'))
+    if (!t) {
+      [t] = await db.insert(schema.tiendas).values({ codigo: 'T-BAJA-06-TX-ATOMIC', nombreCc: 'Tienda — baja tx atómica', distrito: 'Test', cluster: 'B' }).returning()
+    } else {
+      await db.update(schema.tiendas)
+        .set({ estado: 'ACTIVA', archivadaEn: null, archivadaPorId: null, archivadaMotivo: null, fichaActivaId: null, proveedorId: null } as any)
+        .where(eqLocal(schema.tiendas.id, t.id))
+    }
+    await db.delete(schema.tiendasHistorial).where(andLocal(eqLocal(schema.tiendasHistorial.tiendaId, t.id), eqLocal(schema.tiendasHistorial.campoEditado, 'estado')))
+
+    // db (PostgresJsDatabase) y tx (PostgresJsTransaction, dentro de db.transaction())
+    // son clases distintas que solo comparten el método `insert` heredado de la
+    // base común PgDatabase — hay que interceptar ahí para que afecte también a tx.
+    const { PgDatabase } = await import('drizzle-orm/pg-core')
+    const originalInsert = PgDatabase.prototype.insert
+    const spy = vi.spyOn(PgDatabase.prototype, 'insert').mockImplementation(function (this: any, table: any) {
+      if (table === schema.tiendasHistorial) throw new Error('Simulated tiendas_historial insert failure')
+      return originalInsert.call(this, table)
+    })
+
+    try {
+      await expect(
+        POST(reqCon({ motivo: 'forzar fallo simulado' }), { params: Promise.resolve({ id: t.id }) }),
+      ).rejects.toThrow(/Simulated tiendas_historial insert failure/)
+    } finally {
+      spy.mockRestore()
+    }
+
+    const [after] = await db.select().from(schema.tiendas).where(eqLocal(schema.tiendas.id, t.id))
+    expect(after.estado).toBe('ACTIVA')
+    expect(after.archivadaEn).toBeNull()
+
+    const [hist] = await db.select().from(schema.tiendasHistorial)
+      .where(andLocal(eqLocal(schema.tiendasHistorial.tiendaId, t.id), eqLocal(schema.tiendasHistorial.campoEditado, 'estado')))
+    expect(hist).toBeUndefined()
   })
 })

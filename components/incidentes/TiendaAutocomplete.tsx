@@ -58,7 +58,7 @@ export function TiendaAutocomplete({ onSelect }: { onSelect: (tienda: Tienda, hi
   const handleSelect = async (t: Tienda) => {
     setQuery(`${t.codigo} — ${t.nombreCc}`)
     setOpen(false)
-    const res = await fetch(`/api/tiendas/${t.id}/historial`)
+    const res = await fetch(`/api/tiendas/${t.id}/ultimos-incidentes`)
     const historial = await res.json()
     onSelect(t, historial)
   }
