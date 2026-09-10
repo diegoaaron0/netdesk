@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
 import { usuarios } from '@/drizzle/schema'
-import { eq, isNull } from 'drizzle-orm'
+import { eq, isNull, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 
@@ -18,6 +18,9 @@ export async function GET() {
     rol:      usuarios.rol,
     permisos: usuarios.permisos,
     activo:   usuarios.activo,
+    // Nunca exponer el hash; solo si el usuario tiene o no contraseña, para que
+    // el admin pueda detectar cuentas que quedaron sin acceso (password NULL).
+    sinPassword: sql<boolean>`${usuarios.password} IS NULL`,
   }).from(usuarios).where(isNull(usuarios.eliminadoEn)).orderBy(usuarios.nombre)
 
   return NextResponse.json(data)
