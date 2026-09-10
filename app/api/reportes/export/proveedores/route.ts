@@ -3,7 +3,8 @@ import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
-import { ieiSum, pgErrMsg } from '@/lib/report-sql'
+import { pgErrMsg } from '@/lib/report-sql'
+import { getTramosPorIncidentes, calcIeiIncidente, type IncidenteMitigacionInput } from '@/lib/mitigacion-tramos'
 
 function esc(v: unknown): string {
   if (v == null) return ''
@@ -65,8 +66,7 @@ export async function GET(req: Request) {
           ROUND(COUNT(*) FILTER (WHERE i.motivo_reabertura IS NOT NULL) * 100.0 /
             NULLIF(COUNT(i.id), 0), 1)                                           AS tasa_reapertura,
           MODE() WITHIN GROUP (ORDER BY i.motivo_reabertura)
-            FILTER (WHERE i.motivo_reabertura IS NOT NULL)                       AS motivo_frecuente,
-          ${sql.raw(ieiSum())}                                                    AS iei
+            FILTER (WHERE i.motivo_reabertura IS NOT NULL)                       AS motivo_frecuente
         FROM incidentes i
         JOIN tiendas t ON i.tienda_id = t.id
         LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
@@ -96,12 +96,12 @@ export async function GET(req: Request) {
         WHERE i.hora_registro >= ${desde}::timestamptz AND i.hora_registro < ${hasta}::timestamptz
           AND i.estado != 'CANCELADO'
         GROUP BY COALESCE(pi.nombre, pt.nombre)
-        ORDER BY iei DESC NULLS LAST
       `),
       // Sección 2 — Detalle por tienda
       db.execute(sql`
         SELECT
           COALESCE(pi.nombre, pt.nombre)                     AS proveedor,
+          t.id                                                AS tienda_id,
           t.codigo                                           AS tienda_codigo,
           t.nombre_cc                                        AS tienda_nombre_cc,
           t.distrito,
@@ -121,8 +121,7 @@ export async function GET(req: Request) {
             NULLIF(COUNT(*) FILTER (WHERE i.estado = 'RESUELTO'
             AND n1h.hora_correo_n1_val IS NOT NULL
             AND i.evaluable_proveedor IS NOT FALSE AND i.tipo != 'CORTE_ELECTRICO'), 0))::int AS sla_pct,
-          COUNT(*) FILTER (WHERE i.motivo_reabertura IS NOT NULL)::int           AS reaperturas,
-          ${sql.raw(ieiSum())}                                                    AS iei
+          COUNT(*) FILTER (WHERE i.motivo_reabertura IS NOT NULL)::int           AS reaperturas
         FROM incidentes i
         JOIN tiendas t ON i.tienda_id = t.id
         LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
@@ -150,6 +149,53 @@ export async function GET(req: Request) {
       `),
     ])
 
+    // IEI — Fase 5, Paso 3: calcIeiIncidente (tramos + fallback legacy
+    // segmentado) en vez de ieiSum, que aplicaba un solo factor a todo el
+    // mttr_minutos sin mirar cobertura real de la mitigación.
+    const incsParaIei = await db.execute(sql`
+      SELECT
+        i.id, i.tipo, i.estado,
+        COALESCE(pi.nombre, pt.nombre) AS proveedor, t.id AS tienda_id,
+        i.hora_registro AS hora_registro_raw, i.hora_fin AS hora_fin_raw,
+        i.iei_acumulado AS iei_acumulado_raw,
+        i.cont_activado_por, i.cont_hora_activacion, i.cont_hora_desactivacion, i.cont_rendimiento, i.cont_es_externo,
+        i.mov_activado_por, i.mov_hora_activacion, i.mov_hora_desactivacion, i.mov_rendimiento,
+        i.boleta_manual, i.boleta_rendimiento, i.boleta_hora_activacion,
+        i.mitigaciones_previas AS mitigaciones_previas_raw,
+        t.venta_hora_soles, t.venta_hora_fds_soles
+      FROM incidentes i
+      JOIN tiendas t ON i.tienda_id = t.id
+      LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
+      LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
+      WHERE i.hora_registro >= ${desde}::timestamptz AND i.hora_registro < ${hasta}::timestamptz
+        AND i.estado != 'CANCELADO'
+    `) as unknown as any[]
+
+    const tramosPorIncidente = await getTramosPorIncidentes(incsParaIei.map((r: any) => r.id))
+    const ieiPorProveedor = new Map<string, number>()
+    const ieiPorTienda = new Map<string, number>()
+    for (const r of incsParaIei) {
+      const incidenteMitigacion: IncidenteMitigacionInput = {
+        tipo: r.tipo, estado: r.estado,
+        horaRegistro: r.hora_registro_raw, horaFin: r.hora_fin_raw, ieiAcumulado: r.iei_acumulado_raw,
+        contActivadoPor: r.cont_activado_por, contHoraActivacion: r.cont_hora_activacion,
+        contHoraDesactivacion: r.cont_hora_desactivacion, contRendimiento: r.cont_rendimiento, contEsExterno: r.cont_es_externo,
+        movActivadoPor: r.mov_activado_por, movHoraActivacion: r.mov_hora_activacion,
+        movHoraDesactivacion: r.mov_hora_desactivacion, movRendimiento: r.mov_rendimiento,
+        boletaManual: r.boleta_manual, boletaRendimiento: r.boleta_rendimiento, boletaHoraActivacion: r.boleta_hora_activacion,
+        mitigacionesPrevias: r.mitigaciones_previas_raw,
+      }
+      const { iei } = calcIeiIncidente(incidenteMitigacion, tramosPorIncidente.get(r.id) ?? [], {
+        ventaHoraSoles: r.venta_hora_soles, ventaHoraFdsSoles: r.venta_hora_fds_soles,
+      })
+      ieiPorProveedor.set(r.proveedor, (ieiPorProveedor.get(r.proveedor) ?? 0) + iei)
+      ieiPorTienda.set(r.tienda_id, (ieiPorTienda.get(r.tienda_id) ?? 0) + iei)
+    }
+
+    const resumenConIei = (resumen as any[])
+      .map(r => ({ ...r, iei: Math.round(ieiPorProveedor.get(r.proveedor) ?? 0) }))
+      .sort((a, b) => b.iei - a.iei)
+
     const lines: string[] = ['﻿']
     const CRLF = '\r\n'
     const add = (...cols: unknown[]) => lines.push(row(...cols))
@@ -158,7 +204,7 @@ export async function GET(req: Request) {
     add('Proveedor', 'Total incidentes', 'Evaluables SLA', 'SLA %', 'MTTR prom (min)',
       'T. respuesta prom (min)', 'T. resolución prom (min)', 'Escalados N2+', 'Tiendas afectadas',
       'Reaperturas', 'Tasa reapertura (%)', 'Motivo frecuente reabertura', 'IEI est (S/)')
-    for (const r of (resumen as any[])) {
+    for (const r of resumenConIei) {
       const motivoLabel = r.motivo_frecuente === 'TIENDA_SIN_INTERNET' ? 'Tienda sin internet (proveedor)'
         : r.motivo_frecuente === 'ERROR_AGENTE' ? 'Error de gestión de agente'
         : ''
@@ -175,7 +221,7 @@ export async function GET(req: Request) {
     for (const r of (detalle as any[]))
       add(r.proveedor, r.tienda_codigo, r.tienda_nombre_cc ?? '', r.distrito ?? '',
         r.incidentes, r.tipo_frecuente ?? '', r.mttr_avg ?? '', r.sla_pct ?? '',
-        r.reaperturas ?? 0, r.iei ?? 0)
+        r.reaperturas ?? 0, Math.round(ieiPorTienda.get(r.tienda_id) ?? 0))
 
     const csv = lines.join(CRLF)
     const desdeLabel = desde.slice(0, 10)

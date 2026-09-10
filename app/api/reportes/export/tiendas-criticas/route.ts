@@ -3,7 +3,8 @@ import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
-import { ieiPerRow, pgErrMsg } from '@/lib/report-sql'
+import { pgErrMsg } from '@/lib/report-sql'
+import { getTramosPorIncidentes, calcIeiIncidente, type IncidenteMitigacionInput } from '@/lib/mitigacion-tramos'
 
 function esc(v: unknown): string {
   if (v == null) return ''
@@ -46,8 +47,7 @@ export async function GET(req: Request) {
           resp.hora_primera_resp,
           COALESCE(cp.tiempo_respuesta_sla, 60)   AS lim_resp,
           COALESCE(cp.tiempo_resolucion_sla, 90)  AS lim_resol,
-          COALESCE(t.tiene_contingencia, false)   AS tiene_contingencia,
-          ${sql.raw(ieiPerRow())}                                                        AS iei_row
+          COALESCE(t.tiene_contingencia, false)   AS tiene_contingencia
         FROM incidentes i
         JOIN tiendas t ON i.tienda_id = t.id
         LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
@@ -107,7 +107,6 @@ export async function GET(req: Request) {
               AND b.hora_correo_n1 IS NOT NULL
               AND b.evaluable_proveedor IS NOT FALSE AND b.tipo != 'CORTE_ELECTRICO'), 0))::int AS sla_pct,
           ROUND(MAX(g.avg_dias)::numeric, 1)               AS dias_entre_caidas,
-          ROUND(SUM(b.iei_row))::int                       AS iei_acumulado,
           BOOL_OR(b.tiene_contingencia)                    AS contingencia
         FROM base b
         LEFT JOIN gaps g ON g.tienda_id = b.tienda_id
@@ -117,6 +116,44 @@ export async function GET(req: Request) {
       SELECT * FROM agg ORDER BY incidentes DESC
     `)
 
+    // IEI acumulado por tienda — Fase 5, Paso 3: calcIeiIncidente (tramos +
+    // fallback legacy segmentado) en vez de ieiPerRow, que aplicaba un solo
+    // factor a todo el mttr_minutos sin mirar cobertura real de la mitigación.
+    const incsParaIei = await db.execute(sql`
+      SELECT
+        i.id, i.tienda_id, i.tipo, i.estado,
+        i.hora_registro AS hora_registro_raw, i.hora_fin AS hora_fin_raw,
+        i.iei_acumulado AS iei_acumulado_raw,
+        i.cont_activado_por, i.cont_hora_activacion, i.cont_hora_desactivacion, i.cont_rendimiento, i.cont_es_externo,
+        i.mov_activado_por, i.mov_hora_activacion, i.mov_hora_desactivacion, i.mov_rendimiento,
+        i.boleta_manual, i.boleta_rendimiento, i.boleta_hora_activacion,
+        i.mitigaciones_previas AS mitigaciones_previas_raw,
+        t.venta_hora_soles, t.venta_hora_fds_soles
+      FROM incidentes i
+      JOIN tiendas t ON i.tienda_id = t.id
+      WHERE i.hora_registro >= ${desde}::timestamptz AND i.hora_registro < ${hasta}::timestamptz
+        AND i.estado != 'CANCELADO'
+    `) as unknown as any[]
+
+    const tramosPorIncidente = await getTramosPorIncidentes(incsParaIei.map((r: any) => r.id))
+    const ieiPorTienda = new Map<string, number>()
+    for (const r of incsParaIei) {
+      const incidenteMitigacion: IncidenteMitigacionInput = {
+        tipo: r.tipo, estado: r.estado,
+        horaRegistro: r.hora_registro_raw, horaFin: r.hora_fin_raw, ieiAcumulado: r.iei_acumulado_raw,
+        contActivadoPor: r.cont_activado_por, contHoraActivacion: r.cont_hora_activacion,
+        contHoraDesactivacion: r.cont_hora_desactivacion, contRendimiento: r.cont_rendimiento, contEsExterno: r.cont_es_externo,
+        movActivadoPor: r.mov_activado_por, movHoraActivacion: r.mov_hora_activacion,
+        movHoraDesactivacion: r.mov_hora_desactivacion, movRendimiento: r.mov_rendimiento,
+        boletaManual: r.boleta_manual, boletaRendimiento: r.boleta_rendimiento, boletaHoraActivacion: r.boleta_hora_activacion,
+        mitigacionesPrevias: r.mitigaciones_previas_raw,
+      }
+      const { iei } = calcIeiIncidente(incidenteMitigacion, tramosPorIncidente.get(r.id) ?? [], {
+        ventaHoraSoles: r.venta_hora_soles, ventaHoraFdsSoles: r.venta_hora_fds_soles,
+      })
+      ieiPorTienda.set(r.tienda_id, (ieiPorTienda.get(r.tienda_id) ?? 0) + iei)
+    }
+
     const CRLF = '\r\n'
     const headers = row('#', 'Código', 'Nombre CC', 'Distrito', 'Proveedor', 'Incidentes',
       'Tipo más frecuente', 'MTTR prom (min)', 'SLA %', 'Días prom entre caídas', 'IEI acumulado (S/)', 'Contingencia (Sí/No)')
@@ -125,7 +162,7 @@ export async function GET(req: Request) {
         r.incidentes, r.tipo_frecuente ?? '', r.mttr_avg ?? '',
         r.sla_pct != null ? `${r.sla_pct}%` : '—',
         r.dias_entre_caidas != null ? r.dias_entre_caidas : '',
-        r.iei_acumulado ?? 0, r.contingencia ? 'Sí' : 'No')
+        Math.round(ieiPorTienda.get(r.tienda_id) ?? 0), r.contingencia ? 'Sí' : 'No')
     )
 
     const csv = '﻿' + [headers, ...dataRows].join(CRLF)

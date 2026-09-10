@@ -137,7 +137,8 @@ describe('GET /api/v1/incidentes — IEI con mitigación activa (Paso 1, sesión
 
     expect(fila).toBeTruthy()
     expect(fila.iei_estimado_soles).toBe(interno)
-    expect(fila.iei_estimado_soles).toBe(Math.round(250 * 2 * 0.35 * 0.20))
+    // PARCIAL de router pasó de 20% a 50% de pérdida (cambio de negocio confirmado por Diego).
+    expect(fila.iei_estimado_soles).toBe(Math.round(250 * 2 * 0.35 * 0.50))
   })
 })
 
@@ -162,6 +163,64 @@ describe('GET /api/v1/incidentes — etiqueta de cont_rendimiento (Paso 2, barri
     const fila = body.data.find((d: any) => d.codigo === 'TST-P3-NEW-03')
     expect(fila, 'fixture TST-P3-NEW-03 debe existir — sembrado en la sesión anterior').toBeTruthy()
     expect(fila.cont_rendimiento).toBe('Fallida')
+  })
+})
+
+describe('GET /api/v1/incidentes — IEI segmentado (Fase 5, Paso 3): corrige el bug de report-sql.ts que aplicaba un solo factor a todo el MTTR', () => {
+  it('router activo solo una parte del incidente (cobertura parcial) → cobra las horas descubiertas, ya no da todo el MTTR "efectivo"', async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    const { eq } = await import('drizzle-orm')
+    const { calcImpactoRow } = await import('@/lib/impacto-calc')
+    const { GET } = await import('./route')
+
+    const [ref] = await db.select().from(schema.incidentes).where(eq(schema.incidentes.codigo, 'TST-P1-001'))
+
+    const horaRegistro = new Date(LUNES_10AM_LIMA)
+    const horaFin = new Date(horasDespues(LUNES_10AM_LIMA, 4))
+    const contActivacion = new Date(horasDespues(LUNES_10AM_LIMA, 1)) // activa 1h después del inicio
+    const contDesactivacion = new Date(horasDespues(LUNES_10AM_LIMA, 3)) // desactiva 1h antes del cierre
+
+    await db.delete(schema.incidentes).where(eq(schema.incidentes.codigo, 'TST-V1-COBERTURA-PARCIAL'))
+    await db.insert(schema.incidentes).values({
+      codigo: 'TST-V1-COBERTURA-PARCIAL', tiendaId: ref.tiendaId, registradoPorId: ref.registradoPorId,
+      nivelImpacto: 'ALTO', tipo: 'CAIDA_TOTAL', estado: 'RESUELTO', evaluableProveedor: true,
+      horaRegistro, horaFin, mttrMinutos: 240,
+      contActivadoPor: 'AGENTE', contHoraActivacion: contActivacion, contHoraDesactivacion: contDesactivacion,
+      contRendimiento: 'EFECTIVO', contEsExterno: false,
+    })
+
+    const [tienda] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.id, ref.tiendaId))
+    const esperado = calcImpactoRow({
+      hora_registro: horaRegistro, hora_fin: horaFin, estado: 'RESUELTO', tipo: 'CAIDA_TOTAL',
+      venta_hora_soles: tienda.ventaHoraSoles, venta_hora_fds_soles: tienda.ventaHoraFdsSoles,
+      cont_hora_activacion: contActivacion, cont_hora_desactivacion: contDesactivacion, cont_rendimiento: 'EFECTIVO',
+    }).impactoEstimado
+
+    const req = new NextRequest('http://localhost/api/v1/incidentes?desde=2024-01-08&hasta=2024-01-08&key=test-api-key')
+    const res = await GET(req)
+    const body = await res.json()
+    const fila = body.data.find((d: any) => d.codigo === 'TST-V1-COBERTURA-PARCIAL')
+
+    expect(fila, 'fixture debe existir').toBeTruthy()
+    expect(fila.iei_estimado_soles).toBe(esperado)
+    // Antes (report-sql.ts, un solo factor sobre todo el mttr) esto daba 0 —
+    // EFECTIVO "cubría" las 4 horas aunque solo estuvo activo 2. El valor
+    // correcto cobra la 1ra y 4ta hora (sin mitigación) a factor 1.00.
+    expect(fila.iei_estimado_soles).toBeGreaterThan(0)
+  })
+
+  it('tuvo_contingencia ahora es booleano (antes era el string "Sí"/"No")', async () => {
+    const { GET } = await import('./route')
+    const req = new NextRequest('http://localhost/api/v1/incidentes?desde=2024-01-08&hasta=2024-01-08&key=test-api-key')
+    const res = await GET(req)
+    const body = await res.json()
+
+    const conContingencia = body.data.find((d: any) => d.codigo === 'TST-V1-COBERTURA-PARCIAL')
+    expect(conContingencia.tuvo_contingencia).toBe(true)
+
+    const sinContingencia = body.data.find((d: any) => d.codigo === 'TST-P1-001')
+    expect(sinContingencia.tuvo_contingencia).toBe(false)
   })
 })
 

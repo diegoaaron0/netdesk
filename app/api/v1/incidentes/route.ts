@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { apiKeyAuth, parseDateRange } from '@/lib/api-auth'
-import { ieiPerRow } from '@/lib/report-sql'
+import { getTramosPorIncidentes, normalizarMitigaciones, calcIeiIncidente, type IncidenteMitigacionInput } from '@/lib/mitigacion-tramos'
 
 export async function GET(req: NextRequest) {
   const authErr = apiKeyAuth(req)
@@ -57,7 +57,6 @@ export async function GET(req: NextRequest) {
       -- Nivel máximo escalado
       COALESCE(esc_max.nivel_max, 0)                                             AS nivel_escalado,
       -- Contingencia
-      CASE WHEN i.cont_activado_por IS NOT NULL THEN 'Sí' ELSE 'No' END        AS tuvo_contingencia,
       i.cont_activado_por                                                        AS cont_activado_por,
       CASE
         WHEN i.cont_rendimiento = 'EFECTIVO' THEN 'Total'
@@ -69,11 +68,29 @@ export async function GET(req: NextRequest) {
       i.resuelto_por,
       i.atribucion_final,
       CASE WHEN i.evaluable_proveedor = false THEN 'No' ELSE 'Sí' END          AS evaluable_proveedor,
-      -- IEI — misma fórmula canónica que usan los 7 endpoints de reportes
-      -- (ieiPerRow de report-sql.ts). Antes se recalculaba aparte en JS con
-      -- calcImpactoRow en modo booleano legado, que ni siquiera leía
-      -- boleta_rendimiento ni boleta_hora_activacion.
-      ROUND((${sql.raw(ieiPerRow())}))::int                                       AS iei_estimado_soles
+      -- Campos crudos para IEI y tuvo_contingencia — Fase 5, Paso 3: se calculan
+      -- en JS con calcIeiIncidente/normalizarMitigaciones (tramos + fallback
+      -- legacy), ya no con ieiPerRow de report-sql.ts. ieiPerRow aplicaba UN
+      -- SOLO factor a todo el mttr_minutos sin mirar cuánto tiempo la mitigación
+      -- estuvo realmente activa — subestimaba el IEI en cualquier incidente con
+      -- cobertura parcial (bug real, confirmado, corregido acá).
+      i.hora_registro                                                            AS hora_registro_raw,
+      i.hora_fin                                                                 AS hora_fin_raw,
+      i.cont_hora_activacion                                                     AS cont_hora_activacion_raw,
+      i.cont_hora_desactivacion                                                  AS cont_hora_desactivacion_raw,
+      i.cont_rendimiento                                                         AS cont_rendimiento_raw,
+      i.cont_es_externo                                                          AS cont_es_externo_raw,
+      i.mov_activado_por                                                         AS mov_activado_por_raw,
+      i.mov_hora_activacion                                                      AS mov_hora_activacion_raw,
+      i.mov_hora_desactivacion                                                   AS mov_hora_desactivacion_raw,
+      i.mov_rendimiento                                                          AS mov_rendimiento_raw,
+      i.boleta_manual                                                            AS boleta_manual_raw,
+      i.boleta_rendimiento                                                       AS boleta_rendimiento_raw,
+      i.boleta_hora_activacion                                                   AS boleta_hora_activacion_raw,
+      i.mitigaciones_previas                                                     AS mitigaciones_previas_raw,
+      i.iei_acumulado                                                            AS iei_acumulado_raw,
+      t.venta_hora_soles                                                         AS venta_hora_soles_raw,
+      t.venta_hora_fds_soles                                                     AS venta_hora_fds_soles_raw
     FROM incidentes i
     JOIN tiendas t ON i.tienda_id = t.id
     LEFT JOIN fichas f ON f.id = COALESCE(i.ficha_id, t.ficha_activa_id)
@@ -93,7 +110,35 @@ export async function GET(req: NextRequest) {
     ORDER BY i.hora_registro DESC
   `) as unknown as any[]
 
+  const tramosPorIncidente = await getTramosPorIncidentes(rows.map((r: any) => r.id))
+
   const data = rows.map((r: any) => {
+    const incidenteMitigacion: IncidenteMitigacionInput = {
+      tipo: r.tipo,
+      estado: r.estado,
+      horaRegistro: r.hora_registro_raw,
+      horaFin: r.hora_fin_raw,
+      ieiAcumulado: r.iei_acumulado_raw,
+      contActivadoPor: r.cont_activado_por,
+      contHoraActivacion: r.cont_hora_activacion_raw,
+      contHoraDesactivacion: r.cont_hora_desactivacion_raw,
+      contRendimiento: r.cont_rendimiento_raw,
+      contEsExterno: r.cont_es_externo_raw,
+      movActivadoPor: r.mov_activado_por_raw,
+      movHoraActivacion: r.mov_hora_activacion_raw,
+      movHoraDesactivacion: r.mov_hora_desactivacion_raw,
+      movRendimiento: r.mov_rendimiento_raw,
+      boletaManual: r.boleta_manual_raw,
+      boletaRendimiento: r.boleta_rendimiento_raw,
+      boletaHoraActivacion: r.boleta_hora_activacion_raw,
+      mitigacionesPrevias: r.mitigaciones_previas_raw,
+    }
+    const tramos = tramosPorIncidente.get(r.id) ?? []
+    const { iei } = calcIeiIncidente(incidenteMitigacion, tramos, {
+      ventaHoraSoles: r.venta_hora_soles_raw, ventaHoraFdsSoles: r.venta_hora_fds_soles_raw,
+    })
+    const tuvoContingencia = normalizarMitigaciones(incidenteMitigacion, tramos).some(s => s.tipo !== 'SIN_MITIGACION')
+
     return {
       id:                      r.id,
       codigo:                  r.codigo,
@@ -118,13 +163,13 @@ export async function GET(req: NextRequest) {
       sla_resolucion_limite_min: r.sla_resolucion_limite_min,
       sla_resolucion:          r.sla_resolucion,
       nivel_escalado:          r.nivel_escalado,
-      tuvo_contingencia:       r.tuvo_contingencia,
+      tuvo_contingencia:       tuvoContingencia,
       cont_activado_por:       r.cont_activado_por,
       cont_rendimiento:        r.cont_rendimiento,
       resuelto_por:            r.resuelto_por,
       atribucion_final:        r.atribucion_final,
       evaluable_proveedor:     r.evaluable_proveedor,
-      iei_estimado_soles:      r.iei_estimado_soles,
+      iei_estimado_soles:      iei,
     }
   })
 

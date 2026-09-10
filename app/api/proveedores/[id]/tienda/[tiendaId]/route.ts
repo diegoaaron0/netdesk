@@ -119,22 +119,49 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const [lastInc]  = await db.select(incSel).from(incidentes).where(incWhere).orderBy(desc(incidentes.horaRegistro)).limit(1).catch(() => [])
   const historial  = await db.select(incSel).from(incidentes).where(incWhere).orderBy(desc(incidentes.horaRegistro)).limit(10).catch(() => [])
 
-  // Impacto estimado — misma fórmula canónica que report-sql.ts (ieiSum), la
-  // que ya usan v1/incidentes y v1/proveedores. Antes se recalculaba aparte en
-  // JS con calcImpactoRow en modo booleano legado, sin leer boleta_rendimiento,
-  // boleta_hora_activacion, ni venta_hora_fds_soles.
+  // Impacto estimado — Fase 5, Paso 3: calcIeiIncidente (tramos + fallback
+  // legacy segmentado) en vez de ieiSum, que aplicaba un solo factor a todo
+  // el mttr_minutos sin mirar cobertura real de la mitigación.
   let impacto: number | null = null
   try {
-    const { ieiSum } = await import('@/lib/report-sql')
-    const [r] = await db.execute(sql`
-      SELECT ${sql.raw(ieiSum())} AS impacto
+    const { getTramosPorIncidentes, calcIeiIncidente } = await import('@/lib/mitigacion-tramos')
+    type IncidenteMitigacionInput = import('@/lib/mitigacion-tramos').IncidenteMitigacionInput
+    const rows = await db.execute(sql`
+      SELECT
+        i.id, i.tipo, i.estado,
+        i.hora_registro AS hora_registro_raw, i.hora_fin AS hora_fin_raw,
+        i.iei_acumulado AS iei_acumulado_raw,
+        i.cont_activado_por, i.cont_hora_activacion, i.cont_hora_desactivacion, i.cont_rendimiento, i.cont_es_externo,
+        i.mov_activado_por, i.mov_hora_activacion, i.mov_hora_desactivacion, i.mov_rendimiento,
+        i.boleta_manual, i.boleta_rendimiento, i.boleta_hora_activacion,
+        i.mitigaciones_previas AS mitigaciones_previas_raw,
+        t.venta_hora_soles, t.venta_hora_fds_soles
       FROM incidentes i
       JOIN tiendas t ON i.tienda_id = t.id
       WHERE i.tienda_id = ${tiendaId}
         AND i.proveedor_id = ${id}
         AND i.estado = 'RESUELTO'
-    `) as any[]
-    impacto = r?.impacto != null ? Number(r.impacto) : null
+    `) as unknown as any[]
+
+    const tramosPorIncidente = await getTramosPorIncidentes(rows.map((r: any) => r.id))
+    let suma = 0
+    for (const r of rows) {
+      const incidenteMitigacion: IncidenteMitigacionInput = {
+        tipo: r.tipo, estado: r.estado,
+        horaRegistro: r.hora_registro_raw, horaFin: r.hora_fin_raw, ieiAcumulado: r.iei_acumulado_raw,
+        contActivadoPor: r.cont_activado_por, contHoraActivacion: r.cont_hora_activacion,
+        contHoraDesactivacion: r.cont_hora_desactivacion, contRendimiento: r.cont_rendimiento, contEsExterno: r.cont_es_externo,
+        movActivadoPor: r.mov_activado_por, movHoraActivacion: r.mov_hora_activacion,
+        movHoraDesactivacion: r.mov_hora_desactivacion, movRendimiento: r.mov_rendimiento,
+        boletaManual: r.boleta_manual, boletaRendimiento: r.boleta_rendimiento, boletaHoraActivacion: r.boleta_hora_activacion,
+        mitigacionesPrevias: r.mitigaciones_previas_raw,
+      }
+      const { iei } = calcIeiIncidente(incidenteMitigacion, tramosPorIncidente.get(r.id) ?? [], {
+        ventaHoraSoles: r.venta_hora_soles, ventaHoraFdsSoles: r.venta_hora_fds_soles,
+      })
+      suma += iei
+    }
+    impacto = rows.length > 0 ? Math.round(suma) : null
   } catch (e) { logUnlessSchemaMissing('proveedores/[id]/tienda/[tiendaId]', e) }
 
   // Proveedores anteriores: distintos a id que tienen incidentes en esta tienda

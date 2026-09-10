@@ -203,25 +203,33 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     slaResolucionPct = pr?.sla_resolucion_pct != null ? Number(pr.sla_resolucion_pct) : null
   } catch (e) { logUnlessSchemaMissing('proveedores/[id]', e) }
 
-  // IEI acumulado 30d de todas las tiendas del proveedor
+  // IEI acumulado 30d de todas las tiendas del proveedor — Fase 5, Paso 3:
+  // calcIeiIncidente (tramos + fallback legacy segmentado) en vez de
+  // calcImpactoRow directo. De paso, cont_hora_activacion/mov_hora_activacion
+  // pasan a necesitar su activado_por (mismo gate que ya usa el resto del
+  // sistema) — antes esta query los pasaba sin gatear.
   let iei30d = 0
   let iei30dBreakdown: any[] = []
   try {
-    const { calcImpactoRow } = await import('@/lib/impacto-calc')
+    const { getTramosPorIncidentes, calcIeiIncidente } = await import('@/lib/mitigacion-tramos')
+    type IncidenteMitigacionInput = import('@/lib/mitigacion-tramos').IncidenteMitigacionInput
     const ieiRows = await db.execute(sql`
       SELECT
         i.id, i.codigo,
         (i.hora_registro AT TIME ZONE 'UTC') AS hora_registro,
         (i.hora_fin       AT TIME ZONE 'UTC') AS hora_fin,
         i.estado, i.tipo, i.mttr_minutos,
+        i.cont_activado_por,
         (i.cont_hora_activacion    AT TIME ZONE 'UTC') AS cont_hora_activacion,
         (i.cont_hora_desactivacion AT TIME ZONE 'UTC') AS cont_hora_desactivacion,
         i.cont_rendimiento, i.cont_es_externo,
+        i.mov_activado_por,
         (i.mov_hora_activacion    AT TIME ZONE 'UTC') AS mov_hora_activacion,
         (i.mov_hora_desactivacion AT TIME ZONE 'UTC') AS mov_hora_desactivacion,
         i.mov_rendimiento,
         i.boleta_manual, i.boleta_rendimiento,
         (i.boleta_hora_activacion AT TIME ZONE 'UTC') AS boleta_hora_activacion,
+        i.mitigaciones_previas, i.iei_acumulado,
         t.venta_hora_soles, t.venta_hora_fds_soles, t.cluster,
         t.codigo AS tienda_codigo, t.nombre_cc AS tienda_nombre, t.id AS tienda_id
       FROM incidentes i
@@ -230,25 +238,31 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         AND i.estado = 'RESUELTO'
         AND i.tipo != 'CORTE_ELECTRICO'
         AND i.hora_registro >= ${thirtyDaysAgoStr}::timestamptz
-    `)
+    `) as unknown as any[]
+
+    const tramosPorIncidente = await getTramosPorIncidentes(ieiRows.map((r: any) => r.id))
     const tiendaMap: Record<string, { tiendaId: string; tiendaCodigo: string; tiendaNombre: string | null; incidentes: any[]; ieiTotal: number }> = {}
-    for (const r of ieiRows as any[]) {
-      const res = calcImpactoRow({
-        hora_registro: r.hora_registro, hora_fin: r.hora_fin,
-        estado: r.estado, tipo: r.tipo,
-        venta_hora_soles: r.venta_hora_soles, venta_hora_fds_soles: r.venta_hora_fds_soles,
-        cluster: r.cluster,
-        cont_hora_activacion: r.cont_hora_activacion, cont_hora_desactivacion: r.cont_hora_desactivacion,
-        cont_rendimiento: r.cont_rendimiento, cont_es_externo: r.cont_es_externo,
-        mov_hora_activacion: r.mov_hora_activacion, mov_hora_desactivacion: r.mov_hora_desactivacion,
-        mov_rendimiento: r.mov_rendimiento,
-        boleta_manual: r.boleta_manual, boleta_rendimiento: r.boleta_rendimiento, boleta_hora_activacion: r.boleta_hora_activacion,
+    for (const r of ieiRows) {
+      const incidenteMitigacion: IncidenteMitigacionInput = {
+        tipo: r.tipo, estado: r.estado, horaRegistro: r.hora_registro, horaFin: r.hora_fin,
+        ieiAcumulado: r.iei_acumulado,
+        contActivadoPor: r.cont_activado_por, contHoraActivacion: r.cont_hora_activacion,
+        contHoraDesactivacion: r.cont_hora_desactivacion, contRendimiento: r.cont_rendimiento, contEsExterno: r.cont_es_externo,
+        movActivadoPor: r.mov_activado_por, movHoraActivacion: r.mov_hora_activacion,
+        movHoraDesactivacion: r.mov_hora_desactivacion, movRendimiento: r.mov_rendimiento,
+        boletaManual: r.boleta_manual, boletaRendimiento: r.boleta_rendimiento, boletaHoraActivacion: r.boleta_hora_activacion,
+        mitigacionesPrevias: r.mitigaciones_previas,
+      }
+      const { iei, segmentos } = calcIeiIncidente(incidenteMitigacion, tramosPorIncidente.get(r.id) ?? [], {
+        ventaHoraSoles: r.venta_hora_soles, ventaHoraFdsSoles: r.venta_hora_fds_soles, cluster: r.cluster,
       })
-      iei30d += res.impactoEstimado
+      iei30d += iei
       const key = r.tienda_id
       if (!tiendaMap[key]) tiendaMap[key] = { tiendaId: r.tienda_id, tiendaCodigo: r.tienda_codigo, tiendaNombre: r.tienda_nombre, incidentes: [], ieiTotal: 0 }
-      tiendaMap[key].ieiTotal += res.impactoEstimado
-      tiendaMap[key].incidentes.push({ id: r.id, codigo: r.codigo, tipo: r.tipo, mttrMinutos: r.mttr_minutos, horaRegistro: r.hora_registro, iei: res.impactoEstimado, motivo: res.motivoFactor })
+      tiendaMap[key].ieiTotal += iei
+      const tiposReales = [...new Set(segmentos.filter(s => s.tipo !== 'SIN_MITIGACION').map(s => s.tipo))]
+      const motivo = tiposReales.length > 0 ? tiposReales.join(' + ') : 'sin mitigación'
+      tiendaMap[key].incidentes.push({ id: r.id, codigo: r.codigo, tipo: r.tipo, mttrMinutos: r.mttr_minutos, horaRegistro: r.hora_registro, iei, motivo })
     }
     iei30dBreakdown = Object.values(tiendaMap).sort((a, b) => b.ieiTotal - a.ieiTotal)
   } catch (e) { logUnlessSchemaMissing('proveedores/[id]', e) }

@@ -3,8 +3,14 @@ import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
-import { calcImpactoRow } from '@/lib/impacto-calc'
 import { pgErrMsg } from '@/lib/report-sql'
+import { getTramosPorIncidentes, normalizarMitigaciones, calcIeiIncidente, type IncidenteMitigacionInput, type TipoMitigacionTramo } from '@/lib/mitigacion-tramos'
+
+const TIPO_LABEL: Record<TipoMitigacionTramo, string> = {
+  ROUTER_PROPIO: 'Router Propio', ROUTER_EXTERNO: 'Router Externo',
+  DATOS_MOVILES: 'Datos Móviles', BOLETA_MANUAL: 'Boleta Manual',
+  SIN_MITIGACION: '',
+}
 
 export async function GET(req: Request) {
   const session = await auth()
@@ -25,6 +31,7 @@ export async function GET(req: Request) {
 
     const rows = await db.execute(sql`
       SELECT
+        i.id                                                                          AS incidente_id,
         i.codigo,
         i.ticket_invgate,
         i.ticket_proveedor,
@@ -41,19 +48,6 @@ export async function GET(req: Request) {
         esc_max.nivel_max                                                              AS nivel_escalado,
         i.tipo_operacion_manual                                                        AS factor_operativo,
         CASE WHEN COALESCE(t.tiene_contingencia, false) THEN 'Sí' ELSE 'No' END      AS tiene_contingencia,
-        CASE
-          WHEN i.boleta_manual = true                          THEN 'Boleta Manual'
-          WHEN i.cont_activado_por IS NOT NULL AND i.cont_es_externo = true THEN 'Router Externo'
-          WHEN i.cont_activado_por IS NOT NULL                 THEN 'Router Propio'
-          WHEN i.mov_activado_por  IS NOT NULL                 THEN 'Datos Móviles'
-          ELSE ''
-        END                                                                           AS tipo_contingencia,
-        CASE
-          WHEN i.boleta_manual = true     THEN COALESCE(i.boleta_rendimiento, '')
-          WHEN i.cont_activado_por IS NOT NULL THEN COALESCE(i.cont_rendimiento, '')
-          WHEN i.mov_activado_por  IS NOT NULL THEN COALESCE(i.mov_rendimiento, '')
-          ELSE ''
-        END                                                                           AS contingencia_rendimiento,
         TO_CHAR(i.hora_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima', 'DD/MM/YYYY')             AS fecha,
         TO_CHAR(i.hora_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima', 'HH24:MI')               AS hora_inicio,
         CASE
@@ -133,6 +127,7 @@ export async function GET(req: Request) {
         i.boleta_manual,
         i.boleta_rendimiento                                                           AS boleta_rendimiento_raw,
         i.boleta_hora_activacion                                                       AS boleta_hora_activacion_raw,
+        i.mitigaciones_previas                                                         AS mitigaciones_previas_raw,
         t.venta_hora_fds_soles,
         i.venta_parcial,
         i.cajas_afectadas,
@@ -226,43 +221,55 @@ export async function GET(req: Request) {
       return s
     }
 
+    const tramosPorIncidente = await getTramosPorIncidentes((rows as any[]).map(r => r.incidente_id))
+
     const lines = [
       headers.join(','),
       ...(rows as any[]).map(r => {
-        const iei = calcImpactoRow({
-          hora_registro:           r.hora_reg_raw,
-          hora_fin:                r.hora_fin_raw,
-          estado:                  r.estado_raw,
-          tipo:                    r.tipo_incidente,
-          venta_hora_soles:        r.venta_hora_tienda != null ? Number(r.venta_hora_tienda) : null,
-          venta_hora_fds_soles:    r.venta_hora_fds_soles != null ? Number(r.venta_hora_fds_soles) : null,
-          cluster:                 r.cluster,
-          cont_hora_activacion:    r.cont_hora_activacion_raw,
-          cont_hora_desactivacion: r.cont_hora_desactivacion_raw,
-          cont_es_externo:         Boolean(r.cont_es_externo),
-          cont_rendimiento:        r.cont_rendimiento_raw,
-          contingencia_activa:     Boolean(r.contingencia_activa_inc),
-          mov_hora_activacion:     r.mov_hora_activacion_raw,
-          mov_hora_desactivacion:  r.mov_hora_desactivacion_raw,
-          mov_rendimiento:         r.mov_rendimiento_raw,
-          hubo_movil:              Boolean(r.hubo_movil),
-          boleta_manual:           r.boleta_manual,
-          boleta_rendimiento:      r.boleta_rendimiento_raw,
-          boleta_hora_activacion:  r.boleta_hora_activacion_raw,
-          venta_parcial:           r.venta_parcial,
-          cajas_afectadas:         r.cajas_afectadas != null ? Number(r.cajas_afectadas) : null,
-          cajas_totales:           r.cajas_totales   != null ? Number(r.cajas_totales)   : null,
-        }).impactoEstimado + Number(r.iei_acumulado_raw ?? 0) || null
+        const incidenteMitigacion: IncidenteMitigacionInput = {
+          tipo: r.tipo_incidente,
+          estado: r.estado_raw,
+          horaRegistro: r.hora_reg_raw,
+          horaFin: r.hora_fin_raw,
+          ieiAcumulado: r.iei_acumulado_raw,
+          contActivadoPor: r.contingencia_activa_inc ? 'AGENTE' : null,
+          contHoraActivacion: r.cont_hora_activacion_raw,
+          contHoraDesactivacion: r.cont_hora_desactivacion_raw,
+          contRendimiento: r.cont_rendimiento_raw,
+          contEsExterno: r.cont_es_externo,
+          movActivadoPor: r.hubo_movil ? 'AGENTE' : null,
+          movHoraActivacion: r.mov_hora_activacion_raw,
+          movHoraDesactivacion: r.mov_hora_desactivacion_raw,
+          movRendimiento: r.mov_rendimiento_raw,
+          boletaManual: r.boleta_manual,
+          boletaRendimiento: r.boleta_rendimiento_raw,
+          boletaHoraActivacion: r.boleta_hora_activacion_raw,
+          mitigacionesPrevias: r.mitigaciones_previas_raw,
+        }
+        const tramos = tramosPorIncidente.get(r.incidente_id) ?? []
+        const { iei } = calcIeiIncidente(incidenteMitigacion, tramos, {
+          ventaHoraSoles: r.venta_hora_tienda, ventaHoraFdsSoles: r.venta_hora_fds_soles,
+        })
+
+        // Tipo/rendimiento de contingencia: TODOS los tipos que tuvo el
+        // incidente, separados por coma, en orden cronológico (decisión de
+        // Diego — antes se mostraba un solo tipo por precedencia boleta >
+        // router > datos móviles, perdiendo información si hubo más de uno).
+        const segmentosReales = normalizarMitigaciones(incidenteMitigacion, tramos)
+          .filter(s => s.tipo !== 'SIN_MITIGACION')
+        const tipoContingencia = segmentosReales.map(s => TIPO_LABEL[s.tipo]).join(', ')
+        const rendimientoContingencia = segmentosReales.map(s => s.rendimiento ?? '').join(', ')
+
         return [
           r.codigo, r.ticket_invgate, r.ticket_proveedor, r.tienda_codigo, r.tienda_nombre_cc, r.ubicacion,
           r.proveedor, r.cid_servicio, r.tipo_conexion, r.cluster, r.nivel_impacto,
           r.tipo_incidente, r.usuarios_afectados, r.nivel_escalado, r.factor_operativo,
-          r.tiene_contingencia, r.tipo_contingencia, r.contingencia_rendimiento,
+          r.tiene_contingencia, tipoContingencia, rendimientoContingencia,
           r.fecha, r.hora_inicio, r.tiempo_total_mttr,
           r.enviado_n1, r.respuesta_n1, r.enviado_n2, r.respuesta_n2,
           r.enviado_n3, r.respuesta_n3, r.hora_solucion, r.comentarios,
           r.mttr_min, r.sla_respuesta, r.sla_resolucion, r.sla_cumplido,
-          iei, r.venta_hora_tienda, r.efectividad_contingencia ?? '', r.resuelto_por ?? '', r.atribucion_final ?? '',
+          iei || null, r.venta_hora_tienda, r.efectividad_contingencia ?? '', r.resuelto_por ?? '', r.atribucion_final ?? '',
         ].map(escape).join(',')
       }),
     ]

@@ -58,3 +58,64 @@ describe('GET /api/v1/proveedores — SLA Resolución usa hora_fin−hora_primer
     expect(fila.sla_resolucion_pct).toBe(100)
   })
 })
+
+describe('GET /api/v1/proveedores — IEI agregado segmentado (Fase 5, Paso 3)', () => {
+  const CODIGO_PROVEEDOR = 'PROV-TEST-IEI-AGREGADO'
+  const CODIGO_TIENDA    = 'T-V1PROV-IEI-AGREGADO'
+
+  beforeAll(async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    const { eq } = await import('drizzle-orm')
+
+    let [prov] = await db.select().from(schema.proveedores).where(eq(schema.proveedores.nombre, CODIGO_PROVEEDOR))
+    if (!prov) [prov] = await db.insert(schema.proveedores).values({ nombre: CODIGO_PROVEEDOR }).returning()
+
+    let [tienda] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.codigo, CODIGO_TIENDA))
+    if (!tienda) {
+      [tienda] = await db.insert(schema.tiendas).values({
+        codigo: CODIGO_TIENDA, nombreCc: 'Tienda — v1 proveedores IEI', distrito: 'Test', cluster: 'B',
+        proveedorId: prov.id, ventaHoraSoles: '250', ventaHoraFdsSoles: '400',
+      }).returning()
+    }
+
+    const [ref] = await db.select().from(schema.incidentes).where(eq(schema.incidentes.codigo, 'TST-P1-001'))
+
+    const horaRegistro = new Date(LUNES_10AM_LIMA)
+    const horaFin = new Date(horasDespues(LUNES_10AM_LIMA, 4))
+    const contActivacion = new Date(horasDespues(LUNES_10AM_LIMA, 1))
+    const contDesactivacion = new Date(horasDespues(LUNES_10AM_LIMA, 3))
+
+    await db.delete(schema.incidentes).where(eq(schema.incidentes.codigo, 'TST-V1PROV-COBERTURA-PARCIAL'))
+    await db.insert(schema.incidentes).values({
+      codigo: 'TST-V1PROV-COBERTURA-PARCIAL', tiendaId: tienda.id, registradoPorId: ref.registradoPorId,
+      proveedorId: prov.id,
+      nivelImpacto: 'ALTO', tipo: 'CAIDA_TOTAL', estado: 'RESUELTO', evaluableProveedor: true,
+      horaRegistro, horaFin, mttrMinutos: 240,
+      contActivadoPor: 'AGENTE', contHoraActivacion: contActivacion, contHoraDesactivacion: contDesactivacion,
+      contRendimiento: 'EFECTIVO', contEsExterno: false,
+    })
+  })
+
+  it('iei_total_soles del proveedor cobra las horas descubiertas — antes (ieiSum) daba 0 para este caso', async () => {
+    const { calcImpactoRow } = await import('@/lib/impacto-calc')
+    const { GET } = await import('./route')
+
+    const esperado = calcImpactoRow({
+      hora_registro: LUNES_10AM_LIMA, hora_fin: horasDespues(LUNES_10AM_LIMA, 4),
+      estado: 'RESUELTO', tipo: 'CAIDA_TOTAL',
+      venta_hora_soles: 250, venta_hora_fds_soles: 400,
+      cont_hora_activacion: horasDespues(LUNES_10AM_LIMA, 1), cont_hora_desactivacion: horasDespues(LUNES_10AM_LIMA, 3),
+      cont_rendimiento: 'EFECTIVO',
+    }).impactoEstimado
+
+    const req = new NextRequest('http://localhost/api/v1/proveedores?desde=2024-01-08&hasta=2024-01-08&key=test-api-key')
+    const res = await GET(req)
+    const body = await res.json()
+    const fila = body.data.find((d: any) => d.proveedor === CODIGO_PROVEEDOR)
+
+    expect(fila, `${CODIGO_PROVEEDOR} debe aparecer en la respuesta`).toBeTruthy()
+    expect(fila.iei_total_soles).toBe(esperado)
+    expect(fila.iei_total_soles).toBeGreaterThan(0)
+  })
+})

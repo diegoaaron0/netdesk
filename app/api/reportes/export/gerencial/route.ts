@@ -4,9 +4,7 @@ import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { getTotalTiendas } from '@/lib/tiendas-stats'
-// IEI unificado desde report-sql (venta por día Lima + factor con mitigación).
-// Antes este archivo duplicaba la fórmula con venta L-J fija (bug de tarifa FDS).
-import { ieiSum } from '@/lib/report-sql'
+import { getTramosPorIncidentes, calcIeiIncidente, type IncidenteMitigacionInput } from '@/lib/mitigacion-tramos'
 
 // ── Formatters ───────────────────────────────────────────────────────────────
 
@@ -38,6 +36,65 @@ async function runSection<T>(label: string, fn: () => Promise<T>): Promise<T> {
     const msg   = pgMsg || (err?.message ?? String(err))
     throw new Error(`[sección: ${label}] ${msg}`)
   }
+}
+
+// ── IEI segmentado (Fase 5, Paso 3) ─────────────────────────────────────────
+// Reemplaza ieiSum (SQL, un solo factor sobre todo el mttr_minutos) por
+// calcIeiIncidente (tramos + fallback legacy segmentado). Un solo fetch plano
+// por período trae todo lo necesario para las 4 agrupaciones que este reporte
+// necesita (total, por proveedor, por tienda, por supervisor, por cluster).
+interface IeiFilaGerencial {
+  id: string; iei: number
+  proveedor: string; tiendaId: string; supervisor: string; cluster: string
+}
+
+async function calcularIeiPeriodo(desde: string, hasta: string): Promise<IeiFilaGerencial[]> {
+  const rows = await db.execute(sql`
+    SELECT
+      i.id, i.tipo, i.estado,
+      i.hora_registro AS hora_registro_raw, i.hora_fin AS hora_fin_raw,
+      i.iei_acumulado AS iei_acumulado_raw,
+      i.cont_activado_por, i.cont_hora_activacion, i.cont_hora_desactivacion, i.cont_rendimiento, i.cont_es_externo,
+      i.mov_activado_por, i.mov_hora_activacion, i.mov_hora_desactivacion, i.mov_rendimiento,
+      i.boleta_manual, i.boleta_rendimiento, i.boleta_hora_activacion,
+      i.mitigaciones_previas AS mitigaciones_previas_raw,
+      t.venta_hora_soles, t.venta_hora_fds_soles,
+      COALESCE(pi.nombre, pt.nombre)                AS proveedor,
+      t.id                                           AS tienda_id,
+      COALESCE(t.supervisor_nombre, 'Sin supervisor') AS supervisor,
+      COALESCE(t.cluster::text, 'Sin cluster')      AS cluster
+    FROM incidentes i
+    JOIN tiendas t ON i.tienda_id = t.id
+    LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
+    LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
+    WHERE i.hora_registro >= ${desde}::timestamptz
+      AND i.hora_registro <  ${hasta}::timestamptz
+      AND i.estado != 'CANCELADO'
+  `) as unknown as any[]
+
+  const tramosPorIncidente = await getTramosPorIncidentes(rows.map((r: any) => r.id))
+  return rows.map((r: any) => {
+    const incidenteMitigacion: IncidenteMitigacionInput = {
+      tipo: r.tipo, estado: r.estado,
+      horaRegistro: r.hora_registro_raw, horaFin: r.hora_fin_raw, ieiAcumulado: r.iei_acumulado_raw,
+      contActivadoPor: r.cont_activado_por, contHoraActivacion: r.cont_hora_activacion,
+      contHoraDesactivacion: r.cont_hora_desactivacion, contRendimiento: r.cont_rendimiento, contEsExterno: r.cont_es_externo,
+      movActivadoPor: r.mov_activado_por, movHoraActivacion: r.mov_hora_activacion,
+      movHoraDesactivacion: r.mov_hora_desactivacion, movRendimiento: r.mov_rendimiento,
+      boletaManual: r.boleta_manual, boletaRendimiento: r.boleta_rendimiento, boletaHoraActivacion: r.boleta_hora_activacion,
+      mitigacionesPrevias: r.mitigaciones_previas_raw,
+    }
+    const { iei } = calcIeiIncidente(incidenteMitigacion, tramosPorIncidente.get(r.id) ?? [], {
+      ventaHoraSoles: r.venta_hora_soles, ventaHoraFdsSoles: r.venta_hora_fds_soles,
+    })
+    return { id: r.id, iei, proveedor: r.proveedor, tiendaId: r.tienda_id, supervisor: r.supervisor, cluster: r.cluster }
+  })
+}
+
+function sumarPor(filas: IeiFilaGerencial[], key: keyof IeiFilaGerencial): Map<string, number> {
+  const mapa = new Map<string, number>()
+  for (const f of filas) mapa.set(f[key] as string, (mapa.get(f[key] as string) ?? 0) + f.iei)
+  return mapa
 }
 
 // ── Handler ──────────────────────────────────────────────────────────────────
@@ -93,7 +150,6 @@ export async function GET(req: Request) {
               ), 0)
             )::int                                                                   AS sla_pct,
             COUNT(DISTINCT i.tienda_id)::int                                        AS tiendas,
-            ${sql.raw(ieiSum())}                                                     AS iei_total,
             COUNT(*) FILTER (WHERE i.estado = 'ABIERTO')::int                      AS abiertos,
             COUNT(*) FILTER (
               WHERE i.estado NOT IN ('ABIERTO','RESUELTO','CANCELADO','CERRADO')
@@ -146,8 +202,7 @@ export async function GET(req: Request) {
                   AND i.tipo != 'CORTE_ELECTRICO'
               ), 0)
             )::int                                                                   AS sla_pct,
-            COUNT(DISTINCT i.tienda_id)::int                                        AS tiendas,
-            ${sql.raw(ieiSum())}                                                     AS iei_total
+            COUNT(DISTINCT i.tienda_id)::int                                        AS tiendas
           FROM incidentes i
           JOIN tiendas t ON i.tienda_id = t.id
           LEFT JOIN LATERAL (
@@ -246,8 +301,7 @@ export async function GET(req: Request) {
             COUNT(DISTINCT i.tienda_id)::int                                       AS tiendas_afectadas,
             COUNT(*) FILTER (WHERE i.motivo_reabertura IS NOT NULL)::int           AS reaperturas,
             ROUND(COUNT(*) FILTER (WHERE i.motivo_reabertura IS NOT NULL) * 100.0 /
-              NULLIF(COUNT(i.id), 0), 1)                                           AS tasa_reapertura,
-            ${sql.raw(ieiSum())}                                                    AS iei
+              NULLIF(COUNT(i.id), 0), 1)                                           AS tasa_reapertura
           FROM incidentes i
           JOIN tiendas t ON i.tienda_id = t.id
           LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
@@ -280,17 +334,15 @@ export async function GET(req: Request) {
             AND i.hora_registro <  ${hasta}::timestamptz
             AND i.estado != 'CANCELADO'
           GROUP BY COALESCE(pi.nombre, pt.nombre)
-          ORDER BY iei DESC NULLS LAST
         `)),
 
         // 4. Top 15 tiendas
         runSection('top15', () => db.execute(sql`
           SELECT
-            t.codigo, t.nombre_cc, t.distrito,
+            t.id AS tienda_id, t.codigo, t.nombre_cc, t.distrito,
             COALESCE(pi.nombre, pt.nombre)                                         AS proveedor,
             COUNT(i.id)::int                                                       AS incidentes,
-            ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int AS mttr_avg,
-            ${sql.raw(ieiSum())}                                                   AS iei
+            ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int AS mttr_avg
           FROM incidentes i
           JOIN tiendas t ON i.tienda_id = t.id
           LEFT JOIN proveedores pi ON i.proveedor_id = pi.id
@@ -440,8 +492,7 @@ export async function GET(req: Request) {
             COALESCE(t.supervisor_nombre, 'Sin supervisor')                                       AS supervisor,
             COUNT(i.id)::int                                                                       AS incidentes,
             COUNT(DISTINCT i.tienda_id)::int                                                      AS tiendas,
-            ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int                AS mttr_avg,
-            ${sql.raw(ieiSum())}                                                                   AS iei_total
+            ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int                AS mttr_avg
           FROM incidentes i
           JOIN tiendas t ON i.tienda_id = t.id
           WHERE i.hora_registro >= ${desde}::timestamptz
@@ -457,8 +508,7 @@ export async function GET(req: Request) {
             COALESCE(t.cluster::text, 'Sin cluster')                                              AS cluster,
             COUNT(i.id)::int                                                                       AS incidentes,
             COUNT(DISTINCT i.tienda_id)::int                                                      AS tiendas_afectadas,
-            ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int                AS mttr_avg,
-            ${sql.raw(ieiSum())}                                                                   AS iei_total
+            ROUND(AVG(i.mttr_minutos) FILTER (WHERE i.estado = 'RESUELTO'))::int                AS mttr_avg
           FROM incidentes i
           JOIN tiendas t ON i.tienda_id = t.id
           WHERE i.hora_registro >= ${desde}::timestamptz
@@ -469,18 +519,33 @@ export async function GET(req: Request) {
         `)),
       ])
 
+    const [ieiActual, ieiAnterior] = await Promise.all([
+      calcularIeiPeriodo(desde, hasta),
+      calcularIeiPeriodo(desdeAnt, desde),
+    ])
+    const ieiTotalActual   = ieiActual.reduce((s, f) => s + f.iei, 0)
+    const ieiTotalAnterior = ieiAnterior.reduce((s, f) => s + f.iei, 0)
+    const ieiPorProveedor  = sumarPor(ieiActual, 'proveedor')
+    const ieiPorTienda     = sumarPor(ieiActual, 'tiendaId')
+    const ieiPorSupervisor = sumarPor(ieiActual, 'supervisor')
+    const ieiPorCluster    = sumarPor(ieiActual, 'cluster')
+
     // ── Aliasing de resultados ────────────────────────────────────────────────
 
     const t0      = (tot         as any[])[0] ?? {}
     const t1      = (totAnt      as any[])[0] ?? {}
-    const provs   = porProv      as any[]
-    const tiendas = top15        as any[]
+    const provs   = (porProv      as any[]).map(p => ({ ...p, iei: Math.round(ieiPorProveedor.get(p.proveedor) ?? 0) }))
+      .sort((a, b) => b.iei - a.iei)
+    const tiendas = (top15        as any[]).map(t => ({ ...t, iei: Math.round(ieiPorTienda.get(t.tienda_id) ?? 0) }))
     const tipos   = porTipo      as any[]
     const reinc   = reincidentes as any[]
     const zonas   = porZona      as any[]
     const reabRows = reaperturas as any[]
-    const supRows = supervisores as any[]
-    const clRows  = clusters     as any[]
+    const supRows = (supervisores as any[]).map(s => ({ ...s, iei_total: Math.round(ieiPorSupervisor.get(s.supervisor) ?? 0) }))
+    const clRows  = (clusters     as any[]).map(c => ({ ...c, iei_total: Math.round(ieiPorCluster.get(c.cluster) ?? 0) }))
+
+    t0.iei_total = Math.round(ieiTotalActual)
+    t1.iei_total = Math.round(ieiTotalAnterior)
 
     const totalTipos = tipos.reduce((s: number, r: any) => s + Number(r.total), 0)
 

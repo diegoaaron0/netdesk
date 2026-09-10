@@ -7,7 +7,6 @@ import {
   getVentaHoraEstimadaOrNull,
   getScoreProveedor,
 } from '@/lib/dashboard-calculations'
-import { calcImpactoRow } from '@/lib/impacto-calc'
 import { calcSLARow, calcEficienciaSLA, SLA_RESPUESTA_MIN, SLA_RESOLUCION_DEFAULT_MIN, parseEtaMin } from '@/lib/sla-core'
 import {
   fetchIncidentesPeriodo,
@@ -16,6 +15,8 @@ import {
   type RawIncidente,
   type RawVentaDiaria,
 } from '@/lib/dashboard-queries'
+import { getTramosPorIncidentes, calcIeiIncidente, type IncidenteMitigacionInput, type TramoRow } from '@/lib/mitigacion-tramos'
+import { resolveVentaHora } from '@/lib/impacto-calc'
 import type { DashboardAnaliticoResponse } from '@/types/dashboard'
 
 export async function GET(req: NextRequest) {
@@ -54,7 +55,11 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const { cards, graficos } = await buildCards(incidentes, ventasDiarias, prevIncidentes, getSlaParaIncidente, totalTiendas)
+  const tramosPorIncidente = await getTramosPorIncidentes(
+    [...incidentes, ...prevIncidentes].map(i => i.id),
+  )
+
+  const { cards, graficos } = await buildCards(incidentes, ventasDiarias, prevIncidentes, getSlaParaIncidente, totalTiendas, tramosPorIncidente)
 
   return NextResponse.json({
     periodo: { desde, hasta },
@@ -66,40 +71,89 @@ export async function GET(req: NextRequest) {
 
 // ─── Cost helpers ────────────────────────────────────────────────────────────
 
-function calcCostoIncidente(
+const MOTIVO_LABEL: Record<string, string> = {
+  ROUTER_PROPIO: 'router propio', ROUTER_EXTERNO: 'router externo',
+  DATOS_MOVILES: 'datos móviles', BOLETA_MANUAL: 'boleta manual',
+}
+
+// Exportada solo para poder probarla en test. Fase 5, Paso 3: calcIeiIncidente
+// (tramos + fallback legacy) reemplaza a calcImpactoRow para el número de
+// costo. factor/motivo/ventaAfectada son diagnóstico (no se renderizan hoy en
+// el frontend — confirmado, ver GraficosAnalitico.tsx) y se derivan del
+// resultado en vez de venir de un ImpactoResult — para el caso común (una sola
+// mitigación cubriendo todo el incidente, que es lo que cubren los tests
+// existentes) el factor recuperado así es exacto, no una aproximación.
+export function calcCostoIncidente(
   inc: RawIncidente,
   ventasDiarias: RawVentaDiaria[],
+  tramos: TramoRow[] = [],
 ): { costo: number; ventaAfectada: number; factor: number; motivo: string; ventaHora: number | null; margen: number } {
-  const ventaHora = getVentaHoraEstimadaOrNull(
+  const ventaHoraEstimada = getVentaHoraEstimadaOrNull(
     inc.tienda_codigo, inc.dia_semana, inc.venta_hora_soles, inc.cluster, ventasDiarias,
   )
-  const res = calcImpactoRow({
-    hora_registro: inc.hora_registro,
-    hora_fin: inc.hora_fin,
-    estado: inc.estado,
-    tipo: inc.tipo,
-    ventaHoraResolvida:      ventaHora,
-    cont_hora_activacion:    inc.cont_hora_activacion,
-    cont_hora_desactivacion: inc.cont_hora_desactivacion,
-    cont_es_externo:         inc.cont_es_externo,
-    cont_rendimiento:        inc.cont_rendimiento,
-    mov_hora_activacion:     inc.mov_hora_activacion,
-    mov_hora_desactivacion:  inc.mov_hora_desactivacion,
-    mov_rendimiento:         inc.mov_rendimiento,
-    boleta_manual:           inc.boleta_manual,
-    boleta_rendimiento:      inc.boleta_rendimiento,
-    boleta_hora_activacion:  inc.boleta_hora_activacion,
-    venta_parcial:    inc.venta_parcial,
-    cajas_afectadas:  inc.cajas_afectadas,
-    cajas_totales:    inc.cajas_totales,
-  })
+  const tieneTramos = tramos.length > 0
+  // Sin tramos: se aplica el mismo fallback de venta/hora que ya usaba este
+  // archivo (ventasDiarias → venta propia → cluster), fijo para el incidente
+  // entero — igual que hacía calcImpactoRow con ventaHoraResolvida. Con
+  // tramos: la venta/hora real de la tienda, resuelta por día como en el
+  // resto de tramos (dashboard operativo, detalle de incidente).
+  const ventaTienda = tieneTramos
+    ? { ventaHoraSoles: inc.venta_hora_soles, ventaHoraFdsSoles: inc.venta_hora_fds_soles }
+    : { ventaHoraSoles: ventaHoraEstimada, ventaHoraFdsSoles: ventaHoraEstimada }
+
+  const incidenteMitigacion: IncidenteMitigacionInput = {
+    tipo: inc.tipo, estado: inc.estado, horaRegistro: inc.hora_registro, horaFin: inc.hora_fin,
+    ieiAcumulado: inc.iei_acumulado,
+    // Ambos necesitan su activado_por, no solo el timestamp — bug real
+    // confirmado en producción: un timestamp fantasma (sin activado_por) se
+    // contaba como mitigación activa. inc_cont_activa/hubo_movil ya son
+    // exactamente cont_activado_por/mov_activado_por IS NOT NULL (ver
+    // lib/dashboard-queries.ts).
+    contActivadoPor: inc.inc_cont_activa ? 'AGENTE' : null,
+    contHoraActivacion: inc.cont_hora_activacion, contHoraDesactivacion: inc.cont_hora_desactivacion,
+    contRendimiento: inc.cont_rendimiento, contEsExterno: inc.cont_es_externo,
+    movActivadoPor: inc.hubo_movil ? 'AGENTE' : null,
+    movHoraActivacion: inc.mov_hora_activacion, movHoraDesactivacion: inc.mov_hora_desactivacion, movRendimiento: inc.mov_rendimiento,
+    boletaManual: inc.boleta_manual, boletaRendimiento: inc.boleta_rendimiento, boletaHoraActivacion: inc.boleta_hora_activacion,
+    mitigacionesPrevias: inc.mitigaciones_previas,
+  }
+  const { iei, segmentos } = calcIeiIncidente(incidenteMitigacion, tramos, ventaTienda)
+
+  // Venta/hora "diagnóstica" para reconstruir factor/ventaAfectada — DEBE usar
+  // la misma base que produjo `iei`: con tramos, la venta real resuelta por
+  // día (igual que calcIeTramo); sin tramos, la estimada con fallback de
+  // ventasDiarias. Usar siempre ventaHoraEstimada acá (bug real encontrado en
+  // verificación manual) daba un factor sin sentido — el denominador no
+  // coincidía con la base que ya se había usado para calcular `iei`.
+  const ventaHoraDiagnostico = tieneTramos
+    ? resolveVentaHora({
+        hora_registro: inc.hora_registro,
+        venta_hora_soles: inc.venta_hora_soles, venta_hora_fds_soles: inc.venta_hora_fds_soles,
+        cluster: inc.cluster,
+      })
+    : ventaHoraEstimada
+
+  const inicioMs = new Date(inc.hora_registro).getTime()
+  const finMs = inc.estado === 'RESUELTO' && inc.hora_fin ? new Date(inc.hora_fin).getTime() : Date.now()
+  const totalHoras = Math.max(0, (finMs - inicioMs) / 3600000)
+  const margenUsado = DASHBOARD_CONFIG.MARGEN_BRUTO
+  const ventaAfectada = ventaHoraDiagnostico != null ? ventaHoraDiagnostico * totalHoras : 0
+  const denom = (ventaHoraDiagnostico ?? 0) * totalHoras * margenUsado
+  // factor es conceptualmente una fracción 0-1 — el clamp es un respaldo
+  // defensivo (p.ej. incidentes muy largos que cruzan L-J/FDS, donde una sola
+  // venta/hora "diagnóstica" no representa perfectamente cada tramo real).
+  const factor = denom > 0 ? Math.min(1, Math.max(0, (iei - (inc.iei_acumulado ?? 0)) / denom)) : 1
+
+  const tiposReales = [...new Set(segmentos.filter(s => s.tipo !== 'SIN_MITIGACION').map(s => s.tipo))]
+  const motivo = tiposReales.length > 0 ? tiposReales.map(t => MOTIVO_LABEL[t] ?? t).join(' + ') : 'sin mitigación'
+
   return {
-    costo: res.impactoEstimado + (inc.iei_acumulado ?? 0),
-    ventaAfectada: res.ventaEsperadaAfectada ?? 0,
-    factor: res.factorAplicado,
-    motivo: res.motivoFactor,
-    ventaHora: res.ventaHora,
-    margen: res.margenUsado,
+    costo: iei,
+    ventaAfectada: Math.round(ventaAfectada),
+    factor: Math.round(factor * 1000) / 1000,
+    motivo,
+    ventaHora: ventaHoraDiagnostico,
+    margen: margenUsado,
   }
 }
 
@@ -206,6 +260,7 @@ async function buildCards(
   prevIncs: RawIncidente[],
   getSlaParaIncidente: (overrideResp?: number | null, overrideResol?: number | null) => { respuestaMin: number; resolucionMin: number },
   totalTiendas: number,
+  tramosPorIncidente: Map<string, TramoRow[]>,
 ) {
   // ── CARD 1: Incidentes ──────────────────────────────────────────────────
   const { byDay, byDayMttr } = buildByDay(incs)
@@ -351,7 +406,7 @@ async function buildCards(
 
   // Pre-pass: IEI por incidente (evita recalcular en la lista final)
   const ieiMap = new Map<string, number>()
-  for (const i of incs) { ieiMap.set(i.id, calcCostoIncidente(i, ventasDiarias).costo) }
+  for (const i of incs) { ieiMap.set(i.id, calcCostoIncidente(i, ventasDiarias, tramosPorIncidente.get(i.id) ?? []).costo) }
 
   // SLA result por incidente (se llena en el loop evaluables)
   const slaMap = new Map<string, SlaSnapshot>()
@@ -497,7 +552,7 @@ async function buildCards(
   const costoByTienda = new Map<string, CostoAccum>()
 
   for (const i of incs) {
-    const { costo, ventaAfectada, factor, motivo, ventaHora, margen } = calcCostoIncidente(i, ventasDiarias)
+    const { costo, ventaAfectada, factor, motivo, ventaHora, margen } = calcCostoIncidente(i, ventasDiarias, tramosPorIncidente.get(i.id) ?? [])
     costoTotal += costo
     ventaAfectadaTotal += ventaAfectada
     if (i.evaluable_proveedor === false || i.resuelto_por === 'AGENTE') costoAgente += costo
@@ -534,7 +589,7 @@ async function buildCards(
   }
 
   let prevCosto = 0
-  for (const i of prevIncs) prevCosto += calcCostoIncidente(i, ventasDiarias).costo
+  for (const i of prevIncs) prevCosto += calcCostoIncidente(i, ventasDiarias, tramosPorIncidente.get(i.id) ?? []).costo
   const dCosto = prevCosto > 0
     ? Math.round((costoTotal - prevCosto) / prevCosto * 100)
     : null
@@ -641,7 +696,7 @@ async function buildCards(
         if (slaRes7.slaResolucion) m.slaResolOk++
       }
     }
-    m.costo += calcCostoIncidente(i, ventasDiarias).costo
+    m.costo += calcCostoIncidente(i, ventasDiarias, tramosPorIncidente.get(i.id) ?? []).costo
   }
 
   const reincByProv = new Map<string, number>()

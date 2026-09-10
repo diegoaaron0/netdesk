@@ -19,6 +19,7 @@ export interface RawIncidente {
   cluster: string | null
   supervisor_nombre: string | null
   venta_hora_soles: number | null
+  venta_hora_fds_soles: number | null
   tiene_contingencia: boolean
   contingencia_activa: boolean
   prov_nombre: string | null
@@ -40,6 +41,7 @@ export interface RawIncidente {
   cajas_totales: number | null
   hubo_movil: boolean
   iei_acumulado: number
+  mitigaciones_previas: any[] | null
   // Campos SLA (de LATERAL joins)
   hora_correo_n1: Date | null
   hora_primera_resp: Date | null
@@ -89,6 +91,7 @@ export async function fetchIncidentesPeriodo(
       t.cluster,
       t.supervisor_nombre,
       t.venta_hora_soles::float                   AS venta_hora_soles,
+      t.venta_hora_fds_soles::float                AS venta_hora_fds_soles,
       COALESCE(t.tiene_contingencia, false)        AS tiene_contingencia,
       COALESCE(t.contingencia_activa, false)       AS contingencia_activa,
       COALESCE(p.nombre, pt.nombre)               AS prov_nombre,
@@ -109,6 +112,7 @@ export async function fetchIncidentesPeriodo(
       i.cajas_totales,
       (i.mov_activado_por IS NOT NULL)             AS hubo_movil,
       COALESCE(i.iei_acumulado, 0)::float          AS iei_acumulado,
+      i.mitigaciones_previas,
       n1.hora_correo_n1,
       resp.hora_primera_resp,
       resp.nivel_respuesta,
