@@ -206,3 +206,140 @@ describe('POST /api/incidentes/[id]/reabrir — abre un tramo SIN_MITIGACION nue
     expect(routerDespues.estado).toBe('EN_TIENDA_ACTIVO') // reabrir no lo tocó — sigue como estaba
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reapertura inconsistente — fixes (a) y (b).
+// Reabrir un incidente que NO estaba cerrado dejaba horaFinAnterior en null
+// (porque horaFin era null) mientras horaRegistroOriginal pasaba a diferir de
+// horaRegistro: la firma REABERTURA_INCONSISTENTE que dejó a 00071M fuera de la
+// migración de tramos. Verificado reproducible antes del fix.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('POST /reabrir — solo se reabre lo que está cerrado (fix a)', () => {
+  async function crearConEstado(codigo: string, estado: any, extra: Record<string, any> = {}) {
+    await db.delete(schema.incidentes).where(eq(schema.incidentes.codigo, codigo))
+    const [inc] = await db.insert(schema.incidentes).values({
+      codigo, tiendaId, registradoPorId, nivelImpacto: 'ALTO', tipo: 'CAIDA_TOTAL',
+      estado, horaRegistro: new Date(Date.now() - 2 * 3600000), ...extra,
+    }).returning()
+    return inc
+  }
+
+  async function reabrir(id: string) {
+    const { POST } = await import('./route')
+    return POST(
+      { json: async () => ({ motivo: 'ERROR_AGENTE', justificacion: 'prueba' }) } as any,
+      { params: Promise.resolve({ id }) },
+    )
+  }
+
+  it('un incidente ABIERTO no se puede reabrir (409) y queda intacto', async () => {
+    const inc = await crearConEstado('TST-REAP-ABIERTO', 'ABIERTO')
+    const res = await reabrir(inc.id)
+
+    expect(res.status).toBe(409)
+    const data = await res.json()
+    expect(data.error).toMatch(/RESUELTO o CERRADO/i)
+
+    const [d] = await db.select().from(schema.incidentes).where(eq(schema.incidentes.id, inc.id))
+    expect(d.horaRegistro).toEqual(inc.horaRegistro)
+    expect(d.horaRegistroOriginal, 'no debe empezar a rastrear una reapertura que no ocurrió').toBeNull()
+    expect(d.motivoReabertura).toBeNull()
+  })
+
+  it('un incidente CANCELADO tampoco (409) — se cancela por decisión, no se reabre', async () => {
+    const inc = await crearConEstado('TST-REAP-CANCELADO', 'CANCELADO', { horaFin: new Date() })
+    expect((await reabrir(inc.id)).status).toBe(409)
+  })
+
+  it('RESUELTO y CERRADO sí se reabren, y nunca producen la firma inconsistente', async () => {
+    for (const [codigo, estado] of [['TST-REAP-OK-RESUELTO', 'RESUELTO'], ['TST-REAP-OK-CERRADO', 'CERRADO']] as const) {
+      const inc = await crearConEstado(codigo, estado, {
+        horaFin: new Date(Date.now() - 3600000), mttrMinutos: 60,
+      })
+      expect((await reabrir(inc.id)).status, `${estado} debe poder reabrirse`).toBe(200)
+
+      const [d] = await db.select().from(schema.incidentes).where(eq(schema.incidentes.id, inc.id))
+      expect(d.estado).toBe('ABIERTO')
+      const difieren = d.horaRegistroOriginal != null
+        && new Date(d.horaRegistroOriginal).getTime() !== new Date(d.horaRegistro).getTime()
+      expect(difieren, 'la reapertura sí debe quedar registrada').toBe(true)
+      // La invariante que el CHECK va a exigir en la BD.
+      expect(d.horaFinAnterior, 'si difieren, horaFinAnterior no puede ser null').not.toBeNull()
+    }
+  })
+})
+
+describe('PUT /api/incidentes/[id] — horaRegistroOriginal no es editable (fix b)', () => {
+  it('lo ignora en silencio: 200, sin tocar el valor', async () => {
+    const codigo = 'TST-REAP-PUT-ORIGINAL'
+    await db.delete(schema.incidentes).where(eq(schema.incidentes.codigo, codigo))
+    const original = new Date(Date.now() - 5 * 3600000)
+    const [inc] = await db.insert(schema.incidentes).values({
+      codigo, tiendaId, registradoPorId, nivelImpacto: 'ALTO', tipo: 'CAIDA_TOTAL',
+      estado: 'ABIERTO', horaRegistro: new Date(Date.now() - 2 * 3600000),
+      horaRegistroOriginal: original, horaFinAnterior: new Date(Date.now() - 3 * 3600000),
+    }).returning()
+
+    const { PUT } = await import('../route')
+    const res = await PUT(
+      { json: async () => ({
+        observaciones: 'editado',
+        horaRegistroOriginal: new Date().toISOString(),   // intento de retipeo
+      }) } as any,
+      { params: Promise.resolve({ id: inc.id }) },
+    )
+    expect(res.status, 'ignora en silencio, no rechaza').toBe(200)
+
+    const [d] = await db.select().from(schema.incidentes).where(eq(schema.incidentes.id, inc.id))
+    expect(d.observaciones, 'lo legítimo sí se guarda').toBe('editado')
+    expect(new Date(d.horaRegistroOriginal!).getTime(), 'horaRegistroOriginal no se movió').toBe(original.getTime())
+  })
+})
+
+describe('BD — CHECK incidentes_reapertura_consistente (fix c)', () => {
+  it('la constraint existe', async () => {
+    const { sql: raw } = await import('drizzle-orm')
+    const rows = await db.execute(raw`
+      SELECT conname FROM pg_constraint WHERE conname = 'incidentes_reapertura_consistente'`) as any[]
+    expect(rows.length, 'la aplica drizzle/run-sql.ts en el arranque').toBe(1)
+  })
+
+  it('la BD rechaza el estado inconsistente aunque el código lo intente', async () => {
+    const codigo = 'TST-CHECK-REAPERTURA'
+    await db.delete(schema.incidentes).where(eq(schema.incidentes.codigo, codigo))
+
+    // horaRegistroOriginal distinto de horaRegistro, con horaFinAnterior en null:
+    // exactamente la firma REABERTURA_INCONSISTENTE de 00071M.
+    let err: any = null
+    try {
+      await db.insert(schema.incidentes).values({
+        codigo, tiendaId, registradoPorId, nivelImpacto: 'ALTO', tipo: 'CAIDA_TOTAL',
+        estado: 'ABIERTO',
+        horaRegistro: new Date(Date.now() - 3600000),
+        horaRegistroOriginal: new Date(Date.now() - 7200000),
+        horaFinAnterior: null,
+      })
+    } catch (e) { err = e }
+
+    expect(err, 'la BD tiene que rechazarlo').toBeTruthy()
+    // drizzle envuelve el error de postgres; el nombre de la constraint viaja
+    // en la causa, no en el mensaje de arriba.
+    const detalle = `${err?.message ?? ''} ${err?.cause?.message ?? ''} ${err?.cause?.constraint_name ?? ''}`
+    expect(detalle).toMatch(/incidentes_reapertura_consistente/)
+  })
+
+  it('acepta un reabierto bien formado y uno nunca reabierto', async () => {
+    for (const [codigo, extra] of [
+      ['TST-CHECK-OK-REABIERTO', { horaRegistroOriginal: new Date(Date.now() - 7200000), horaFinAnterior: new Date(Date.now() - 5400000) }],
+      ['TST-CHECK-OK-VIRGEN',    { horaRegistroOriginal: null, horaFinAnterior: null }],
+    ] as const) {
+      await db.delete(schema.incidentes).where(eq(schema.incidentes.codigo, codigo))
+      const [inc] = await db.insert(schema.incidentes).values({
+        codigo, tiendaId, registradoPorId, nivelImpacto: 'ALTO', tipo: 'CAIDA_TOTAL',
+        estado: 'ABIERTO', horaRegistro: new Date(Date.now() - 3600000), ...extra,
+      }).returning()
+      expect(inc.id).toBeTruthy()
+      await db.delete(schema.incidentes).where(eq(schema.incidentes.id, inc.id))
+    }
+  })
+})

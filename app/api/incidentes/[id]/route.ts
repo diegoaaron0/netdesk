@@ -319,7 +319,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     'estado','nivelImpacto','usuariosAfectados','tipo','tipoPersonalizado','otrosClasificacion',
     'registradoPorId',
     'descripcionInicial','ticketInvgate','ticketProveedor','descartesRealizados','solucionAplicada',
-    'observaciones','horaRegistro','horaRegistroOriginal','horaFin','mttrMinutos',
+    // horaRegistroOriginal NO es editable: es un dato de seguimiento interno que
+    // solo escribe /reabrir, no algo que un agente deba poder retipear. Era el
+    // único de la pareja que se podía editar a mano — horaFinAnterior nunca
+    // estuvo acá —, así que se podía mover uno sin el otro y dejar el incidente
+    // en estado REABERTURA_INCONSISTENTE. Si el body lo trae, se ignora.
+    'observaciones','horaRegistro','horaFin','mttrMinutos',
     'estadoOperacion','operacionManual','tipoOperacionManual','factorOperativo',
     'routerExternoId',
     // Corte final: cont_*, mov_* y boleta_* YA NO SE ESCRIBEN. La mitigación
@@ -337,7 +342,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     'alcanceCorte','tuvoUps',
     'escaladoInfraId','horaEscaladoInfra','notaEscaladoInfra',
   ]
-  const dateFields = new Set(['horaRegistro','horaRegistroOriginal','horaFin','horaEscaladoInfra'])
+  const dateFields = new Set(['horaRegistro','horaFin','horaEscaladoInfra'])
   const intFields  = new Set(['cajasAfectadas','cajasTotales','mttrMinutos'])
   for (const k of editable) {
     if (k in body) {

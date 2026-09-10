@@ -18,6 +18,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   // Leer el incidente para acumular MTTR e IEI antes de reiniciar el reloj
   const [inc] = await db.select({
+    estado:                incidentes.estado,
     mttrMinutos:           incidentes.mttrMinutos,
     tiempoAcumuladoMin:    incidentes.tiempoAcumuladoMin,
     ieiAcumulado:          incidentes.ieiAcumulado,
@@ -45,6 +46,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }).from(incidentes).where(eq(incidentes.id, id))
 
   if (!inc) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+
+  // Solo se puede reabrir lo que está cerrado. La UI ya oculta el botón salvo
+  // en RESUELTO/CERRADO, pero el endpoint no lo exigía: un doble clic o una
+  // pestaña vieja podía reabrir un incidente ABIERTO, y ahí horaFin es null, así
+  // que horaFinAnterior quedaba en null mientras horaRegistroOriginal pasaba a
+  // diferir de horaRegistro. Esa es exactamente la firma REABERTURA_INCONSISTENTE
+  // que dejó fuera al incidente 00071M en la migración de tramos.
+  // CANCELADO queda afuera a propósito: se cancela por decisión, no se reabre —
+  // mismo criterio que la UI (isClosed && estado !== 'CANCELADO').
+  const REABRIBLES = ['RESUELTO', 'CERRADO']
+  if (!REABRIBLES.includes(inc.estado)) {
+    return NextResponse.json(
+      { error: `Solo se puede reabrir un incidente RESUELTO o CERRADO. Este está ${inc.estado}.` },
+      { status: 409 },
+    )
+  }
 
   // Tiempo acumulado = lo que ya estaba acumulado + MTTR de esta última resolución incorrecta
   // El tiempo que estuvo "cerrado" entre resolución y reapertura NO se suma (no es responsabilidad del proveedor)

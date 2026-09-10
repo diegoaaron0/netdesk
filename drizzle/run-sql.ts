@@ -172,6 +172,41 @@ async function main() {
   await sql`ALTER TABLE "incidentes" ADD COLUMN IF NOT EXISTS "hora_fin_anterior" timestamp`
   console.log('[startup] ✓ Columnas reabertura (0028)')
 
+  // Invariante de reapertura: si hora_registro_original difiere de
+  // hora_registro es porque el incidente se reabrió, y entonces tiene que haber
+  // una hora de cierre anterior. Sin esta red, reabrir un incidente que no
+  // estaba cerrado dejaba horaFinAnterior en null (horaFin era null) y el
+  // incidente quedaba irreconstruible para la migración de tramos —
+  // REABERTURA_INCONSISTENTE, el caso de 00071M.
+  // El endpoint ya valida el estado; esto cubre cualquier camino futuro.
+  // Se saltea con WARNING si hay filas que la violan: un ALTER TABLE que falla
+  // acá tumba el arranque de la app entera. Correr antes, en ese caso,
+  // scripts/fix-reapertura-inconsistente.ts
+  await sql`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'incidentes_reapertura_consistente'
+      ) THEN
+        IF EXISTS (
+          SELECT 1 FROM incidentes
+          WHERE hora_registro_original IS NOT NULL
+            AND hora_registro_original <> hora_registro
+            AND hora_fin_anterior IS NULL
+        ) THEN
+          RAISE WARNING 'incidentes_reapertura_consistente NO se agregó: hay filas que la violan. Correr scripts/fix-reapertura-inconsistente.ts';
+        ELSE
+          ALTER TABLE incidentes ADD CONSTRAINT incidentes_reapertura_consistente
+            CHECK (
+              hora_registro_original IS NULL
+              OR hora_registro_original = hora_registro
+              OR hora_fin_anterior IS NOT NULL
+            );
+        END IF;
+      END IF;
+    END $$`
+  console.log('[startup] ✓ CHECK de reapertura consistente')
+
   // 0029 — IEI acumulado por períodos (reaperturas)
   await sql`ALTER TABLE "incidentes" ADD COLUMN IF NOT EXISTS "iei_acumulado" numeric`
   console.log('[startup] ✓ Columna iei_acumulado (0029)')
