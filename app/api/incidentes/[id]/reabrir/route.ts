@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { incidentes, tiendas, routersExternos } from '@/drizzle/schema'
-import { eq } from 'drizzle-orm'
+import { incidentes, tiendas, routersExternos, incidenteMitigacionTramos } from '@/drizzle/schema'
+import { eq, and, isNull } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
+import { calcIeTramo, factorBaseSinMitigacion } from '@/lib/mitigacion-tramos'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -73,7 +74,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       cont_hora_desactivacion: inc.contHoraDesactivacion,
       cont_rendimiento:        inc.contRendimiento,
       cont_es_externo:         inc.contEsExterno,
-      mov_hora_activacion:     inc.movHoraActivacion,
+      // Mismo gate que cont — bug real confirmado en producción: un timestamp
+      // fantasma en mov_hora_activacion (sin mov_activado_por) se contaba como
+      // datos móviles activo, quedando congelado para siempre en iei_acumulado.
+      mov_hora_activacion:     inc.movActivadoPor ? inc.movHoraActivacion : null,
       mov_hora_desactivacion:  inc.movHoraDesactivacion,
       mov_rendimiento:         inc.movRendimiento,
       boleta_manual:           inc.boletaManual,
@@ -142,42 +146,82 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     ? `Reabierto el ${horaLima} · ${motivoLabel} — ${justificacion}`
     : `Reabierto el ${horaLima} · ${motivoLabel}`
 
-  const [updated] = await db.update(incidentes)
-    .set({
-      estado: 'ABIERTO',
-      horaFin: null,
-      mttrMinutos: null,
-      horaRegistro: new Date(),        // reinicia el cronómetro desde ahora (base para MTTR parcial)
-      tiempoAcumuladoMin,              // preserva el tiempo activo anterior (se sumará al resolver)
-      ieiAcumulado: String(ieiAcumulado), // IEI acumulado de todos los períodos cerrados anteriores
-      motivoReabertura: motivo,
-      justificacionReabertura: justificacion || null,
-      reabiertaInfo,
-      horaRegistroOriginal,            // hora de inicio real del incidente (nunca se pisa)
-      horaFinAnterior,                 // hora de cierre anterior (para mostrar en detalle)
-      // Archivar el periodo de mitigación anterior y liberar el slot vivo para
-      // que se pueda activar cualquier mitigación nuevamente tras reabrir.
-      mitigacionesPrevias: mitigacionesPrevias.length ? mitigacionesPrevias : null,
-      estadoOperacion:       null,
-      operacionManual:       false,
-      tipoOperacionManual:   null,
-      factorOperativo:       null,
-      contActivadoPor:       null,
-      contHoraActivacion:    null,
-      contRendimiento:       null,
-      contObservacion:       null,
-      contEsExterno:         false,
-      contHoraDesactivacion: null,
-      routerExternoId:       null,
-      movActivadoPor:        null,
-      movHoraActivacion:     null,
-      movRendimiento:        null,
-      movObservacion:        null,
-      movHoraDesactivacion:  null,
-      actualizadoEn: new Date(),
+  // Fase 2 (Paso 4) — modelo nuevo de tramos, en paralelo a todo lo de arriba
+  // (modelo viejo: horaRegistro, tiempoAcumuladoMin, ieiAcumulado, mitigacionesPrevias
+  // y el slot cont_*/mov_*, todos sin tocar — el PUT viejo los sigue necesitando).
+  const ahoraTramos = new Date()
+  const [tramoAbierto] = await db.select().from(incidenteMitigacionTramos)
+    .where(and(eq(incidenteMitigacionTramos.incidenteId, id), isNull(incidenteMitigacionTramos.hasta)))
+  let tiendaVenta: { ventaHoraSoles: string | null; ventaHoraFdsSoles: string | null } | undefined
+  if (tramoAbierto) {
+    [tiendaVenta] = await db.select({ ventaHoraSoles: tiendas.ventaHoraSoles, ventaHoraFdsSoles: tiendas.ventaHoraFdsSoles })
+      .from(tiendas).where(eq(tiendas.id, inc.tiendaId!))
+  }
+
+  const updated = await db.transaction(async (tx) => {
+    const [upd] = await tx.update(incidentes)
+      .set({
+        estado: 'ABIERTO',
+        horaFin: null,
+        mttrMinutos: null,
+        horaRegistro: new Date(),        // reinicia el cronómetro desde ahora (base para MTTR parcial)
+        tiempoAcumuladoMin,              // preserva el tiempo activo anterior (se sumará al resolver)
+        ieiAcumulado: String(ieiAcumulado), // IEI acumulado de todos los períodos cerrados anteriores
+        motivoReabertura: motivo,
+        justificacionReabertura: justificacion || null,
+        reabiertaInfo,
+        horaRegistroOriginal,            // hora de inicio real del incidente (nunca se pisa)
+        horaFinAnterior,                 // hora de cierre anterior (para mostrar en detalle)
+        // Archivar el periodo de mitigación anterior y liberar el slot vivo para
+        // que se pueda activar cualquier mitigación nuevamente tras reabrir.
+        mitigacionesPrevias: mitigacionesPrevias.length ? mitigacionesPrevias : null,
+        estadoOperacion:       null,
+        operacionManual:       false,
+        tipoOperacionManual:   null,
+        factorOperativo:       null,
+        contActivadoPor:       null,
+        contHoraActivacion:    null,
+        contRendimiento:       null,
+        contObservacion:       null,
+        contEsExterno:         false,
+        contHoraDesactivacion: null,
+        routerExternoId:       null,
+        movActivadoPor:        null,
+        movHoraActivacion:     null,
+        movRendimiento:        null,
+        movObservacion:        null,
+        movHoraDesactivacion:  null,
+        actualizadoEn: new Date(),
+      })
+      .where(eq(incidentes.id, id))
+      .returning()
+
+    // Defensivo: no debería haber un tramo abierto (resolver/cancelar ya lo
+    // sellaron), pero si lo hay, se sella acá antes de abrir el nuevo.
+    if (tramoAbierto) {
+      const ieTramo = calcIeTramo(
+        { tipo: tramoAbierto.tipo as any, factor: tramoAbierto.factor, desde: tramoAbierto.desde, hasta: ahoraTramos, tipoIncidente: inc.tipo },
+        tiendaVenta!, ahoraTramos,
+      )
+      await tx.update(incidenteMitigacionTramos)
+        .set({ hasta: ahoraTramos, ieTramo: String(ieTramo), actualizadoEn: ahoraTramos })
+        .where(eq(incidenteMitigacionTramos.id, tramoAbierto.id))
+    }
+
+    // Reemplaza por completo a mitigacionesPrevias para el modelo nuevo: el
+    // tramo viejo (el que se acaba de sellar arriba, si había uno) simplemente
+    // sigue existiendo en la tabla — no se copia a ningún jsonb. El hueco entre
+    // el cierre anterior y este "desde" queda sin cubrir a propósito.
+    await tx.insert(incidenteMitigacionTramos).values({
+      incidenteId: id,
+      tipo: 'SIN_MITIGACION',
+      factor: String(factorBaseSinMitigacion(inc.tipo)),
+      desde: ahoraTramos,
+      hasta: null,
     })
-    .where(eq(incidentes.id, id))
-    .returning()
+
+    return upd
+  })
 
   if (!updated) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
   return NextResponse.json(updated)

@@ -52,8 +52,8 @@ describe('MARGEN_BRUTO — una sola fuente de verdad para los 4 puntos que calcu
     expect(ieiSum()).toContain('* 0.4')
   })
 
-  it('[3] app/(dashboard)/dashboard/page.tsx (calcIeiLive) refleja un cambio en tiempo de ejecución', async () => {
-    const { calcIeiLive } = await import('@/app/(dashboard)/dashboard/page')
+  it('[3] lib/impacto-calc.ts (calcImpactoEnCurso — ticker del dashboard operativo, Fase 4) refleja un cambio en tiempo de ejecución', async () => {
+    const { calcImpactoEnCurso } = await import('./impacto-calc')
     const inc = {
       iei_venta_hora: 100,
       hora_registro: LUNES_10AM_LIMA,
@@ -61,11 +61,11 @@ describe('MARGEN_BRUTO — una sola fuente de verdad para los 4 puntos que calcu
     }
     const nowMs = new Date(horasDespues(LUNES_10AM_LIMA, 2)).getTime()
 
-    const con35 = calcIeiLive(inc, nowMs)
+    const con35 = calcImpactoEnCurso(inc, nowMs)
     expect(con35).toBe(Math.round(100 * 2 * 0.35 * 1))
 
     DASHBOARD_CONFIG.MARGEN_BRUTO = 0.40
-    const con40 = calcIeiLive(inc, nowMs)
+    const con40 = calcImpactoEnCurso(inc, nowMs)
     expect(con40).toBe(Math.round(100 * 2 * 0.40 * 1))
   })
 

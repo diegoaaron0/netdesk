@@ -25,9 +25,37 @@ export function minToHM(min: number | null) {
   return h > 0 ? `${h}h ${m}m` : `${m}m`
 }
 
+// Refresco automático del detalle de incidente. Sin esto, una pestaña abierta
+// antes de que se active/cambie una mitigación se queda con el snapshot viejo
+// para siempre — el timer visual del panel "IEI en curso" solo mueve el reloj,
+// nunca vuelve a pedir el incidente al servidor. windowTarget/documentTarget se
+// reciben como parámetro (en vez de usar window/document directo) para poder
+// probar esto sin jsdom.
+export function setupIncidenteAutoRefresh(
+  fetchInc: () => void,
+  opts: { enabled: boolean; intervalMs?: number; windowTarget?: any; documentTarget?: any },
+): () => void {
+  if (!opts.enabled) return () => {}
+  const intervalMs = opts.intervalMs ?? 20000
+  const win = opts.windowTarget ?? (typeof window !== 'undefined' ? window : null)
+  const doc = opts.documentTarget ?? (typeof document !== 'undefined' ? document : null)
+
+  const id = setInterval(fetchInc, intervalMs)
+  const onFocus = () => fetchInc()
+  const onVisibility = () => { if (doc?.visibilityState === 'visible') fetchInc() }
+  win?.addEventListener('focus', onFocus)
+  doc?.addEventListener('visibilitychange', onVisibility)
+
+  return () => {
+    clearInterval(id)
+    win?.removeEventListener('focus', onFocus)
+    doc?.removeEventListener('visibilitychange', onVisibility)
+  }
+}
+
 export const TIPO_LABELS: Record<string, string> = {
   CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia',
-  LENTITUD: 'Lentitud', POS: 'POS', OTROS: 'Otros',
+  LENTITUD: 'Lentitud', OTROS: 'Otros',
   CORTE_ELECTRICO: '⚡ Corte eléctrico',
 }
 

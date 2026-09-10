@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { incidentes, tiendas, routersExternos } from '@/drizzle/schema'
-import { eq, sql } from 'drizzle-orm'
+import { incidentes, tiendas, routersExternos, incidenteMitigacionTramos } from '@/drizzle/schema'
+import { eq, sql, and, isNull } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
+import { calcIeTramo } from '@/lib/mitigacion-tramos'
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -13,6 +14,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   const [inc] = await db.select({
     tiendaId:              incidentes.tiendaId,
+    tipo:                  incidentes.tipo,
     contActivadoPor:       incidentes.contActivadoPor,
     contHoraDesactivacion: incidentes.contHoraDesactivacion,
     movActivadoPor:        incidentes.movActivadoPor,
@@ -20,6 +22,17 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     routerExternoId:       incidentes.routerExternoId,
   }).from(incidentes).where(eq(incidentes.id, id))
   if (!inc) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+
+  // Fase 2 (Paso 4) — sellar el tramo abierto (modelo nuevo), en paralelo al
+  // sellado de cont_*/mov_* de abajo (modelo viejo, sin tocar). Sin tramos
+  // (flujo viejo hoy en producción), no hay nada que sellar — no rompe.
+  const [tramoAbierto] = await db.select().from(incidenteMitigacionTramos)
+    .where(and(eq(incidenteMitigacionTramos.incidenteId, id), isNull(incidenteMitigacionTramos.hasta)))
+  let tienda: { ventaHoraSoles: string | null; ventaHoraFdsSoles: string | null } | undefined
+  if (tramoAbierto) {
+    [tienda] = await db.select({ ventaHoraSoles: tiendas.ventaHoraSoles, ventaHoraFdsSoles: tiendas.ventaHoraFdsSoles })
+      .from(tiendas).where(eq(tiendas.id, inc.tiendaId!))
+  }
 
   const horaFin = new Date()
   const canceladoPorId = (session.user as any)?.id ?? null
@@ -72,6 +85,17 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
           .set({ estado: 'EN_TIENDA_INACTIVO' })
           .where(eq(routersExternos.id, inc.routerExternoId))
       }
+    }
+
+    // Fase 2 (Paso 4) — sellar el tramo abierto, si lo hay. No se abre ninguno nuevo.
+    if (tramoAbierto) {
+      const ieTramo = calcIeTramo(
+        { tipo: tramoAbierto.tipo as any, factor: tramoAbierto.factor, desde: tramoAbierto.desde, hasta: horaFin, tipoIncidente: inc.tipo },
+        tienda!, horaFin,
+      )
+      await tx.update(incidenteMitigacionTramos)
+        .set({ hasta: horaFin, ieTramo: String(ieTramo), actualizadoEn: horaFin })
+        .where(eq(incidenteMitigacionTramos.id, tramoAbierto.id))
     }
 
     return upd

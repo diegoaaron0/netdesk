@@ -19,7 +19,7 @@ function fmtDia(dia: string) {
 
 const TIPO_LABELS: Record<string, string> = {
   CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia',
-  LENTITUD: 'Lentitud', POS: 'POS', OTROS: 'Otros', CORTE_ELECTRICO: 'Corte eléctrico',
+  LENTITUD: 'Lentitud', OTROS: 'Otros', CORTE_ELECTRICO: 'Corte eléctrico',
 }
 const TIPO_COLORS = ['#3b82f6', '#f59e0b', '#ef4444', '#10b981', '#8b5cf6', '#6b7280']
 

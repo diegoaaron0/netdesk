@@ -257,6 +257,92 @@ async function main() {
   `
   console.log('[startup] ✓ Sembrado de escalamientos por defecto desde fichas existentes')
 
+  // Deriva de esquema corregida: la migración original (0020_routers_externos.sql)
+  // crea esta columna, pero drizzle/schema.ts nunca la definió — GET
+  // /api/routers-externos/[id] fallaba siempre al armar el historial combinado.
+  await sql`ALTER TABLE "router_historial" ADD COLUMN IF NOT EXISTS "tiempo_uso_min" integer`
+  console.log('[startup] ✓ Columna router_historial.tiempo_uso_min (deriva de esquema corregida)')
+
+  // Fase 2 (Paso 1) — mitigaciones por tramos. Solo el schema, todavía no lo usa
+  // ningún endpoint. Reemplazará a futuro cont_*/mov_*/boleta_*/mitigaciones_previas
+  // en incidentes (que conviven sin tocar por ahora — ver diseño de la iniciativa).
+  await sql`
+    DO $$ BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tipo_mitigacion_tramo') THEN
+        CREATE TYPE "tipo_mitigacion_tramo" AS ENUM (
+          'SIN_MITIGACION', 'ROUTER_PROPIO', 'ROUTER_EXTERNO', 'DATOS_MOVILES', 'BOLETA_MANUAL'
+        );
+      END IF;
+    END $$
+  `
+  console.log('[startup] ✓ Enum tipo_mitigacion_tramo (Fase 2, Paso 1)')
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS "incidente_mitigacion_tramos" (
+      "id"                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      "incidente_id"      uuid NOT NULL REFERENCES "incidentes"("id") ON DELETE CASCADE,
+      "tipo"              tipo_mitigacion_tramo NOT NULL,
+      "factor"            numeric(5,4) NOT NULL CHECK ("factor" >= 0 AND "factor" <= 1),
+      "activado_por"      text,
+      "observacion"       text,
+      "router_externo_id" uuid REFERENCES "routers_externos"("id"),
+      "desde"             timestamp NOT NULL,
+      "hasta"             timestamp,
+      "ie_tramo"          numeric,
+      "origen"            text NOT NULL DEFAULT 'SISTEMA'
+                            CHECK ("origen" IN ('SISTEMA','EDICION_MANUAL','RELLENO_AUTOMATICO')),
+      "creado_en"         timestamp NOT NULL DEFAULT now(),
+      "actualizado_en"    timestamp NOT NULL DEFAULT now(),
+      CHECK ( ("hasta" IS NULL AND "ie_tramo" IS NULL) OR ("hasta" IS NOT NULL AND "ie_tramo" IS NOT NULL) )
+    )
+  `
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_tramos_un_abierto_por_incidente
+      ON "incidente_mitigacion_tramos" ("incidente_id") WHERE "hasta" IS NULL
+  `
+  await sql`CREATE INDEX IF NOT EXISTS idx_tramos_incidente_id ON "incidente_mitigacion_tramos" ("incidente_id")`
+  await sql`CREATE INDEX IF NOT EXISTS idx_tramos_tipo ON "incidente_mitigacion_tramos" ("tipo")`
+  console.log('[startup] ✓ Tabla incidente_mitigacion_tramos + constraints + índices (Fase 2, Paso 1)')
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS "incidente_mitigacion_tramos_historial" (
+      "id"             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      "evento_id"      uuid NOT NULL,
+      "tramo_id"       uuid NOT NULL REFERENCES "incidente_mitigacion_tramos"("id"),
+      "incidente_id"   uuid NOT NULL,
+      "usuario_id"     uuid NOT NULL REFERENCES "usuarios"("id"),
+      "accion"         text NOT NULL
+                         CHECK ("accion" IN ('EDITAR','RELLENO_INSERTADO','RELLENO_ELIMINADO','VECINO_RECORTADO','VECINO_ELIMINADO')),
+      "valor_anterior" jsonb,
+      "valor_nuevo"    jsonb,
+      "creado_en"      timestamp NOT NULL DEFAULT now()
+    )
+  `
+  console.log('[startup] ✓ Tabla incidente_mitigacion_tramos_historial (Fase 2, Paso 1)')
+
+  // Fase 2 (Paso 5) — tramo_id nullable + ON DELETE SET NULL: un borrado real de
+  // vecino (regla 6b) necesita insertar su propia fila de auditoría ANTES del
+  // DELETE (para cumplir la FK en el insert); con RESTRICT, el DELETE posterior
+  // fallaba porque esa misma fila recién insertada seguía referenciándolo. La
+  // identidad del tramo borrado igual se conserva en el snapshot jsonb. Tabla sin
+  // uso en producción (sin frontend, sin endpoints conectados) — sin riesgo de datos.
+  await sql`ALTER TABLE incidente_mitigacion_tramos_historial ALTER COLUMN tramo_id DROP NOT NULL`
+  await sql`
+    DO $$ BEGIN
+      IF EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'incidente_mitigacion_tramos_historial_tramo_id_fkey' AND confdeltype <> 'n'
+      ) THEN
+        ALTER TABLE incidente_mitigacion_tramos_historial
+          DROP CONSTRAINT incidente_mitigacion_tramos_historial_tramo_id_fkey;
+        ALTER TABLE incidente_mitigacion_tramos_historial
+          ADD CONSTRAINT incidente_mitigacion_tramos_historial_tramo_id_fkey
+          FOREIGN KEY (tramo_id) REFERENCES incidente_mitigacion_tramos(id) ON DELETE SET NULL;
+      END IF;
+    END $$
+  `
+  console.log('[startup] ✓ tramo_id nullable + ON DELETE SET NULL (Fase 2, Paso 5)')
+
   console.log('[startup] Migraciones completadas.')
   await sql.end()
 }

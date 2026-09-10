@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, use, useCallback, useRef } from 'react'
+import { useEffect, useState, use, useCallback, useRef, Fragment } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Badge, estadoToVariant, impactoToVariant } from '@/components/ui/Badge'
@@ -10,10 +10,10 @@ import { AdjuntosZona, compressImage } from '@/components/incidentes/AdjuntosZon
 import { InfraEscalamientoPanel } from '@/components/incidentes/InfraEscalamientoPanel'
 import { GrupoMasivoPanel } from '@/components/incidentes/GrupoMasivoPanel'
 import { EscalamientoCard } from '@/components/incidentes/EscalamientoCard'
-import { iStyle, taStyle, toDatetimeLocal, fromDatetimeLocal, minToHM, TIPO_LABELS, buildCorreo } from '@/components/incidentes/helpers'
+import { iStyle, taStyle, toDatetimeLocal, fromDatetimeLocal, minToHM, TIPO_LABELS, buildCorreo, setupIncidenteAutoRefresh } from '@/components/incidentes/helpers'
 import { can } from '@/lib/permisos'
 import { apiMutate } from '@/lib/api-mutate'
-import { normContFactor, normBoletaFactor } from '@/lib/impacto-calc'
+import { normContFactor, normBoletaFactor, diaSemanaLima } from '@/lib/impacto-calc'
 import { DASHBOARD_CONFIG } from '@/lib/dashboard-config'
 
 const ALCANCE_LABELS: Record<string, string> = {
@@ -24,6 +24,95 @@ const ALCANCE_LABELS: Record<string, string> = {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function mttrFromHoras(h1: string, h2: string) {
   return Math.round((new Date(h2).getTime() - new Date(h1).getTime()) / 60000)
+}
+
+interface SegmentoIeiEnCurso { desdeMs: number; hastaMs: number; horas: number; factor: number; descripcion: string; ieiParcial: number }
+const FACTOR_BASE_IEI_EN_CURSO: Record<string, number> = { CAIDA_TOTAL: 1.00, INTERMITENCIA: 0.50, LENTITUD: 0.30, CORTE_ELECTRICO: 1.00 }
+
+/** IEI "en curso" de un incidente ABIERTO (bloque IEI del panel de detalle) —
+ *  mismo cálculo que calcImpactoRow (lib/impacto-calc.ts) pero usando `nowMs`
+ *  como límite superior en vez de hora_fin. Exportada solo para poder
+ *  probarla en test (mismo cálculo, sin cambios de lógica salvo el gate de
+ *  movActivadoPor — ver comentario abajo). */
+export function calcIeiEnCurso(inc: any, nowMs: number): { ieiEnCurso: number; ventaHoraEnCurso: number; segmentosEnCurso: SegmentoIeiEnCurso[] } {
+  if (!inc.tiendaVentaHoraSoles) return { ieiEnCurso: 0, ventaHoraEnCurso: 0, segmentosEnCurso: [] }
+  const tsMs = (v: any) => v ? new Date(v).getTime() : null
+  const dow = diaSemanaLima(new Date(inc.horaRegistro))
+  const isFDS = dow === 0 || dow === 5 || dow === 6
+  const ventaHoraEnCurso = isFDS
+    ? Number(inc.tiendaVentaHoraFdsSoles ?? inc.tiendaVentaHoraSoles)
+    : Number(inc.tiendaVentaHoraSoles ?? inc.tiendaVentaHoraFdsSoles)
+  const startMs = new Date(inc.horaRegistro).getTime()
+  // contHoraActivacion solo cuenta como activación de router si contActivadoPor
+  // está seteado. Mismo gate para movHoraActivacion/movActivadoPor — bug real
+  // confirmado en producción: sin este chequeo, un timestamp fantasma en
+  // mov_hora_activacion (sin mov_activado_por) se contaba como datos móviles
+  // activo. Boleta manual tiene su propio campo, boletaHoraActivacion.
+  const contStartMs = inc.contActivadoPor ? tsMs(inc.contHoraActivacion) : null
+  const contEndMs   = tsMs(inc.contHoraDesactivacion)
+  const movStartMs  = inc.movActivadoPor ? tsMs(inc.movHoraActivacion) : null
+  const movEndMs    = tsMs(inc.movHoraDesactivacion)
+  const contF = contStartMs !== null ? normContFactor(inc.contRendimiento) : null
+  const movF  = movStartMs  !== null ? normContFactor(inc.movRendimiento)  : null
+  const bolF  = inc.boletaManual ? normBoletaFactor(inc.boletaRendimiento, inc.tipo) : null
+  const bolStartMs = inc.boletaManual
+    ? (inc.boletaHoraActivacion ? tsMs(inc.boletaHoraActivacion) : startMs)
+    : null
+  const bpSet = new Set([startMs, nowMs])
+  const addBp = (t: number | null) => { if (t && t > startMs && t < nowMs) bpSet.add(t) }
+  addBp(contStartMs); addBp(contEndMs); addBp(movStartMs); addBp(movEndMs); addBp(bolStartMs)
+  const bps = Array.from(bpSet).sort((a, b) => a - b)
+  let ieiEnCurso = 0
+  const segmentosEnCurso: SegmentoIeiEnCurso[] = []
+  for (let i = 0; i < bps.length - 1; i++) {
+    const segS = bps[i], segE = bps[i + 1]
+    const mid = (segS + segE) / 2, h = (segE - segS) / 3600000
+    const opts: { f: number; label: string }[] = []
+    const bolActiva = bolF !== null && bolStartMs !== null && mid >= bolStartMs
+    if (inc.tipo === 'CORTE_ELECTRICO') {
+      if (bolActiva) opts.push({ f: bolF!, label: `boleta ${inc.boletaRendimiento?.toLowerCase() ?? 'efectiva'}` })
+      else opts.push({ f: 1.00, label: 'sin mitigación' })
+    } else {
+      if (contF !== null && contStartMs !== null && mid >= contStartMs && (contEndMs === null || mid < contEndMs))
+        opts.push({ f: contF, label: `router ${inc.contEsExterno ? 'externo' : 'propio'}${inc.contRendimiento ? ' ' + inc.contRendimiento.toLowerCase() : ''}` })
+      if (movF !== null && movStartMs !== null && mid >= movStartMs && (movEndMs === null || mid < movEndMs))
+        opts.push({ f: movF, label: `datos móviles${inc.movRendimiento ? ' ' + inc.movRendimiento.toLowerCase() : ''}` })
+      if (bolActiva) opts.push({ f: bolF!, label: `boleta ${inc.boletaRendimiento?.toLowerCase() ?? 'efectiva'}` })
+      if (!opts.length) opts.push({ f: FACTOR_BASE_IEI_EN_CURSO[inc.tipo] ?? 1.00, label: 'sin mitigación' })
+    }
+    const best = opts.reduce((a, b) => (a.f <= b.f ? a : b))
+    const segIEI = ventaHoraEnCurso * h * DASHBOARD_CONFIG.MARGEN_BRUTO * best.f
+    ieiEnCurso += segIEI
+    segmentosEnCurso.push({ desdeMs: segS, hastaMs: segE, horas: Math.round(h * 100) / 100, factor: best.f, descripcion: best.label, ieiParcial: Math.round(segIEI) })
+  }
+  return { ieiEnCurso: Math.round(ieiEnCurso), ventaHoraEnCurso, segmentosEnCurso }
+}
+
+/** IEI en vivo del tramo actualmente abierto (tabla "Desglose por tramos") —
+ *  venta/hora × horas transcurridas desde tramo.desde × margen × tramo.factor.
+ *  El factor ya viene resuelto del backend (Paso 3) — no se reimplementa esa
+ *  parte, solo se proyecta el tiempo transcurrido. Exportada solo para test. */
+export function calcIeiTramoAbierto(
+  tramo: { desde: string | Date; hasta: string | Date | null; factor: string | number } | null,
+  tienda: { ventaHoraSoles?: number | string | null; ventaHoraFdsSoles?: number | string | null } | null,
+  nowMs: number,
+): number {
+  if (!tramo || tramo.hasta != null) return 0
+  const desdeMs = new Date(tramo.desde).getTime()
+  const horas = Math.max(0, (nowMs - desdeMs) / 3600000)
+  const dow = diaSemanaLima(new Date(tramo.desde))
+  const isFDS = dow === 0 || dow === 5 || dow === 6
+  const ventaHora = isFDS
+    ? Number(tienda?.ventaHoraFdsSoles ?? tienda?.ventaHoraSoles ?? 0)
+    : Number(tienda?.ventaHoraSoles ?? tienda?.ventaHoraFdsSoles ?? 0)
+  return Math.round(ventaHora * horas * DASHBOARD_CONFIG.MARGEN_BRUTO * Number(tramo.factor))
+}
+
+/** El botón de editar un tramo (Paso 5) requiere el permiso incidentes.editar-tramos
+ *  Y que el tramo ya esté cerrado — el tramo abierto se edita desde el control de
+ *  mitigación, nunca desde acá. Exportada solo para test. */
+export function puedeEditarTramo(tienePermiso: boolean, tramo: { hasta: string | Date | null }): boolean {
+  return tienePermiso && tramo.hasta != null
 }
 
 // ── Small icon set ────────────────────────────────────────────────────────────
@@ -110,10 +199,26 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   const [infraSaving, setInfraSaving]             = useState(false)
   const [infraError, setInfraError]               = useState('')
 
-  // Bloques operación (colapsables)
-  const [showContBlock, setShowContBlock] = useState(false)
-  const [showMovBlock,  setShowMovBlock]  = useState(false)
-  const [showBoletaBlock, setShowBoletaBlock] = useState(false)
+  // Fase 4 — control único de mitigación (reemplaza los 3 bloques viejos de
+  // Contingencia/Datos móviles/Boleta manual) + tabla de Desglose por tramos.
+  const [tramos, setTramos]                       = useState<any[]>([])
+  const [mitigacionTipo, setMitigacionTipo]         = useState('SIN_MITIGACION')
+  const [mitigacionRendimiento, setMitigacionRendimiento] = useState('')
+  const [mitigacionRouterExternoId, setMitigacionRouterExternoId] = useState<string | null>(null)
+  const [savingMitigacion, setSavingMitigacion]     = useState(false)
+  const [mitigacionError, setMitigacionError]       = useState('')
+  const [editandoTramoId, setEditandoTramoId]       = useState<string | null>(null)
+  const [editTramoDesde, setEditTramoDesde]         = useState('')
+  const [editTramoHasta, setEditTramoHasta]         = useState('')
+  const [savingTramoEdit, setSavingTramoEdit]       = useState(false)
+  const [tramoEditError, setTramoEditError]         = useState('')
+
+  const fetchTramos = useCallback(async () => {
+    const res = await fetch(`/api/incidentes/${id}/tramos`)
+    if (!res.ok) return
+    const data = await res.json()
+    setTramos(Array.isArray(data) ? data : [])
+  }, [id])
 
   const fetchInc = useCallback(async () => {
     const res  = await fetch(`/api/incidentes/${id}`)
@@ -167,12 +272,31 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
       alcanceCorte:        data.alcanceCorte        ?? null,
       tuvoUps:             data.tuvoUps             ?? null,
     })
-    setShowContBlock(data.estadoOperacion === 'CONTINGENCIA' || !!data.contActivadoPor)
-    setShowMovBlock(data.estadoOperacion === 'DATOS_MOVILES'  || !!data.movActivadoPor)
-    setShowBoletaBlock(data.estadoOperacion === 'BOLETA_MANUAL')
   }, [id])
 
-  useEffect(() => { fetchInc() }, [fetchInc])
+  // Refresco liviano de solo `inc` (sin tocar editForm) para el auto-refresh
+  // periódico/al recuperar foco — fetchInc() completo resetearía cualquier
+  // edición en curso del formulario cada vez que corre.
+  const fetchIncOnly = useCallback(async () => {
+    const res  = await fetch(`/api/incidentes/${id}`)
+    const data = await res.json()
+    setInc(data)
+    fetchTramos()
+  }, [id, fetchTramos])
+
+  useEffect(() => { fetchInc(); fetchTramos() }, [fetchInc, fetchTramos])
+  // Sincroniza el control único de mitigación con el tramo actualmente
+  // abierto — igual que editForm se sincroniza con `inc` en fetchInc.
+  useEffect(() => {
+    const abierto = tramos.find((t: any) => t.hasta == null)
+    setMitigacionTipo(abierto?.tipo ?? 'SIN_MITIGACION')
+    setMitigacionRendimiento('')
+    setMitigacionRouterExternoId(abierto?.routerExternoId ?? null)
+  }, [tramos])
+  useEffect(() => {
+    const isClosed = inc && ['RESUELTO', 'CANCELADO', 'CERRADO'].includes(inc.estado)
+    return setupIncidenteAutoRefresh(fetchIncOnly, { enabled: !!inc && !isClosed })
+  }, [inc?.id, inc?.estado, fetchIncOnly])
   useEffect(() => {
     fetch('/api/routers-externos')
       .then(r => r.json())
@@ -196,7 +320,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
 
   useEffect(() => {
     if (!inc?.tiendaId) return
-    fetch(`/api/tiendas/${inc.tiendaId}/historial`)
+    fetch(`/api/tiendas/${inc.tiendaId}/ultimos-incidentes`)
       .then(r => r.json())
       .then(d => setHistorial(Array.isArray(d) ? d.filter((h: any) => h.id !== inc.id) : []))
   }, [inc?.tiendaId, inc?.id])
@@ -216,41 +340,69 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   const canEditA   = canManage && supervisorEdit
   const isSupervisor = userRol === 'SUPERVISOR'
   const canDelete  = can(session, 'incidentes.eliminar')
+  const tramoAbiertoActual = tramos.find((t: any) => t.hasta == null) ?? null
+  const tramosCerrados = tramos.filter((t: any) => t.hasta != null)
+  const ieiTramoAbiertoLive = calcIeiTramoAbierto(
+    tramoAbiertoActual,
+    { ventaHoraSoles: inc.tiendaVentaHoraSoles, ventaHoraFdsSoles: inc.tiendaVentaHoraFdsSoles },
+    Date.now(),
+  )
+  const ieiTotalTramos = tramosCerrados.reduce((s: number, t: any) => s + Number(t.ieTramo ?? 0), 0) + ieiTramoAbiertoLive
+
+  const canEditTramos = can(session, 'incidentes.editar-tramos')
 
   function setEdit(k: string, v: any) { setEditForm((f: any) => ({ ...f, [k]: v })) }
 
-  function handleEstadoOperacion(val: string) {
-    const seals: any = {}
-    if (editForm.estadoOperacion === 'CONTINGENCIA' && editForm.contActivadoPor && !editForm.contHoraDesactivacion) {
-      seals.contHoraDesactivacion = toDatetimeLocal(new Date().toISOString())
+  // Fase 4 — control único de mitigación. Reemplaza los 3 bloques viejos
+  // (Contingencia/Datos móviles/Boleta manual) — llama al endpoint nuevo del
+  // Paso 3, no al PUT viejo. El PUT viejo con cont_*/mov_*/boleta_* sigue
+  // intacto en el backend, simplemente esta pantalla ya no lo usa para esto.
+  async function handleGuardarMitigacion() {
+    // Router externo exige elegir cuál — el backend también lo rechaza (400),
+    // esto solo evita el viaje redondo cuando ya se sabe que va a fallar.
+    if (mitigacionTipo === 'ROUTER_EXTERNO' && !mitigacionRouterExternoId) {
+      setMitigacionError('Debe seleccionar cuál router externo usar')
+      return
     }
-    if (editForm.estadoOperacion === 'DATOS_MOVILES' && editForm.movActivadoPor && !editForm.movHoraDesactivacion) {
-      seals.movHoraDesactivacion = toDatetimeLocal(new Date().toISOString())
-    }
-    setEditForm((f: any) => ({ ...f, estadoOperacion: val, ...seals }))
-    setShowContBlock(val === 'CONTINGENCIA' || !!editForm.contActivadoPor)
-    setShowMovBlock(val === 'DATOS_MOVILES'  || !!editForm.movActivadoPor)
-    setShowBoletaBlock(val === 'BOLETA_MANUAL')
+    setSavingMitigacion(true)
+    setMitigacionError('')
+    const { ok, data } = await apiMutate(`/api/incidentes/${id}/mitigacion`, {
+      method: 'POST',
+      json: {
+        tipo: mitigacionTipo,
+        rendimiento: mitigacionRendimiento || undefined,
+        routerExternoId: mitigacionTipo === 'ROUTER_EXTERNO' ? mitigacionRouterExternoId : undefined,
+      },
+      errorPrefix: 'No se pudo cambiar la mitigación',
+    })
+    setSavingMitigacion(false)
+    if (!ok) { setMitigacionError(data?.error ?? 'Error al guardar'); return }
+    fetchTramos()
+    fetchIncOnly()
   }
 
-  async function handleDesactivarCont() {
-    const { ok } = await apiMutate(`/api/incidentes/${id}`, {
-      method: 'PUT',
-      json: { contHoraDesactivacion: new Date().toISOString() },
-      errorPrefix: 'No se pudo desactivar la contingencia',
-    })
-    if (!ok) return
-    fetchInc()
+  function iniciarEdicionTramo(tramo: any) {
+    setEditandoTramoId(tramo.id)
+    setEditTramoDesde(toDatetimeLocal(tramo.desde))
+    setEditTramoHasta(toDatetimeLocal(tramo.hasta))
+    setTramoEditError('')
   }
 
-  async function handleDesactivarMov() {
-    const { ok } = await apiMutate(`/api/incidentes/${id}`, {
-      method: 'PUT',
-      json: { movHoraDesactivacion: new Date().toISOString() },
-      errorPrefix: 'No se pudo desactivar los datos móviles',
+  async function handleGuardarTramoEdit(tramoId: string) {
+    setSavingTramoEdit(true)
+    setTramoEditError('')
+    const { ok, data } = await apiMutate(`/api/incidentes/${id}/tramos/${tramoId}`, {
+      method: 'PATCH',
+      json: {
+        desde: fromDatetimeLocal(editTramoDesde),
+        hasta: fromDatetimeLocal(editTramoHasta),
+      },
+      errorPrefix: 'No se pudo editar el tramo',
     })
-    if (!ok) return
-    fetchInc()
+    setSavingTramoEdit(false)
+    if (!ok) { setTramoEditError(data?.error ?? 'Error al guardar'); return }
+    setEditandoTramoId(null)
+    fetchTramos()
   }
 
   async function handleSave() {
@@ -802,7 +954,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
           </div>
           <div style={{ padding: '16px 18px' }}>
 
-            {/* Fila 1: Ticket InvGate | Ticket Proveedor | Estado operación */}
+            {/* Fila 1: Ticket InvGate | Ticket Proveedor | Mitigación activa */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '16px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Ticket InvGate</label>
@@ -813,351 +965,191 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 <input disabled={!canEditB} style={iStyle(!canEditB)} value={editForm.ticketProveedor} onChange={e => setEdit('ticketProveedor', e.target.value)} placeholder="Nro. ticket proveedor" />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Estado operación</label>
-                <select disabled={!canEditB} style={iStyle(!canEditB)} value={editForm.estadoOperacion ?? ''} onChange={e => handleEstadoOperacion(e.target.value)}>
-                  <option value="">Sin operación especial</option>
-                  {editForm.tipo !== 'CORTE_ELECTRICO' && <option value="CONTINGENCIA">Operación con contingencia</option>}
-                  {editForm.tipo !== 'CORTE_ELECTRICO' && <option value="DATOS_MOVILES">Operación con datos móviles</option>}
-                  <option value="BOLETA_MANUAL">Operación con boletas manuales</option>
-                  {editForm.tipo !== 'CORTE_ELECTRICO' && <option value="CAIDA">Operación con caída</option>}
+                <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Mitigación activa</label>
+                <select disabled={!canEditB || isClosed} style={iStyle(!canEditB || isClosed)} value={mitigacionTipo} onChange={e => { setMitigacionTipo(e.target.value); if (e.target.value !== 'ROUTER_EXTERNO') setMitigacionRouterExternoId(null); setMitigacionError('') }}>
+                  <option value="SIN_MITIGACION">Sin mitigación</option>
+                  {inc.tipo !== 'CORTE_ELECTRICO' && <option value="ROUTER_PROPIO">Router propio</option>}
+                  {inc.tipo !== 'CORTE_ELECTRICO' && <option value="ROUTER_EXTERNO">Router externo</option>}
+                  {inc.tipo !== 'CORTE_ELECTRICO' && <option value="DATOS_MOVILES">Datos móviles</option>}
+                  <option value="BOLETA_MANUAL">Boleta manual</option>
                 </select>
               </div>
             </div>
 
-            {/* Bloque Contingencia — colapsable */}
-            {(editForm.estadoOperacion === 'CONTINGENCIA' || !!inc.contActivadoPor) && (() => {
-              const rend = editForm.contRendimiento
-              const rendLabel: Record<string,string> = { EFECTIVO:'Efectivo', PARCIAL:'Parcial', NULO:'Sin cobertura', TOTAL:'Cubrió total', FALLIDA:'No funcionó' }
-              const summary = [editForm.contActivadoPor && `Por: ${editForm.contActivadoPor}`, rend && rendLabel[rend]].filter(Boolean).join(' · ')
-              const contSellada = !!inc.contHoraDesactivacion
-              // Nunca bloquear por sellado — auto-deactivation handles it
-              const contDis = !canEditB
-              return (
-                <div style={{ border: '1px solid var(--border)', borderRadius: '10px', marginBottom: '14px', overflow: 'hidden' }}>
-                  <button type="button" onClick={() => setShowContBlock(v => !v)}
-                    style={{ width:'100%', display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', background: 'var(--muted)', border:'none', cursor:'pointer', textAlign:'left' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
-                      <span style={{ fontSize:'12px', fontWeight:600, color: 'var(--foreground)' }}>
-                        {editForm.contEsExterno ? 'Contingencia externa' : 'Contingencia'}
-                      </span>
-                      {!showContBlock && summary && <span style={{ fontSize:'10px', color:'var(--muted-foreground)' }}>{summary}</span>}
-                      {!showContBlock && inc.contHoraActivacion && (() => {
-                        const fin = inc.contHoraDesactivacion ?? (isClosed ? inc.horaFin : null)
-                        const mins = fin
-                          ? Math.round((new Date(fin).getTime() - new Date(inc.contHoraActivacion).getTime()) / 60000)
-                          : Math.round((Date.now() - new Date(inc.contHoraActivacion).getTime()) / 60000)
-                        const horaStr = toDatetimeLocal(inc.contHoraActivacion).slice(11, 16)
-                        return <span style={{ fontSize:'10px', color: fin ? 'var(--muted-foreground)' : '#d97706', fontFamily:'monospace' }}>· {horaStr} · {minToHM(mins)}{!fin ? ' ⏱' : ''}</span>
-                      })()}
-                    </div>
-                    <span style={{ fontSize:'10px', color:'var(--muted-foreground)' }}>{showContBlock ? '▲' : '▼'}</span>
-                  </button>
-                  {showContBlock && (
-                    <div style={{ padding:'14px', background:'var(--muted)' }}>
-                      {/* Tipo: badge fijo si ya activado; selector si aún no */}
-                      {editForm.contActivadoPor ? (
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '6px', marginBottom: '12px' }}>
-                          <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tipo</span>
-                          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--foreground)' }}>
-                            {editForm.contEsExterno ? 'Router externo' : 'Router propio'}
-                          </span>
-                        </div>
-                      ) : inc?.tiendaTieneContingencia ? (
-                        /* Tienda con contingencia propia: toggle propio ↔ externo */
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', padding: '8px 12px', background: 'rgba(0,0,0,0.03)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                          <button type="button" disabled={contDis} onClick={() => setEdit('contEsExterno', !editForm.contEsExterno)}
-                            style={{ width:'36px', height:'20px', borderRadius:'10px', border:'none', cursor: contDis ? 'default' : 'pointer', background: editForm.contEsExterno ? 'hsl(221,83%,23%)' : '#d1d5db', position:'relative', flexShrink:0, transition:'background 0.2s' }}>
-                            <span style={{ position:'absolute', top:'2px', left: editForm.contEsExterno ? '18px' : '2px', width:'16px', height:'16px', borderRadius:'50%', background:'white', transition:'left 0.2s' }} />
-                          </button>
-                          <div>
-                            <div style={{ fontSize:'11px', fontWeight: editForm.contEsExterno ? 700 : 400, color: 'var(--foreground)' }}>
-                              Router externo (llevado a tienda)
-                            </div>
-                            <div style={{ fontSize:'10px', color:'var(--muted-foreground)' }}>
-                              {editForm.contEsExterno ? 'Se llevó equipo externo a esta tienda' : 'La tienda usó su contingencia propia'}
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        /* Tienda sin contingencia propia: solo externo disponible */
-                        <div style={{ marginBottom: '12px', padding: '7px 10px', background: 'rgba(0,0,0,0.03)', borderRadius: '8px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--foreground)' }}>Router externo</span>
-                          <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>— La tienda no tiene contingencia propia registrada</span>
-                        </div>
+            {/* Fase 4 (Paso 1 de frontend) — control único de mitigación: reemplaza
+                los 3 bloques viejos (Contingencia/Datos móviles/Boleta manual).
+                Llama a POST /api/incidentes/[id]/mitigacion (Paso 3), no al PUT viejo. */}
+            <div style={{ border: '1px solid var(--border)', borderRadius: '10px', marginBottom: '14px', padding: '14px', background: 'var(--muted)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--foreground)' }}>Mitigación</span>
+                {tramoAbiertoActual && tramoAbiertoActual.tipo !== 'SIN_MITIGACION' && (
+                  <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>
+                    Activa desde {toDatetimeLocal(tramoAbiertoActual.desde).slice(11, 16)}
+                  </span>
+                )}
+              </div>
+              {/* Selector de router externo — mismo criterio que ya usaba el
+                  formulario viejo: solo se puede ELEGIR un router EN_TIENDA_INACTIVO
+                  ya asignado a esta tienda; los demás se muestran mas deshabilitados
+                  para que quede claro por qué no aparecen como opción real. */}
+              {mitigacionTipo === 'ROUTER_EXTERNO' && (() => {
+                const enEstaTienda = todosRouters.filter(r => r.estado === 'EN_TIENDA_INACTIVO' && r.tiendaActualId === inc?.tiendaId)
+                const enUso        = todosRouters.filter(r => r.estado === 'EN_TIENDA_ACTIVO')
+                const otrosLugares = todosRouters.filter(r => r.estado !== 'EN_TIENDA_ACTIVO' && !(r.estado === 'EN_TIENDA_INACTIVO' && r.tiendaActualId === inc?.tiendaId))
+                const dis = !canEditB || isClosed
+                return (
+                  <div style={{ marginBottom: '10px', padding: '8px 12px', background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: '8px' }}>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Router externo a utilizar</label>
+                    <select
+                      disabled={dis}
+                      value={mitigacionRouterExternoId ?? ''}
+                      onChange={e => setMitigacionRouterExternoId(e.target.value || null)}
+                      style={{ width: '100%', padding: '6px 9px', fontSize: '12px', border: '0.5px solid #FCD34D', borderRadius: '6px', background: 'white', color: '#92400E' }}>
+                      <option value="">— Seleccionar router —</option>
+                      {enEstaTienda.length > 0 && (
+                        <optgroup label={`En esta tienda — disponibles (${enEstaTienda.length})`}>
+                          {enEstaTienda.map(r => (
+                            <option key={r.id} value={r.id}>{r.codigo}</option>
+                          ))}
+                        </optgroup>
                       )}
-
-                      {/* Selector de router externo — solo cuando contEsExterno y aún no activado */}
-                      {editForm.contEsExterno && !editForm.contActivadoPor && !contSellada && (() => {
-                        const enEstaTienda = todosRouters.filter(r => r.estado === 'EN_TIENDA_INACTIVO' && r.tiendaActualId === inc?.tiendaId)
-                        const enUso        = todosRouters.filter(r => r.estado === 'EN_TIENDA_ACTIVO')
-                        const otrosLugares = todosRouters.filter(r => r.estado !== 'EN_TIENDA_ACTIVO' && !(r.estado === 'EN_TIENDA_INACTIVO' && r.tiendaActualId === inc?.tiendaId))
-                        return (
-                          <div style={{ marginBottom: '12px', padding: '8px 12px', background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: '8px' }}>
-                            <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Router externo a utilizar</label>
-                            <select
-                              disabled={contDis}
-                              value={editForm.routerExternoId ?? ''}
-                              onChange={e => setEdit('routerExternoId', e.target.value || null)}
-                              style={{ width: '100%', padding: '6px 9px', fontSize: '12px', border: '0.5px solid #FCD34D', borderRadius: '6px', background: 'white', color: '#92400E' }}>
-                              <option value="">— Seleccionar router —</option>
-                              {enEstaTienda.length > 0 && (
-                                <optgroup label={`En esta tienda — disponibles (${enEstaTienda.length})`}>
-                                  {enEstaTienda.map(r => (
-                                    <option key={r.id} value={r.id}>{r.codigo}</option>
-                                  ))}
-                                </optgroup>
-                              )}
-                              {enUso.length > 0 && (
-                                <optgroup label="En uso en otro incidente">
-                                  {enUso.map(r => (
-                                    <option key={r.id} value={r.id} disabled>{r.codigo} — {r.tiendaCodigo ?? 'en tienda'} (activo)</option>
-                                  ))}
-                                </optgroup>
-                              )}
-                              {otrosLugares.length > 0 && (
-                                <optgroup label="En almacén u otra tienda">
-                                  {otrosLugares.map(r => (
-                                    <option key={r.id} value={r.id} disabled>
-                                      {r.codigo} — {r.estado === 'DISPONIBLE' ? (r.almacenActual ?? 'Almacén TI') : `${r.tiendaCodigo ?? 'otra tienda'} (inactivo)`}
-                                    </option>
-                                  ))}
-                                </optgroup>
-                              )}
-                            </select>
-                            {enEstaTienda.length === 0 && (
-                              <div style={{ fontSize: '10px', color: '#92400E', marginTop: '4px', opacity: 0.8 }}>
-                                Sin routers en esta tienda. Primero despliega un router desde Routers Contingencia TI.
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })()}
-                      {/* Router asignado (read-only cuando ya está activado) */}
-                      {editForm.contEsExterno && editForm.contActivadoPor && inc?.routerExternoId && (
-                        <div style={{ marginBottom: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: '6px' }}>
-                          <span style={{ fontSize: '9px', fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Router</span>
-                          <span style={{ fontSize: '12px', fontWeight: 700, fontFamily: 'monospace', color: '#92400E' }}>{todosRouters.find(r => r.id === inc.routerExternoId)?.codigo ?? 'RE-???'}</span>
-                        </div>
+                      {enUso.length > 0 && (
+                        <optgroup label="En uso en otro incidente">
+                          {enUso.map(r => (
+                            <option key={r.id} value={r.id} disabled>{r.codigo} — {r.tiendaCodigo ?? 'en tienda'} (activo)</option>
+                          ))}
+                        </optgroup>
                       )}
-
-                      {contSellada ? (
-                        /* Vista compacta sellada: timestamps + rendimiento + observación editables */
-                        <>
-                          {inc.contHoraActivacion && (
-                            <div style={{ marginBottom: '10px', display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 10px', background: 'rgba(100,116,139,0.08)', border: '0.5px solid rgba(100,116,139,0.3)', borderRadius: '6px', fontSize: '10px', color: 'var(--muted-foreground)' }}>
-                              <span>⏱</span>
-                              <span style={{ fontFamily: 'monospace', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                                <input type="time" disabled={!canManage}
-                                  value={editForm.contHoraActivacion?.slice(11,16) ?? ''}
-                                  onChange={e => setEdit('contHoraActivacion', (editForm.contHoraActivacion?.slice(0,11) ?? '') + e.target.value)}
-                                  style={{ background: 'transparent', border: 'none', borderBottom: canManage ? '1px dotted var(--muted-foreground)' : 'none', fontFamily: 'monospace', fontSize: '10px', color: 'var(--muted-foreground)', padding: '0', width: '62px', cursor: canManage ? 'pointer' : 'default', outline: 'none' }} />
-                                <span>→</span>
-                                <input type="time" disabled={!canManage}
-                                  value={editForm.contHoraDesactivacion?.slice(11,16) ?? ''}
-                                  onChange={e => setEdit('contHoraDesactivacion', (editForm.contHoraDesactivacion?.slice(0,11) ?? editForm.contHoraActivacion?.slice(0,11) ?? '') + e.target.value)}
-                                  style={{ background: 'transparent', border: 'none', borderBottom: canManage ? '1px dotted var(--muted-foreground)' : 'none', fontFamily: 'monospace', fontSize: '10px', color: 'var(--muted-foreground)', padding: '0', width: '62px', cursor: canManage ? 'pointer' : 'default', outline: 'none' }} />
-                              </span>
-                              <span style={{ fontSize: '9px' }}>Por: {editForm.contActivadoPor}</span>
-                            </div>
-                          )}
-                          <div style={{ marginBottom: '10px' }}>
-                            <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Rendimiento</label>
-                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                              {[{v:'EFECTIVO',l:'Efectivo 100%',bg:'#dcfce7',c:'#15803d'},{v:'PARCIAL',l:'Parcial 75%',bg:'#fef9c3',c:'#a16207'},{v:'NULO',l:'Nulo 0%',bg:'#fee2e2',c:'#b91c1c'}].map(({v,l,bg,c}) => {
-                                const sel = editForm.contRendimiento === v
-                                return <button key={v} type="button" disabled={contDis} onClick={() => setEdit('contRendimiento', v)} style={{ padding:'4px 10px',fontSize:'11px',borderRadius:'6px',border:`1px solid ${sel?c:'var(--border)'}`,cursor:contDis?'default':'pointer',background:sel?bg:'var(--card)',color:sel?c:'var(--muted-foreground)',fontWeight:sel?600:400 }}>{l}</button>
-                              })}
-                            </div>
-                          </div>
-                          <div>
-                            <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Observación</label>
-                            <textarea disabled={!canEditB} style={taStyle(!canEditB)}
-                              value={editForm.contObservacion ?? ''} onChange={e => setEdit('contObservacion', e.target.value)}
-                              placeholder="Describe el comportamiento de la contingencia..." />
-                          </div>
-                        </>
-                      ) : (
-                        /* Form completo cuando está activo */
-                        <>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '10px' }}>
-                            <div>
-                              <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Activado por</label>
-                              <div style={{ display: 'flex', gap: '6px' }}>
-                                {(['TIENDA','AGENTE','INFRAESTRUCTURA'] as const).map(opt => (
-                                  <button key={opt} type="button" disabled={contDis} onClick={() => setEdit('contActivadoPor', opt)}
-                                    style={{ padding: '5px 11px', fontSize: '11px', borderRadius: '6px', border: '1px solid var(--border)', cursor: contDis ? 'default' : 'pointer', fontWeight: editForm.contActivadoPor === opt ? 600 : 400, background: editForm.contActivadoPor === opt ? 'hsl(221,83%,45%)' : 'var(--card)', color: editForm.contActivadoPor === opt ? 'white' : 'var(--foreground)' }}>
-                                    {opt.charAt(0) + opt.slice(1).toLowerCase()}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                            <div>
-                              <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Hora de activación</label>
-                              <input type="datetime-local" disabled={contDis} style={iStyle(contDis)} value={editForm.contHoraActivacion ?? ''} onChange={e => setEdit('contHoraActivacion', e.target.value)} />
-                            </div>
-                          </div>
-                          <div style={{ marginBottom: '10px' }}>
-                            <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Rendimiento</label>
-                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                              {[{v:'EFECTIVO',l:'Efectivo 100%',bg:'#dcfce7',c:'#15803d'},{v:'PARCIAL',l:'Parcial 75%',bg:'#fef9c3',c:'#a16207'},{v:'NULO',l:'Nulo 0%',bg:'#fee2e2',c:'#b91c1c'}].map(({v,l,bg,c}) => {
-                                const sel = editForm.contRendimiento === v
-                                return <button key={v} type="button" disabled={contDis} onClick={() => setEdit('contRendimiento', v)} style={{ padding:'4px 10px',fontSize:'11px',borderRadius:'6px',border:`1px solid ${sel?c:'var(--border)'}`,cursor:contDis?'default':'pointer',background:sel?bg:'var(--card)',color:sel?c:'var(--muted-foreground)',fontWeight:sel?600:400 }}>{l}</button>
-                              })}
-                            </div>
-                          </div>
-                          <div>
-                            <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px', color: 'var(--muted-foreground)' }}>Observación</label>
-                            <textarea disabled={!canEditB}
-                              style={{ ...taStyle(!canEditB) }}
-                              value={editForm.contObservacion ?? ''}
-                              onChange={e => setEdit('contObservacion', e.target.value)}
-                              placeholder="Describe el comportamiento de la contingencia..." />
-                          </div>
-                        </>
+                      {otrosLugares.length > 0 && (
+                        <optgroup label="En almacén u otra tienda">
+                          {otrosLugares.map(r => (
+                            <option key={r.id} value={r.id} disabled>
+                              {r.codigo} — {r.estado === 'DISPONIBLE' ? (r.almacenActual ?? 'Almacén TI') : `${r.tiendaCodigo ?? 'otra tienda'} (inactivo)`}
+                            </option>
+                          ))}
+                        </optgroup>
                       )}
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
-
-            {/* Bloque Datos Móviles — colapsable */}
-            {(editForm.estadoOperacion === 'DATOS_MOVILES' || !!inc.movActivadoPor) && (() => {
-              const rend = editForm.movRendimiento
-              const rendLabel: Record<string,string> = { EFECTIVO:'Efectivo', PARCIAL:'Parcial', NULO:'Sin cobertura', EFECTIVA:'Efectiva', LIMITADA:'Limitada', NO_FUNCIONO:'No funcionó' }
-              const summary = [editForm.movActivadoPor && `Por: ${editForm.movActivadoPor}`, rend && rendLabel[rend]].filter(Boolean).join(' · ')
-              const movSellada = !!inc.movHoraDesactivacion
-              const movDis = !canEditB
-              return (
-                <div style={{ border: '1px solid var(--border)', borderRadius: '10px', marginBottom: '14px', overflow: 'hidden' }}>
-                  <button type="button" onClick={() => setShowMovBlock(v => !v)}
-                    style={{ width:'100%', display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', background:'var(--muted)', border:'none', cursor:'pointer', textAlign:'left' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
-                      <span style={{ fontSize:'12px', fontWeight:600, color:'var(--foreground)' }}>Datos móviles</span>
-                      {!showMovBlock && summary && <span style={{ fontSize:'10px', color:'var(--muted-foreground)' }}>{summary}</span>}
-                      {!showMovBlock && inc.movHoraActivacion && (() => {
-                        const fin = inc.movHoraDesactivacion ?? (isClosed ? inc.horaFin : null)
-                        const mins = fin
-                          ? Math.round((new Date(fin).getTime() - new Date(inc.movHoraActivacion).getTime()) / 60000)
-                          : Math.round((Date.now() - new Date(inc.movHoraActivacion).getTime()) / 60000)
-                        const horaStr = toDatetimeLocal(inc.movHoraActivacion).slice(11, 16)
-                        return <span style={{ fontSize:'10px', color: fin ? 'var(--muted-foreground)' : '#2563eb', fontFamily:'monospace' }}>· {horaStr} · {minToHM(mins)}{!fin ? ' ⏱' : ''}</span>
-                      })()}
-                    </div>
-                    <span style={{ fontSize:'10px', color:'var(--muted-foreground)' }}>{showMovBlock ? '▲' : '▼'}</span>
-                  </button>
-                  {showMovBlock && (
-                    <div style={{ padding:'14px', background:'var(--muted)' }}>
-                      {movSellada ? (
-                        /* Vista compacta sellada: timestamps + rendimiento + observación editables */
-                        <>
-                          {inc.movHoraActivacion && (
-                            <div style={{ marginBottom: '10px', display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 10px', background: 'rgba(100,116,139,0.08)', border: '0.5px solid rgba(100,116,139,0.3)', borderRadius: '6px', fontSize: '10px', color: 'var(--muted-foreground)' }}>
-                              <span>⏱</span>
-                              <span style={{ fontFamily: 'monospace', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                                <input type="time" disabled={!canManage}
-                                  value={editForm.movHoraActivacion?.slice(11,16) ?? ''}
-                                  onChange={e => setEdit('movHoraActivacion', (editForm.movHoraActivacion?.slice(0,11) ?? '') + e.target.value)}
-                                  style={{ background: 'transparent', border: 'none', borderBottom: canManage ? '1px dotted var(--muted-foreground)' : 'none', fontFamily: 'monospace', fontSize: '10px', color: 'var(--muted-foreground)', padding: '0', width: '62px', cursor: canManage ? 'pointer' : 'default', outline: 'none' }} />
-                                <span>→</span>
-                                <input type="time" disabled={!canManage}
-                                  value={editForm.movHoraDesactivacion?.slice(11,16) ?? ''}
-                                  onChange={e => setEdit('movHoraDesactivacion', (editForm.movHoraDesactivacion?.slice(0,11) ?? editForm.movHoraActivacion?.slice(0,11) ?? '') + e.target.value)}
-                                  style={{ background: 'transparent', border: 'none', borderBottom: canManage ? '1px dotted var(--muted-foreground)' : 'none', fontFamily: 'monospace', fontSize: '10px', color: 'var(--muted-foreground)', padding: '0', width: '62px', cursor: canManage ? 'pointer' : 'default', outline: 'none' }} />
-                              </span>
-                              <span style={{ fontSize: '9px' }}>Por: {editForm.movActivadoPor}</span>
-                            </div>
-                          )}
-                          <div style={{ marginBottom: '10px' }}>
-                            <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Rendimiento</label>
-                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                              {[{v:'EFECTIVO',l:'Efectivo 100%',bg:'#dcfce7',c:'#15803d'},{v:'PARCIAL',l:'Parcial 75%',bg:'#fef9c3',c:'#a16207'},{v:'NULO',l:'Nulo 0%',bg:'#fee2e2',c:'#b91c1c'}].map(({v,l,bg,c}) => {
-                                const sel = editForm.movRendimiento === v
-                                return <button key={v} type="button" disabled={movDis} onClick={() => setEdit('movRendimiento', v)} style={{ padding:'4px 10px',fontSize:'11px',borderRadius:'6px',border:`1px solid ${sel?c:'var(--border)'}`,cursor:movDis?'default':'pointer',background:sel?bg:'var(--card)',color:sel?c:'var(--muted-foreground)',fontWeight:sel?600:400 }}>{l}</button>
-                              })}
-                            </div>
-                          </div>
-                          <div>
-                            <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Observación</label>
-                            <textarea disabled={!canEditB} style={taStyle(!canEditB)} value={editForm.movObservacion ?? ''} onChange={e => setEdit('movObservacion', e.target.value)} placeholder="Describe el comportamiento de los datos móviles..." />
-                          </div>
-                        </>
-                      ) : (
-                        /* Form completo cuando está activo */
-                        <>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '10px' }}>
-                            <div>
-                              <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Activado por</label>
-                              <div style={{ display: 'flex', gap: '6px' }}>
-                                {(['TIENDA','AGENTE','INFRAESTRUCTURA'] as const).map(opt => (
-                                  <button key={opt} type="button" disabled={movDis} onClick={() => setEditForm((f: any) => ({ ...f, movActivadoPor: opt, movHoraActivacion: f.movHoraActivacion || toDatetimeLocal(new Date().toISOString()) }))}
-                                    style={{ padding:'5px 11px',fontSize:'11px',borderRadius:'6px',border:'1px solid var(--border)',cursor:movDis?'default':'pointer',fontWeight:editForm.movActivadoPor===opt?600:400,background:editForm.movActivadoPor===opt?'hsl(221,83%,45%)':'var(--card)',color:editForm.movActivadoPor===opt?'white':'var(--foreground)' }}>
-                                    {opt.charAt(0) + opt.slice(1).toLowerCase()}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                            <div>
-                              <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Hora de activación</label>
-                              <input type="datetime-local" disabled={movDis} style={iStyle(movDis)} value={editForm.movHoraActivacion ?? ''} onChange={e => setEdit('movHoraActivacion', e.target.value)} />
-                            </div>
-                          </div>
-                          <div style={{ marginBottom: '10px' }}>
-                            <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Rendimiento</label>
-                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                              {[{v:'EFECTIVO',l:'Efectivo 100%',bg:'#dcfce7',c:'#15803d'},{v:'PARCIAL',l:'Parcial 75%',bg:'#fef9c3',c:'#a16207'},{v:'NULO',l:'Nulo 0%',bg:'#fee2e2',c:'#b91c1c'}].map(({v,l,bg,c}) => {
-                                const sel = editForm.movRendimiento === v
-                                return <button key={v} type="button" disabled={movDis} onClick={() => setEdit('movRendimiento', v)} style={{ padding:'4px 10px',fontSize:'11px',borderRadius:'6px',border:`1px solid ${sel?c:'var(--border)'}`,cursor:movDis?'default':'pointer',background:sel?bg:'var(--card)',color:sel?c:'var(--muted-foreground)',fontWeight:sel?600:400 }}>{l}</button>
-                              })}
-                            </div>
-                          </div>
-                          <div>
-                            <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Observación</label>
-                            <textarea disabled={movDis} style={taStyle(movDis)} value={editForm.movObservacion ?? ''} onChange={e => setEdit('movObservacion', e.target.value)} placeholder="Describe el comportamiento de los datos móviles..." />
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
-
-            {/* Bloque Boleta Manual — colapsable */}
-            {(editForm.estadoOperacion === 'BOLETA_MANUAL' || !!inc.boletaManual) && (() => {
-              const rend = editForm.contRendimiento
-              const rendLabel: Record<string,string> = { TOTAL:'Total', PARCIAL:'Parcial', NULO:'Nulo' }
-              const summary = [editForm.boletaHoraActivacion && 'Hora registrada', rend && rendLabel[rend]].filter(Boolean).join(' · ')
-              return (
-                <div style={{ border: '1px solid var(--border)', borderRadius: '10px', marginBottom: '14px', overflow: 'hidden' }}>
-                  <button type="button" onClick={() => setShowBoletaBlock(v => !v)}
-                    style={{ width:'100%', display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', background:'var(--muted)', border:'none', cursor:'pointer', textAlign:'left' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
-                      <span style={{ fontSize:'12px', fontWeight:600, color:'var(--foreground)' }}>Boleta manual</span>
-                      {!showBoletaBlock && summary && <span style={{ fontSize:'10px', color:'var(--muted-foreground)' }}>{summary}</span>}
-                    </div>
-                    <span style={{ fontSize:'10px', color:'var(--muted-foreground)' }}>{showBoletaBlock ? '▲' : '▼'}</span>
-                  </button>
-                  {showBoletaBlock && (
-                    <div style={{ padding:'14px', background:'var(--muted)' }}>
-                      <div style={{ marginBottom: '12px' }}>
-                        <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Hora de activación manual</label>
-                        <input type="datetime-local" disabled={!canEditB} style={iStyle(!canEditB)} value={editForm.boletaHoraActivacion ?? ''} onChange={e => setEdit('boletaHoraActivacion', e.target.value)} />
+                    </select>
+                    {enEstaTienda.length === 0 && (
+                      <div style={{ fontSize: '10px', color: '#92400E', marginTop: '4px', opacity: 0.8 }}>
+                        Sin routers en esta tienda. Primero despliega un router desde Routers Contingencia TI.
                       </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Rendimiento</label>
-                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                          {[{v:'TOTAL',l:'Total 100%',bg:'#dcfce7',c:'#15803d'},{v:'PARCIAL',l:'Parcial 75%',bg:'#fef9c3',c:'#a16207'},{v:'NULO',l:'Nulo 0%',bg:'#fee2e2',c:'#b91c1c'}].map(({v,l,bg,c}) => {
-                            const sel = editForm.contRendimiento === v
-                            return <button key={v} type="button" disabled={!canEditB} onClick={() => setEdit('contRendimiento', v)} style={{ padding:'4px 10px',fontSize:'11px',borderRadius:'6px',border:`1px solid ${sel?c:'var(--border)'}`,cursor:!canEditB?'default':'pointer',background:sel?bg:'var(--card)',color:sel?c:'var(--muted-foreground)',fontWeight:sel?600:400 }}>{l}</button>
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
+                )
+              })()}
+              {mitigacionTipo !== 'SIN_MITIGACION' && (
+                <div style={{ marginBottom: '10px' }}>
+                  <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Rendimiento</label>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {[{ v: 'EFECTIVO', l: 'Efectivo', bg: '#dcfce7', c: '#15803d' }, { v: 'PARCIAL', l: 'Parcial', bg: '#fef9c3', c: '#a16207' }, { v: 'NULO', l: 'Nulo', bg: '#fee2e2', c: '#b91c1c' }].map(({ v, l, bg, c }) => {
+                      const sel = mitigacionRendimiento === v
+                      const dis = !canEditB || isClosed
+                      return (
+                        <button key={v} type="button" disabled={dis} onClick={() => setMitigacionRendimiento(v)}
+                          style={{ padding: '4px 10px', fontSize: '11px', borderRadius: '6px', border: `1px solid ${sel ? c : 'var(--border)'}`, cursor: dis ? 'default' : 'pointer', background: sel ? bg : 'var(--card)', color: sel ? c : 'var(--muted-foreground)', fontWeight: sel ? 600 : 400 }}>
+                          {l}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+              <button type="button" disabled={!canEditB || isClosed || savingMitigacion} onClick={handleGuardarMitigacion}
+                style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 600, borderRadius: '6px', border: 'none', cursor: (!canEditB || isClosed || savingMitigacion) ? 'default' : 'pointer', background: 'hsl(221,83%,45%)', color: 'white', opacity: (!canEditB || isClosed) ? 0.5 : 1 }}>
+                {savingMitigacion ? 'Guardando...' : 'Guardar mitigación'}
+              </button>
+              {mitigacionError && <div style={{ color: '#b91c1c', fontSize: '11px', marginTop: '6px' }}>{mitigacionError}</div>}
+            </div>
+
+            {/* Desglose por tramos — Fase 4 */}
+            {tramos.length > 0 && (() => {
+              const claseLabel: Record<string, string> = {
+                SIN_MITIGACION: 'Sin mitigación', ROUTER_PROPIO: 'Router propio', ROUTER_EXTERNO: 'Router externo',
+                DATOS_MOVILES: 'Datos móviles', BOLETA_MANUAL: 'Boleta manual',
+              }
+              const fmtHora = (v: string) => v ? new Date(v).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'
+              const fmtDuracion = (desde: string, hasta: string | null) => {
+                const finMs = hasta ? new Date(hasta).getTime() : Date.now()
+                const min = Math.round((finMs - new Date(desde).getTime()) / 60000)
+                return minToHM(min)
+              }
+              return (
+                <div style={{ marginBottom: '14px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--foreground)', marginBottom: '10px' }}>Desglose por tramos</div>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--muted-foreground)', textAlign: 'left' }}>
+                          <th style={{ padding: '6px 8px', fontWeight: 600 }}>Desde</th>
+                          <th style={{ padding: '6px 8px', fontWeight: 600 }}>Hasta</th>
+                          <th style={{ padding: '6px 8px', fontWeight: 600 }}>Duración</th>
+                          <th style={{ padding: '6px 8px', fontWeight: 600 }}>Mitigación</th>
+                          <th style={{ padding: '6px 8px', fontWeight: 600 }}>Factor</th>
+                          <th style={{ padding: '6px 8px', fontWeight: 600 }}>IEI del tramo</th>
+                          {canEditTramos && <th style={{ padding: '6px 8px', fontWeight: 600 }}></th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tramos.map((t: any) => {
+                          const abierto = t.hasta == null
+                          const ieiTramo = abierto ? ieiTramoAbiertoLive : Number(t.ieTramo ?? 0)
+                          const enEdicion = editandoTramoId === t.id
+                          return (
+                            <Fragment key={t.id}>
+                              <tr style={{ borderBottom: '1px solid var(--border)', background: abierto ? 'rgba(245,158,11,0.06)' : undefined }}>
+                                <td style={{ padding: '6px 8px' }}>{fmtHora(t.desde)}</td>
+                                <td style={{ padding: '6px 8px' }}>{abierto ? <span style={{ color: '#f59e0b', fontWeight: 600 }}>En curso</span> : fmtHora(t.hasta)}</td>
+                                <td style={{ padding: '6px 8px' }}>{fmtDuracion(t.desde, t.hasta)}</td>
+                                <td style={{ padding: '6px 8px' }}>{claseLabel[t.tipo] ?? t.tipo}</td>
+                                <td style={{ padding: '6px 8px', fontFamily: 'monospace' }}>{Number(t.factor).toFixed(2)}</td>
+                                <td style={{ padding: '6px 8px', fontFamily: 'monospace' }}>S/ {Math.round(ieiTramo).toLocaleString('es-PE')}</td>
+                                {canEditTramos && (
+                                  <td style={{ padding: '6px 8px' }}>
+                                    {puedeEditarTramo(canEditTramos, t) && !enEdicion && (
+                                      <button type="button" onClick={() => iniciarEdicionTramo(t)}
+                                        style={{ padding: '3px 8px', fontSize: '10px', borderRadius: '5px', border: '1px solid var(--border)', background: 'var(--card)', cursor: 'pointer', color: 'var(--foreground)' }}>
+                                        Editar
+                                      </button>
+                                    )}
+                                  </td>
+                                )}
+                              </tr>
+                              {enEdicion && (
+                                <tr key={`${t.id}-edit`}>
+                                  <td colSpan={canEditTramos ? 7 : 6} style={{ padding: '10px 8px', background: 'var(--card)', border: '1px solid var(--border)' }}>
+                                    <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                                      <div>
+                                        <label style={{ display: 'block', fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '4px' }}>Desde</label>
+                                        <input type="datetime-local" style={iStyle(false)} value={editTramoDesde} onChange={e => setEditTramoDesde(e.target.value)} />
+                                      </div>
+                                      <div>
+                                        <label style={{ display: 'block', fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '4px' }}>Hasta</label>
+                                        <input type="datetime-local" style={iStyle(false)} value={editTramoHasta} onChange={e => setEditTramoHasta(e.target.value)} />
+                                      </div>
+                                      <button type="button" disabled={savingTramoEdit} onClick={() => handleGuardarTramoEdit(t.id)}
+                                        style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 600, borderRadius: '6px', border: 'none', cursor: savingTramoEdit ? 'default' : 'pointer', background: 'hsl(221,83%,45%)', color: 'white' }}>
+                                        {savingTramoEdit ? 'Guardando...' : 'Guardar'}
+                                      </button>
+                                      <button type="button" onClick={() => setEditandoTramoId(null)}
+                                        style={{ padding: '6px 14px', fontSize: '11px', borderRadius: '6px', border: '1px solid var(--border)', cursor: 'pointer', background: 'var(--card)', color: 'var(--foreground)' }}>
+                                        Cancelar
+                                      </button>
+                                    </div>
+                                    {tramoEditError && <div style={{ color: '#b91c1c', fontSize: '11px', marginTop: '6px' }}>{tramoEditError}</div>}
+                                  </td>
+                                </tr>
+                              )}
+                            </Fragment>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )
             })()}
+
 
             {/* Descartes */}
             <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px', marginBottom: '14px' }}>
@@ -1637,65 +1629,14 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
       {(() => {
         const esResuelto = inc.estado === 'RESUELTO'
         const MARGEN = DASHBOARD_CONFIG.MARGEN_BRUTO
-        const FACTOR_BASE: Record<string,number> = { CAIDA_TOTAL:1.00, INTERMITENCIA:0.50, LENTITUD:0.30, CORTE_ELECTRICO:1.00 }
-        // Factores desde la fuente única de verdad (lib/impacto-calc.ts) — no duplicar la fórmula aquí
-        const nC = (r:string|null|undefined) => normContFactor(r)
-        const nB = (r:string|null|undefined) => normBoletaFactor(r, inc.tipo)
-        const tsMs = (v:any) => v ? new Date(v).getTime() : null
 
-        // Cálculo en curso (activo) usando Date.now()
-        let ieiEnCurso = 0
-        let ventaHoraEnCurso = 0
-        const segmentosEnCurso: {desdeMs:number;hastaMs:number;horas:number;factor:number;descripcion:string;ieiParcial:number}[] = []
-        if (!esResuelto && inc.tiendaVentaHoraSoles) {
-          const nowMs  = Date.now()
-          void tick  // dependencia para re-render cada segundo
-          const dow = new Date(inc.horaRegistro).getDay()
-          const isFDS = dow===0||dow===5||dow===6
-          ventaHoraEnCurso = isFDS
-            ? Number(inc.tiendaVentaHoraFdsSoles ?? inc.tiendaVentaHoraSoles)
-            : Number(inc.tiendaVentaHoraSoles ?? inc.tiendaVentaHoraFdsSoles)
-          const startMs = new Date(inc.horaRegistro).getTime()
-          // contHoraActivacion es compartido por BOLETA_MANUAL — solo aplica como router si contActivadoPor está seteado
-          const contStartMs = inc.contActivadoPor ? tsMs(inc.contHoraActivacion) : null
-          const contEndMs   = tsMs(inc.contHoraDesactivacion)
-          const movStartMs  = tsMs(inc.movHoraActivacion)
-          const movEndMs    = tsMs(inc.movHoraDesactivacion)
-          const contF = contStartMs !== null ? nC(inc.contRendimiento) : null
-          const movF  = movStartMs  !== null ? nC(inc.movRendimiento)  : null
-          const bolF  = inc.boletaManual ? nB(inc.boletaRendimiento) : null
-          const bolStartMs = inc.boletaManual
-            ? (inc.boletaHoraActivacion ? tsMs(inc.boletaHoraActivacion) : startMs)
-            : null
-          const bpSet = new Set([startMs, nowMs])
-          const addBp = (t:number|null) => { if(t&&t>startMs&&t<nowMs)bpSet.add(t) }
-          addBp(contStartMs);addBp(contEndMs);addBp(movStartMs);addBp(movEndMs);addBp(bolStartMs)
-          const bps = Array.from(bpSet).sort((a,b)=>a-b)
-          for(let i=0;i<bps.length-1;i++){
-            const segS=bps[i], segE=bps[i+1]
-            const mid=(segS+segE)/2, h=(segE-segS)/3600000
-            const opts:{f:number;label:string}[]=[]
-            const bolActiva = bolF!==null && bolStartMs!==null && mid>=bolStartMs
-            if(inc.tipo==='CORTE_ELECTRICO'){
-              if(bolActiva) opts.push({f:bolF!, label:`boleta ${inc.boletaRendimiento?.toLowerCase()??'efectiva'}`})
-              else opts.push({f:1.00, label:'sin mitigación'})
-            } else {
-              if(contF!==null&&contStartMs!==null&&mid>=contStartMs&&(contEndMs===null||mid<contEndMs))
-                opts.push({f:contF, label:`router ${inc.contEsExterno?'externo':'propio'}${inc.contRendimiento?' '+inc.contRendimiento.toLowerCase():''}`})
-              if(movF!==null&&movStartMs!==null&&mid>=movStartMs&&(movEndMs===null||mid<movEndMs))
-                opts.push({f:movF, label:`datos móviles${inc.movRendimiento?' '+inc.movRendimiento.toLowerCase():''}`})
-              if(bolActiva) opts.push({f:bolF!, label:`boleta ${inc.boletaRendimiento?.toLowerCase()??'efectiva'}`})
-              if(!opts.length) opts.push({f:FACTOR_BASE[inc.tipo]??1.00, label:'sin mitigación'})
-            }
-            const best=opts.reduce((a,b)=>a.f<=b.f?a:b)
-            const segIEI=ventaHoraEnCurso*h*MARGEN*best.f
-            ieiEnCurso+=segIEI
-            segmentosEnCurso.push({desdeMs:segS,hastaMs:segE,horas:Math.round(h*100)/100,factor:best.f,descripcion:best.label,ieiParcial:Math.round(segIEI)})
-          }
-          ieiEnCurso = Math.round(ieiEnCurso)
-        }
+        // Cálculo en curso (activo) usando Date.now() — lógica en calcIeiEnCurso arriba.
+        void tick  // dependencia para re-render cada segundo
+        const { ieiEnCurso, ventaHoraEnCurso, segmentosEnCurso } = (!esResuelto && inc.tiendaVentaHoraSoles)
+          ? calcIeiEnCurso(inc, Date.now())
+          : { ieiEnCurso: 0, ventaHoraEnCurso: 0, segmentosEnCurso: [] as SegmentoIeiEnCurso[] }
 
-        const tieneIei = esResuelto ? !!inc.ieiCalc : !!inc.tiendaVentaHoraSoles
+        const tieneIei = tramos.length > 0 || (esResuelto ? !!inc.ieiCalc : !!inc.tiendaVentaHoraSoles)
         if (!tieneIei) return null
 
         const fmtMs = (ms:number) => new Date(ms).toLocaleTimeString('es-PE',{timeZone:'America/Lima',hour:'2-digit',minute:'2-digit'})
@@ -1704,7 +1645,12 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
         // IEI acumulado de periodos anteriores (reaperturas). En curso se suma al
         // periodo actual; al resolver el backend ya lo incluye en impactoEstimado.
         const ieiAcumPrev   = Number(inc.ieiCalc?.ieiAcumulado ?? 0)
-        const displayIei    = esResuelto ? (inc.ieiCalc?.impactoEstimado ?? 0) : (ieiEnCurso + ieiAcumPrev)
+        // Fase 4 (Paso 3 de frontend) — el total deja de venir del cálculo cliente
+        // viejo (cont_*/mov_*/boleta_*) en cuanto el incidente ya tiene tramos:
+        // usa SUM(ie_tramo) + el tramo abierto en vivo (ieiTotalTramos, arriba).
+        // Sin tramos todavía (incidentes que no pasaron por el flujo nuevo) cae
+        // al cálculo viejo, para no dejarlos en S/ 0.
+        const displayIei    = tramos.length > 0 ? ieiTotalTramos : (esResuelto ? (inc.ieiCalc?.impactoEstimado ?? 0) : (ieiEnCurso + ieiAcumPrev))
         const displayVH     = esResuelto ? inc.ieiCalc?.ventaHora : ventaHoraEnCurso
         const displaySegs   = esResuelto ? (inc.ieiCalc?.segmentos ?? []) : segmentosEnCurso
         const displayMotivo = esResuelto ? inc.ieiCalc?.motivoFactor : null
@@ -1766,7 +1712,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   {displaySegs.length > 1 && (
                     <div style={{ background: 'var(--muted)', borderRadius: '8px', overflow: 'hidden' }}>
                       <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '7px 12px', borderBottom: '0.5px solid var(--border)' }}>
-                        Desglose por tramos
+                        Detalle del cálculo (motor viejo)
                       </div>
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
                         <thead>

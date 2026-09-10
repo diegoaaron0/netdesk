@@ -250,12 +250,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       venta_hora_soles:        inc.tiendaVentaHoraSoles,
       venta_hora_fds_soles:    inc.tiendaVentaHoraFdsSoles,
       cluster:                 inc.tiendaCluster,
-      // contHoraActivacion es compartido con BOLETA_MANUAL — solo pasar como router si contActivadoPor está seteado
+      // contHoraActivacion solo cuenta como activación de router si contActivadoPor
+      // está seteado (evita arrastrar un timestamp viejo tras una desactivación).
+      // Mismo gate para movHoraActivacion/movActivadoPor — bug real confirmado en
+      // producción: sin este chequeo, un timestamp fantasma en mov_hora_activacion
+      // (sin mov_activado_por) se contaba como datos móviles activo.
+      // Boleta manual tiene su propio campo, boletaHoraActivacion — no comparte esta columna.
       cont_hora_activacion:    inc.contActivadoPor ? inc.contHoraActivacion : null,
       cont_hora_desactivacion: inc.contHoraDesactivacion,
       cont_rendimiento:        inc.contRendimiento,
       cont_es_externo:         inc.contEsExterno,
-      mov_hora_activacion:     inc.movHoraActivacion,
+      mov_hora_activacion:     inc.movActivadoPor ? inc.movHoraActivacion : null,
       mov_hora_desactivacion:  inc.movHoraDesactivacion,
       mov_rendimiento:         inc.movRendimiento,
       boleta_manual:            inc.boletaManual,

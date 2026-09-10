@@ -5,7 +5,7 @@
  * La suma es sobre tramos de tiempo en que las mitigaciones activas cambian.
  *
  * Factores de mitigación de red (router propio, router externo, datos móviles):
- *   EFECTIVO → 0.00  |  PARCIAL → 0.20  |  NULO → 1.00
+ *   EFECTIVO → 0.00  |  PARCIAL → 0.50  |  NULO → 1.00
  *
  * Factores boleta manual (conectividad):
  *   EFECTIVA → 0.10  |  PARCIAL → 0.30  |  NULA → 1.00
@@ -30,10 +30,10 @@ import { DASHBOARD_CONFIG } from './dashboard-config'
 // ─── Normalización de rendimiento ─────────────────────────────────────────────
 
 export function normContFactor(rend: string | null | undefined): number {
-  if (!rend) return 0.20  // activada pero sin rendimiento registrado → parcial
+  if (!rend) return 0.50  // activada pero sin rendimiento registrado → parcial
   const r = rend.toUpperCase()
   if (r === 'EFECTIVO') return 0.00
-  if (r === 'PARCIAL')  return 0.20
+  if (r === 'PARCIAL')  return 0.50
   return 1.00  // NULO (o cualquier valor no reconocido)
 }
 
@@ -126,7 +126,7 @@ function toDate(v: Date | string | null | undefined): Date | null {
   return v instanceof Date ? v : new Date(v as string)
 }
 
-function isActiveAt(start: Date, end: Date | null, pointMs: number): boolean {
+export function isActiveAt(start: Date, end: Date | null, pointMs: number): boolean {
   if (pointMs < start.getTime()) return false
   if (!end) return true  // aún activa al finalizar el incidente
   return pointMs < end.getTime()
@@ -135,12 +135,25 @@ function isActiveAt(start: Date, end: Date | null, pointMs: number): boolean {
 /** Día de la semana (0=dom..6=sab) en hora de Lima, no en la zona del servidor.
  *  hora_registro se guarda en UTC; getDay() del servidor podía caer en otro día
  *  cerca de medianoche y elegir la tarifa equivocada (L-J vs FDS). */
-function diaSemanaLima(d: Date): number {
+export function diaSemanaLima(d: Date): number {
   const wd = d.toLocaleDateString('en-US', { timeZone: 'America/Lima', weekday: 'short' })
   return ({ Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 } as Record<string, number>)[wd] ?? 1
 }
 
-function resolveVentaHora(row: ImpactoInputRow): number | null {
+/** Día calendario (YYYY-MM-DD) en hora de Lima, no en la zona del servidor
+ *  ni en UTC. Un `d.toISOString().slice(0,10)` toma el día UTC — entre 00:00
+ *  y 04:59 UTC (7pm-medianoche Lima) eso es un día distinto al de Lima. */
+export function fechaLimaStr(d: Date): string {
+  return d.toLocaleDateString('en-CA', { timeZone: 'America/Lima' })
+}
+
+export type VentaHoraInput = Pick<ImpactoInputRow,
+  'hora_registro' | 'venta_hora_soles' | 'venta_hora_fds_soles' | 'cluster' | 'ventaHoraResolvida'>
+
+/** Exportado para reutilizarse fuera de calcImpactoRow — p.ej. la migración
+ *  histórica de tramos necesita resolver la MISMA venta/hora una sola vez
+ *  por ciclo (no por tramo), igual que hace calcImpactoRow hoy. */
+export function resolveVentaHora(row: VentaHoraInput): number | null {
   if (row.ventaHoraResolvida !== undefined) return row.ventaHoraResolvida ?? null
   const d   = toDate(row.hora_registro)
   const dow = d ? diaSemanaLima(d) : 1  // 0=dom, 1-4=lun-jue, 5=vie, 6=sab — en hora Lima
@@ -161,6 +174,72 @@ function resolveVentaHora(row: ImpactoInputRow): number | null {
     if (fb != null) return fb
   }
   return null
+}
+
+// ─── calcImpactoEnCurso ─────────────────────────────────────────────────────
+// Puerto directo de calcIeiLive (antes en app/(dashboard)/dashboard/page.tsx).
+// Fallback del ticker del dashboard operativo para incidentes ABIERTOS que
+// todavía no tienen ningún tramo (no tocados por el flujo de mitigación por
+// tramos) — sin esto quedarían en S/0 mientras el resto de la cola ya usa el
+// cálculo por tramos. Nombres de campo en snake_case porque consume filas SQL
+// crudas del endpoint, igual que las hacía calcIeiLive.
+
+export interface ImpactoEnCursoInput {
+  iei_venta_hora?:          number | string | null
+  hora_registro:            Date | string
+  tipo:                     string
+  cont_activado_por?:       string | null
+  cont_hora_activacion?:    Date | string | null
+  cont_hora_desactivacion?: Date | string | null
+  cont_rendimiento?:        string | null
+  mov_activado_por?:        string | null
+  mov_hora_activacion?:     Date | string | null
+  mov_hora_desactivacion?:  Date | string | null
+  mov_rendimiento?:         string | null
+  boleta_manual?:           boolean | null
+  boleta_rendimiento?:      string | null
+  boleta_hora_activacion?:  Date | string | null
+}
+
+export function calcImpactoEnCurso(row: ImpactoEnCursoInput, nowMs: number): number {
+  const vh = row.iei_venta_hora ? Number(row.iei_venta_hora) : 0
+  if (!vh) return 0
+  const startMs = new Date(row.hora_registro).getTime()
+  if (nowMs <= startMs) return 0
+  const contStartMs = row.cont_hora_activacion ? new Date(row.cont_hora_activacion).getTime() : null
+  const contEndMs   = row.cont_hora_desactivacion ? new Date(row.cont_hora_desactivacion).getTime() : null
+  // mov_hora_activacion solo cuenta como activación si mov_activado_por está
+  // seteado — bug real confirmado en producción: un timestamp fantasma en
+  // mov_hora_activacion (sin mov_activado_por) se contaba como activo.
+  const movStartMs = row.mov_activado_por ? new Date(row.mov_hora_activacion!).getTime() : null
+  const movEndMs   = row.mov_hora_desactivacion ? new Date(row.mov_hora_desactivacion).getTime() : null
+  const contF = contStartMs !== null ? normContFactor(row.cont_rendimiento) : null
+  const movF  = movStartMs  !== null ? normContFactor(row.mov_rendimiento)  : null
+  const bolF  = row.boleta_manual ? normBoletaFactor(row.boleta_rendimiento, row.tipo) : null
+  const bolStartMs = row.boleta_manual
+    ? (row.boleta_hora_activacion ? new Date(row.boleta_hora_activacion).getTime() : startMs)
+    : null
+  const bpSet = new Set([startMs, nowMs])
+  const addBp = (t: number | null) => { if (t && t > startMs && t < nowMs) bpSet.add(t) }
+  addBp(contStartMs); addBp(contEndMs); addBp(movStartMs); addBp(movEndMs); addBp(bolStartMs)
+  const bps = Array.from(bpSet).sort((a, b) => a - b)
+  let iei = 0
+  for (let i = 0; i < bps.length - 1; i++) {
+    const mid = (bps[i] + bps[i + 1]) / 2
+    const h   = (bps[i + 1] - bps[i]) / 3600000
+    const opts: number[] = []
+    const bolActiva = bolF !== null && bolStartMs !== null && mid >= bolStartMs
+    if (row.tipo === 'CORTE_ELECTRICO') {
+      opts.push(bolActiva ? bolF! : 1.00)
+    } else {
+      if (contF !== null && contStartMs !== null && mid >= contStartMs && (contEndMs === null || mid < contEndMs)) opts.push(contF)
+      if (movF  !== null && movStartMs  !== null && mid >= movStartMs  && (movEndMs  === null || mid < movEndMs))  opts.push(movF)
+      if (bolActiva) opts.push(bolF!)
+      if (!opts.length) opts.push(FACTOR_BASE[row.tipo] ?? 1.00)
+    }
+    iei += vh * h * DASHBOARD_CONFIG.MARGEN_BRUTO * Math.min(...opts)
+  }
+  return Math.round(iei)
 }
 
 // ─── Función principal ────────────────────────────────────────────────────────

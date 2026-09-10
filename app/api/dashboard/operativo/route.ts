@@ -4,10 +4,12 @@ import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { SLA_RESOLUCION_DEFAULT_MIN } from '@/lib/sla-core'
+import { calcIeTramo, type TipoMitigacionTramo } from '@/lib/mitigacion-tramos'
+import { calcImpactoEnCurso } from '@/lib/impacto-calc'
 
-function getEstadoOp(tipo: string, horaRegistro: Date | string, pendienteProveedor: boolean, estadoDB: string, nowMs: number) {
+export function getEstadoOp(tipo: string, horaRegistro: Date | string, pendienteProveedor: boolean, estadoDB: string, nowMs: number, slaResolucionOverrideMin?: number | null) {
   const minutos = (nowMs - new Date(horaRegistro).getTime()) / 60000
-  const slaLimite = SLA_RESOLUCION_DEFAULT_MIN
+  const slaLimite = slaResolucionOverrideMin ?? SLA_RESOLUCION_DEFAULT_MIN
   const pct = minutos / slaLimite
   let estadoOp: string
   if (pct >= 1.0) estadoOp = 'SLA_VENCIDO'
@@ -34,7 +36,7 @@ export async function GET(req: NextRequest) {
   const [y, m, d]  = fechaLima.split('-').map(Number)
   const siguienteIso = new Date(Date.UTC(y, m - 1, d + 1, 5, 0, 0, 0)).toISOString()
 
-  const [activosRows, resueltoRows, agentesRows, incCreadosRows, escRows, respRows, resolRows, canceladosRows, cerradosRows, contRows, creadosHoyRows, contStandaloneRows, movRows, boletaRows, contActRows] = await Promise.all([
+  const [activosRows, resueltoRows, agentesRows, incCreadosRows, escRows, respRows, resolRows, canceladosRows, cerradosRows, contRows, creadosHoyRows, contStandaloneRows, movRows, boletaRows, contActRows, tramosActivosRows] = await Promise.all([
     db.execute(sql`
       SELECT
         i.id,
@@ -65,6 +67,7 @@ export async function GET(req: NextRequest) {
         (i.cont_hora_desactivacion AT TIME ZONE 'UTC') AS cont_hora_desactivacion,
         i.cont_rendimiento,
         i.cont_es_externo,
+        i.mov_activado_por,
         (i.mov_hora_activacion    AT TIME ZONE 'UTC') AS mov_hora_activacion,
         (i.mov_hora_desactivacion AT TIME ZONE 'UTC') AS mov_hora_desactivacion,
         i.mov_rendimiento,
@@ -85,7 +88,12 @@ export async function GET(req: NextRequest) {
           WHEN EXTRACT(DOW FROM i.hora_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima') IN (0,5,6)
           THEN COALESCE(t.venta_hora_fds_soles, t.venta_hora_soles)
           ELSE COALESCE(t.venta_hora_soles, t.venta_hora_fds_soles)
-        END AS iei_venta_hora
+        END AS iei_venta_hora,
+        -- venta/hora cruda de la tienda (L-J y V-D) — necesaria para calcIeTramo,
+        -- que resuelve la tarifa según el día de INICIO DE CADA TRAMO, no del
+        -- día de registro del incidente (puede ser un día distinto).
+        t.venta_hora_soles     AS tienda_venta_hora_soles,
+        t.venta_hora_fds_soles AS tienda_venta_hora_fds_soles
       FROM incidentes i
       JOIN tiendas   t ON i.tienda_id           = t.id
       JOIN usuarios  u ON i.registrado_por_id   = u.id
@@ -130,7 +138,20 @@ export async function GET(req: NextRequest) {
         t.cluster  AS tienda_cluster,
         COALESCE(pi.nombre, pt.nombre) AS proveedor_nombre,
         (SELECT tiempo_respuesta_sla  FROM fichas WHERE id = COALESCE(i.ficha_id, t.ficha_activa_id) LIMIT 1) AS sla_respuesta_override,
-        (SELECT tiempo_resolucion_sla FROM fichas WHERE id = COALESCE(i.ficha_id, t.ficha_activa_id) LIMIT 1) AS sla_resolucion_override
+        (SELECT tiempo_resolucion_sla FROM fichas WHERE id = COALESCE(i.ficha_id, t.ficha_activa_id) LIMIT 1) AS sla_resolucion_override,
+        i.cont_activado_por,
+        i.cont_es_externo,
+        i.cont_rendimiento,
+        i.mov_activado_por,
+        i.mov_rendimiento,
+        i.boleta_manual,
+        i.boleta_rendimiento,
+        -- venta/hora según día de semana del incidente (0=dom,5=vie,6=sab = FDS) — mismo criterio que la query de activos
+        CASE
+          WHEN EXTRACT(DOW FROM i.hora_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima') IN (0,5,6)
+          THEN COALESCE(t.venta_hora_fds_soles, t.venta_hora_soles)
+          ELSE COALESCE(t.venta_hora_soles, t.venta_hora_fds_soles)
+        END AS iei_venta_hora
       FROM incidentes i
       JOIN usuarios u ON i.registrado_por_id = u.id
       JOIN tiendas  t ON i.tienda_id         = t.id
@@ -396,6 +417,23 @@ export async function GET(req: NextRequest) {
       ) sub
       ORDER BY hora DESC LIMIT 30
     `),
+
+    // ── Tramos de mitigación de los incidentes activos (Fase 4) ─────────────
+    // Mismo filtro que la query de "activos" de arriba, para no depender de
+    // los ids ya resueltos (permite que esta query corra en paralelo con esa).
+    db.execute(sql`
+      SELECT
+        tr.incidente_id, tr.tipo, tr.factor,
+        (tr.desde AT TIME ZONE 'UTC') AS desde,
+        (tr.hasta AT TIME ZONE 'UTC') AS hasta,
+        tr.ie_tramo
+      FROM incidente_mitigacion_tramos tr
+      JOIN incidentes i ON tr.incidente_id = i.id
+      WHERE ${isToday
+        ? sql`i.estado NOT IN ('RESUELTO','CANCELADO','CERRADO')`
+        : sql`i.hora_registro >= ${diaIso}::timestamptz AND i.hora_registro < ${siguienteIso}::timestamptz AND i.estado NOT IN ('RESUELTO','CANCELADO','CERRADO')`
+      }
+    `),
   ])
 
   const activos  = activosRows as any[]
@@ -432,13 +470,39 @@ export async function GET(req: NextRequest) {
   const contingenciasActivas = [...contInc, ...contMov, ...contBoleta, ...contStd]
     .sort((a: any, b: any) => new Date(a.cont_hora_activacion ?? a.hora_activacion).getTime() - new Date(b.cont_hora_activacion ?? b.hora_activacion).getTime())
 
+  // IEI por incidente — Fase 4: mismo criterio que "Desglose por tramos" del
+  // detalle de incidente. Si el incidente ya tiene tramos: SUM(ie_tramo de los
+  // cerrados) + IEI en vivo del tramo abierto (calcIeTramo, misma función que
+  // usa el endpoint de mitigación al sellar un tramo). Si todavía no tiene
+  // ningún tramo (no tocado por el flujo nuevo): fallback al cálculo viejo
+  // (calcImpactoEnCurso) para no dejarlo en S/0.
+  const tramosPorIncidente = new Map<string, any[]>()
+  for (const t of tramosActivosRows as any[]) {
+    if (!tramosPorIncidente.has(t.incidente_id)) tramosPorIncidente.set(t.incidente_id, [])
+    tramosPorIncidente.get(t.incidente_id)!.push(t)
+  }
+  const ahora = new Date(nowMs)
+
   const activosConEstado = activos.map((inc: any) => {
-    const d = getEstadoOp(inc.tipo, inc.hora_registro, inc.pendiente_proveedor, inc.estado, nowMs)
+    const d = getEstadoOp(inc.tipo, inc.hora_registro, inc.pendiente_proveedor, inc.estado, nowMs, inc.sla_resolucion_override)
     const refMs = inc.ultimo_movimiento
       ? new Date(inc.ultimo_movimiento).getTime()
       : new Date(inc.hora_registro).getTime()
     const sinMovimientoMin = Math.round((nowMs - refMs) / 60000)
-    return { ...inc, ...d, sinMovimientoMin, sinMovimiento: sinMovimientoMin > 120 }
+
+    const tramos = tramosPorIncidente.get(inc.id) ?? []
+    const tiendaVenta = { ventaHoraSoles: inc.tienda_venta_hora_soles, ventaHoraFdsSoles: inc.tienda_venta_hora_fds_soles }
+    const ieiCalculado = tramos.length > 0
+      ? tramos.reduce((sum: number, t: any) => {
+          if (t.hasta != null) return sum + Number(t.ie_tramo ?? 0)
+          return sum + calcIeTramo(
+            { tipo: t.tipo as TipoMitigacionTramo, factor: t.factor, desde: t.desde, hasta: null, tipoIncidente: inc.tipo },
+            tiendaVenta, ahora,
+          )
+        }, 0)
+      : calcImpactoEnCurso(inc, nowMs)
+
+    return { ...inc, ...d, sinMovimientoMin, sinMovimiento: sinMovimientoMin > 120, iei_calculado: ieiCalculado }
   })
 
   // KPIs masivos

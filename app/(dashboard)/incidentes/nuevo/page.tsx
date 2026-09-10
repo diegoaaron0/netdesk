@@ -8,7 +8,7 @@ import { Badge, estadoToVariant, impactoToVariant } from '@/components/ui/Badge'
 
 const TIPO_LABELS: Record<string, string> = {
   CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia',
-  LENTITUD: 'Lentitud', POS: 'POS', OTROS: 'Otros',
+  LENTITUD: 'Lentitud', OTROS: 'Otros',
   CORTE_ELECTRICO: 'Corte eléctrico',
 }
 
@@ -124,7 +124,7 @@ export default function NuevoIncidentePage() {
             const tList: Tienda[] = await tRes.json()
             const t = tList.find((x: Tienda) => x.id === inc.tiendaId) ?? tList[0]
             if (t) {
-              const hRes = await fetch(`/api/tiendas/${t.id}/historial`)
+              const hRes = await fetch(`/api/tiendas/${t.id}/ultimos-incidentes`)
               const h = hRes.ok ? await hRes.json() : []
               setTienda(t)
               setHistorial(Array.isArray(h) ? h.filter((x: any) => x.id !== fromId) : [])
@@ -335,7 +335,6 @@ export default function NuevoIncidentePage() {
                     <option value="CAIDA_TOTAL">Caída total</option>
                     <option value="INTERMITENCIA">Intermitencia</option>
                     <option value="LENTITUD">Lentitud</option>
-                    <option value="POS">POS</option>
                     <option value="CORTE_ELECTRICO">⚡ Corte eléctrico</option>
                     <option value="OTROS">Otro...</option>
                   </select>

@@ -4,14 +4,13 @@ import { useRouter } from 'next/navigation'
 import type { DashboardAnaliticoResponse, IncidenteListItem, SlaProveedor, MttrProveedor } from '@/types/dashboard'
 import { IncidentTimeline, fmtMin, type DrillIncidente } from './DrillPanel'
 import GraficosAnalitico from './GraficosAnalitico'
+import { fechaLimaStr } from '@/lib/impacto-calc'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function firstDayOfMonth() {
-  const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0)
-  return d.toISOString().split('T')[0]
-}
-function todayStr() { return new Date().toISOString().split('T')[0] }
+// Exportadas solo para poder probarlas en test.
+export function todayStr() { return fechaLimaStr(new Date()) }
+export function firstDayOfMonth() { return todayStr().slice(0, 7) + '-01' }
 
 function fmtCosto(n: number) {
   return `S/ ${n.toLocaleString('es-PE', { maximumFractionDigits: 0 })}`
@@ -19,7 +18,7 @@ function fmtCosto(n: number) {
 
 const TIPO_LABELS: Record<string, string> = {
   CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia',
-  LENTITUD: 'Lentitud', POS: 'POS', OTROS: 'Otros', CORTE_ELECTRICO: '⚡ Corte eléctr.',
+  LENTITUD: 'Lentitud', OTROS: 'Otros', CORTE_ELECTRICO: '⚡ Corte eléctr.',
 }
 
 function slaColor(pct: number | null | undefined) {
@@ -281,6 +280,8 @@ function PanelSLAResolucion({ data, expandedId, onExpand }: { data: DashboardAna
 function PanelMTTR({ data, expandedId, onExpand }: { data: DashboardAnaliticoResponse; expandedId: string | null; onExpand: (id: string | null) => void }) {
   const [selProv, setSelProv] = useState<string | null>(null)
   const mttr = data.cards.mttrPromedio
+  // A propósito solo RESUELTO (no CANCELADO/CERRADO) — el MTTR mide el tiempo
+  // de una resolución exitosa, no de cualquier cierre. Confirmado con Diego, no es un bug.
   const incsResueltos = data.cards.incidentes.lista.filter(i => i.estado === 'RESUELTO' && i.mttrMin != null)
   const incFiltradas = selProv ? incsResueltos.filter(i => i.proveedor === selProv) : incsResueltos
 

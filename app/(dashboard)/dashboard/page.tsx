@@ -2,13 +2,13 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import DashboardAnalitico from './components/DashboardAnalitico'
-import { SLA_RESOLUCION_DEFAULT_MIN } from '@/lib/sla-core'
+import { SLA_RESPUESTA_MIN, SLA_RESOLUCION_DEFAULT_MIN } from '@/lib/sla-core'
 import { DASHBOARD_CONFIG } from '@/lib/dashboard-config'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const TIPO_LABELS: Record<string, string> = {
   CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia',
-  LENTITUD: 'Lentitud', POS: 'POS', OTROS: 'Otros', CORTE_ELECTRICO: '⚡ Corte eléctrico',
+  LENTITUD: 'Lentitud', OTROS: 'Otros', CORTE_ELECTRICO: '⚡ Corte eléctrico',
 }
 const PROVS = ['Todos', 'BITEL', 'CLARO', 'ENTEL', 'CONVERGIA', 'MOVISTAR', 'WIN', 'OTROS']
 
@@ -102,13 +102,13 @@ function downloadCSV(activos: any[], resoluciones: any[], fecha?: string) {
   // SLA: límite del contrato (ficha) o default. El tipo de incidente NO influye.
   function slaRespuestaLabel(i: any): string {
     if (!i.hora_correo_n1 || !i.hora_primera_resp) return 'No aplica'
-    const lim = i.sla_respuesta_override ?? 60
+    const lim = i.sla_respuesta_override ?? SLA_RESPUESTA_MIN
     const mins = Math.round((new Date(i.hora_primera_resp).getTime() - new Date(i.hora_correo_n1).getTime()) / 60000)
     return mins <= lim ? 'Cumplido' : `Incumplido (+${mins - lim}m)`
   }
   function slaResolucionLabel(i: any): string {
     if (!i.mttr_minutos) return 'Pendiente'
-    const lim = i.sla_resolucion_override ?? 90
+    const lim = i.sla_resolucion_override ?? SLA_RESOLUCION_DEFAULT_MIN
     return i.mttr_minutos <= lim ? 'Cumplido' : `Incumplido (+${i.mttr_minutos - lim}m)`
   }
 
@@ -189,53 +189,10 @@ function fmtEspera(min: number): string {
 function initials(nombre: string): string {
   return nombre.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
 }
-const _FACTOR_BASE: Record<string, number> = { CAIDA_TOTAL: 1.00, INTERMITENCIA: 0.50, LENTITUD: 0.30, CORTE_ELECTRICO: 1.00 }
-// Se lee DASHBOARD_CONFIG.MARGEN_BRUTO directamente en el punto de uso (no en
-// una constante de módulo) para que un cambio en tiempo de ejecución se refleje
-// siempre, sin depender de cuándo se evaluó este archivo por primera vez.
-function _normCont(r: string | null | undefined) { if (!r) return 0.20; const v = r.toUpperCase(); if (v==='EFECTIVO') return 0.00; if (v==='PARCIAL') return 0.20; return 1.00 }
-function _normBoleta(r: string | null | undefined, tipo?: string) { const c=tipo==='CORTE_ELECTRICO'; if (!r) return c?0.00:0.10; const v = r.toUpperCase(); if (v==='EFECTIVA'||v==='TOTAL') return c?0.00:0.10; if (v==='PARCIAL') return 0.30; return 1.00 }
 
-// Exportada solo para poder probarla en test (mismo cálculo, sin cambios de lógica).
-export function calcIeiLive(inc: any, nowMs: number): number {
-  const vh = inc.iei_venta_hora ? Number(inc.iei_venta_hora) : 0
-  if (!vh) return 0
-  const startMs = tsMs(inc.hora_registro)
-  if (nowMs <= startMs) return 0
-  const contStartMs = inc.cont_hora_activacion ? tsMs(inc.cont_hora_activacion) : null
-  const contEndMs   = inc.cont_hora_desactivacion ? tsMs(inc.cont_hora_desactivacion) : null
-  const movStartMs  = inc.mov_hora_activacion ? tsMs(inc.mov_hora_activacion) : null
-  const movEndMs    = inc.mov_hora_desactivacion ? tsMs(inc.mov_hora_desactivacion) : null
-  const contF  = contStartMs !== null ? _normCont(inc.cont_rendimiento) : null
-  const movF   = movStartMs  !== null ? _normCont(inc.mov_rendimiento)  : null
-  const bolF   = inc.boleta_manual ? _normBoleta(inc.boleta_rendimiento, inc.tipo) : null
-  const bolStartMs = inc.boleta_manual
-    ? (inc.boleta_hora_activacion ? tsMs(inc.boleta_hora_activacion) : startMs)
-    : null
-  const bpSet  = new Set([startMs, nowMs])
-  const addBp  = (t: number | null) => { if (t && t > startMs && t < nowMs) bpSet.add(t) }
-  addBp(contStartMs); addBp(contEndMs); addBp(movStartMs); addBp(movEndMs); addBp(bolStartMs)
-  const bps = Array.from(bpSet).sort((a, b) => a - b)
-  let iei = 0
-  for (let i = 0; i < bps.length - 1; i++) {
-    const mid = (bps[i] + bps[i+1]) / 2
-    const h   = (bps[i+1] - bps[i]) / 3600000
-    const opts: number[] = []
-    const bolActiva = bolF !== null && bolStartMs !== null && mid >= bolStartMs
-    if (inc.tipo === 'CORTE_ELECTRICO') { opts.push(bolActiva ? bolF! : 1.00) } else {
-      if (contF !== null && contStartMs !== null && mid >= contStartMs && (contEndMs === null || mid < contEndMs)) opts.push(contF)
-      if (movF  !== null && movStartMs  !== null && mid >= movStartMs  && (movEndMs  === null || mid < movEndMs))  opts.push(movF)
-      if (bolActiva) opts.push(bolF!)
-      if (!opts.length) opts.push(_FACTOR_BASE[inc.tipo] ?? 1.00)
-    }
-    iei += vh * h * DASHBOARD_CONFIG.MARGEN_BRUTO * Math.min(...opts)
-  }
-  return Math.round(iei)
-}
-
-function getEstadoOpClient(inc: any, nowMs: number) {
+export function getEstadoOpClient(inc: any, nowMs: number) {
   const minutos  = (nowMs - tsMs(inc.hora_registro)) / 60000
-  const slaLimite = SLA_RESOLUCION_DEFAULT_MIN
+  const slaLimite = inc.sla_resolucion_override ?? SLA_RESOLUCION_DEFAULT_MIN
   const pct = minutos / slaLimite
   let estadoOp: string
   if (pct >= 1.0) estadoOp = 'SLA_VENCIDO'
@@ -857,7 +814,9 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                   {colaFiltrada.map((inc: any, idx: number) => {
                     const imp  = IMP_BADGE[inc.nivel_impacto] ?? IMP_BADGE.BAJO
                     const nowM = Date.now()
-                    const iei  = calcIeiLive(inc, nowM)
+                    // iei_calculado ya viene calculado del backend (Fase 4: SUM(ie_tramo)
+                    // + tramo abierto en vivo, o el fallback viejo si no hay tramos aún).
+                    const iei  = Number(inc.iei_calculado ?? 0)
                     const { minutosTranscurridos } = getEstadoOpClient(inc, nowM)
                     const isCritical = inc.estadoOp === 'SLA_VENCIDO'
                     const esInfra = !!inc.escalado_infra_id

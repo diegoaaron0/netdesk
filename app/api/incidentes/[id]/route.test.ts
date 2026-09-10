@@ -78,6 +78,37 @@ describe('PUT /api/incidentes/[id] — edición de incidente cerrado (Paso 1, ci
   })
 })
 
+describe('GET /api/incidentes/[id] — ieiCalc: datos móviles necesita mov_activado_por, no solo mov_hora_activacion (bug real de producción)', () => {
+  it('mov_hora_activacion seteado con mov_activado_por vacío → se calcula como sin mitigación, no como datos móviles activo', async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    const { GET } = await import('./route')
+
+    const [ref] = await db.select().from(schema.incidentes).where(eq(schema.incidentes.codigo, 'TST-P1-001'))
+    const registradoPorId = ref.registradoPorId
+    const [tienda] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.id, ref.tiendaId!))
+
+    await db.delete(schema.incidentes).where(eq(schema.incidentes.codigo, 'TST-MOV-FANTASMA'))
+    const horaRegistro = new Date(Date.now() - 3 * 3600000)
+    const horaFin = new Date(Date.now() - 1 * 3600000)
+    const [inc] = await db.insert(schema.incidentes).values({
+      codigo: 'TST-MOV-FANTASMA', tiendaId: tienda.id, registradoPorId,
+      nivelImpacto: 'ALTO', tipo: 'CAIDA_TOTAL', estado: 'RESUELTO',
+      horaRegistro, horaFin, mttrMinutos: 120,
+      // mov_hora_activacion seteado, mov_activado_por vacío — el bug real encontrado en Railway
+      movHoraActivacion: horaRegistro, movHoraDesactivacion: null, movRendimiento: null,
+    }).returning()
+
+    const res = await GET({} as any, { params: Promise.resolve({ id: inc.id }) })
+    const data = await res.json()
+
+    // CAIDA_TOTAL sin mitigación real → factor 1.00. Si el bug estuviera presente,
+    // el factor bajaría a 0.50 (PARCIAL por defecto de datos móviles "activo").
+    expect(data.ieiCalc.factorAplicado).toBe(1.00)
+    expect(data.ieiCalc.motivoFactor).toBe('sin mitigación')
+  })
+})
+
 describe('GET /api/incidentes/[id] — panel SLA usa % de cumplimiento (cumple/no cumple), no score de proximidad', () => {
   let incResueltoId: string
   let incAbiertoId: string

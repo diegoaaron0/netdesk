@@ -64,7 +64,7 @@ export function fmtMin(min: number | null): string {
 
 const TIPO_LABELS: Record<string, string> = {
   CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia',
-  LENTITUD: 'Lentitud', POS: 'POS', OTROS: 'Otros',
+  LENTITUD: 'Lentitud', OTROS: 'Otros',
   CORTE_ELECTRICO: 'Corte eléctrico',
 }
 

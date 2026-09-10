@@ -8,7 +8,7 @@ import { relations } from 'drizzle-orm'
 export const rolEnum = pgEnum('rol', ['AGENTE', 'SUPERVISOR', 'GERENCIA', 'INFRAESTRUCTURA', 'DEMO'])
 export const nivelImpactoEnum = pgEnum('nivel_impacto', ['ALTO', 'MEDIO', 'BAJO'])
 export const tipoIncidenteEnum = pgEnum('tipo_incidente', [
-  'CAIDA_TOTAL', 'INTERMITENCIA', 'LENTITUD', 'POS', 'OTROS', 'CORTE_ELECTRICO',
+  'CAIDA_TOTAL', 'INTERMITENCIA', 'LENTITUD', 'OTROS', 'CORTE_ELECTRICO',
 ])
 export const estadoIncidenteEnum = pgEnum('estado_incidente', [
   'ABIERTO', 'EN_SEGUIMIENTO', 'ESCALADO_N1', 'ESCALADO_N2',
@@ -27,6 +27,11 @@ export const estadoFichaEnum = pgEnum('estado_ficha', ['BORRADOR', 'ACTIVA', 'HI
 export const tipoLocalEnum = pgEnum('tipo_local', ['TIENDA', 'CATALOGO', 'ENLACE', 'ALMACEN', 'RESTAURANTE'])
 
 export const estadoTiendaEnum = pgEnum('estado_tienda', ['ACTIVA', 'ARCHIVADA'])
+
+// Fase 2 — rediseño de mitigaciones/IEI (ver diseño técnico de la iniciativa).
+export const tipoMitigacionTramoEnum = pgEnum('tipo_mitigacion_tramo', [
+  'SIN_MITIGACION', 'ROUTER_PROPIO', 'ROUTER_EXTERNO', 'DATOS_MOVILES', 'BOLETA_MANUAL',
+])
 
 export const usuarios = pgTable('usuarios', {
   id:       uuid('id').primaryKey().defaultRandom(),
@@ -303,6 +308,43 @@ export const incidentes = pgTable('incidentes', {
   resueltoPorUsuarioId:  uuid('resuelto_por_usuario_id').references(() => usuarios.id, { onDelete: 'set null' }),
 })
 
+// ── Mitigaciones por tramos (Fase 2) ──────────────────────────────────────────
+// Todavía no la usa ningún endpoint — solo el schema, listo para el siguiente paso.
+// Constraints/índices que viven en SQL crudo (drizzle/run-sql.ts), no en este
+// builder, siguiendo la misma convención que el resto del schema:
+//   - CHECK factor entre 0 y 1
+//   - CHECK origen en ('SISTEMA','EDICION_MANUAL','RELLENO_AUTOMATICO')
+//   - CHECK (hasta IS NULL) = (ie_tramo IS NULL)
+//   - Índice único parcial: un solo tramo abierto (hasta IS NULL) por incidente_id
+//   - Índices en incidente_id y en tipo
+export const incidenteMitigacionTramos = pgTable('incidente_mitigacion_tramos', {
+  id:              uuid('id').primaryKey().defaultRandom(),
+  incidenteId:     uuid('incidente_id').notNull().references(() => incidentes.id, { onDelete: 'cascade' }),
+  tipo:            tipoMitigacionTramoEnum('tipo').notNull(),
+  factor:          numeric('factor', { precision: 5, scale: 4 }).notNull(),
+  activadoPor:     text('activado_por'),
+  observacion:     text('observacion'),
+  routerExternoId: uuid('router_externo_id').references(() => routersExternos.id),
+  desde:           timestamp('desde').notNull(),
+  hasta:           timestamp('hasta'),
+  ieTramo:         numeric('ie_tramo'),
+  origen:          text('origen').notNull().default('SISTEMA'),
+  creadoEn:        timestamp('creado_en').notNull().defaultNow(),
+  actualizadoEn:   timestamp('actualizado_en').notNull().defaultNow(),
+})
+
+export const incidenteMitigacionTramosHistorial = pgTable('incidente_mitigacion_tramos_historial', {
+  id:            uuid('id').primaryKey().defaultRandom(),
+  eventoId:      uuid('evento_id').notNull(),
+  tramoId:       uuid('tramo_id').references(() => incidenteMitigacionTramos.id, { onDelete: 'set null' }),
+  incidenteId:   uuid('incidente_id').notNull(),
+  usuarioId:     uuid('usuario_id').notNull().references(() => usuarios.id),
+  accion:        text('accion').notNull(),
+  valorAnterior: jsonb('valor_anterior'),
+  valorNuevo:    jsonb('valor_nuevo'),
+  creadoEn:      timestamp('creado_en').notNull().defaultNow(),
+})
+
 // ── Routers externos (contingencia TI) ───────────────────────────────────────
 
 export const routersExternos = pgTable('routers_externos', {
@@ -327,6 +369,7 @@ export const routerHistorial = pgTable('router_historial', {
   tiendaId:         uuid('tienda_id').references(() => tiendas.id),
   fechaIngreso:     timestamp('fecha_ingreso').defaultNow().notNull(),
   fechaRetorno:     timestamp('fecha_retorno'),
+  tiempoUsoMin:     integer('tiempo_uso_min'),
   accion:           text('accion').notNull(),
   almacenOrigen:    text('almacen_origen'),
   almacenDestino:   text('almacen_destino'),
