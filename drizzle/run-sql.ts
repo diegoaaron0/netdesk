@@ -1,12 +1,35 @@
-import 'dotenv/config'
+// Carga explícitamente .env.test (BD local aislada), NUNCA `dotenv/config` a
+// secas: eso cargaba .env, que apunta a Railway, y este script escribe schema —
+// una corrida local "de prueba" terminaba aplicando DDL contra producción.
+// En Railway real no existe .env.test (está gitignoreado): dotenv no encuentra
+// el archivo, no pisa nada, y DATABASE_URL sigue siendo la del entorno Railway.
+import { config } from 'dotenv'
+import path from 'path'
+config({ path: path.resolve(__dirname, '../.env.test'), override: true })
+
 import postgres from 'postgres'
+
+// Guard: correr esto a mano contra Railway es un accidente, no un caso de uso.
+// La única corrida legítima contra Railway es la del propio deploy
+// (railway.toml → startCommand), que sí corre DENTRO del runtime de Railway y
+// por lo tanto tiene RAILWAY_* en el entorno. Sin esa marca, se rechaza.
+const dbUrl = process.env.DATABASE_URL ?? ''
+const apuntaARailway = /railway|rlwy/i.test(dbUrl)
+const dentroDeRailway = !!(process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID || process.env.RAILWAY_SERVICE_ID)
+if (apuntaARailway && !dentroDeRailway) {
+  throw new Error(
+    `Rechazado: DATABASE_URL apunta a Railway (${dbUrl.replace(/:[^:@]+@/, ':***@')}) ` +
+    'y este proceso no corre dentro del runtime de Railway. Aplicar migraciones a ' +
+    'Railway se coordina aparte, con autorización explícita — no desde una corrida local.',
+  )
+}
 
 const sql = postgres(process.env.DATABASE_URL!, {
   ssl: process.env.NODE_ENV === 'production' ? 'require' : false,
 })
 
 async function main() {
-  console.log('[startup] Aplicando migraciones...')
+  console.log('[startup] Aplicando migraciones sobre:', dbUrl.replace(/:[^:@]+@/, ':***@'))
 
   await sql`ALTER TYPE "rol" ADD VALUE IF NOT EXISTS 'INFRAESTRUCTURA'`
   console.log('[startup] ✓ Enum INFRAESTRUCTURA')
