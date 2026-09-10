@@ -386,6 +386,29 @@ async function main() {
   await sql`ALTER TABLE "acciones_gestion" ADD COLUMN IF NOT EXISTS "eval90_metodo" text`
   console.log('[startup] ✓ Columnas eval30_metodo / eval90_metodo en acciones_gestion (Fase 5, Paso 4)')
 
+  // Alta/baja de tienda como entidad (archivado, no delete) — ver commit 836f2b8.
+  // NOTA: corrido a mano solo contra netdesk_test por ahora. NO corrido contra
+  // Railway — eso se coordina aparte, con autorización explícita (Paso 0 del
+  // plan de despliegue).
+  await sql`
+    DO $$ BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'estado_tienda') THEN
+        CREATE TYPE "estado_tienda" AS ENUM ('ACTIVA', 'ARCHIVADA');
+      END IF;
+    END $$
+  `
+  await sql`ALTER TABLE "tiendas" ADD COLUMN IF NOT EXISTS "estado" estado_tienda NOT NULL DEFAULT 'ACTIVA'`
+  await sql`ALTER TABLE "tiendas" ADD COLUMN IF NOT EXISTS "archivada_en" timestamp`
+  await sql`ALTER TABLE "tiendas" ADD COLUMN IF NOT EXISTS "archivada_por_id" uuid REFERENCES "usuarios"("id") ON DELETE SET NULL`
+  await sql`ALTER TABLE "tiendas" ADD COLUMN IF NOT EXISTS "archivada_motivo" text`
+  console.log('[startup] ✓ Enum estado_tienda + columnas tiendas.estado/archivada_* (alta/baja de tienda)')
+
+  // tiendas_historial.motivo — solo obligatorio en código para acciones sensibles
+  // (dar de baja de tienda); default '' para no romper los demás call sites
+  // genéricos de esta tabla que no pasan motivo. Ver commit 836f2b8.
+  await sql`ALTER TABLE "tiendas_historial" ADD COLUMN IF NOT EXISTS "motivo" text NOT NULL DEFAULT ''`
+  console.log('[startup] ✓ Columna tiendas_historial.motivo')
+
   console.log('[startup] Migraciones completadas.')
   await sql.end()
 }
