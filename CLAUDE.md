@@ -61,7 +61,7 @@ en sus 156 tiendas a nivel nacional.
 - `/api/v1/*` — API pública externa (incidentes, tiendas, proveedores)
 - `/api/cron/sla-alert` — job automático de alertas SLA
 
-### Schema — tablas principales (drizzle/schema.ts)
+### Schema — las 21 tablas (drizzle/schema.ts)
 | Tabla | Descripción |
 |-------|-------------|
 | `usuarios` | Agentes, supervisores, gerencia, infraestructura |
@@ -81,12 +81,16 @@ en sus 156 tiendas a nivel nacional.
 | `router_historial` | Movimientos de routers entre tiendas/almacenes |
 | `tiendas_historial` | Auditoría de cambios en datos de tiendas |
 | `sla_alertas` | Registro de alertas SLA enviadas (evita duplicados) |
+| `incidente_mitigacion_tramos` | **Fuente única del IEI**: un tramo por período de mitigación, sin huecos |
+| `incidente_mitigacion_tramos_historial` | Auditoría de ediciones manuales de tramos |
+| `proveedores_niveles` | Niveles de escalamiento del proveedor (previo a `fichas_niveles`) |
+| `password_cambios` | Registro de cambios de contraseña |
 
 ### Enums importantes
 ```
 rol:              AGENTE | SUPERVISOR | GERENCIA | INFRAESTRUCTURA
 estadoIncidente:  ABIERTO | EN_SEGUIMIENTO | ESCALADO_N1 | ESCALADO_N2 | ESCALADO_N3 | RESUELTO | CANCELADO | CERRADO
-tipoIncidente:    CAIDA_TOTAL | INTERMITENCIA | LENTITUD | POS | OTROS | CORTE_ELECTRICO
+tipoIncidente:    CAIDA_TOTAL | INTERMITENCIA | LENTITUD | OTROS | CORTE_ELECTRICO
 nivelImpacto:     ALTO | MEDIO | BAJO
 cluster:          A | B | C | D
 ```
@@ -144,10 +148,13 @@ cajasAfectadas / cajasTotales / ventaParcial / boletaManual   → para cálculo 
   para derivar minutos de respuesta/resolución (eso fue eliminado: ya no existe
   CAIDA_TOTAL=60 / INTERMITENCIA=120 / LENTITUD=240 / POS=60)
 - Override por contrato: la **ficha activa** de la tienda
-  (`fichas.tiempo_respuesta_sla` / `tiempo_resolucion_sla`) vía `getSlaContrato()`
-  en `lib/sla-contrato.ts`. En SQL: `COALESCE(f.tiempo_resolucion_sla, 90)` y
+  (`fichas.tiempo_respuesta_sla` / `tiempo_resolucion_sla`), resuelto **inline en
+  SQL** en cada consulta: `COALESCE(f.tiempo_resolucion_sla, 90)` y
   `COALESCE(f.tiempo_respuesta_sla, 60)`, uniendo
   `fichas f ON f.id = COALESCE(i.ficha_id, t.ficha_activa_id)`
+- ⚠️ `getSlaContrato()` en `lib/sla-contrato.ts` NO se usa: es una implementación
+  alternativa que quedó huérfana. Nadie la importa. Si tocás el SLA, el lugar es
+  el SQL de cada consulta, no ese archivo.
 - Defaults centralizados: `SLA_RESPUESTA_MIN` (60) y `SLA_RESOLUCION_DEFAULT_MIN` (90)
 
 ### Timestamps

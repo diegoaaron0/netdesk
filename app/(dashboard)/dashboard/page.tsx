@@ -447,8 +447,6 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
   const [tabActividad,    setTabActividad]    = useState<'todos'|'escalados'|'resueltos'|'respuestas'|'cancelados'|'cerrados'|'contingencias'>('todos')
   const [turnoInicio,     setTurnoInicio]     = useState('08:00')
   const [filtroHeredados, setFiltroHeredados] = useState(false)
-  const [confirmarCont,   setConfirmarCont]   = useState<string | null>(null)
-  const [desactivandoCont, setDesactivandoCont] = useState<string | null>(null)
   const [agenteFilter,    setAgenteFilter]    = useState<string | null>(null)
   const [verTodasAlertas, setVerTodasAlertas] = useState(false)
   const [routersExt,      setRoutersExt]      = useState<any[]>([])
@@ -460,59 +458,11 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
       .catch(() => {})
   }, [tick])
 
-  async function desactivarContingencia(id: string, stateKey: string, fuente: 'INCIDENTE' | 'STANDALONE', tipoCont?: string, tiendaIdReal?: string) {
-    const tiendaId = stateKey
-    if (!id) {
-      // Contingencia huérfana: tienda tiene flag activo pero no hay incidente asociado
-      if (!tiendaIdReal) { alert('Error: ID no disponible'); return }
-      setDesactivandoCont(tiendaId)
-      try {
-        const res = await fetch(`/api/tiendas/${tiendaIdReal}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contingenciaActiva: false }),
-        })
-        if (res.ok) { setConfirmarCont(null); onRefresh() }
-        else { const e = await res.json().catch(() => ({})); alert(`Error ${res.status}: ${e.error ?? 'desconocido'}`) }
-      } catch (err) {
-        alert(`Error de red: ${err}`)
-      } finally {
-        setDesactivandoCont(null)
-      }
-      return
-    }
-    setDesactivandoCont(tiendaId)
-    try {
-      let res: Response
-      if (fuente === 'STANDALONE') {
-        res = await fetch(`/api/contingencias/${id}`, { method: 'PATCH' })
-      } else if (tipoCont === 'DATOS_MOVILES') {
-        res = await fetch(`/api/incidentes/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ movHoraDesactivacion: new Date().toISOString() }),
-        })
-      } else if (tipoCont === 'BOLETA_MANUAL') {
-        res = await fetch(`/api/incidentes/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ boletaManual: false }),
-        })
-      } else {
-        res = await fetch(`/api/incidentes/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contHoraDesactivacion: new Date().toISOString() }),
-        })
-      }
-      if (res.ok) { setConfirmarCont(null); onRefresh() }
-      else { const e = await res.json().catch(() => ({})); alert(`Error ${res.status}: ${e.error ?? 'desconocido'}`) }
-    } catch (err) {
-      alert(`Error de red: ${err}`)
-    } finally {
-      setDesactivandoCont(null)
-    }
-  }
+  // Acá vivía desactivarContingencia(): el dashboard operativo podía apagar una
+  // mitigación con un PUT directo a /api/incidentes/[id]. Se eliminó — la
+  // desactivación pertenece al detalle del incidente, donde el control de
+  // tramos registra el cambio como corresponde. El dashboard sigue mostrando
+  // qué mitigación está corriendo, pero no la opera.
 
   const nowMs = Date.now()
 
@@ -613,8 +563,6 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
           </div>
           <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
             {(contingenciasActivas ?? []).map((c: any, ci: number) => {
-              const confirmando  = confirmarCont === (c.tienda_id + '_' + ci)
-              const desactivando = desactivandoCont === (c.tienda_id + '_' + ci)
               const tipo = c.tipo_contingencia ?? (c.cont_es_externo ? 'ROUTER_EXTERNO' : 'ROUTER_PROPIO')
               const esDatos    = tipo === 'DATOS_MOVILES'
               const esExterno  = tipo === 'ROUTER_EXTERNO'
@@ -652,30 +600,14 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                   {c.fuente === 'STANDALONE' && c.justificacion && (
                     <div style={{ fontSize: '9px', color: textColor, opacity: 0.75, marginTop: '2px', lineHeight: 1.3, fontStyle: 'italic' }}>{c.justificacion}</div>
                   )}
-                  <div style={{ marginTop: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  {/* La contingencia se desactiva SOLO desde el detalle del
+                      incidente, no desde acá: el dashboard operativo muestra
+                      qué mitigación está corriendo, no la opera. */}
+                  <div style={{ marginTop: '4px' }}>
                     {c.incidente_codigo
                       ? <span onClick={() => router.push(`/incidentes/${c.incidente_id}`)} style={{ fontSize: '9px', color: textColor, textDecoration: 'underline', cursor: 'pointer', fontFamily: 'monospace' }}>{c.incidente_codigo}</span>
                       : <span style={{ fontSize: '8px', color: textColor, opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>sin incidente</span>
                     }
-                    {confirmando ? (
-                      <div style={{ display: 'flex', gap: '3px', fontSize: '9px', alignItems: 'center' }}>
-                        <span style={{ color: textColor }}>¿Confirmar?</span>
-                        <button disabled={desactivando}
-                          onClick={() => desactivarContingencia(
-                            c.fuente === 'STANDALONE' ? c.contingencia_id : c.incidente_id,
-                            c.tienda_id + '_' + ci,
-                            c.fuente ?? 'INCIDENTE',
-                            tipo,
-                            c.tienda_id,
-                          )}
-                          style={{ padding: '1px 5px', fontSize: '9px', fontWeight: 700, background: borderColor, color: 'white', border: 'none', borderRadius: '3px', cursor: desactivando ? 'default' : 'pointer', opacity: desactivando ? 0.6 : 1 }}>
-                          {desactivando ? '…' : 'Sí'}
-                        </button>
-                        <button disabled={desactivando} onClick={() => setConfirmarCont(null)} style={{ padding: '1px 5px', fontSize: '9px', background: bgColor, color: textColor, border: `1px solid ${borderColor}`, borderRadius: '3px', cursor: 'pointer' }}>No</button>
-                      </div>
-                    ) : (
-                      <button onClick={() => setConfirmarCont(c.tienda_id + '_' + ci)} style={{ padding: '1px 7px', fontSize: '9px', fontWeight: 600, background: bgColor, color: textColor, border: `1px solid ${borderColor}`, borderRadius: '3px', cursor: 'pointer' }}>Desactivar</button>
-                    )}
                   </div>
                 </div>
               )
