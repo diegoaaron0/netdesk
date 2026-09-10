@@ -51,6 +51,7 @@ const CAMPO_LABELS: Record<string, string> = {
   contingenciaDescripcion: 'Desc. contingencia', contingenciaChip: 'Chip contingencia',
   contingenciaPaquete: 'Paquete contingencia', costoMensual: 'Costo mensual',
   instruccionReporte: 'Instrucción específica', contactoSoporte: 'Contacto soporte',
+  anydeskId: 'AnyDesk ID',
   administradorNombre: 'Admin nombre', administradorEmail: 'Email',
   administradorCelular: 'Admin celular', proveedorId: 'Proveedor',
   ventaHoraSoles: 'Venta/hora S/.', formato: 'Formato', extras: 'Extras',
@@ -575,6 +576,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               <Field label="Admin. nombre"  value={form.administradorNombre  ?? ''} editing={editing} onChange={v => setF('administradorNombre', v)} />
               <Field label="Admin. celular" value={form.administradorCelular ?? ''} editing={editing} onChange={v => setF('administradorCelular', v)} />
               <Field label="Email"          value={form.administradorEmail   ?? ''} editing={editing} onChange={v => setF('administradorEmail', v)} />
+              <Field label="AnyDesk ID"     value={form.anydeskId            ?? ''} editing={editing} onChange={v => setF('anydeskId', v)} />
             </div>
 
             <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '8px', marginTop: '4px' }}>

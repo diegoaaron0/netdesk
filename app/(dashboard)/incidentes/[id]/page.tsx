@@ -293,21 +293,12 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
       usuariosAfectados:   data.usuariosAfectados   ?? '',
       descripcionInicial:  data.descripcionInicial  ?? '',
       horaRegistro:         toDatetimeLocal(data.horaRegistro),
-      horaRegistroOriginal: toDatetimeLocal(data.horaRegistroOriginal),
       horaFin:              toDatetimeLocal(data.horaFin),
-      // Operación / gestión
-      estadoOperacion:     data.estadoOperacion     ?? '',
-      contActivadoPor:     data.contActivadoPor     ?? '',
-      contEsExterno:       data.contEsExterno       ?? false,
-      contHoraActivacion:  toDatetimeLocal(data.contHoraActivacion),
-      contRendimiento:     data.contRendimiento     ?? '',
-      contObservacion:     data.contObservacion     ?? '',
-      movActivadoPor:      data.movActivadoPor      ?? '',
-      movHoraActivacion:   toDatetimeLocal(data.movHoraActivacion),
-      movRendimiento:      data.movRendimiento      ?? '',
-      movObservacion:      data.movObservacion      ?? '',
-      contHoraDesactivacion: toDatetimeLocal(data.contHoraDesactivacion),
-      movHoraDesactivacion:  toDatetimeLocal(data.movHoraDesactivacion),
+      // La mitigación (cont_*, mov_*, boleta_*) NO vive acá: se opera con el
+      // control de tramos, que llama a POST /mitigacion. Esos campos quedaron
+      // congelados como dato histórico y el PUT los ignora, así que mandarlos
+      // en el body no hacía nada — solo ensuciaba cada guardado.
+      // horaRegistroOriginal tampoco: lo escribe /reabrir, no el agente.
       routerExternoId:       data.routerExternoId ?? null,
       descEnergia:         data.descEnergia         ?? null,
       descRouter:          data.descRouter          ?? null,
@@ -321,8 +312,6 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
       checkDns:            data.checkDns            ?? false,
       checkRenovarIp:      data.checkRenovarIp      ?? false,
       descartesDetallado:  data.descartesDetallado  ?? '',
-      boletaManual:        data.boletaManual        ?? null,
-      boletaHoraActivacion: toDatetimeLocal(data.boletaHoraActivacion),
       ventaParcial:        data.ventaParcial        ?? null,
       cajasAfectadas:      data.cajasAfectadas      ?? null,
       cajasTotales:        data.cajasTotales        ?? null,
@@ -465,38 +454,15 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
     setSaving(true)
     const body: any = { ...editForm }
     if ('horaRegistro'         in body) body.horaRegistro         = fromDatetimeLocal(body.horaRegistro)
-    if ('horaRegistroOriginal' in body) body.horaRegistroOriginal = body.horaRegistroOriginal ? fromDatetimeLocal(body.horaRegistroOriginal) : null
     if ('horaFin'              in body) body.horaFin              = body.horaFin ? fromDatetimeLocal(body.horaFin) : null
     if (body.horaRegistro && body.horaFin) {
       body.mttrMinutos = mttrFromHoras(body.horaRegistro, body.horaFin)
     } else if (body.horaFin === null) {
       body.mttrMinutos = null
     }
-    if ('contHoraActivacion'    in body) body.contHoraActivacion    = body.contHoraActivacion    ? fromDatetimeLocal(body.contHoraActivacion)    : null
-    if ('movHoraActivacion'     in body) body.movHoraActivacion     = body.movHoraActivacion     ? fromDatetimeLocal(body.movHoraActivacion)     : null
-    if ('contHoraDesactivacion' in body) body.contHoraDesactivacion = body.contHoraDesactivacion ? fromDatetimeLocal(body.contHoraDesactivacion) : null
-    if ('movHoraDesactivacion'  in body) body.movHoraDesactivacion  = body.movHoraDesactivacion  ? fromDatetimeLocal(body.movHoraDesactivacion)  : null
-    if ('boletaHoraActivacion'  in body) body.boletaHoraActivacion  = body.boletaHoraActivacion  ? fromDatetimeLocal(body.boletaHoraActivacion)  : null
-    // Factor operativo: EFECTIVO=100%, PARCIAL=75%, NULO=0% (más legacy)
-    const rfUnif: Record<string, string> = {
-      EFECTIVO: '1.00', PARCIAL: '0.75', NULO: '0.00',
-      TOTAL: '1.00',                                     // boleta manual
-      EFECTIVA: '0.75', LIMITADA: '0.25', FALLIDA: '0.00', NO_FUNCIONO: '0.00', // legacy
-    }
-    if (body.estadoOperacion === 'BOLETA_MANUAL') {
-      body.factorOperativo = rfUnif[body.contRendimiento] ?? '1.00'
-      body.operacionManual = true; body.tipoOperacionManual = 'BOLETA_MANUAL'
-      body.boletaManual = true
-      body.boletaRendimiento = body.contRendimiento || null
-    } else if (body.estadoOperacion === 'CONTINGENCIA') {
-      body.factorOperativo = rfUnif[body.contRendimiento] ?? null
-      body.operacionManual = false; body.tipoOperacionManual = null
-    } else if (body.estadoOperacion === 'DATOS_MOVILES') {
-      body.factorOperativo = rfUnif[body.movRendimiento] ?? null
-      body.operacionManual = false; body.tipoOperacionManual = null
-    } else {
-      body.factorOperativo = null; body.operacionManual = false; body.tipoOperacionManual = null
-    }
+    // Acá se derivaba estadoOperacion / factorOperativo / operacionManual desde
+    // los rendimientos de cont_* y mov_*. Todo eso lo resuelve ahora el tramo
+    // abierto (POST /mitigacion): su factor ES el factor operativo.
     setSaveError('')
     const res = await fetch(`/api/incidentes/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     if (!res.ok) {
@@ -1613,17 +1579,23 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 {canEditA && (
                   <>
                     <div style={{ borderTop: '1px solid var(--border)', margin: '8px 0 6px' }} />
-                    {(inc as any).motivoReabertura ? (
+                    {/* En un incidente reabierto, la hora de inicio original la
+                        escribe /reabrir y el PUT ya no la acepta: se muestra
+                        pero no se edita. Editable era un control muerto —
+                        además, moverla sin mover horaFinAnterior es lo que
+                        dejaba el incidente en estado inconsistente. */}
+                    {(inc as any).motivoReabertura && (
                       <>
                         <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '4px' }}>Hora inicio (original)</div>
-                        <input type="datetime-local" style={{ ...iStyle(), fontSize: '10px', padding: '4px 6px', marginBottom: '6px' }} value={editForm.horaRegistroOriginal ?? ''} onChange={e => setEdit('horaRegistroOriginal', e.target.value)} />
-                      </>
-                    ) : (
-                      <>
-                        <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '4px' }}>Hora registro</div>
-                        <input type="datetime-local" style={{ ...iStyle(), fontSize: '10px', padding: '4px 6px', marginBottom: '6px' }} value={editForm.horaRegistro} onChange={e => setEdit('horaRegistro', e.target.value)} />
+                        <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '6px' }}>
+                          {new Date((inc as any).horaRegistroOriginal ?? inc.horaRegistro).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </div>
                       </>
                     )}
+                    <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '4px' }}>
+                      {(inc as any).motivoReabertura ? 'Hora registro (período actual)' : 'Hora registro'}
+                    </div>
+                    <input type="datetime-local" style={{ ...iStyle(), fontSize: '10px', padding: '4px 6px', marginBottom: '6px' }} value={editForm.horaRegistro} onChange={e => setEdit('horaRegistro', e.target.value)} />
                     <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '4px' }}>Hora fin</div>
                     <input type="datetime-local" style={{ ...iStyle(), fontSize: '10px', padding: '4px 6px' }} value={editForm.horaFin} onChange={e => setEdit('horaFin', e.target.value)} />
                   </>

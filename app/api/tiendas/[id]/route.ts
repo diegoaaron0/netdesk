@@ -37,6 +37,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     contingenciaFecha: tiendas.contingenciaFecha,
     instruccionReporte: tiendas.instruccionReporte,
     contactoSoporte: tiendas.contactoSoporte,
+    anydeskId: tiendas.anydeskId,
     administradorNombre: tiendas.administradorNombre,
     administradorEmail: tiendas.administradorEmail,
     administradorCelular: tiendas.administradorCelular,
@@ -228,7 +229,7 @@ const TRACKED_FIELDS = [
   'contingenciaChip', 'contingenciaPaquete',
   'instruccionReporte', 'contactoSoporte', 'administradorNombre',
   'administradorEmail', 'administradorCelular', 'ventaHoraSoles', 'extras',
-  'gabinete', 'observacion', 'ventaMensualSoles', 'ventaHoraFdsSoles',
+  'gabinete', 'observacion', 'ventaMensualSoles', 'ventaHoraFdsSoles', 'anydeskId',
 ] as const
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -265,6 +266,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     extras:              tiendas.extras,
     gabinete:            tiendas.gabinete,
     observacion:         tiendas.observacion,
+    anydeskId:           tiendas.anydeskId,
   }).from(tiendas).where(eq(tiendas.id, id))
   if (!current) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
@@ -321,6 +323,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       observacion:         'observacion'         in body ? (body.observacion         ?? null) : current.observacion,
       ventaHoraFdsSoles:   'ventaHoraFdsSoles'  in body ? (body.ventaHoraFdsSoles   ?? null) : current.ventaHoraFdsSoles,
       ventaMensualSoles:   'ventaMensualSoles'   in body ? (body.ventaMensualSoles   ?? null) : current.ventaMensualSoles,
+      anydeskId:           'anydeskId'           in body ? (body.anydeskId           ?? null) : current.anydeskId,
     }
     const [r] = await db.update(tiendas).set(fullValues).where(eq(tiendas.id, id)).returning()
     updated = r

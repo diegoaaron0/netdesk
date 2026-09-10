@@ -142,3 +142,28 @@ describe('GET /api/tiendas/export — columnas de incidentes e IEI del período'
     expect(iei).toBe('')
   })
 })
+
+describe('GET /api/tiendas/export — columna AnyDesk ID', () => {
+  it('la columna existe y trae el valor de la tienda', async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    const codigo = 'T-EXPORT-ANYDESK'
+    let [t] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.codigo, codigo))
+    if (!t) {
+      await db.insert(schema.tiendas).values({ codigo, nombreCc: 'Export anydesk', distrito: 'Test', anydeskId: '111222333' })
+    } else {
+      await db.update(schema.tiendas).set({ estado: 'ACTIVA', anydeskId: '111222333' } as any).where(eq(schema.tiendas.id, t.id))
+    }
+
+    const { GET } = await import('./route')
+    const res = await GET(new NextRequest('http://localhost/api/tiendas/export'))
+    const text = await res.text().then(s => s.replace(/^﻿/, ''))
+    const [headerLine, ...dataLines] = text.split(/\r\n/)
+    const headers = headerLine.split(',')
+    const idx = headers.indexOf('AnyDesk ID')
+    expect(idx, 'la columna debe existir').toBeGreaterThanOrEqual(0)
+
+    const linea = dataLines.find(l => l.startsWith(codigo + ','))
+    expect(linea?.split(',')[idx]).toBe('111222333')
+  })
+})

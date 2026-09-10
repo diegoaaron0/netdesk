@@ -45,7 +45,6 @@ npm run dev          # servidor de desarrollo en http://localhost:3000
 DATABASE_URL=          # cadena de conexión PostgreSQL
 NEXTAUTH_SECRET=       # secreto para JWT (generado con openssl rand -base64 32)
 NEXTAUTH_URL=          # URL base del sistema (tu dominio)
-DEFAULT_USER_PASSWORD= # contraseña inicial de usuarios nuevos
 CRON_SECRET=           # token Bearer que protege el cron de alertas SLA
 APP_URL=               # URL base usada por el cron
 # SMTP para alertas por email (opcional):

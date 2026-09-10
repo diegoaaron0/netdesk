@@ -81,6 +81,7 @@ export const tiendas = pgTable('tiendas', {
   tieneContingencia:    boolean('tiene_contingencia').default(false),
   instruccionReporte:   text('instruccion_reporte'),
   contactoSoporte:      text('contacto_soporte'),
+  anydeskId:            text('anydesk_id'),
   administradorNombre:  text('administrador_nombre'),
   administradorEmail:   text('administrador_email'),
   administradorCelular: text('administrador_celular'),

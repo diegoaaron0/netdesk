@@ -262,3 +262,69 @@ describe('DELETE /api/tiendas/[id] — permisos (mantenimiento.eliminar, no rol 
     expect(stillThere).toBeTruthy()
   })
 })
+
+describe('PUT /api/tiendas/[id] — anydeskId', () => {
+  it('se guarda, se devuelve en el GET y queda en el historial', async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    const codigo = 'T-ANYDESK'
+
+    let [t] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.codigo, codigo))
+    if (!t) {
+      [t] = await db.insert(schema.tiendas).values({
+        codigo, nombreCc: 'Tienda anydesk', distrito: 'Test', cluster: 'B',
+      }).returning()
+    } else {
+      await db.update(schema.tiendas).set({ estado: 'ACTIVA', anydeskId: null } as any)
+        .where(eq(schema.tiendas.id, t.id))
+    }
+    await db.delete(schema.tiendasHistorial).where(eq(schema.tiendasHistorial.tiendaId, t.id))
+
+    // El mock global usa un id que no es UUID y el historial lo escribe en una
+    // columna uuid. Usuario propio, no `usuarios.limit(1)`: ese primer usuario
+    // es arbitrario y puede ser fixture de otra suite, que después no puede
+    // borrarlo porque el historial lo referencia (FK) y esa suite falla entera.
+    const EMAIL_FIX = 'anydesk-fixture@netdesk-test.local'
+    let [autor] = await db.select().from(schema.usuarios).where(eq(schema.usuarios.email, EMAIL_FIX))
+    if (!autor) {
+      [autor] = await db.insert(schema.usuarios).values({
+        nombre: 'Fixture anydesk', email: EMAIL_FIX, password: 'x', rol: 'SUPERVISOR',
+      }).returning()
+    }
+    const { auth } = await import('@/auth')
+    vi.mocked(auth).mockResolvedValueOnce({
+      user: { email: EMAIL_FIX, rol: 'SUPERVISOR', id: autor.id },
+    } as any)
+
+    const { PUT, GET } = await import('./route')
+    const res = await PUT(
+      { json: async () => ({ anydeskId: '123 456 789' }) } as any,
+      { params: Promise.resolve({ id: t.id }) },
+    )
+    expect(res.status).toBe(200)
+
+    const [d] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.id, t.id))
+    expect(d.anydeskId).toBe('123 456 789')
+
+    const resGet = await GET({} as any, { params: Promise.resolve({ id: t.id }) })
+    const tienda = await resGet.json()
+    expect(tienda.anydeskId, 'el detalle lo devuelve para poder editarlo').toBe('123 456 789')
+
+    const hist = await db.select().from(schema.tiendasHistorial)
+      .where(eq(schema.tiendasHistorial.tiendaId, t.id))
+    expect(hist.some(h => h.campoEditado === 'anydeskId'), 'el cambio queda auditado').toBe(true)
+  })
+
+  it('un PUT que no lo menciona no lo borra', async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    const [t] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.codigo, 'T-ANYDESK'))
+    await db.update(schema.tiendas).set({ anydeskId: '999 888 777' } as any).where(eq(schema.tiendas.id, t.id))
+
+    const { PUT } = await import('./route')
+    await PUT({ json: async () => ({ observacion: 'otra cosa' }) } as any, { params: Promise.resolve({ id: t.id }) })
+
+    const [d] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.id, t.id))
+    expect(d.anydeskId).toBe('999 888 777')
+  })
+})

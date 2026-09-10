@@ -461,6 +461,11 @@ async function main() {
   await sql`ALTER TABLE "tiendas_historial" ADD COLUMN IF NOT EXISTS "motivo" text NOT NULL DEFAULT ''`
   console.log('[startup] ✓ Columna tiendas_historial.motivo')
 
+  // AnyDesk de la tienda: soporte lo usa para tomar control remoto del equipo.
+  // Aditiva y nullable — las tiendas ya cargadas quedan en null.
+  await sql`ALTER TABLE "tiendas" ADD COLUMN IF NOT EXISTS "anydesk_id" text`
+  console.log('[startup] ✓ Columna tiendas.anydesk_id')
+
   console.log('[startup] Migraciones completadas.')
   await sql.end()
 }
