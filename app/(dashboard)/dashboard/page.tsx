@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import DashboardAnalitico from './components/DashboardAnalitico'
 import { SLA_RESPUESTA_MIN, SLA_RESOLUCION_DEFAULT_MIN } from '@/lib/sla-core'
 import { DASHBOARD_CONFIG } from '@/lib/dashboard-config'
+import { buildAlertas, notaContratos, type SeveridadAlerta } from '@/lib/alertas-dashboard'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const TIPO_LABELS: Record<string, string> = {
@@ -11,6 +12,9 @@ const TIPO_LABELS: Record<string, string> = {
   LENTITUD: 'Lentitud', OTROS: 'Otros', CORTE_ELECTRICO: '⚡ Corte eléctrico',
 }
 const PROVS = ['Todos', 'BITEL', 'CLARO', 'ENTEL', 'CONVERGIA', 'MOVISTAR', 'WIN', 'OTROS']
+/** Alertas visibles antes de tener que expandir. Con 13 tipos activos la lista
+ *  puede crecer mucho y empujar la cola operativa fuera de la pantalla. */
+const MAX_ALERTAS_VISIBLES = 8
 
 const BADGE_OP: Record<string, { label: string; bg: string; color: string }> = {
   SLA_VENCIDO:         { label: 'SLA Vencido',    bg: '#FCEBEB', color: '#A32D2D' },
@@ -202,20 +206,13 @@ export function getEstadoOpClient(inc: any, nowMs: number) {
   else estadoOp = 'ABIERTO'
   return { estadoOp, pctSla: Math.round(pct * 100), minutosTranscurridos: Math.round(minutos), slaLimite }
 }
-function buildAlertas(activos: any[], equipo: any[], provsPend: any[], nowMs: number) {
-  const alertas: { tipo: string; texto: string; accion: string; filterKey?: string; provFilter?: string; agenteId?: string }[] = []
-  const venc  = activos.filter(i => getEstadoOpClient(i, nowMs).estadoOp === 'SLA_VENCIDO')
-  const riesg = activos.filter(i => getEstadoOpClient(i, nowMs).estadoOp === 'EN_RIESGO_SLA')
-  if (venc.length > 0)  alertas.push({ tipo: 'vencido',  texto: `${venc.length} incidente${venc.length > 1 ? 's' : ''} con SLA vencido`,    accion: 'Ver casos',    filterKey: 'enRiesgo' })
-  if (riesg.length > 0) alertas.push({ tipo: 'riesgo',   texto: `${riesg.length} incidente${riesg.length > 1 ? 's' : ''} en riesgo SLA`,     accion: 'Ver casos',    filterKey: 'enRiesgo' })
-  for (const p of provsPend) {
-    alertas.push({ tipo: 'pendiente', texto: `${p.count} pendiente${p.count > 1 ? 's' : ''} proveedor ${p.nombre}`, accion: 'Ver pendientes', filterKey: 'pendientes', provFilter: p.nombre })
-    if (p.masAntiguoMin >= 240) alertas.push({ tipo: 'sin_resp', texto: `Sin respuesta de ${p.nombre} hace ${fmtMin(p.masAntiguoMin)}`, accion: 'Ver pendientes', filterKey: 'pendientes', provFilter: p.nombre })
-  }
-  for (const ag of equipo) {
-    if (ag.casosActivos > 3) alertas.push({ tipo: 'sobrecarga', texto: `${ag.nombre} tiene ${ag.casosActivos} casos activos`, accion: 'Ver carga', agenteId: ag.id })
-  }
-  return alertas
+// La construcción de alertas vive en lib/alertas-dashboard.ts — es lógica pura
+// y testeada aparte. Acá sólo la presentación.
+const SEVERIDAD_CFG: Record<SeveridadAlerta, { icon: string; bg: string; border: string; color: string }> = {
+  ROJO:     { icon: '🔴', bg: '#FCEBEB', border: '#FECACA', color: '#A32D2D' },
+  NARANJA:  { icon: '⚠',  bg: '#FFF3E0', border: '#FDBA74', color: '#C84B00' },
+  AMARILLO: { icon: '●',  bg: '#FAEEDA', border: '#FCD34D', color: '#854F0B' },
+  INFO:     { icon: 'ℹ',  bg: '#E6F1FB', border: '#93C5FD', color: '#185FA5' },
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -443,7 +440,7 @@ export default function DashboardPage() {
 // ─── OperativoView ────────────────────────────────────────────────────────────
 
 function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fecha }: { op: any; tick: number; router: any; decPendientes: number | null; onRefresh: () => void; isToday: boolean; fecha: string }) {
-  const { activos, resoluciones, contingenciasActivas, equipoStats, proveedoresPendientes, actividadReciente, kpis } = op
+  const { activos, resoluciones, contingenciasActivas, equipoStats, proveedoresPendientes, actividadReciente, kpis, alertasData } = op
   const [provFiltro,      setProvFiltro]      = useState('Todos')
   const [cardFiltro,      setCardFiltro]      = useState<string | null>(null)
   const [asignarOpen,     setAsignarOpen]     = useState(false)
@@ -453,6 +450,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
   const [confirmarCont,   setConfirmarCont]   = useState<string | null>(null)
   const [desactivandoCont, setDesactivandoCont] = useState<string | null>(null)
   const [agenteFilter,    setAgenteFilter]    = useState<string | null>(null)
+  const [verTodasAlertas, setVerTodasAlertas] = useState(false)
   const [routersExt,      setRoutersExt]      = useState<any[]>([])
 
   useEffect(() => {
@@ -529,8 +527,8 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
   // Computed alerts
   const alertas = useMemo(() => {
     const now = Date.now()
-    return buildAlertas(activos ?? [], equipoStats ?? [], proveedoresPendientes ?? [], now)
-  }, [activos, equipoStats, proveedoresPendientes, tick])
+    return buildAlertas(activos ?? [], equipoStats ?? [], alertasData ?? {}, now)
+  }, [activos, equipoStats, alertasData, tick])
 
   // Filtered + sorted queue
   const colaFiltrada = useMemo(() => {
@@ -731,6 +729,67 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
           </div>
         </div>
       )}
+
+      {/* Alertas — ancho completo, arriba de la cola. La sección se muestra
+          siempre, también vacía: "no hay alertas" es información operativa. */}
+      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 12px', marginBottom: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: alertas.length > 0 ? '7px' : '0' }}>
+          <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Alertas</span>
+          {alertas.length > 0 && (
+            <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', background: 'var(--muted)', padding: '1px 7px', borderRadius: '99px' }}>
+              {alertas.length}
+            </span>
+          )}
+          {(['ROJO', 'NARANJA', 'AMARILLO', 'INFO'] as const).map(s => {
+            const n = alertas.filter(a => a.severidad === s).length
+            if (n === 0) return null
+            const cfg = SEVERIDAD_CFG[s]
+            return (
+              <span key={s} style={{ fontSize: '10px', fontWeight: 600, color: cfg.color, background: cfg.bg, border: `0.5px solid ${cfg.border}`, padding: '1px 7px', borderRadius: '99px' }}>
+                {cfg.icon} {n}
+              </span>
+            )
+          })}
+          {alertas.length > MAX_ALERTAS_VISIBLES && (
+            <button onClick={() => setVerTodasAlertas(v => !v)}
+              style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 600, background: 'none', border: 'none', color: 'var(--muted-foreground)', cursor: 'pointer' }}>
+              {verTodasAlertas ? 'Ver menos' : `Ver las ${alertas.length}`} →
+            </button>
+          )}
+        </div>
+
+        {alertas.length === 0 ? (
+          <div style={{ fontSize: '11px', color: '#27500A' }}>✓ Sin alertas en este momento</div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '5px' }}>
+            {(verTodasAlertas ? alertas : alertas.slice(0, MAX_ALERTAS_VISIBLES)).map(a => {
+              const cfg = SEVERIDAD_CFG[a.severidad]
+              const irA = () => {
+                if (a.href) { router.push(a.href); return }
+                if (a.filterKey) setCardFiltro(a.filterKey)
+                if (a.provFilter) setProvFiltro(a.provFilter)
+                if (a.agenteId)  setAgenteFilter(a.agenteId)
+              }
+              return (
+                <div key={a.id} onClick={irA} title={a.accion}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 8px', background: cfg.bg, border: `0.5px solid ${cfg.border}`, borderRadius: '7px', cursor: 'pointer' }}>
+                  <span style={{ fontSize: '11px', flexShrink: 0 }}>{cfg.icon}</span>
+                  <span style={{ flex: 1, color: cfg.color, fontSize: '11px', lineHeight: 1.35 }}>{a.texto}</span>
+                  <span style={{ fontSize: '10px', fontWeight: 600, color: cfg.color, whiteSpace: 'nowrap', opacity: 0.75 }}>→</span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Al 10/09/2026 ninguna ficha activa tiene fecha_fin: sin esta nota,
+            "0 contratos por vencer" se leería como "todo al día". */}
+        {notaContratos(alertasData?.contratosCobertura) && (
+          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '7px' }}>
+            ⓘ Contratos: {notaContratos(alertasData?.contratosCobertura)}
+          </div>
+        )}
+      </div>
 
       {/* Main grid: LEFT (cola + equipo) | RIGHT (sidebar) */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '12px', alignItems: 'start' }}>
@@ -1143,34 +1202,6 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                   ))}
                 </tbody>
               </table>
-            )}
-          </div>
-
-          {/* Alertas */}
-          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px' }}>
-            <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>Alertas</div>
-            {alertas.length === 0 ? (
-              <div style={{ fontSize: '10px', color: '#27500A' }}>✓ Sin alertas activas</div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {alertas.slice(0, 5).map((a, i) => {
-                  const cfg = {
-                    vencido:    { icon: '🔴', bg: '#FCEBEB', border: '#FECACA', color: '#A32D2D' },
-                    riesgo:     { icon: '⚠',  bg: '#FFF3E0', border: '#FDBA74', color: '#C84B00' },
-                    pendiente:  { icon: '🏢', bg: '#EEE8FF', border: '#C4B5FD', color: '#5B21B6' },
-                    sin_resp:   { icon: '⏱',  bg: '#FAEEDA', border: '#FCD34D', color: '#854F0B' },
-                    sobrecarga: { icon: '👤', bg: '#E6F1FB', border: '#93C5FD', color: '#185FA5' },
-                  }[a.tipo] ?? { icon: '●', bg: 'var(--muted)', border: 'var(--border)', color: 'var(--foreground)' }
-                  return (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 8px', background: cfg.bg, border: `0.5px solid ${cfg.border}`, borderRadius: '7px' }}>
-                      <span style={{ fontSize: '11px', flexShrink: 0 }}>{cfg.icon}</span>
-                      <span style={{ flex: 1, color: cfg.color, fontSize: '10px' }}>{a.texto}</span>
-                      <button onClick={() => { if (a.filterKey) setCardFiltro(a.filterKey); if (a.provFilter) setProvFiltro(a.provFilter); if (a.agenteId) setAgenteFilter(a.agenteId) }}
-                        style={{ fontSize: '9px', fontWeight: 600, background: 'none', border: 'none', color: cfg.color, cursor: 'pointer', whiteSpace: 'nowrap' }}>{a.accion} →</button>
-                    </div>
-                  )
-                })}
-              </div>
             )}
           </div>
 

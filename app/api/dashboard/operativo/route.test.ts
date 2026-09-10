@@ -251,3 +251,94 @@ describe('GET /api/dashboard/operativo — iei_calculado (Fase 4: ticker conecta
     expect(Number(fila.iei_calculado)).toBeGreaterThan(0)
   })
 })
+
+describe('GET /api/dashboard/operativo — insumos de la sección Alertas', () => {
+  let tiendaId: string
+  let registradoPorId: string
+
+  beforeAll(async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+
+    const [ref] = await db.select().from(schema.incidentes).where(eq(schema.incidentes.codigo, 'TST-P1-001'))
+    registradoPorId = ref.registradoPorId
+
+    let [t] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.codigo, 'T-ALERTAS'))
+    if (!t) {
+      [t] = await db.insert(schema.tiendas).values({
+        codigo: 'T-ALERTAS', nombreCc: 'Tienda alertas', distrito: 'Test', cluster: 'B',
+        ventaHoraSoles: '100', tieneContingencia: false,
+      }).returning()
+    } else {
+      await db.update(schema.tiendas).set({ estado: 'ACTIVA', tieneContingencia: false } as any)
+        .where(eq(schema.tiendas.id, t.id))
+    }
+    tiendaId = t.id
+  })
+
+  async function activo(codigo: string) {
+    const { GET } = await import('./route')
+    const res = await GET({ nextUrl: { searchParams: new URLSearchParams() } } as any)
+    const data = await res.json()
+    return { data, fila: data.activos.find((i: any) => i.codigo === codigo) }
+  }
+
+  it('cada activo trae los descartes y si la tienda tiene con qué hacer contingencia', async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    const codigo = 'TST-ALERTA-DESCARTES'
+    await db.delete(schema.incidentes).where(eq(schema.incidentes.codigo, codigo))
+    await db.insert(schema.incidentes).values({
+      codigo, tiendaId, registradoPorId,
+      nivelImpacto: 'ALTO', tipo: 'CAIDA_TOTAL', estado: 'ABIERTO',
+      horaRegistro: new Date(Date.now() - 45 * 60000),
+    })
+
+    const { fila } = await activo(codigo)
+    expect(fila, 'el incidente debe aparecer en activos').toBeTruthy()
+    // null = nunca respondido. Es el estado que dispara la alerta de descartes.
+    expect(fila.desc_energia).toBeNull()
+    expect(fila.desc_router).toBeNull()
+    expect(fila.desc_cableado).toBeNull()
+    expect(fila.desc_reinicio_equipo).toBeNull()
+    expect(fila.tienda_tiene_contingencia).toBe(false)
+    expect(fila.tienda_tiene_router_externo).toBe(false)
+  })
+
+  it('un incidente sin mitigación activa expone sinMitigacionDesde; uno con router activo, no', async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+
+    const sin = 'TST-ALERTA-SIN-MIT'
+    await db.delete(schema.incidentes).where(eq(schema.incidentes.codigo, sin))
+    await db.insert(schema.incidentes).values({
+      codigo: sin, tiendaId, registradoPorId,
+      nivelImpacto: 'ALTO', tipo: 'CAIDA_TOTAL', estado: 'ABIERTO',
+      horaRegistro: new Date(Date.now() - 90 * 60000),
+    })
+
+    const con = 'TST-ALERTA-CON-MIT'
+    await db.delete(schema.incidentes).where(eq(schema.incidentes.codigo, con))
+    await db.insert(schema.incidentes).values({
+      codigo: con, tiendaId, registradoPorId,
+      nivelImpacto: 'ALTO', tipo: 'CAIDA_TOTAL', estado: 'ABIERTO',
+      horaRegistro: new Date(Date.now() - 90 * 60000),
+      contActivadoPor: 'AGENTE', contHoraActivacion: new Date(Date.now() - 80 * 60000), contRendimiento: 'PARCIAL',
+    })
+
+    const { data } = await activo(sin)
+    expect(data.activos.find((i: any) => i.codigo === sin).sinMitigacionDesde).toBeTruthy()
+    expect(data.activos.find((i: any) => i.codigo === con).sinMitigacionDesde).toBeNull()
+  })
+
+  it('alertasData trae las 3 consultas nuevas, con la cobertura de fecha_fin de contratos', async () => {
+    const { data } = await activo('TST-ALERTA-DESCARTES')
+    expect(data.alertasData).toBeTruthy()
+    expect(Array.isArray(data.alertasData.evaluacionesPendientes)).toBe(true)
+    expect(Array.isArray(data.alertasData.contratosPorVencer)).toBe(true)
+    expect(typeof data.alertasData.tiendasSinVenta).toBe('number')
+    // La cobertura es lo que permite distinguir "no vence nada" de "no hay dato".
+    expect(typeof data.alertasData.contratosCobertura.fichasActivas).toBe('number')
+    expect(typeof data.alertasData.contratosCobertura.conFechaFin).toBe('number')
+  })
+})

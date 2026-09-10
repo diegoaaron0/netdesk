@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
   const [y, m, d]  = fechaLima.split('-').map(Number)
   const siguienteIso = new Date(Date.UTC(y, m - 1, d + 1, 5, 0, 0, 0)).toISOString()
 
-  const [activosRows, resueltoRows, agentesRows, incCreadosRows, escRows, respRows, resolRows, canceladosRows, cerradosRows, contRows, creadosHoyRows, contStandaloneRows, movRows, boletaRows, contActRows, tramosActivosRows] = await Promise.all([
+  const [activosRows, resueltoRows, agentesRows, incCreadosRows, escRows, respRows, resolRows, canceladosRows, cerradosRows, contRows, creadosHoyRows, contStandaloneRows, movRows, boletaRows, contActRows, tramosActivosRows, evalPendRows, contratosRows, fichasFechaFinRows, tiendasSinVentaRows] = await Promise.all([
     db.execute(sql`
       SELECT
         i.id,
@@ -78,6 +78,18 @@ export async function GET(req: NextRequest) {
         (i.hora_escalado_infra AT TIME ZONE 'UTC') AS hora_escalado_infra,
         infra_u.nombre AS infra_nombre,
         (mov.ultimo_movimiento AT TIME ZONE 'UTC') AS ultimo_movimiento,
+        -- Alertas: descartes de diagnóstico. Nullable a proposito — null es
+        -- "nunca se respondio", distinto de false ("se verifico y fallo").
+        i.desc_energia, i.desc_router, i.desc_cableado, i.desc_reinicio_equipo,
+        -- Alertas: la tienda tiene con que hacer contingencia?
+        t.tiene_contingencia AS tienda_tiene_contingencia,
+        EXISTS (
+          SELECT 1 FROM routers_externos re2
+          WHERE re2.tienda_actual_id = t.id AND re2.activo
+        ) AS tienda_tiene_router_externo,
+        -- Alertas: desde cuando se espera respuesta del proveedor. Se mide
+        -- desde el envio del correo de escalamiento, no desde hora_registro.
+        (esc_pend.desde AT TIME ZONE 'UTC') AS esperando_proveedor_desde,
         i.grupo_masivo_id,
         gm.codigo  AS grupo_masivo_codigo,
         gm.razon   AS grupo_masivo_razon,
@@ -109,6 +121,13 @@ export async function GET(req: NextRequest) {
         FROM escalamientos e
         WHERE e.incidente_id = i.id
       ) mov ON true
+      LEFT JOIN LATERAL (
+        SELECT MIN(e.hora_envio_correo) AS desde
+        FROM escalamientos e
+        WHERE e.incidente_id = i.id
+          AND e.hora_envio_correo IS NOT NULL
+          AND e.hora_respuesta    IS NULL
+      ) esc_pend ON true
       LEFT JOIN grupos_masivos gm ON i.grupo_masivo_id = gm.id
       LEFT JOIN routers_externos re ON i.router_externo_id = re.id
       WHERE ${isToday
@@ -434,6 +453,58 @@ export async function GET(req: NextRequest) {
         : sql`i.hora_registro >= ${diaIso}::timestamptz AND i.hora_registro < ${siguienteIso}::timestamptz AND i.estado NOT IN ('RESUELTO','CANCELADO','CERRADO')`
       }
     `),
+
+    // ── Alertas: evaluaciones de gestion de cambios vencidas (30/90 dias) ────
+    // Solo acciones ya ejecutadas y todavia en ventana de evaluacion: una
+    // COMPLETADO o BORRADOR con fecha cumplida no es una tarea pendiente.
+    db.execute(sql`
+      SELECT id, codigo, titulo, 30 AS ventana, fecha_eval_30 AS fecha
+      FROM acciones_gestion
+      WHERE estado IN ('EJECUTADO','EN_EVALUACION')
+        AND fecha_eval_30 IS NOT NULL AND fecha_eval_30 <= CURRENT_DATE
+        AND NOT COALESCE(eval30_completada, false)
+      UNION ALL
+      SELECT id, codigo, titulo, 90 AS ventana, fecha_eval_90 AS fecha
+      FROM acciones_gestion
+      WHERE estado IN ('EJECUTADO','EN_EVALUACION')
+        AND fecha_eval_90 IS NOT NULL AND fecha_eval_90 <= CURRENT_DATE
+        AND NOT COALESCE(eval90_completada, false)
+      ORDER BY fecha ASC
+    `),
+
+    // ── Alertas: contratos por vencer (ficha activa de una tienda activa) ────
+    db.execute(sql`
+      SELECT
+        f.id AS ficha_id, f.codigo AS ficha_codigo,
+        t.id AS tienda_id, t.codigo AS tienda_codigo, t.nombre_cc AS tienda_nombre,
+        f.fecha_fin,
+        (f.fecha_fin - CURRENT_DATE)::int AS dias_restantes,
+        COALESCE(f.renovacion_automatica, false) AS renovacion_automatica
+      FROM fichas f
+      JOIN tiendas t ON t.ficha_activa_id = f.id
+      WHERE f.estado = 'ACTIVA' AND t.estado = 'ACTIVA'
+        AND f.fecha_fin IS NOT NULL
+        AND f.fecha_fin >= CURRENT_DATE
+        AND f.fecha_fin <= CURRENT_DATE + 60
+      ORDER BY f.fecha_fin ASC
+    `),
+
+    // Cobertura de fecha_fin. Al 10/09/2026 produccion tiene 159 fichas activas
+    // y 0 con fecha_fin: sin esto la alerta de contratos se veria "en cero"
+    // como si todo estuviera al dia, cuando en realidad no hay dato cargado.
+    db.execute(sql`
+      SELECT COUNT(*)::int AS activas, COUNT(fecha_fin)::int AS con_fecha_fin
+      FROM fichas WHERE estado = 'ACTIVA'
+    `),
+
+    // ── Alertas: tiendas sin venta configurada (agrupadas en una linea) ──────
+    db.execute(sql`
+      SELECT COUNT(*)::int AS total
+      FROM tiendas
+      WHERE estado = 'ACTIVA'
+        AND venta_mensual_soles IS NULL
+        AND creado_en <= NOW() - INTERVAL '7 days'
+    `),
   ])
 
   const activos  = activosRows as any[]
@@ -502,7 +573,25 @@ export async function GET(req: NextRequest) {
         }, 0)
       : calcImpactoEnCurso(inc, nowMs)
 
-    return { ...inc, ...d, sinMovimientoMin, sinMovimiento: sinMovimientoMin > 120, iei_calculado: ieiCalculado }
+    // Desde cuándo el incidente está sin mitigación activa (alerta 1). La
+    // fuente buena es el tramo abierto SIN_MITIGACION, que da el instante
+    // exacto. Los incidentes viejos que nunca pasaron por el flujo de tramos
+    // no tienen ninguno: ahí se cae a los flags cont/mov/boleta y, si ninguno
+    // está activo, el incidente estuvo sin mitigar desde que se registró.
+    const tramoAbierto = tramos.find((t: any) => t.hasta == null)
+    let sinMitigacionDesde: string | null = null
+    if (tramos.length > 0) {
+      if (tramoAbierto && tramoAbierto.tipo === 'SIN_MITIGACION') sinMitigacionDesde = tramoAbierto.desde
+    } else {
+      const algunaActiva = !!(
+        (inc.cont_activado_por && !inc.cont_hora_desactivacion) ||
+        (inc.mov_activado_por  && !inc.mov_hora_desactivacion)  ||
+        (inc.boleta_manual && inc.boleta_hora_activacion)
+      )
+      if (!algunaActiva) sinMitigacionDesde = inc.hora_registro
+    }
+
+    return { ...inc, ...d, sinMovimientoMin, sinMovimiento: sinMovimientoMin > 120, iei_calculado: ieiCalculado, sinMitigacionDesde }
   })
 
   // KPIs masivos
@@ -578,6 +667,16 @@ export async function GET(req: NextRequest) {
     equipoStats,
     proveedoresPendientes,
     actividadReciente,
+    // Insumos de la sección Alertas que no salen de la cola de activos.
+    alertasData: {
+      evaluacionesPendientes: evalPendRows as any[],
+      contratosPorVencer:     contratosRows as any[],
+      contratosCobertura: {
+        fichasActivas: Number((fichasFechaFinRows as any[])[0]?.activas ?? 0),
+        conFechaFin:   Number((fichasFechaFinRows as any[])[0]?.con_fecha_fin ?? 0),
+      },
+      tiendasSinVenta: Number((tiendasSinVentaRows as any[])[0]?.total ?? 0),
+    },
     kpis: {
       abiertos:             activos.length,
       enRiesgoSla:          activosConEstado.filter((i: any) => ['EN_RIESGO_SLA','SLA_VENCIDO'].includes(i.estadoOp)).length,
