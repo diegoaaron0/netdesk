@@ -39,12 +39,10 @@ export async function POST(req: NextRequest) {
   const [existente] = await db.select({ id: usuarios.id }).from(usuarios).where(eq(usuarios.email, email))
   if (existente) return NextResponse.json({ error: 'Ese correo ya está registrado' }, { status: 400 })
 
-  // Contraseña inicial: la que envíe el admin, o el default del sistema (env var).
-  // El literal queda solo como último recurso si la env no está configurada.
-  const tienePasswordExplicito = typeof body.password === 'string' && body.password.trim().length > 0
-  const rawPassword = tienePasswordExplicito
-    ? body.password
-    : (process.env.DEFAULT_USER_PASSWORD ?? 'S0p0rt3!?@#')
+  // La contraseña la elige siempre quien crea el usuario: ya no hay caída a una
+  // contraseña por defecto del sistema (era la misma para todas las altas).
+  const rawPassword = typeof body.password === 'string' ? body.password.trim() : ''
+  if (!rawPassword) return NextResponse.json({ error: 'La contraseña es obligatoria' }, { status: 400 })
   const hashedPassword = await bcrypt.hash(rawPassword, 12)
 
   const [user] = await db.insert(usuarios).values({
@@ -56,9 +54,10 @@ export async function POST(req: NextRequest) {
     rol:      body.rol ?? 'AGENTE',
     permisos: body.permisos ?? null,
     activo:   body.activo ?? true,
-    // Contraseña por defecto → debe cambiarla en el primer login. Si el admin
-    // eligió una contraseña explícita, no se fuerza el cambio.
-    debeCambiarPassword: !tienePasswordExplicito,
+    // Siempre true: la contraseña del alta la eligió el admin, así que la conoce
+    // alguien más que el propio usuario. Este la cambia en su primer login y
+    // queda siendo la única que la sabe.
+    debeCambiarPassword: true,
   }).returning()
 
   return NextResponse.json(user, { status: 201 })

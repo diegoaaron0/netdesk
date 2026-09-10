@@ -9,8 +9,8 @@ function reqCon(body: Record<string, unknown> = {}) {
   return { json: async () => body } as any
 }
 
-describe('POST /api/usuarios — debeCambiarPassword según si se envía contraseña explícita', () => {
-  it('sin contraseña (usa la de por defecto) → debeCambiarPassword queda true', async () => {
+describe('POST /api/usuarios — la contraseña es obligatoria al crear', () => {
+  it('sin contraseña → 400 y no crea el usuario', async () => {
     const { db } = await import('@/lib/db')
     const schema = await import('@/drizzle/schema')
     const email = 'usuario-sin-password-explicito@netdesk-test.local'
@@ -18,15 +18,29 @@ describe('POST /api/usuarios — debeCambiarPassword según si se envía contras
 
     const { POST } = await import('./route')
     const res = await POST(reqCon({ nombre: 'Sin Password Explícito', email }))
-    expect(res.status).toBe(201)
+    expect(res.status).toBe(400)
     const data = await res.json()
-    expect(data.debeCambiarPassword).toBe(true)
+    expect(data.error).toMatch(/contraseña es obligatoria/i)
 
     const [u] = await db.select().from(schema.usuarios).where(eq(schema.usuarios.email, email))
-    expect(u.debeCambiarPassword).toBe(true)
+    expect(u).toBeUndefined()
   })
 
-  it('con contraseña explícita → debeCambiarPassword queda false', async () => {
+  it('con contraseña en blanco (solo espacios) → 400, no cuenta como contraseña', async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    const email = 'usuario-password-en-blanco@netdesk-test.local'
+    await db.delete(schema.usuarios).where(eq(schema.usuarios.email, email))
+
+    const { POST } = await import('./route')
+    const res = await POST(reqCon({ nombre: 'Password En Blanco', email, password: '    ' }))
+    expect(res.status).toBe(400)
+
+    const [u] = await db.select().from(schema.usuarios).where(eq(schema.usuarios.email, email))
+    expect(u).toBeUndefined()
+  })
+
+  it('con contraseña explícita → debeCambiarPassword queda true igual (la eligió el admin, no el usuario)', async () => {
     const { db } = await import('@/lib/db')
     const schema = await import('@/drizzle/schema')
     const email = 'usuario-con-password-explicito@netdesk-test.local'
@@ -36,7 +50,10 @@ describe('POST /api/usuarios — debeCambiarPassword según si se envía contras
     const res = await POST(reqCon({ nombre: 'Con Password Explícito', email, password: 'unaClaveElegidaPorElAdmin123' }))
     expect(res.status).toBe(201)
     const data = await res.json()
-    expect(data.debeCambiarPassword).toBe(false)
+    expect(data.debeCambiarPassword).toBe(true)
+
+    const [u] = await db.select().from(schema.usuarios).where(eq(schema.usuarios.email, email))
+    expect(u.debeCambiarPassword).toBe(true)
   })
 })
 

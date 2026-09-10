@@ -1,11 +1,9 @@
 'use client'
 import { useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 
 export default function CambiarPasswordForm() {
-  const router = useRouter()
-  const { data: session, update } = useSession()
+  const { data: session } = useSession()
   const [passwordActual, setPasswordActual] = useState('')
   const [passwordNueva, setPasswordNueva]   = useState('')
   const [confirmar, setConfirmar]           = useState('')
@@ -31,10 +29,10 @@ export default function CambiarPasswordForm() {
         setLoading(false)
         return
       }
-      // Refresca la sesión para que debeCambiarPassword quede en false sin
-      // tener que volver a loguearse (dispara auth.ts con trigger: 'update').
-      await update()
-      router.push('/incidentes')
+      // La contraseña con la que se inició esta sesión ya no es válida, así que
+      // se cierra y se vuelve al login para entrar con la nueva. signOut ya
+      // redirige a callbackUrl — no hace falta un click extra ni router.push.
+      await signOut({ callbackUrl: '/login' })
     } catch {
       setError('Error de conexión. Intenta de nuevo.')
       setLoading(false)

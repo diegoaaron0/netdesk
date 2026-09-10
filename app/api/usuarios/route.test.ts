@@ -35,7 +35,7 @@ describe('POST /api/usuarios — validación de email único', () => {
     await db.delete(schema.usuarios).where(eq(schema.usuarios.email, email))
 
     const { POST } = await import('./route')
-    const res = await POST(reqCon({ nombre: 'Usuario Nuevo', email }))
+    const res = await POST(reqCon({ nombre: 'Usuario Nuevo', email, password: 'ClaveDelAdmin123' }))
     expect(res.status).toBe(201)
   })
 })
@@ -48,7 +48,7 @@ describe('POST /api/usuarios y PUT /api/usuarios/[id] — crear/editar sin el ca
     await db.delete(schema.usuarios).where(eq(schema.usuarios.email, email))
 
     const { POST } = await import('./route')
-    const res = await POST(reqCon({ nombre: 'Usuario Sin Cluster', email }))
+    const res = await POST(reqCon({ nombre: 'Usuario Sin Cluster', email, password: 'ClaveDelAdmin123' }))
     expect(res.status).toBe(201)
     const data = await res.json()
     expect(data).not.toHaveProperty('cluster')
