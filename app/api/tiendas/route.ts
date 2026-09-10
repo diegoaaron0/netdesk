@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { tiendas, proveedores, incidentes, fichas, fichasNiveles } from '@/drizzle/schema'
-import { ilike, or, eq, and, gte, lte, sql, count } from 'drizzle-orm'
+import { ilike, or, eq, and, gte, lte, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
+import { ieiPorTiendaEnPeriodo, rangoIsoDeParams, puedeCalcularIei } from '@/lib/tiendas-iei-periodo'
 
 const PROVEEDOR_COLORS: Record<string, { bg: string; color: string }> = {
   BITEL:     { bg: '#dbeafe', color: '#1e40af' },
@@ -89,7 +90,9 @@ export async function GET(req: NextRequest) {
   if (estadoF === 'ARCHIVADA' && archivadaDesde) conditions.push(gte(tiendas.archivadaEn, new Date(archivadaDesde + 'T00:00:00-05:00')))
   if (estadoF === 'ARCHIVADA' && archivadaHasta) conditions.push(lte(tiendas.archivadaEn, new Date(archivadaHasta + 'T23:59:59-05:00')))
 
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+  // Período del listado: por defecto los últimos 30 días, que es lo que la
+  // columna de incidentes mostraba antes de ser filtrable.
+  const { desdeIso, hastaIso } = rangoIsoDeParams(searchParams.get('desde'), searchParams.get('hasta'))
 
   const [rows, counts] = await Promise.all([
     db.select({
@@ -97,6 +100,8 @@ export async function GET(req: NextRequest) {
       formato: tiendas.formato, direccion: tiendas.direccion, referencia: tiendas.referencia,
       distrito: tiendas.distrito, provincia: tiendas.provincia, ubicacion: tiendas.ubicacion,
       cluster: tiendas.cluster, supervisorNombre: tiendas.supervisorNombre,
+      // Necesarios para saber si el IEI de esta tienda es calculable.
+      ventaHoraSoles: tiendas.ventaHoraSoles, ventaHoraFdsSoles: tiendas.ventaHoraFdsSoles,
       proveedorId: tiendas.proveedorId, proveedorNombre: proveedores.nombre,
       tipoConexion: fichas.tipoConexion, tipoServicio: fichas.tipoServicio,
       cidServicio:  fichas.cidServicio,  tieneContingencia: tiendas.tieneContingencia,
@@ -121,16 +126,17 @@ export async function GET(req: NextRequest) {
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(tiendas.codigo),
 
-    db.select({ tiendaId: incidentes.tiendaId, total: count() })
-      .from(incidentes)
-      .where(gte(incidentes.horaRegistro, thirtyDaysAgo))
-      .groupBy(incidentes.tiendaId),
+    ieiPorTiendaEnPeriodo(desdeIso, hastaIso),
   ])
 
-  const countMap: Record<string, number> = {}
-  for (const c of counts) if (c.tiendaId) countMap[c.tiendaId] = c.total
-
-  let filtered = rows.map(r => ({ ...r, incidentCount: countMap[r.id] ?? 0 }))
+  let filtered = rows.map(r => {
+    const acc = counts.get(r.id)
+    return {
+      ...r,
+      incidentCount: acc?.incidentes ?? 0,
+      ieiPeriodo:    puedeCalcularIei(r) ? Math.round(acc?.iei ?? 0) : null,
+    }
+  })
   if (proveedorF)  filtered = filtered.filter(r => r.proveedorNombre === proveedorF)
   if (supervisorF) filtered = filtered.filter(r => r.supervisorNombre === supervisorF)
 

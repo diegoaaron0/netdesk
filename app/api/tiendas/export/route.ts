@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
+import { ieiPorTiendaEnPeriodo, rangoIsoDeParams, puedeCalcularIei } from '@/lib/tiendas-iei-periodo'
 
 function esc(v: unknown): string {
   if (v == null) return ''
@@ -41,9 +42,17 @@ export async function GET(req: NextRequest) {
     estadoF === 'TODAS'     ? sql`` :
     sql`WHERE t.estado = 'ACTIVA'`
 
+  // Mismo período que el listado (?desde=&hasta=, default 30 días) y mismo
+  // cálculo, para que el CSV no contradiga lo que la pantalla está mostrando.
+  const { desdeIso, hastaIso } = rangoIsoDeParams(
+    req.nextUrl.searchParams.get('desde'), req.nextUrl.searchParams.get('hasta'),
+  )
+
   try {
+    const acumulado = await ieiPorTiendaEnPeriodo(desdeIso, hastaIso)
     const rows = await db.execute(sql`
       SELECT
+        t.id,
         t.codigo,
         t.estado,
         t.nombre_cc,
@@ -60,6 +69,7 @@ export async function GET(req: NextRequest) {
         f.descripcion_servicio,
         f.costo_mensual,
         t.venta_hora_soles,
+        t.venta_hora_fds_soles,
         f.velocidad,
         f.plan_aplicado,
         f.vigencia_contrato,
@@ -99,12 +109,19 @@ export async function GET(req: NextRequest) {
       'Cluster', 'Supervisor', 'Celular Supervisor', 'Celular Tienda', 'Contacto Soporte',
       'Admin. Nombre', 'Admin. Email', 'Admin. Celular',
       'Instrucción Específica', 'Observación', 'Extras', 'Coordenadas',
+      'Incidentes (período)', 'IEI período (S/.)',
     ]
 
     const CRLF = '\r\n'
     const lines = [
       headers.join(','),
-      ...(rows as any[]).map(r => [
+      ...(rows as any[]).map(r => {
+      const acc = acumulado.get(r.id)
+      // Celda vacía, no 0: la tienda no tiene con qué calcular el IEI.
+      const iei = puedeCalcularIei({
+        ventaHoraSoles: r.venta_hora_soles, ventaHoraFdsSoles: r.venta_hora_fds_soles, cluster: r.cluster,
+      }) ? Math.round(acc?.iei ?? 0) : ''
+      return [
         r.codigo,
         r.estado,
         r.nombre_cc ?? '',
@@ -143,7 +160,10 @@ export async function GET(req: NextRequest) {
         r.observacion ?? '',
         r.extras ?? '',
         r.coordenadas ?? '',
-      ].map(esc).join(',')),
+        acc?.incidentes ?? 0,
+        iei,
+      ].map(esc).join(',')
+      }),
     ]
 
     const csv = '﻿' + lines.join(CRLF)

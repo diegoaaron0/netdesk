@@ -217,3 +217,97 @@ describe('GET /api/tiendas — filtro por proveedor (opciones del desplegable)',
     expect(filtradas.length).toBeGreaterThan(0)
   })
 })
+
+describe('GET /api/tiendas — período e IEI por tienda', () => {
+  const CODIGO = 'T-IEI-LISTA'
+  let tiendaId: string
+
+  beforeAll(async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+
+    let [t] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.codigo, CODIGO))
+    if (!t) {
+      [t] = await db.insert(schema.tiendas).values({
+        codigo: CODIGO, nombreCc: 'Tienda IEI lista', distrito: 'Test', cluster: 'B',
+        ventaHoraSoles: '100', ventaHoraFdsSoles: '150',
+      }).returning()
+    } else {
+      await db.update(schema.tiendas)
+        .set({ estado: 'ACTIVA', ventaHoraSoles: '100', ventaHoraFdsSoles: '150', cluster: 'B' } as any)
+        .where(eq(schema.tiendas.id, t.id))
+    }
+    tiendaId = t.id
+
+    // Registrador propio, no `usuarios.limit(1)`: ese primer usuario es
+    // arbitrario y puede ser un fixture de otra suite, que después no puede
+    // borrarlo porque estos incidentes lo referencian (FK) y esa suite falla.
+    const EMAIL_REG = 'iei-lista-fixture@netdesk-test.local'
+    let [reg] = await db.select().from(schema.usuarios).where(eq(schema.usuarios.email, EMAIL_REG))
+    if (!reg) {
+      [reg] = await db.insert(schema.usuarios).values({
+        nombre: 'Fixture IEI lista', email: EMAIL_REG, password: 'x', rol: 'AGENTE',
+      }).returning()
+    }
+
+    // Un incidente de hace 3 días (entra en 30 días) y otro de hace 200 (no).
+    for (const [codigo, diasAtras] of [['TST-IEI-LISTA-RECIENTE', 3], ['TST-IEI-LISTA-VIEJO', 200]] as [string, number][]) {
+      await db.delete(schema.incidentes).where(eq(schema.incidentes.codigo, codigo))
+      const inicio = new Date(Date.now() - diasAtras * 24 * 3600000)
+      await db.insert(schema.incidentes).values({
+        codigo, tiendaId, registradoPorId: reg.id,
+        nivelImpacto: 'ALTO', tipo: 'CAIDA_TOTAL', estado: 'RESUELTO',
+        horaRegistro: inicio, horaFin: new Date(inicio.getTime() + 2 * 3600000), mttrMinutos: 120,
+      })
+    }
+  })
+
+  async function listar(qs = '') {
+    const { GET } = await import('./route')
+    const res = await GET(new NextRequest(`http://localhost/api/tiendas?estado=ACTIVA${qs}`))
+    const data = await res.json()
+    return data.find((t: any) => t.codigo === CODIGO)
+  }
+
+  it('por defecto (30 días) cuenta solo los incidentes del período, no los históricos', async () => {
+    const fila = await listar()
+    expect(fila).toBeTruthy()
+    expect(fila.incidentCount, 'el de hace 200 días queda fuera').toBe(1)
+    expect(fila.ieiPeriodo).toBeGreaterThan(0)
+  })
+
+  it('un rango que abarca todo incluye también el incidente viejo', async () => {
+    const hoy = new Date()
+    const hace2Anios = new Date(Date.now() - 730 * 24 * 3600000)
+    const fmt = (d: Date) => d.toISOString().slice(0, 10)
+    const fila = await listar(`&desde=${fmt(hace2Anios)}&hasta=${fmt(hoy)}`)
+    expect(fila.incidentCount).toBe(2)
+  })
+
+  it('un rango sin incidentes da 0 y IEI 0, no null', async () => {
+    const fila = await listar('&desde=2020-01-01&hasta=2020-01-31')
+    expect(fila.incidentCount).toBe(0)
+    expect(fila.ieiPeriodo).toBe(0)
+  })
+
+  it('una tienda sin venta ni cluster devuelve ieiPeriodo null, para no confundirse con S/ 0', async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    const COD_SIN = 'T-IEI-SIN-VENTA'
+    let [t] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.codigo, COD_SIN))
+    if (!t) {
+      await db.insert(schema.tiendas).values({ codigo: COD_SIN, nombreCc: 'Sin venta', distrito: 'Test' })
+    } else {
+      await db.update(schema.tiendas)
+        .set({ estado: 'ACTIVA', ventaHoraSoles: null, ventaHoraFdsSoles: null, cluster: null } as any)
+        .where(eq(schema.tiendas.id, t.id))
+    }
+
+    const { GET } = await import('./route')
+    const res = await GET(new NextRequest('http://localhost/api/tiendas?estado=ACTIVA'))
+    const data = await res.json()
+    const fila = data.find((x: any) => x.codigo === COD_SIN)
+    expect(fila).toBeTruthy()
+    expect(fila.ieiPeriodo).toBeNull()
+  })
+})

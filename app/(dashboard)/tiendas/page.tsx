@@ -6,6 +6,45 @@ import RoutersContingenciaTI from './RoutersCont'
 import { apiMutate } from '@/lib/api-mutate'
 import { can } from '@/lib/permisos'
 
+export type PeriodoLista = '30d' | '3m' | '6m' | 'anio' | 'custom'
+
+export const PERIODO_OPCIONES: { key: PeriodoLista; label: string }[] = [
+  { key: '30d',  label: '30 días' },
+  { key: '3m',   label: '3 meses' },
+  { key: '6m',   label: '6 meses' },
+  { key: 'anio', label: 'Año' },
+]
+
+/** Traduce el preset elegido a las fechas YYYY-MM-DD que espera el endpoint.
+ *  Se calcula en hora Lima (UTC-5) para que "hoy" no se corra de día entre las
+ *  19:00 y la medianoche, cuando en UTC ya es el día siguiente — ver CLAUDE.md.
+ *  Exportada para test. */
+export function rangoDePeriodo(
+  periodo: PeriodoLista,
+  desdeCustom: string,
+  hastaCustom: string,
+  ahoraMs: number = Date.now(),
+): { desde: string; hasta: string } {
+  if (periodo === 'custom') return { desde: desdeCustom, hasta: hastaCustom }
+
+  const diaLima = (ms: number) => new Date(ms - 5 * 3600000).toISOString().slice(0, 10)
+  const hasta = diaLima(ahoraMs)
+
+  if (periodo === '30d') return { desde: diaLima(ahoraMs - 30 * 24 * 3600000), hasta }
+
+  const meses: Record<'3m' | '6m' | 'anio', number> = { '3m': 3, '6m': 6, anio: 12 }
+  const d = new Date(ahoraMs - 5 * 3600000)
+  // Se retrocede el mes con el día en 1 y recién después se repone el día,
+  // acotado al último del mes destino: restarle 3 meses a un 31 de mayo con
+  // setUTCMonth a secas cae en "31 de febrero" y JS lo corre a marzo.
+  const dia = d.getUTCDate()
+  d.setUTCDate(1)
+  d.setUTCMonth(d.getUTCMonth() - meses[periodo])
+  const ultimoDelMes = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate()
+  d.setUTCDate(Math.min(dia, ultimoDelMes))
+  return { desde: d.toISOString().slice(0, 10), hasta }
+}
+
 const PROVEEDOR_COLORS: Record<string, { bg: string; color: string }> = {
   BITEL:             { bg: '#dbeafe', color: '#1e40af' },
   CLARO:             { bg: '#fee2e2', color: '#b91c1c' },
@@ -85,6 +124,11 @@ export default function TiendasPage() {
   const [tiendas, setTiendas] = useState<any[]>([])
   const [allProveedores, setAllProveedores] = useState<{ id: string; nombre: string }[]>([])
   const [filtros, setFiltros] = useState({ q: '', proveedor: '', cluster: '', sort: '', supervisor: '', estado: '' })
+  // Período del listado (incidentes + IEI). El default de 30 días replica lo
+  // que mostraba la columna fija anterior, para que nadie note el cambio.
+  const [periodo, setPeriodo] = useState<PeriodoLista>('30d')
+  const [periodoDesde, setPeriodoDesde] = useState('')
+  const [periodoHasta, setPeriodoHasta] = useState('')
   const [page, setPage] = useState(1)
   const [modal, setModal] = useState<{ open: boolean; data: any }>({ open: false, data: BLANK })
   const [saving, setSaving] = useState(false)
@@ -103,10 +147,23 @@ export default function TiendasPage() {
   const [bajaModal, setBajaModal] = useState<{ id: string; codigo: string; motivo: string; error: string } | null>(null)
   const [bajaSaving, setBajaSaving] = useState(false)
 
+  // Rango efectivo del listado: null en 30d para dejar que el backend aplique
+  // su default y no discrepar con el "hoy" del navegador.
+  const paramsPeriodo = useCallback(() => {
+    if (periodo === '30d') return null
+    const { desde, hasta } = rangoDePeriodo(periodo, periodoDesde, periodoHasta)
+    return desde && hasta ? { desde, hasta } : null
+  }, [periodo, periodoDesde, periodoHasta])
+
   async function downloadMaestro() {
     setExportingMaestro(true)
     try {
-      const res = await fetch('/api/tiendas/export')
+      // El CSV sale con el mismo período que la pantalla, si no las dos
+      // columnas nuevas contradirían lo que el usuario está viendo.
+      const qs = new URLSearchParams()
+      const rango = paramsPeriodo()
+      if (rango) { qs.set('desde', rango.desde); qs.set('hasta', rango.hasta) }
+      const res = await fetch(`/api/tiendas/export${qs.toString() ? `?${qs}` : ''}`)
       if (!res.ok) throw new Error()
       const blob = await res.blob()
       const cd = res.headers.get('Content-Disposition') ?? ''
@@ -129,12 +186,14 @@ export default function TiendasPage() {
     params.set('estado', verArchivadas ? 'ARCHIVADA' : 'ACTIVA')
     if (verArchivadas && archivadaDesde) params.set('archivadaDesde', archivadaDesde)
     if (verArchivadas && archivadaHasta) params.set('archivadaHasta', archivadaHasta)
+    const rango = paramsPeriodo()
+    if (rango) { params.set('desde', rango.desde); params.set('hasta', rango.hasta) }
     const res = await fetch(`/api/tiendas?${params}`)
     if (!res.ok) return
     const data = await res.json()
     if (!Array.isArray(data)) return
     setTiendas(data)
-  }, [filtros.proveedor, filtros.cluster, filtros.supervisor, verArchivadas, archivadaDesde, archivadaHasta])
+  }, [filtros.proveedor, filtros.cluster, filtros.supervisor, verArchivadas, archivadaDesde, archivadaHasta, paramsPeriodo])
 
   useEffect(() => { fetchTiendas() }, [fetchTiendas])
 
@@ -239,6 +298,12 @@ export default function TiendasPage() {
     if (filtros.sort === 'incidentes') {
       return (Number(b.incidentCount) || 0) - (Number(a.incidentCount) || 0)
     }
+    if (filtros.sort === 'iei') {
+      // null (sin venta configurada) va al final: no es "costó 0", es "no se sabe".
+      const av = a.ieiPeriodo == null ? -1 : Number(a.ieiPeriodo)
+      const bv = b.ieiPeriodo == null ? -1 : Number(b.ieiPeriodo)
+      return bv - av
+    }
     return 0
   })
 
@@ -246,7 +311,12 @@ export default function TiendasPage() {
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const totalContingencia = tiendas.filter(t => t.contingenciaActiva).length
-  const totalIncidentes30d = tiendas.reduce((sum, t) => sum + (Number(t.incidentCount) || 0), 0)
+  const totalIncidentesPeriodo = tiendas.reduce((sum, t) => sum + (Number(t.incidentCount) || 0), 0)
+  const totalIeiPeriodo = tiendas.reduce((sum, t) => sum + (t.ieiPeriodo == null ? 0 : Number(t.ieiPeriodo)), 0)
+  const etiquetaPeriodo =
+    periodo === 'custom'
+      ? (periodoDesde && periodoHasta ? `${periodoDesde} a ${periodoHasta}` : 'últimos 30 días')
+      : (PERIODO_OPCIONES.find(p => p.key === periodo)?.label ?? '30 días').toLowerCase()
   const sinProveedor = tiendas.filter(t => !t.proveedorId)
   const totalActivo = tiendas.filter(t => !t.estadoServicio || t.estadoServicio === 'ACTIVO').length
   const totalInactivo = tiendas.filter(t => t.estadoServicio === 'INACTIVO').length
@@ -352,6 +422,35 @@ export default function TiendasPage() {
         </div>
       )}
 
+      {/* Período — manda sobre las columnas Incidentes e IEI */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', fontWeight: 600 }}>Período</span>
+        <div style={{ display: 'flex', gap: '4px', background: 'var(--muted)', borderRadius: '9px', padding: '3px' }}>
+          {PERIODO_OPCIONES.map(p => (
+            <button key={p.key} onClick={() => { setPeriodo(p.key); setPage(1) }}
+              style={{ padding: '5px 12px', fontSize: '11px', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: periodo === p.key ? 600 : 400, background: periodo === p.key ? 'hsl(221,83%,23%)' : 'transparent', color: periodo === p.key ? 'white' : 'var(--foreground)', whiteSpace: 'nowrap' }}>
+              {p.label}
+            </button>
+          ))}
+          <button onClick={() => { setPeriodo('custom'); setPage(1) }}
+            style={{ padding: '5px 12px', fontSize: '11px', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: periodo === 'custom' ? 600 : 400, background: periodo === 'custom' ? 'hsl(221,83%,23%)' : 'transparent', color: periodo === 'custom' ? 'white' : 'var(--foreground)', whiteSpace: 'nowrap' }}>
+            Personalizado ▾
+          </button>
+        </div>
+        {periodo === 'custom' && (
+          <>
+            <input type="date" value={periodoDesde} onChange={e => { setPeriodoDesde(e.target.value); setPage(1) }}
+              style={{ padding: '6px 8px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)' }} />
+            <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>a</span>
+            <input type="date" value={periodoHasta} onChange={e => { setPeriodoHasta(e.target.value); setPage(1) }}
+              style={{ padding: '6px 8px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)' }} />
+            {!(periodoDesde && periodoHasta) && (
+              <span style={{ fontSize: '11px', color: '#b45309' }}>Elegí ambas fechas — mientras tanto se muestran los últimos 30 días</span>
+            )}
+          </>
+        )}
+      </div>
+
       {/* Filters */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
         <input
@@ -389,6 +488,7 @@ export default function TiendasPage() {
           style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
           <option value="">Ordenar: Código</option>
           <option value="incidentes">Ordenar: Mayor incidentes</option>
+          <option value="iei">Ordenar: Mayor IEI</option>
         </select>
         {verArchivadas && (
           <>
@@ -419,7 +519,8 @@ export default function TiendasPage() {
               <th style={thStyle}>Distrito</th>
               <th style={thStyle}>Supervisor</th>
               <th style={thStyle}>Estado</th>
-              <th style={{ ...thStyle, textAlign: 'center' }}>Inc. 30d</th>
+              <th style={{ ...thStyle, textAlign: 'center' }} title={`Incidentes del período: ${etiquetaPeriodo}`}>Incidentes</th>
+              <th style={{ ...thStyle, textAlign: 'right' }} title={`Impacto económico del período: ${etiquetaPeriodo}`}>IEI (S/)</th>
               <th style={thStyle}></th>
             </tr>
           </thead>
@@ -486,6 +587,20 @@ export default function TiendasPage() {
                   <td style={{ padding: '10px 12px', fontSize: '12px', textAlign: 'center', color: Number(t.incidentCount) > 0 ? '#dc2626' : 'var(--muted-foreground)', fontWeight: Number(t.incidentCount) > 0 ? 600 : 400 }}>
                     {Number(t.incidentCount) || 0}
                   </td>
+                  <td style={{ padding: '10px 12px', fontSize: '12px', textAlign: 'right', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                    {t.ieiPeriodo == null ? (
+                      // Mismo aviso que la ficha: sin venta configurada el IEI no
+                      // se puede calcular — no es "costó S/ 0".
+                      <span title="Sin venta configurada — el IEI no se puede calcular para esta tienda"
+                        style={{ color: '#b45309', fontSize: '10px', background: '#fef3c7', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                        sin venta
+                      </span>
+                    ) : (
+                      <span style={{ color: Number(t.ieiPeriodo) > 0 ? 'var(--foreground)' : 'var(--muted-foreground)', fontWeight: Number(t.ieiPeriodo) > 0 ? 600 : 400 }}>
+                        {Number(t.ieiPeriodo).toLocaleString('es-PE')}
+                      </span>
+                    )}
+                  </td>
                   <td style={{ padding: '10px 14px', textAlign: 'right' }}>
                     {isArchived ? (
                       <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>
@@ -515,7 +630,7 @@ export default function TiendasPage() {
             })}
             {paginated.length === 0 && (
               <tr>
-                <td colSpan={10} style={{ padding: '40px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
+                <td colSpan={11} style={{ padding: '40px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>
                   No se encontraron tiendas
                 </td>
               </tr>
@@ -527,7 +642,8 @@ export default function TiendasPage() {
       {/* Footer: summary + pagination */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
         <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
-          {totalIncidentes30d > 0 && `${totalIncidentes30d} incidentes totales (30d)`}
+          {totalIncidentesPeriodo > 0 &&
+            `${totalIncidentesPeriodo} incidentes · S/ ${totalIeiPeriodo.toLocaleString('es-PE')} de impacto (${etiquetaPeriodo})`}
         </div>
         {totalPages > 1 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
