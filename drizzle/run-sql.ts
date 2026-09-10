@@ -353,6 +353,16 @@ async function main() {
   `
   console.log('[startup] ✓ tramo_id nullable + ON DELETE SET NULL (Fase 2, Paso 5)')
 
+  // Fase 5 (Paso 4) — auditoría de qué fuente de cálculo (tramos vs legacy) se
+  // usó para el IEI de cada evaluación de gestión de cambios. Columnas
+  // aditivas, nullable — no rompen filas existentes. NOTA: esto se corrió a
+  // mano contra netdesk_test únicamente (DATABASE_URL apuntado ahí). NO se
+  // corrió todavía contra Railway — eso se coordina aparte, con autorización
+  // explícita, cuando se decida el corte final de la iniciativa de tramos.
+  await sql`ALTER TABLE "acciones_gestion" ADD COLUMN IF NOT EXISTS "eval30_metodo" text`
+  await sql`ALTER TABLE "acciones_gestion" ADD COLUMN IF NOT EXISTS "eval90_metodo" text`
+  console.log('[startup] ✓ Columnas eval30_metodo / eval90_metodo en acciones_gestion (Fase 5, Paso 4)')
+
   console.log('[startup] Migraciones completadas.')
   await sql.end()
 }

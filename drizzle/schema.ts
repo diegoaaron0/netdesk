@@ -610,6 +610,11 @@ export const accionesGestion = pgTable('acciones_gestion', {
   eval30Nincidentes:        integer('eval30_nincidentes'),
   eval30Detalle:            jsonb('eval30_detalle'),
   eval30Nota:               text('eval30_nota'),
+  // Auditoría Fase 5, Paso 4: qué fuente de cálculo se usó para el IEI de esta
+  // evaluación — 'TRAMOS' | 'LEGACY' | 'MIXTO' (según los incidentes de la
+  // ventana tuvieran tramos o cayeran al fallback legacy), null si no hubo
+  // incidentes que evaluar. Aditiva, nullable — no rompe filas existentes.
+  eval30Metodo:             text('eval30_metodo'),
 
   // Evaluación 90 días
   eval90Completada:         boolean('eval90_completada').default(false),
@@ -620,6 +625,7 @@ export const accionesGestion = pgTable('acciones_gestion', {
   eval90Nincidentes:        integer('eval90_nincidentes'),
   eval90Detalle:            jsonb('eval90_detalle'),
   eval90Nota:               text('eval90_nota'),
+  eval90Metodo:             text('eval90_metodo'),
 
   // Penalidad SLA (base para nota de crédito)
   penalidadEstimada:        numeric('penalidad_estimada'),
