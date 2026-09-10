@@ -642,10 +642,10 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
     <div style={{ paddingBottom: '64px' }}>
 
       {/* ── Header ── */}
-      <div style={{ background: '#0d1117', borderRadius: '12px', padding: '18px 22px', marginBottom: '14px' }}>
+      <div style={{ background: '#0d1117', borderRadius: '12px', padding: '11px 16px', marginBottom: '12px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '4px', flexWrap: 'wrap' }}>
               <span style={{ fontFamily: 'monospace', fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>{inc.codigo}</span>
               <Badge variant={impactoToVariant(inc.nivelImpacto)} />
               <Badge variant={estadoToVariant(inc.estado)} />
@@ -688,41 +688,42 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 {TIPO_LABELS[inc.tipo] ?? inc.tipo}
               </span>
             </div>
-            <div style={{ fontSize: '20px', fontWeight: 600, color: 'white', marginBottom: '4px', lineHeight: 1.2 }}>
-              {inc.tiendaCodigo} — {inc.tiendaNombre}
+            {/* Título y timer en la misma línea: el cronómetro sigue visible pero
+                deja de ser el bloque más alto de la pantalla. */}
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '16px', marginBottom: '3px' }}>
+              <div style={{ fontSize: '17px', fontWeight: 600, color: 'white', lineHeight: 1.2, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {inc.tiendaCodigo} — {inc.tiendaNombre}
+              </div>
+              {/* El label lo pone CronometroPrincipal, que además alterna entre
+                  "Tiempo del incidente" y "Tiempo total" según esté resuelto. */}
+              <CronometroPrincipal compacto horaRegistro={inc.horaRegistro} horaFin={inc.horaFin} tiempoAcumuladoMin={(inc as any).tiempoAcumuladoMin} horaRegistroOriginal={(inc as any).horaRegistroOriginal} />
             </div>
-            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.38)' }}>
+            {/* Toda la metadata en una sola línea que envuelve, en vez de cinco
+                bloques apilados. No se quita ningún dato, solo se compacta. */}
+            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.38)', lineHeight: 1.6 }}>
               {inc.tipo === 'CORTE_ELECTRICO' ? '⚡ Energía Eléctrica' : (inc.proveedorNombre ?? '—')} · {inc.tiendaDistrito}
               {inc.escaladoInfraId
                 ? <> · <span style={{ color: '#a5b4fc' }}>Infra: {[inc.infraNombre, inc.infraApellido].filter(Boolean).join(' ')}</span> · Escalado por: {inc.agenteNombre}</>
                 : <> · Agente: {inc.agenteNombre}</>
               }
+              {inc.tiendaReferencia && <> · {inc.tiendaReferencia}</>}
+              {inc.tiendaAdminCelular && (
+                <> · <span style={{ fontFamily: 'monospace', color: 'rgba(255,255,255,0.72)', fontWeight: 600 }}>{inc.tiendaAdminCelular}</span></>
+              )}
+              <span style={{ color: 'rgba(255,255,255,0.2)' }}>
+                {' · '}Creado: {new Date((inc as any).horaRegistroOriginal ?? inc.horaRegistro).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                {inc.actualizadoEn && <>{' · '}Última edición: {new Date(inc.actualizadoEn).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</>}
+              </span>
             </div>
-            {inc.actualizadoEn && (
-              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.18)', marginTop: '5px' }}>
-                Última edición: {new Date(inc.actualizadoEn).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-              </div>
-            )}
-            {inc.tiendaReferencia && (
-              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.28)', marginTop: '4px' }}>
-                {inc.tiendaReferencia} · Agente: {inc.agenteNombre ?? '—'}
-              </div>
-            )}
-            {inc.tiendaAdminCelular && (
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '14px', marginTop: '8px' }}>
-                <span style={{ fontSize: '16px', fontWeight: 600, color: 'rgba(255,255,255,0.72)', fontFamily: 'monospace', letterSpacing: '0.02em' }}>{inc.tiendaAdminCelular}</span>
-                <span style={{ fontSize: '12px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{inc.proveedorNombre ?? '—'}</span>
-              </div>
-            )}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px', flexShrink: 0, marginLeft: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, marginLeft: '16px' }}>
             {canDelete && (
               <button onClick={handleEliminar} title="Eliminar incidente"
                 style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.4)', borderRadius: '6px', color: '#fca5a5', cursor: 'pointer', flexShrink: 0 }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
               </button>
             )}
-            <div style={{ position: 'relative', alignSelf: 'flex-end' }}
+            <div style={{ position: 'relative' }}
               onMouseEnter={() => setShowGuia(true)}
               onMouseLeave={() => setShowGuia(false)}>
               <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '1.5px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help', fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.35)', userSelect: 'none' }}>?</div>
@@ -731,12 +732,6 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   <GuiaEscalamiento proveedor={inc.proveedorNombre} instruccion={(inc as any).tiendaInstruccion || inc.proveedorInstruccion} />
                 </div>
               )}
-            </div>
-            {/* El label lo pone CronometroPrincipal, que además alterna entre
-                "Tiempo del incidente" y "Tiempo total" según esté resuelto. */}
-            <CronometroPrincipal horaRegistro={inc.horaRegistro} horaFin={inc.horaFin} tiempoAcumuladoMin={(inc as any).tiempoAcumuladoMin} horaRegistroOriginal={(inc as any).horaRegistroOriginal} />
-            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.22)', textAlign: 'right', lineHeight: 1.5 }}>
-              Creado: {new Date((inc as any).horaRegistroOriginal ?? inc.horaRegistro).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </div>
           </div>
         </div>
@@ -1207,7 +1202,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                       <tfoot>
                         <tr style={{ borderTop: '2px solid var(--border)', background: 'var(--muted)', fontWeight: 700 }}>
                           <td colSpan={5} style={{ padding: '8px', textAlign: 'right', color: 'var(--foreground)' }}>
-                            Total{tramoAbiertoActual && <span style={{ fontWeight: 500, color: 'var(--muted-foreground)' }}> (incluye el tramo en curso)</span>}
+                            Total
                           </td>
                           <td style={{ padding: '8px', fontFamily: 'monospace', color: 'var(--foreground)' }}>
                             S/ {Math.round(ieiTotalTramos).toLocaleString('es-PE')}
