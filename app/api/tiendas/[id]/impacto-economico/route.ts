@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { sql } from 'drizzle-orm'
+import { sql, eq, count } from 'drizzle-orm'
+import { incidentes } from '@/drizzle/schema'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { getTramosPorIncidentes, calcIeiIncidente, type IncidenteMitigacionInput } from '@/lib/mitigacion-tramos'
@@ -148,5 +149,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
   const breakdown = breakdownAll.filter(r => r.iei > 0).sort((a, b) => b.iei - a.iei)
 
-  return NextResponse.json({ incidentes: result, iei30d: Math.round(ieiTotal), iei30dBreakdown: breakdown })
+  // Total histórico de la tienda, sin el filtro de fechas de arriba: el panel del
+  // detalle muestra "N del período · M en total" y no había de dónde sacar el M
+  // (GET /api/tiendas solo trae un conteo de los últimos 30 días).
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(incidentes)
+    .where(eq(incidentes.tiendaId, id))
+
+  return NextResponse.json({
+    incidentes: result,
+    iei30d: Math.round(ieiTotal),
+    iei30dBreakdown: breakdown,
+    totalHistorico: Number(total),
+  })
 }

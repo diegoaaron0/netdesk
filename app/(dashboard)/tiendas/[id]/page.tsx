@@ -163,6 +163,8 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
   const [desactivandoContId, setDesactivandoContId] = useState<string | null>(null)
   const [incRecientes, setIncRecientes] = useState<any[]>([])
   const [iei30d, setIei30d] = useState<number | null>(null)
+  // Total histórico de incidentes de la tienda, independiente del filtro de fechas.
+  const [totalIncidentes, setTotalIncidentes] = useState<number | null>(null)
   const [iei30dBreakdown, setIei30dBreakdown] = useState<any[]>([])
   const [ieiPanelOpen, setIeiPanelOpen] = useState(false)
   const [historialOpen, setHistorialOpen] = useState(false)
@@ -186,6 +188,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
         setIncRecientes(Array.isArray(d?.incidentes) ? d.incidentes : [])
         setIei30d(typeof d?.iei30d === 'number' ? d.iei30d : null)
         setIei30dBreakdown(Array.isArray(d?.iei30dBreakdown) ? d.iei30dBreakdown : [])
+        setTotalIncidentes(typeof d?.totalHistorico === 'number' ? d.totalHistorico : null)
       })
     fetch(`/api/tiendas/${id}/contingencia-stats?desde=${desde}&hasta=${hasta}`)
       .then(r => r.json()).then(d => setContStats(d))
@@ -1184,6 +1187,10 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
             <div style={{ padding: '12px 18px', borderBottom: '0.5px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
               <div style={{ fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted-foreground)', flex: 1 }}>
                 Incidentes del período
+                <span style={{ marginLeft: '8px', fontSize: '11px', fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}>
+                  {incFiltrados.length} en el período
+                  {totalIncidentes != null && <> · <b style={{ color: 'var(--foreground)' }}>{totalIncidentes}</b> en total</>}
+                </span>
                 {filtroProveedor && <span style={{ fontSize: '11px', fontWeight: 500, marginLeft: '8px', color: 'var(--foreground)' }}>— {filtroProveedor}</span>}
               </div>
               {proveedoresEnPeriodo.length > 1 && (

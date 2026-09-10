@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest'
-import { eq } from 'drizzle-orm'
+import { eq, count } from 'drizzle-orm'
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import * as schema from '@/drizzle/schema'
@@ -156,5 +156,22 @@ describe('GET /api/tiendas/[id]/impacto-economico — IEI por incidente y acumul
 
     expect(fila, 'fixture debe existir en el listado').toBeTruthy()
     expect(fila.iei).toBe(0)
+  })
+
+  it('totalHistorico cuenta todos los incidentes de la tienda, ignorando el filtro de fechas', async () => {
+    const { GET } = await import('./route')
+    // Ventana de un solo día: el listado queda acotado, el total no.
+    const req = new NextRequest(`http://localhost/api/tiendas/${tiendaId}/impacto-economico?desde=2024-01-08&hasta=2024-01-08`)
+    const res = await GET(req, { params: Promise.resolve({ id: tiendaId }) })
+    const data = await res.json()
+
+    const [{ real }] = await db
+      .select({ real: count() })
+      .from(schema.incidentes)
+      .where(eq(schema.incidentes.tiendaId, tiendaId))
+
+    expect(typeof data.totalHistorico).toBe('number')
+    expect(data.totalHistorico).toBe(Number(real))
+    expect(data.totalHistorico).toBeGreaterThanOrEqual(data.incidentes.length)
   })
 })
