@@ -19,7 +19,7 @@ function limaToday(): string {
 
 const TIPO_LABELS: Record<string, string> = {
   CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia',
-  LENTITUD: 'Lentitud', POS: 'POS', OTROS: 'Otros',
+  LENTITUD: 'Lentitud', OTROS: 'Otros',
   CORTE_ELECTRICO: 'Corte eléctrico',
 }
 
@@ -262,7 +262,6 @@ export default function IncidentesPage() {
             { v: 'CAIDA_TOTAL', l: 'Caída total' },
             { v: 'INTERMITENCIA', l: 'Intermitencia' },
             { v: 'LENTITUD', l: 'Lentitud' },
-            { v: 'POS', l: 'POS' },
             { v: 'OTROS', l: 'Otros' },
             { v: 'CORTE_ELECTRICO', l: '⚡ Corte eléctrico' },
           ].map(({ v, l }) => {

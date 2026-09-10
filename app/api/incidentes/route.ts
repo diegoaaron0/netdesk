@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { incidentes, tiendas, usuarios, proveedores, gruposMasivos } from '@/drizzle/schema'
+import { incidentes, tiendas, usuarios, proveedores, gruposMasivos, tipoIncidenteEnum } from '@/drizzle/schema'
 import { eq, desc, and, gte, lt, sql, inArray, ilike, or } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
@@ -134,6 +134,10 @@ export async function POST(req: NextRequest) {
   if (!can(session, 'incidentes.crear')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const body = await req.json()
+
+  if (!tipoIncidenteEnum.enumValues.includes(body.tipo)) {
+    return NextResponse.json({ error: `Tipo de incidente inválido: "${body.tipo}"` }, { status: 400 })
+  }
 
   const [user] = await db.select({ id: usuarios.id }).from(usuarios).where(eq(usuarios.email, session.user!.email!))
   if (!user) return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 })

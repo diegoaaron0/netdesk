@@ -35,7 +35,7 @@ function estadoBadge(est: string | null | undefined) {
 function tipoLabel(t: string | null | undefined) {
   const m: Record<string, string> = {
     CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia',
-    LENTITUD: 'Lentitud', POS: 'POS', OTROS: 'Otros',
+    LENTITUD: 'Lentitud', OTROS: 'Otros',
   }
   return m[t ?? ''] ?? t ?? '—'
 }
