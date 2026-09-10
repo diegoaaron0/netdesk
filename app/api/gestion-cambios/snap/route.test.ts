@@ -151,3 +151,38 @@ describe('GET /api/gestion-cambios/snap — IEI segmentado y campo metodo (Fase 
     expect(data.metodo).toBe('TRAMOS')
   })
 })
+
+describe('GET /api/gestion-cambios/snap — no evalúa tiendas dadas de baja', () => {
+  it('tienda ARCHIVADA → 409 con mensaje claro, sin calcular KPIs', async () => {
+    let [t] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.codigo, 'T-SNAP-ARCHIVADA'))
+    if (!t) [t] = await db.insert(schema.tiendas).values({
+      codigo: 'T-SNAP-ARCHIVADA', nombreCc: 'Tienda — snap archivada', distrito: 'Test', cluster: 'B',
+      ventaHoraSoles: '100', ventaHoraFdsSoles: '150',
+    }).returning()
+    await db.update(schema.tiendas)
+      .set({ estado: 'ARCHIVADA', archivadaEn: new Date(), archivadaMotivo: 'Cierre de prueba' } as any)
+      .where(eq(schema.tiendas.id, t.id))
+
+    const { GET } = await import('./route')
+    const req = new NextRequest(`http://localhost/api/gestion-cambios/snap?tiendaId=${t.id}&dias=7`)
+    const res = await GET(req)
+
+    expect(res.status).toBe(409)
+    const data = await res.json()
+    expect(data.error).toMatch(/archivada/i)
+    expect(data.ieiAcumulado).toBeUndefined()
+  })
+
+  it('la misma tienda ACTIVA sí se evalúa (el 409 es por el estado, no por la tienda)', async () => {
+    const [t] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.codigo, 'T-SNAP-ARCHIVADA'))
+    await db.update(schema.tiendas)
+      .set({ estado: 'ACTIVA', archivadaEn: null, archivadaMotivo: null } as any)
+      .where(eq(schema.tiendas.id, t.id))
+
+    const { GET } = await import('./route')
+    const req = new NextRequest(`http://localhost/api/gestion-cambios/snap?tiendaId=${t.id}&dias=7`)
+    const res = await GET(req)
+
+    expect(res.status).toBe(200)
+  })
+})

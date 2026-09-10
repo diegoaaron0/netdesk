@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
       nombreCc:        tiendas.nombreCc,
       distrito:        tiendas.distrito,
       cluster:         tiendas.cluster,
+      estado:          tiendas.estado,
       proveedorId:     tiendas.proveedorId,
       proveedorNombre: proveedores.nombre,
       ventaHoraSoles:    tiendas.ventaHoraSoles,
@@ -39,6 +40,12 @@ export async function GET(req: NextRequest) {
       .where(eq(tiendas.id, tiendaId))
 
     if (!tiendaData) return NextResponse.json({ error: 'Tienda no encontrada' }, { status: 404 })
+
+    // Una tienda dada de baja ya no se evalúa: el snapshot alimenta decisiones
+    // sobre su proveedor (renovar, cambiar, dar de baja el contrato) y ninguna
+    // de esas corresponde sobre una tienda que ya no opera.
+    if (tiendaData.estado === 'ARCHIVADA')
+      return NextResponse.json({ error: 'La tienda está archivada, no corresponde evaluarla.' }, { status: 409 })
 
     // SLA de la ficha activa de la tienda
     let contratoSlaRespuestaMin: number | null = null

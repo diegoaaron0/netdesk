@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { accionesGestion, accionesGestionTiendas } from '@/drizzle/schema'
-import { eq, sql } from 'drizzle-orm'
+import { accionesGestion, accionesGestionTiendas, tiendas } from '@/drizzle/schema'
+import { eq, and, inArray, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { SLA_RESOLUCION_DEFAULT_MIN } from '@/lib/sla-core'
@@ -175,6 +175,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
   if (!tiendaIds.length)
     return NextResponse.json({ error: 'Sin tiendas en scope' }, { status: 400 })
+
+  // Una tienda puede haberse dado de baja después de ejecutar la acción: evaluar
+  // su desempeño a 30/90 días ya no corresponde, los KPIs del período serían de
+  // una tienda que dejó de operar en el medio.
+  const archivadas = await db.select({ codigo: tiendas.codigo })
+    .from(tiendas)
+    .where(and(inArray(tiendas.id, tiendaIds), eq(tiendas.estado, 'ARCHIVADA')))
+  if (archivadas.length)
+    return NextResponse.json(
+      { error: `Tienda archivada (${archivadas.map(t => t.codigo).join(', ')}), no corresponde evaluarla.` },
+      { status: 409 },
+    )
 
   const ejecutadoEn = new Date(accion.ejecutadoEn)
   const hasta       = new Date(ejecutadoEn)

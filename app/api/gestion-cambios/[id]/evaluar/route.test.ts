@@ -213,3 +213,39 @@ describe('POST /api/gestion-cambios/[id]/evaluar — persiste eval30Metodo/eval9
     expect(enBd.eval90Metodo).toBeNull() // todavía no se evaluó a 90 días
   })
 })
+
+describe('POST /api/gestion-cambios/[id]/evaluar — no evalúa tiendas dadas de baja', () => {
+  it('tienda ARCHIVADA en el scope → 409 y no marca la evaluación como completada', async () => {
+    const tiendaId = await crearTiendaAislada('T-EVALUAR-ARCHIVADA')
+    const ejecutadoEn = new Date(LUNES_10AM_LIMA)
+    await db.insert(schema.incidentes).values({
+      codigo: 'TST-EVALUAR-ARCHIVADA', tiendaId, registradoPorId,
+      nivelImpacto: 'ALTO', tipo: 'CAIDA_TOTAL', estado: 'RESUELTO', evaluableProveedor: true,
+      horaRegistro: new Date(horasDespues(LUNES_10AM_LIMA, 24)), horaFin: new Date(horasDespues(LUNES_10AM_LIMA, 25)), mttrMinutos: 60,
+    })
+
+    await db.delete(schema.accionesGestion).where(eq(schema.accionesGestion.codigo, 'AC-TEST-EVAL-ARCHIVADA'))
+    const [creadoPor] = await db.select({ id: schema.usuarios.id }).from(schema.usuarios).where(eq(schema.usuarios.id, registradoPorId))
+    const [accion] = await db.insert(schema.accionesGestion).values({
+      codigo: 'AC-TEST-EVAL-ARCHIVADA', tipo: 'CAMBIO_CONTRATO', estado: 'COMPLETADO', alcance: 'TIENDA',
+      titulo: 'Test evaluar archivada', motivo: 'Test', tiendaId, creadoPorId: creadoPor.id, ejecutadoEn,
+    }).returning()
+
+    // La tienda se da de baja DESPUÉS de ejecutar la acción — el caso real.
+    await db.update(schema.tiendas)
+      .set({ estado: 'ARCHIVADA', archivadaEn: new Date(), archivadaMotivo: 'Cierre de prueba' } as any)
+      .where(eq(schema.tiendas.id, tiendaId))
+
+    const { POST } = await import('./route')
+    const res = await POST({ json: async () => ({ periodo: 30 }) } as any, { params: Promise.resolve({ id: accion.id }) })
+    expect(res.status).toBe(409)
+    const data = await res.json()
+    expect(data.error).toMatch(/archivada/i)
+    expect(data.error).toMatch(/T-EVALUAR-ARCHIVADA/)
+
+    const [enBd] = await db.select({ eval30Completada: schema.accionesGestion.eval30Completada, eval30Metodo: schema.accionesGestion.eval30Metodo })
+      .from(schema.accionesGestion).where(eq(schema.accionesGestion.id, accion.id))
+    expect(enBd.eval30Completada).toBe(false)
+    expect(enBd.eval30Metodo).toBeNull()
+  })
+})
