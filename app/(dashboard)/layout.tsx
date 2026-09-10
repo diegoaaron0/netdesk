@@ -7,6 +7,7 @@ import { LayoutShell } from './LayoutShell'
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
   if (!session) redirect('/login')
+  if ((session.user as any)?.debeCambiarPassword) redirect('/cambiar-password')
 
   const serverRol  = (session.user as any)?.rol ?? 'AGENTE'
   const serverName = session.user?.name ?? ''
