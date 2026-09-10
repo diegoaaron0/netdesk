@@ -91,3 +91,43 @@ describe('puedeEditarTramo — el botón de editar solo aparece con permiso Y en
     expect(puedeEditarTramo(false, { hasta: null })).toBe(false)
   })
 })
+
+describe('sumaIeiTramos — fila de total de la tabla "Desglose por tramos"', () => {
+  it('suma el ie_tramo de los tramos cerrados', async () => {
+    const { sumaIeiTramos } = await import('./page')
+    const tramos = [
+      { hasta: '2024-01-08T16:00:00.000Z', ieTramo: '100' },
+      { hasta: '2024-01-08T17:00:00.000Z', ieTramo: '50.5' },
+    ]
+    expect(sumaIeiTramos(tramos, 0)).toBe(150.5)
+  })
+
+  it('agrega el IEI en vivo del tramo abierto, que todavía no tiene ie_tramo', async () => {
+    const { sumaIeiTramos } = await import('./page')
+    const tramos = [
+      { hasta: '2024-01-08T16:00:00.000Z', ieTramo: '100' },
+      { hasta: null, ieTramo: null },
+    ]
+    expect(sumaIeiTramos(tramos, 40)).toBe(140)
+  })
+
+  it('el tramo abierto no se cuenta dos veces aunque trajera un ieTramo viejo', async () => {
+    const { sumaIeiTramos } = await import('./page')
+    const tramos = [{ hasta: null, ieTramo: '999' }]
+    expect(sumaIeiTramos(tramos, 25)).toBe(25)
+  })
+
+  it('sin tramos y sin abierto → 0', async () => {
+    const { sumaIeiTramos } = await import('./page')
+    expect(sumaIeiTramos([], 0)).toBe(0)
+  })
+
+  it('trata ieTramo nulo de un tramo cerrado como 0, sin devolver NaN', async () => {
+    const { sumaIeiTramos } = await import('./page')
+    const tramos = [
+      { hasta: '2024-01-08T16:00:00.000Z', ieTramo: null },
+      { hasta: '2024-01-08T17:00:00.000Z', ieTramo: '30' },
+    ]
+    expect(sumaIeiTramos(tramos, 0)).toBe(30)
+  })
+})

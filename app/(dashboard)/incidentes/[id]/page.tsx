@@ -108,6 +108,20 @@ export function calcIeiTramoAbierto(
   return Math.round(ventaHora * horas * DASHBOARD_CONFIG.MARGEN_BRUTO * Number(tramo.factor))
 }
 
+/** Total de la tabla "Desglose por tramos": suma el ie_tramo ya sellado de los
+ *  tramos cerrados más el IEI en vivo del abierto (que aún no tiene ie_tramo).
+ *  Es el mismo número que muestra el IEI del incidente, para que la fila de
+ *  total y la cabecera no puedan contradecirse. Exportada solo para test. */
+export function sumaIeiTramos(
+  tramos: { hasta: string | Date | null; ieTramo?: string | number | null }[],
+  ieiTramoAbiertoLive: number,
+): number {
+  const cerrados = tramos
+    .filter(t => t.hasta != null)
+    .reduce((s, t) => s + Number(t.ieTramo ?? 0), 0)
+  return cerrados + ieiTramoAbiertoLive
+}
+
 /** El botón de editar un tramo (Paso 5) requiere el permiso incidentes.editar-tramos
  *  Y que el tramo ya esté cerrado — el tramo abierto se edita desde el control de
  *  mitigación, nunca desde acá. Exportada solo para test. */
@@ -341,13 +355,12 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
   const isSupervisor = userRol === 'SUPERVISOR'
   const canDelete  = can(session, 'incidentes.eliminar')
   const tramoAbiertoActual = tramos.find((t: any) => t.hasta == null) ?? null
-  const tramosCerrados = tramos.filter((t: any) => t.hasta != null)
   const ieiTramoAbiertoLive = calcIeiTramoAbierto(
     tramoAbiertoActual,
     { ventaHoraSoles: inc.tiendaVentaHoraSoles, ventaHoraFdsSoles: inc.tiendaVentaHoraFdsSoles },
     Date.now(),
   )
-  const ieiTotalTramos = tramosCerrados.reduce((s: number, t: any) => s + Number(t.ieTramo ?? 0), 0) + ieiTramoAbiertoLive
+  const ieiTotalTramos = sumaIeiTramos(tramos, ieiTramoAbiertoLive)
 
   const canEditTramos = can(session, 'incidentes.editar-tramos')
 
@@ -676,7 +689,8 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 </div>
               )}
             </div>
-            <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.28)', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'right' }}>Tiempo del incidente</div>
+            {/* El label lo pone CronometroPrincipal, que además alterna entre
+                "Tiempo del incidente" y "Tiempo total" según esté resuelto. */}
             <CronometroPrincipal horaRegistro={inc.horaRegistro} horaFin={inc.horaFin} tiempoAcumuladoMin={(inc as any).tiempoAcumuladoMin} horaRegistroOriginal={(inc as any).horaRegistroOriginal} />
             <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.22)', textAlign: 'right', lineHeight: 1.5 }}>
               Creado: {new Date((inc as any).horaRegistroOriginal ?? inc.horaRegistro).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
@@ -1144,6 +1158,20 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                           )
                         })}
                       </tbody>
+                      {/* Total: cerrados (ie_tramo) + el abierto calculado en vivo.
+                          Es el mismo ieiTotalTramos que muestra el IEI del incidente,
+                          así que la tabla y la cabecera nunca se contradicen. */}
+                      <tfoot>
+                        <tr style={{ borderTop: '2px solid var(--border)', background: 'var(--muted)', fontWeight: 700 }}>
+                          <td colSpan={5} style={{ padding: '8px', textAlign: 'right', color: 'var(--foreground)' }}>
+                            Total{tramoAbiertoActual && <span style={{ fontWeight: 500, color: 'var(--muted-foreground)' }}> (incluye el tramo en curso)</span>}
+                          </td>
+                          <td style={{ padding: '8px', fontFamily: 'monospace', color: 'var(--foreground)' }}>
+                            S/ {Math.round(ieiTotalTramos).toLocaleString('es-PE')}
+                          </td>
+                          {canEditTramos && <td style={{ padding: '8px' }}></td>}
+                        </tr>
+                      </tfoot>
                     </table>
                   </div>
                 </div>
