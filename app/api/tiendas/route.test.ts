@@ -159,3 +159,61 @@ describe('POST /api/tiendas — validación de código', () => {
     expect(data.error).toMatch(/ya existe/i)
   })
 })
+
+describe('GET /api/tiendas — filtro por proveedor (opciones del desplegable)', () => {
+  const PROV_A = 'FILTRO TEST PROV A'
+  const PROV_B = 'FILTRO TEST PROV B'
+
+  beforeAll(async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+
+    for (const [nombre, codigo] of [[PROV_A, 'T-FILTRO-A'], [PROV_B, 'T-FILTRO-B']] as [string, string][]) {
+      let [p] = await db.select().from(schema.proveedores).where(eq(schema.proveedores.nombre, nombre))
+      if (!p) [p] = await db.insert(schema.proveedores).values({ nombre }).returning()
+
+      let [t] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.codigo, codigo))
+      if (!t) {
+        await db.insert(schema.tiendas).values({
+          codigo, nombreCc: `Tienda ${codigo}`, distrito: 'Test', cluster: 'B', proveedorId: p.id,
+        })
+      } else {
+        await db.update(schema.tiendas).set({ proveedorId: p.id, estado: 'ACTIVA' } as any)
+          .where(eq(schema.tiendas.id, t.id))
+      }
+    }
+  })
+
+  async function listarPorProveedor(nombre: string) {
+    const { GET } = await import('./route')
+    const res = await GET(new NextRequest(`http://localhost/api/tiendas?estado=ACTIVA&proveedor=${encodeURIComponent(nombre)}`))
+    return res.json()
+  }
+
+  it('cada proveedor se puede filtrar de forma independiente — no hace falta resetear entre uno y otro', async () => {
+    const soloA = await listarPorProveedor(PROV_A)
+    expect(soloA.every((t: any) => t.proveedorNombre === PROV_A)).toBe(true)
+    expect(soloA.some((t: any) => t.codigo === 'T-FILTRO-A')).toBe(true)
+
+    // Sin limpiar nada en el medio: el filtro por otro proveedor debe funcionar igual.
+    const soloB = await listarPorProveedor(PROV_B)
+    expect(soloB.every((t: any) => t.proveedorNombre === PROV_B)).toBe(true)
+    expect(soloB.some((t: any) => t.codigo === 'T-FILTRO-B')).toBe(true)
+  })
+
+  it('los nombres que ofrece /api/proveedores sirven como filtro de /api/tiendas', async () => {
+    // El desplegable ahora se arma con /api/proveedores. Si esos nombres no
+    // coincidieran con proveedorNombre de /api/tiendas, ofrecería opciones que
+    // no filtran nada.
+    const { GET: GETProv } = await import('../proveedores/route')
+    const resProv = await GETProv(new NextRequest('http://localhost/api/proveedores'))
+    const proveedores = await resProv.json()
+
+    const nombres = proveedores.map((p: any) => p.nombre)
+    expect(nombres).toContain(PROV_A)
+    expect(nombres).toContain(PROV_B)
+
+    const filtradas = await listarPorProveedor(PROV_A)
+    expect(filtradas.length).toBeGreaterThan(0)
+  })
+})

@@ -206,10 +206,6 @@ export default function TiendasPage() {
   }
 
   const supervisores = Array.from(new Set(tiendas.map(t => t.supervisorNombre).filter(Boolean))).sort()
-  const proveedoresUnicos = Array.from(
-    new Map(tiendas.filter(t => t.proveedorId && t.proveedorNombre).map(t => [t.proveedorId, t.proveedorNombre])).entries()
-  ).map(([id, nombre]) => ({ id, nombre })).sort((a: any, b: any) => a.nombre.localeCompare(b.nombre))
-
   let filtered = tiendas.filter(t => {
     if (filtros.q) {
       const q = filtros.q.toLowerCase()
@@ -367,7 +363,11 @@ export default function TiendasPage() {
         <select value={filtros.proveedor} onChange={e => { setFiltros(f => ({ ...f, proveedor: e.target.value })); setPage(1) }}
           style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
           <option value="">Todos los proveedores</option>
-          {proveedoresUnicos.map((p: any) => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
+          {/* Sale del padrón completo de proveedores, no de las tiendas ya
+              filtradas: derivarlo de la lista visible dejaba una sola opción
+              apenas se elegía un proveedor, y no había forma de cambiar a otro
+              sin volver antes a "Todos". El backend filtra por nombre. */}
+          {allProveedores.map(p => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
         </select>
         <select value={filtros.cluster} onChange={e => { setFiltros(f => ({ ...f, cluster: e.target.value })); setPage(1) }}
           style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
