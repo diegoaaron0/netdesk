@@ -70,8 +70,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'tiendaId y proveedorId son obligatorios' }, { status: 400 })
   }
 
-  const tienda = await db.select({ codigo: tiendas.codigo }).from(tiendas).where(eq(tiendas.id, tiendaId)).limit(1)
+  const tienda = await db.select({ codigo: tiendas.codigo, estado: tiendas.estado }).from(tiendas).where(eq(tiendas.id, tiendaId)).limit(1)
   if (!tienda.length) return NextResponse.json({ error: 'Tienda no encontrada' }, { status: 404 })
+  if (tienda[0].estado === 'ARCHIVADA')
+    return NextResponse.json({ error: 'La tienda está archivada. No se puede crear una ficha de contrato para una tienda dada de baja.' }, { status: 409 })
 
   // Normaliza '' (campos vacíos del form) a null. Columnas date/numeric no aceptan ''.
   const nn = (v: any) => (v === '' || v === undefined ? null : v)

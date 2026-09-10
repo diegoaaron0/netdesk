@@ -37,8 +37,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // Gobierno: la activación directa solo se permite como ALTA INICIAL (la tienda aún no
   // tiene ficha activa). Si ya tiene una, el reemplazo va por Gestión de Cambios.
   if (estado === 'ACTIVA') {
-    const [t] = await db.select({ fichaActivaId: tiendas.fichaActivaId })
+    const [t] = await db.select({ fichaActivaId: tiendas.fichaActivaId, estado: tiendas.estado })
       .from(tiendas).where(eq(tiendas.id, ficha.tiendaId)).limit(1)
+    if (t?.estado === 'ARCHIVADA')
+      return NextResponse.json({ error: 'La tienda está archivada. No se puede activar una ficha de contrato para una tienda dada de baja.' }, { status: 409 })
     if (t?.fichaActivaId && t.fichaActivaId !== id)
       return NextResponse.json({ error: 'La tienda ya tiene una ficha activa. El reemplazo se realiza por Gestión de Cambios.' }, { status: 409 })
   }

@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
   const rows = await db.execute(sql`
     SELECT
       t.codigo,
+      t.estado,
       t.nombre_cc                                                        AS nombre,
       t.formato,
       t.distrito,
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
     LEFT JOIN fichas      f ON f.id = t.ficha_activa_id
     LEFT JOIN proveedores p ON t.proveedor_id = p.id
     LEFT JOIN incidentes  i ON i.tienda_id    = t.id
-    GROUP BY t.id, t.codigo, t.nombre_cc, t.formato, t.distrito, t.provincia,
+    GROUP BY t.id, t.codigo, t.estado, t.nombre_cc, t.formato, t.distrito, t.provincia,
              t.cluster, f.tipo_conexion, f.tipo_servicio, f.cid_servicio,
              t.tiene_contingencia, t.contingencia_activa, t.venta_hora_soles, p.nombre
     ORDER BY t.codigo
@@ -39,6 +40,7 @@ export async function GET(req: NextRequest) {
 
   const data = (rows as any[]).map((r) => ({
     codigo:               r.codigo,
+    estado:               r.estado,
     nombre:               r.nombre,
     formato:              r.formato,
     distrito:             r.distrito,
