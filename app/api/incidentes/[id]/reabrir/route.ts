@@ -179,18 +179,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         operacionManual:       false,
         tipoOperacionManual:   null,
         factorOperativo:       null,
-        contActivadoPor:       null,
-        contHoraActivacion:    null,
-        contRendimiento:       null,
-        contObservacion:       null,
-        contEsExterno:         false,
-        contHoraDesactivacion: null,
+        // Corte final: cont_*, mov_* y boleta_* ya no se resetean. Nadie los
+        // escribe, así que no hay slot vivo que liberar; los valores del período
+        // anterior quedan como dato histórico y ya fueron archivados arriba en
+        // mitigacionesPrevias. El slot que sí importa liberar es el tramo, y de
+        // eso se ocupa el bloque de tramos de abajo.
         routerExternoId:       null,
-        movActivadoPor:        null,
-        movHoraActivacion:     null,
-        movRendimiento:        null,
-        movObservacion:        null,
-        movHoraDesactivacion:  null,
         actualizadoEn: new Date(),
       })
       .where(eq(incidentes.id, id))

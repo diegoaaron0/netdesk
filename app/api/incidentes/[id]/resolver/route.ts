@@ -39,26 +39,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const mttrDesdeUltimaApertura = Math.round((horaFin.getTime() - new Date(inc.horaRegistro).getTime()) / 60000)
   const mttrMinutos = mttrDesdeUltimaApertura + (inc.tiempoAcumuladoMin ?? 0)
 
-  // Sellar los campos viejos que aún no fueron desactivados manualmente.
-  // Sigue gateado por los campos viejos a propósito, no por tramos: sólo se
-  // puede sellar lo que se abrió en el mismo modelo. Un incidente creado por
-  // POST /mitigacion no tiene cont_activado_por, y escribirle
-  // cont_hora_desactivacion dejaría un timestamp huérfano.
-  const sealFields: Record<string, any> = {}
-  if (inc.contActivadoPor && !inc.contHoraDesactivacion) {
-    sealFields.contHoraDesactivacion = horaFin
-  }
-  if (inc.movActivadoPor && !inc.movHoraDesactivacion) {
-    sealFields.movHoraDesactivacion = horaFin
-  }
-
+  // Corte final: ya no se sella cont/mov_hora_desactivacion. Nadie los lee para
+  // un incidente con tramos, y los históricos sin tramos no se rompen — sus
+  // lectores de fallback clipean la mitigación a hora_fin cuando no encuentran
+  // hora de desactivación, que es exactamente lo que ese sellado escribía.
   const resueltoPorUsuarioId = (session.user as any)?.id ?? null
 
   // Todos los writes relacionados van en una transacción: si algo falla, no queda
   // el incidente RESUELTO con la contingencia de tienda o el router en estado inconsistente.
   const updated = await db.transaction(async (tx) => {
     const [upd] = await tx.update(incidentes)
-      .set({ estado: 'RESUELTO', horaFin, mttrMinutos, tiempoAcumuladoMin: null, actualizadoEn: new Date(), resueltoPor, atribucionFinal, evaluableProveedor, resueltoPorUsuarioId, ...sealFields })
+      .set({ estado: 'RESUELTO', horaFin, mttrMinutos, tiempoAcumuladoMin: null, actualizadoEn: new Date(), resueltoPor, atribucionFinal, evaluableProveedor, resueltoPorUsuarioId })
       .where(eq(incidentes.id, id))
       .returning()
 

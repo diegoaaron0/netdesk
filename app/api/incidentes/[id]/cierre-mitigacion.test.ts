@@ -134,7 +134,11 @@ describe('resolver / cancelar — gates de cierre contra tramos', () => {
 
     const d = await estado(incId)
     expect(d.tienda.contingenciaActiva, 'el gate viejo sigue limpiando la tienda').toBe(false)
-    expect(d.inc.contHoraDesactivacion, 'y el campo viejo se sigue sellando').not.toBeNull()
+    // Corte final: ya no se sella cont_hora_desactivacion. El dato que el
+    // incidente traía de antes queda intacto y sus lectores de fallback
+    // clipean la mitigación a hora_fin.
+    expect(d.inc.contHoraDesactivacion, 'ya no se sella el campo viejo').toBeNull()
+    expect(d.inc.contActivadoPor, 'lo ya cargado no se toca').toBe('AGENTE')
     expect(d.tramos, 'no inventa tramos donde no había').toHaveLength(0)
   })
 
@@ -151,7 +155,7 @@ describe('resolver / cancelar — gates de cierre contra tramos', () => {
 
     const d = await estado(incId)
     expect(d.tienda.contingenciaActiva).toBe(false)
-    expect(d.inc.contHoraDesactivacion).not.toBeNull()
+    expect(d.inc.contHoraDesactivacion, 'ya no se sella el campo viejo').toBeNull()
   })
 
   it('tramo ya cerrado antes de resolver: no cierra nada de nuevo, pero sí limpia', async () => {
@@ -213,5 +217,137 @@ describe('resolver / cancelar — gates de cierre contra tramos', () => {
     const d = await estado(incId)
     expect(d.abierto).toBeNull()
     expect(d.tramos.find(t => t.tipo === 'DATOS_MOVILES')!.hasta).not.toBeNull()
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Corte final (Paso 3): ya no se ESCRIBE en cont_*, mov_* ni boleta_*. Los
+// datos históricos quedan en la tabla y sus lectores de fallback los siguen
+// usando; lo que se apagó es la generación de datos nuevos en ese formato.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('corte final — los campos viejos ya no se escriben', () => {
+  let tiendaId: string
+  let registradoPorId: string
+
+  beforeAll(async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    const [ref] = await db.select().from(schema.incidentes).where(eq(schema.incidentes.codigo, 'TST-P1-001'))
+    registradoPorId = ref.registradoPorId
+    let [t] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.codigo, 'T-CORTE-FINAL'))
+    if (!t) {
+      [t] = await db.insert(schema.tiendas).values({
+        codigo: 'T-CORTE-FINAL', nombreCc: 'Corte final', distrito: 'Test', cluster: 'B',
+        ventaHoraSoles: '100', tieneContingencia: true,
+      }).returning()
+    } else {
+      await db.update(schema.tiendas).set({ estado: 'ACTIVA', tieneContingencia: true } as any).where(eq(schema.tiendas.id, t.id))
+    }
+    tiendaId = t.id
+  })
+
+  async function nuevo(codigo: string, extra: Record<string, any> = {}) {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    await db.delete(schema.incidentes).where(eq(schema.incidentes.codigo, codigo))
+    const [inc] = await db.insert(schema.incidentes).values({
+      codigo, tiendaId, registradoPorId, nivelImpacto: 'ALTO', tipo: 'CAIDA_TOTAL',
+      estado: 'ABIERTO', horaRegistro: new Date(Date.now() - 2 * 3600000), ...extra,
+    }).returning()
+    return inc.id
+  }
+
+  async function leer(incId: string) {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    const [i] = await db.select().from(schema.incidentes).where(eq(schema.incidentes.id, incId))
+    return i
+  }
+
+  /** Los 12 campos del modelo viejo, todos en null/false. */
+  function expectViejosVacios(i: any) {
+    expect(i.contActivadoPor).toBeNull()
+    expect(i.contHoraActivacion).toBeNull()
+    expect(i.contHoraDesactivacion).toBeNull()
+    expect(i.contRendimiento).toBeNull()
+    expect(i.movActivadoPor).toBeNull()
+    expect(i.movHoraActivacion).toBeNull()
+    expect(i.movHoraDesactivacion).toBeNull()
+    expect(i.movRendimiento).toBeNull()
+    expect(i.boletaManual).toBeFalsy()
+    expect(i.boletaHoraActivacion).toBeNull()
+    expect(i.boletaRendimiento).toBeNull()
+  }
+
+  async function activar(incId: string, tipo: string) {
+    const { POST } = await import('./mitigacion/route')
+    const res = await POST(
+      { json: async () => ({ tipo, rendimiento: 'PARCIAL', activadoPor: 'AGENTE' }) } as any,
+      { params: Promise.resolve({ id: incId }) },
+    )
+    expect(res.status).toBe(200)
+  }
+
+  it('activar por tramos + resolver → los campos viejos quedan vacíos', async () => {
+    const incId = await nuevo('TST-CORTE-RESOLVER')
+    await activar(incId, 'ROUTER_PROPIO')
+    const { POST } = await import('./resolver/route')
+    expect((await POST({ json: async () => ({}) } as any, { params: Promise.resolve({ id: incId }) })).status).toBe(200)
+    expectViejosVacios(await leer(incId))
+  })
+
+  it('activar por tramos + cancelar → los campos viejos quedan vacíos', async () => {
+    const incId = await nuevo('TST-CORTE-CANCELAR')
+    await activar(incId, 'DATOS_MOVILES')
+    const { POST } = await import('./cancelar/route')
+    expect((await POST({} as any, { params: Promise.resolve({ id: incId }) })).status).toBe(200)
+    expectViejosVacios(await leer(incId))
+  })
+
+  it('PUT con los campos viejos en el body: los ignora sin error, no 400 ni escritura', async () => {
+    const incId = await nuevo('TST-CORTE-PUT-IGNORA')
+    const { PUT } = await import('./route')
+    // Lo que manda el formulario de detalle: {...editForm} con todo adentro.
+    const res = await PUT({ json: async () => ({
+      observaciones: 'editado',
+      contActivadoPor: 'AGENTE', contHoraActivacion: new Date().toISOString(), contRendimiento: 'PARCIAL',
+      contEsExterno: true,
+      movActivadoPor: 'AGENTE', movHoraActivacion: new Date().toISOString(), movRendimiento: 'NULO',
+      boletaManual: true, boletaRendimiento: 'TOTAL',
+    }) } as any, { params: Promise.resolve({ id: incId }) })
+
+    expect(res.status, 'ignora en silencio, no rechaza').toBe(200)
+    const i = await leer(incId)
+    expect(i.observaciones, 'los campos legítimos sí se guardan').toBe('editado')
+    expectViejosVacios(i)
+  })
+
+  it('reabrir no toca los campos viejos del período anterior', async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    // Incidente histórico ya resuelto, con datos viejos cargados.
+    const incId = await nuevo('TST-CORTE-REABRIR', {
+      estado: 'RESUELTO', horaFin: new Date(Date.now() - 3600000), mttrMinutos: 60,
+      contActivadoPor: 'AGENTE', contHoraActivacion: new Date(Date.now() - 2 * 3600000),
+      contHoraDesactivacion: new Date(Date.now() - 3600000), contRendimiento: 'PARCIAL',
+    })
+    const antes = await leer(incId)
+
+    const { POST } = await import('./reabrir/route')
+    const res = await POST(
+      { json: async () => ({ motivo: 'TIENDA_SIN_INTERNET', justificacion: 'sigue caída' }) } as any,
+      { params: Promise.resolve({ id: incId }) },
+    )
+    expect(res.status).toBe(200)
+
+    const despues = await leer(incId)
+    expect(despues.estado).toBe('ABIERTO')
+    // No se resetean a null: quedan como dato histórico del período anterior.
+    expect(despues.contActivadoPor).toBe(antes.contActivadoPor)
+    expect(despues.contHoraActivacion).toEqual(antes.contHoraActivacion)
+    expect(despues.contHoraDesactivacion).toEqual(antes.contHoraDesactivacion)
+    expect(despues.contRendimiento).toBe(antes.contRendimiento)
+    // Y el archivado de mitigaciones previas sigue funcionando.
+    expect(despues.mitigacionesPrevias).toBeTruthy()
   })
 })

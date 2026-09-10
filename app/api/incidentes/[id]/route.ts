@@ -5,6 +5,7 @@ import { eq, and, isNull, inArray, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
+import { cerrarMitigacionAlCerrarIncidente } from '@/lib/cierre-mitigacion'
 
 const infraUser = alias(usuarios, 'infra_user')
 const provInc   = alias(proveedores, 'pi')   // proveedor histórico del incidente
@@ -320,18 +321,23 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     'descripcionInicial','ticketInvgate','ticketProveedor','descartesRealizados','solucionAplicada',
     'observaciones','horaRegistro','horaRegistroOriginal','horaFin','mttrMinutos',
     'estadoOperacion','operacionManual','tipoOperacionManual','factorOperativo',
-    'contActivadoPor','contHoraActivacion','contHoraDesactivacion','contRendimiento','contObservacion','contEsExterno','routerExternoId',
-    'movActivadoPor','movHoraActivacion','movHoraDesactivacion','movRendimiento','movObservacion',
+    'routerExternoId',
+    // Corte final: cont_*, mov_* y boleta_* YA NO SE ESCRIBEN. La mitigación
+    // vive en incidente_mitigacion_tramos y se opera por POST /mitigacion.
+    // Si el body los trae (el formulario de detalle manda {...editForm} entero)
+    // se ignoran en silencio, sin 400, para no romper el frontend. Los datos
+    // históricos siguen en la tabla y los lectores de fallback los siguen
+    // leyendo cuando el incidente no tiene ningún tramo.
     // descDns sigue aceptándose para no romper un guardado de un incidente
     // histórico que lo traiga; el formulario nuevo ya no lo ofrece.
     'descEnergia','descRouter','descCableado','descReinicioEquipo','descDns',
     'checkIpconfig','checkPingGw','checkPingInternet','checkTracert','checkDns','checkRenovarIp',
     'descartesDetallado','resueltoPor','atribucionFinal','evaluableProveedor',
-    'boletaManual','boletaRendimiento','boletaHoraActivacion','ventaParcial','cajasAfectadas','cajasTotales',
+    'ventaParcial','cajasAfectadas','cajasTotales',
     'alcanceCorte','tuvoUps',
     'escaladoInfraId','horaEscaladoInfra','notaEscaladoInfra',
   ]
-  const dateFields = new Set(['horaRegistro','horaRegistroOriginal','horaFin','contHoraActivacion','contHoraDesactivacion','movHoraActivacion','movHoraDesactivacion','horaEscaladoInfra','boletaHoraActivacion'])
+  const dateFields = new Set(['horaRegistro','horaRegistroOriginal','horaFin','horaEscaladoInfra'])
   const intFields  = new Set(['cajasAfectadas','cajasTotales','mttrMinutos'])
   for (const k of editable) {
     if (k in body) {
@@ -345,19 +351,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
   }
 
-  // Normalizar: empty string en campos de activación → null (evita IS NOT NULL falso positivo en queries)
-  for (const f of ['contActivadoPor', 'movActivadoPor']) {
-    if (f in allowedFields && allowedFields[f] === '') allowedFields[f] = null
-  }
-
   // Validaciones de consistencia temporal
   const af = allowedFields
   if (af.horaRegistro && af.horaFin && af.horaFin < af.horaRegistro)
     return NextResponse.json({ error: 'hora_fin no puede ser anterior a hora_registro' }, { status: 400 })
-  if (af.contHoraActivacion && af.contHoraDesactivacion && af.contHoraDesactivacion < af.contHoraActivacion)
-    return NextResponse.json({ error: 'cont_hora_desactivacion no puede ser anterior a cont_hora_activacion' }, { status: 400 })
-  if (af.movHoraActivacion && af.movHoraDesactivacion && af.movHoraDesactivacion < af.movHoraActivacion)
-    return NextResponse.json({ error: 'mov_hora_desactivacion no puede ser anterior a mov_hora_activacion' }, { status: 400 })
 
   // Auditoría: cuando se cierra, guardar quién cerró y auto-sellar hora_fin
   if (body.estado === 'CERRADO') {
@@ -365,103 +362,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!('horaFin' in allowedFields)) allowedFields.horaFin = new Date()
   }
 
-  // Validar: no se puede activar ROUTER_PROPIO si la tienda no tiene contingencia propia.
-  // Solo aplica cuando es una NUEVA activación (contActivadoPor era null en BD antes de este save).
-  if (allowedFields.contActivadoPor && !allowedFields.contEsExterno) {
-    const [prev] = await db.select({
-      contActivadoPor:  incidentes.contActivadoPor,
-      tieneContingencia: tiendas.tieneContingencia,
-    })
-      .from(incidentes)
-      .innerJoin(tiendas, eq(incidentes.tiendaId, tiendas.id))
-      .where(eq(incidentes.id, id))
-    if (!prev?.contActivadoPor && !prev?.tieneContingencia) {
-      return NextResponse.json({ error: 'Esta tienda no tiene contingencia propia registrada. Solo puede usar Router externo.' }, { status: 409 })
-    }
-  }
-
-  // Auto-set contHoraActivacion cuando contActivadoPor se escribe y no se proporcionó hora
-  if (allowedFields.contActivadoPor && !allowedFields.contHoraActivacion) {
-    const [prev] = await db.select({ contHoraActivacion: incidentes.contHoraActivacion })
-      .from(incidentes).where(eq(incidentes.id, id))
-    if (!prev?.contHoraActivacion) {
-      allowedFields.contHoraActivacion = new Date()
-    }
-  }
-
-  // Auto-set movHoraActivacion cuando movActivadoPor se escribe y no se proporcionó hora.
-  // Espejo del fallback de contingencia: sin esto, activar datos móviles sin tipear la
-  // hora dejaba mov_activado_por seteado pero mov_hora_activacion = NULL, lo que rompía
-  // el tiempo transcurrido en operativo, el total de la tienda y el segmento IEI.
-  if (allowedFields.movActivadoPor && !allowedFields.movHoraActivacion) {
-    const [prev] = await db.select({ movHoraActivacion: incidentes.movHoraActivacion })
-      .from(incidentes).where(eq(incidentes.id, id))
-    if (!prev?.movHoraActivacion) {
-      allowedFields.movHoraActivacion = new Date()
-    }
-  }
-
-  // Auto-set hora desactivacion cuando se limpia contActivadoPor o movActivadoPor
-  if ('contActivadoPor' in allowedFields && !allowedFields.contActivadoPor) {
-    const [prev] = await db.select({ contHoraActivacion: incidentes.contHoraActivacion, contHoraDesactivacion: incidentes.contHoraDesactivacion })
-      .from(incidentes).where(eq(incidentes.id, id))
-    if (prev?.contHoraActivacion && !prev?.contHoraDesactivacion) {
-      allowedFields.contHoraDesactivacion = new Date()
-    }
-  }
-  if ('movActivadoPor' in allowedFields && !allowedFields.movActivadoPor) {
-    const [prev] = await db.select({ movHoraActivacion: incidentes.movHoraActivacion, movHoraDesactivacion: incidentes.movHoraDesactivacion })
-      .from(incidentes).where(eq(incidentes.id, id))
-    if (prev?.movHoraActivacion && !prev?.movHoraDesactivacion) {
-      allowedFields.movHoraDesactivacion = new Date()
-    }
-  }
-
-  // Auto-timestamp boleta_hora_activacion cuando boletaManual se activa por primera vez
-  if ('boletaManual' in allowedFields) {
-    if (allowedFields.boletaManual === true) {
-      const [prev] = await db.select({ boletaHoraActivacion: incidentes.boletaHoraActivacion })
-        .from(incidentes).where(eq(incidentes.id, id))
-      if (!prev?.boletaHoraActivacion && !('boletaHoraActivacion' in allowedFields)) {
-        allowedFields.boletaHoraActivacion = new Date()
-      }
-    } else if (allowedFields.boletaManual === false || allowedFields.boletaManual === null) {
-      allowedFields.boletaHoraActivacion = null
-    }
-  }
-
-  // Prevalidar router externo ANTES de tocar el incidente para evitar inconsistencias
-  if (allowedFields.contActivadoPor && allowedFields.contEsExterno) {
-    const [prevIncR] = await db.select({ tiendaId: incidentes.tiendaId, routerExternoId: incidentes.routerExternoId })
-      .from(incidentes).where(eq(incidentes.id, id))
-    const routerIdCheck = allowedFields.routerExternoId ?? prevIncR?.routerExternoId
-    if (routerIdCheck) {
-      const [rCheck] = await db.select({ estado: routersExternos.estado, tiendaActualId: routersExternos.tiendaActualId })
-        .from(routersExternos).where(eq(routersExternos.id, routerIdCheck))
-      if (rCheck?.estado === 'EN_TIENDA_ACTIVO' && rCheck.tiendaActualId !== prevIncR?.tiendaId) {
-        return NextResponse.json({ error: 'Este router ya está activo en otro incidente. Debe desactivarse primero.' }, { status: 409 })
-      }
-    }
-  }
-
-  // Al editar hora_fin o hora_registro en un incidente ya resuelto/cerrado:
-  // 1. Recalcular mttr_minutos automáticamente
-  // 2. Sincronizar cont_hora_desactivacion / mov_hora_desactivacion con la nueva hora_fin
-  //    siempre que el usuario no haya cambiado esos campos explícitamente
+  // Al editar hora_fin o hora_registro en un incidente ya resuelto/cerrado se
+  // recalcula mttr_minutos. Antes también se re-sincronizaban
+  // cont/mov_hora_desactivacion con la nueva hora_fin; eso murió con el corte
+  // final: esos campos ya no se escriben y el IEI sale de los tramos.
   if ('horaFin' in allowedFields || 'horaRegistro' in allowedFields) {
     const [prevSnap] = await db.select({
-      estado:                incidentes.estado,
-      horaFin:               incidentes.horaFin,
-      horaRegistro:          incidentes.horaRegistro,
-      tiempoAcumuladoMin:    incidentes.tiempoAcumuladoMin,
-      contActivadoPor:       incidentes.contActivadoPor,
-      contHoraDesactivacion: incidentes.contHoraDesactivacion,
-      movActivadoPor:        incidentes.movActivadoPor,
-      movHoraDesactivacion:  incidentes.movHoraDesactivacion,
+      estado:             incidentes.estado,
+      horaFin:            incidentes.horaFin,
+      horaRegistro:       incidentes.horaRegistro,
+      tiempoAcumuladoMin: incidentes.tiempoAcumuladoMin,
     }).from(incidentes).where(eq(incidentes.id, id))
 
     if (prevSnap && ['RESUELTO', 'CERRADO'].includes(prevSnap.estado ?? '')) {
-      // Recalcular MTTR si no fue enviado explícitamente
       if (!('mttrMinutos' in allowedFields)) {
         const fin = (allowedFields.horaFin ?? prevSnap.horaFin) as Date | null
         const ini = (allowedFields.horaRegistro ?? prevSnap.horaRegistro) as Date
@@ -472,32 +385,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           ) + acum
         }
       }
-
-      // Sincronizar cont/mov hora_desactivacion con la nueva hora_fin,
-      // salvo que el usuario haya cambiado esos campos explícitamente.
-      // Tolerancia 60s para la truncación a minutos de datetime-local.
-      if ('horaFin' in allowedFields && allowedFields.horaFin) {
-        const newHoraFin = allowedFields.horaFin as Date
-        const TOL_MS = 60_000
-
-        const contDeactUnchanged = prevSnap.contActivadoPor != null &&
-          prevSnap.contHoraDesactivacion != null &&
-          (allowedFields.contHoraDesactivacion == null ||
-            Math.abs(
-              new Date(allowedFields.contHoraDesactivacion as any).getTime() -
-              new Date(prevSnap.contHoraDesactivacion).getTime()
-            ) < TOL_MS)
-        if (contDeactUnchanged) allowedFields.contHoraDesactivacion = newHoraFin
-
-        const movDeactUnchanged = prevSnap.movActivadoPor != null &&
-          prevSnap.movHoraDesactivacion != null &&
-          (allowedFields.movHoraDesactivacion == null ||
-            Math.abs(
-              new Date(allowedFields.movHoraDesactivacion as any).getTime() -
-              new Date(prevSnap.movHoraDesactivacion).getTime()
-            ) < TOL_MS)
-        if (movDeactUnchanged) allowedFields.movHoraDesactivacion = newHoraFin
-      }
     }
   }
 
@@ -506,41 +393,31 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     .where(eq(incidentes.id, id))
     .returning()
 
-  // ── Sincronizar el corte de mitigación con la tabla de tramos ──────────────
-  // El botón "desactivar contingencia" del dashboard operativo entra por acá:
-  // manda un PUT con cont_hora_desactivacion / mov_hora_desactivacion /
-  // boletaManual:false y nada más. Hasta este fix sellaba SOLO el campo viejo,
-  // y el tramo quedaba abierto: como todos los consumidores ya leen de tramos
-  // (Fase 5), el IEI seguía acumulando con el factor mitigado como si la
-  // contingencia nunca hubiera terminado.
-  //
-  // En vez de reimplementar el cierre, se delega en POST /mitigacion con
-  // SIN_MITIGACION, que es la misma lógica que usa el control del detalle:
-  // sella el tramo con calcIeTramo, abre el tramo sin mitigación y arrastra
-  // los efectos (estado del router externo, tiendas.contingencia_activa).
-  // Duplicarla sería repetir el error que causó esta divergencia.
-  //
-  // La escritura vieja se mantiene a propósito: ambos caminos quedan
-  // sincronizados hasta el corte final de cont_*/mov_*/boleta_*.
-  const cerroRouter  = allowedFields.contHoraDesactivacion != null
-    || ('contActivadoPor' in allowedFields && !allowedFields.contActivadoPor)
-  const cerroMoviles = allowedFields.movHoraDesactivacion != null
-    || ('movActivadoPor' in allowedFields && !allowedFields.movActivadoPor)
-  const cerroBoleta  = 'boletaManual' in allowedFields && !allowedFields.boletaManual
+  // ── Desactivar la mitigación desde el dashboard operativo ─────────────────
+  // El botón "desactivar contingencia" del operativo manda un PUT con
+  // cont_hora_desactivacion / mov_hora_desactivacion / boletaManual:false y
+  // nada más. Esos campos ya no se escriben, pero se siguen leyendo DEL BODY
+  // como señal de intención: es lo único que distingue "apagá la mitigación"
+  // de cualquier otro guardado. El efecto real es cerrar el tramo, delegando
+  // en POST /mitigacion con SIN_MITIGACION — la misma lógica que usa el
+  // control del detalle, no una copia.
+  const pidioCerrarRouter  = body.contHoraDesactivacion != null || body.contActivadoPor === null || body.contActivadoPor === ''
+  const pidioCerrarMoviles = body.movHoraDesactivacion != null || body.movActivadoPor === null || body.movActivadoPor === ''
+  const pidioCerrarBoleta  = body.boletaManual === false || body.boletaManual === null
 
-  if ((cerroRouter || cerroMoviles || cerroBoleta)
+  if ((pidioCerrarRouter || pidioCerrarMoviles || pidioCerrarBoleta)
       && !['RESUELTO', 'CANCELADO', 'CERRADO'].includes(updated.estado ?? '')) {
     const [tramoAbierto] = await db.select({ tipo: incidenteMitigacionTramos.tipo })
       .from(incidenteMitigacionTramos)
       .where(and(eq(incidenteMitigacionTramos.incidenteId, id), isNull(incidenteMitigacionTramos.hasta)))
 
-    // Solo si el tramo abierto es del tipo que se acaba de desactivar: apagar
-    // el router no debe cerrar un tramo de datos móviles que sigue corriendo.
+    // Solo si el tramo abierto es del tipo que se pidió desactivar: apagar el
+    // router no debe cerrar un tramo de datos móviles que sigue corriendo.
     const tipoAbierto = tramoAbierto?.tipo ?? null
     const coincide =
-      (cerroRouter  && (tipoAbierto === 'ROUTER_PROPIO' || tipoAbierto === 'ROUTER_EXTERNO')) ||
-      (cerroMoviles && tipoAbierto === 'DATOS_MOVILES') ||
-      (cerroBoleta  && tipoAbierto === 'BOLETA_MANUAL')
+      (pidioCerrarRouter  && (tipoAbierto === 'ROUTER_PROPIO' || tipoAbierto === 'ROUTER_EXTERNO')) ||
+      (pidioCerrarMoviles && tipoAbierto === 'DATOS_MOVILES') ||
+      (pidioCerrarBoleta  && tipoAbierto === 'BOLETA_MANUAL')
 
     if (coincide) {
       const { POST: postMitigacion } = await import('./mitigacion/route')
@@ -549,8 +426,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         { params: Promise.resolve({ id }) },
       )
       if (!res.ok) {
-        // No se revierte el PUT: el campo viejo ya quedó sellado y es lo que
-        // el usuario pidió. Se deja rastro para poder detectar la divergencia.
         console.error('[incidentes/PUT] no se pudo cerrar el tramo abierto', id, res.status, await res.text().catch(() => ''))
       }
     }
@@ -571,140 +446,23 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     `)
   }
 
-  // Al cerrar/cancelar un incidente con contingencia activa → auto-desactivar timestamps
+  // Al cerrar el incidente por PUT (estado CERRADO/RESUELTO/CANCELADO desde el
+  // formulario de detalle): sellar el tramo abierto, limpiar
+  // tiendas.contingencia_activa y bajar el router. Mismo helper que usan
+  // resolver/ y cancelar/, con la misma regla — decide por tramos y cae al gate
+  // viejo sólo si el incidente no tiene ninguno. Antes esto eran cuatro bloques
+  // separados gateados por cont_activado_por, que con el corte final quedaban
+  // muertos y dejaban la tienda marcada y el router colgado.
   const estadoCierra = ['RESUELTO', 'CANCELADO', 'CERRADO'].includes(body.estado ?? '')
-  if (estadoCierra && updated.tiendaId) {
-    const now = new Date()
-    const patch: Record<string, any> = { actualizadoEn: now }
-    if (updated.contActivadoPor && !updated.contHoraDesactivacion) patch.contHoraDesactivacion = now
-    if (updated.movActivadoPor  && !updated.movHoraDesactivacion)  patch.movHoraDesactivacion  = now
-    if (Object.keys(patch).length > 1) {
-      await db.update(incidentes).set(patch).where(eq(incidentes.id, id))
-    }
-  }
-
-  if (estadoCierra && updated.tiendaId && updated.contActivadoPor) {
-    const userId = (session.user as any)?.id ?? null
-    const rows = await db.execute(sql`
-      SELECT COUNT(*)::int AS cnt FROM incidentes
-      WHERE tienda_id = ${updated.tiendaId}
-        AND cont_activado_por IS NOT NULL
-        AND cont_hora_desactivacion IS NULL
-        AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
-        AND id != ${id}
-    `)
-    const contStdRows = await db.execute(sql`
-      SELECT COUNT(*)::int AS cnt FROM contingencias
-      WHERE tienda_id = ${updated.tiendaId} AND hora_desactivacion IS NULL
-    `)
-    const stillActive = Number((rows[0] as any)?.cnt ?? 0) + Number((contStdRows[0] as any)?.cnt ?? 0)
-    if (stillActive === 0) {
-      await db.update(tiendas)
-        .set({ contingenciaActiva: false, contingenciaActivadaPor: null })
-        .where(eq(tiendas.id, updated.tiendaId))
-      await db.insert(tiendasHistorial).values({
-        tiendaId:      updated.tiendaId,
-        usuarioId:     userId,
-        campoEditado:  'contingenciaActiva',
-        valorAnterior: 'true',
-        valorNuevo:    `false — cierre automático vía ${body.estado} incidente ${updated.codigo ?? id}`,
-      })
-    }
-  }
-
-  // Cuando contHoraDesactivacion se sella explícitamente → limpiar flag de tienda si ya no hay contingencias activas
-  if ('contHoraDesactivacion' in allowedFields && updated.tiendaId) {
-    await db.execute(sql`
-      UPDATE tiendas SET contingencia_activa = false, contingencia_activada_por = null
-      WHERE id = ${updated.tiendaId}
-        AND NOT EXISTS (
-          SELECT 1 FROM incidentes
-          WHERE tienda_id = ${updated.tiendaId}
-            AND cont_activado_por IS NOT NULL
-            AND cont_hora_desactivacion IS NULL
-            AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
-        )
-        AND NOT EXISTS (
-          SELECT 1 FROM contingencias
-          WHERE tienda_id = ${updated.tiendaId} AND hora_desactivacion IS NULL
-        )
-    `)
-  }
-
-  // ── Gestión de estado del router externo ─────────────────────────────────
-  // La validación de doble-activación ya se hizo arriba (antes del UPDATE) para evitar inconsistencias.
-  if (allowedFields.contActivadoPor && allowedFields.contEsExterno && updated.routerExternoId) {
-    await db.update(routersExternos)
-      .set({ estado: 'EN_TIENDA_ACTIVO', tiendaActualId: updated.tiendaId })
-      .where(eq(routersExternos.id, updated.routerExternoId))
-  }
-
-  // Al sellar contHoraDesactivacion manualmente → EN_TIENDA_INACTIVO
-  if ('contHoraDesactivacion' in allowedFields && allowedFields.contHoraDesactivacion && updated.routerExternoId) {
-    const [router] = await db.select({ estado: routersExternos.estado })
-      .from(routersExternos).where(eq(routersExternos.id, updated.routerExternoId))
-    if (router?.estado === 'EN_TIENDA_ACTIVO') {
-      await db.update(routersExternos)
-        .set({ estado: 'EN_TIENDA_INACTIVO' })
-        .where(eq(routersExternos.id, updated.routerExternoId))
-    }
-  }
-
-  // Al cerrar/cancelar/resolver → EN_TIENDA_INACTIVO
-  if (estadoCierra && updated.routerExternoId) {
-    const [router] = await db.select({ estado: routersExternos.estado })
-      .from(routersExternos).where(eq(routersExternos.id, updated.routerExternoId))
-    if (router?.estado === 'EN_TIENDA_ACTIVO') {
-      await db.update(routersExternos)
-        .set({ estado: 'EN_TIENDA_INACTIVO' })
-        .where(eq(routersExternos.id, updated.routerExternoId))
-    }
-  }
-
-  // Auto-sync tiendas.contingencia_activa desde el estado de contingencia del incidente.
-  // Cuando contActivadoPor se establece → la tienda pasa a contingencia activa.
-  // Cuando se limpia → solo se desactiva si ningún otro incidente abierto de esa tienda tiene contingencia.
-  if ('contActivadoPor' in allowedFields && updated.tiendaId) {
-    const userId = (session.user as any)?.id ?? null
-    if (updated.contActivadoPor && !estadoCierra) {
-      await db.update(tiendas)
-        .set({
-          contingenciaActiva: true,
-          contingenciaActivadaPor: String(updated.contActivadoPor),
-        })
-        .where(eq(tiendas.id, updated.tiendaId))
-      await db.insert(tiendasHistorial).values({
-        tiendaId:      updated.tiendaId,
-        usuarioId:     userId,
-        campoEditado:  'contingenciaActiva',
-        valorAnterior: 'false',
-        valorNuevo:    `true — vía incidente ${updated.codigo ?? id}`,
-      })
-    } else {
-      const rows = await db.execute(sql`
-        SELECT COUNT(*)::int AS cnt FROM incidentes
-        WHERE tienda_id = ${updated.tiendaId}
-          AND cont_activado_por IS NOT NULL
-          AND cont_hora_desactivacion IS NULL
-          AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
-      `)
-      const contStdRows = await db.execute(sql`
-        SELECT COUNT(*)::int AS cnt FROM contingencias
-        WHERE tienda_id = ${updated.tiendaId} AND hora_desactivacion IS NULL
-      `)
-      if (Number((rows[0] as any)?.cnt ?? 0) + Number((contStdRows[0] as any)?.cnt ?? 0) === 0) {
-        await db.update(tiendas)
-          .set({ contingenciaActiva: false, contingenciaActivadaPor: null })
-          .where(eq(tiendas.id, updated.tiendaId))
-        await db.insert(tiendasHistorial).values({
-          tiendaId:      updated.tiendaId,
-          usuarioId:     userId,
-          campoEditado:  'contingenciaActiva',
-          valorAnterior: 'true',
-          valorNuevo:    `false — vía incidente ${updated.codigo ?? id}`,
-        })
-      }
-    }
+  if (estadoCierra) {
+    await cerrarMitigacionAlCerrarIncidente(db, {
+      incidenteId:     id,
+      tiendaId:        updated.tiendaId,
+      tipoIncidente:   updated.tipo,
+      contActivadoPor: updated.contActivadoPor,
+      routerExternoId: updated.routerExternoId,
+      horaFin:         (updated.horaFin as Date | null) ?? new Date(),
+    })
   }
 
   return NextResponse.json(updated)
@@ -723,6 +481,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     contHoraDesactivacion: incidentes.contHoraDesactivacion,
   }).from(incidentes).where(eq(incidentes.id, id))
 
+  // Se leen antes del delete: la FK en cascada se los lleva con el incidente.
+  const tramosRouterAbiertos = (await db.select({ tipo: incidenteMitigacionTramos.tipo })
+    .from(incidenteMitigacionTramos)
+    .where(and(eq(incidenteMitigacionTramos.incidenteId, id), isNull(incidenteMitigacionTramos.hasta))))
+    .filter(t => t.tipo === 'ROUTER_PROPIO' || t.tipo === 'ROUTER_EXTERNO').length
+
   await db.delete(adjuntos).where(eq(adjuntos.incidenteId, id))
   const escs = await db.select({ id: escalamientos.id }).from(escalamientos).where(eq(escalamientos.incidenteId, id))
   for (const esc of escs) {
@@ -731,15 +495,29 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   await db.delete(escalamientos).where(eq(escalamientos.incidenteId, id))
   await db.delete(incidentes).where(eq(incidentes.id, id))
 
-  // Si el incidente tenía contingencia router activa, limpiar flag de tienda
-  // solo si no quedan otros incidentes abiertos con contingencia activa para esa tienda
-  if (inc?.tiendaId && inc.contActivadoPor && !inc.contHoraDesactivacion) {
+  // Si el incidente tenía contingencia de router, limpiar el flag de tienda si
+  // no quedan otras fuentes vivas. La condición mira las dos: un tramo de router
+  // abierto (modelo nuevo) o el campo viejo sin sellar (incidentes históricos).
+  // Sólo con el campo viejo, borrar un incidente creado por el flujo de tramos
+  // dejaba la tienda marcada con contingencia para siempre.
+  const teniaRouter = !!(inc?.contActivadoPor && !inc.contHoraDesactivacion) || tramosRouterAbiertos > 0
+  if (inc?.tiendaId && teniaRouter) {
     const [incRow] = await db.execute<{ cnt: number }>(sql`
-      SELECT COUNT(*)::int AS cnt FROM incidentes
-      WHERE tienda_id = ${inc.tiendaId}
-        AND cont_activado_por IS NOT NULL
-        AND cont_hora_desactivacion IS NULL
-        AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
+      SELECT COUNT(DISTINCT i.id)::int AS cnt
+      FROM incidentes i
+      LEFT JOIN incidente_mitigacion_tramos tr
+        ON tr.incidente_id = i.id AND tr.hasta IS NULL
+       AND tr.tipo IN ('ROUTER_PROPIO','ROUTER_EXTERNO')
+      WHERE i.tienda_id = ${inc.tiendaId}
+        AND i.estado NOT IN ('RESUELTO','CANCELADO','CERRADO')
+        AND (
+          tr.id IS NOT NULL
+          OR (
+            i.cont_activado_por IS NOT NULL
+            AND i.cont_hora_desactivacion IS NULL
+            AND NOT EXISTS (SELECT 1 FROM incidente_mitigacion_tramos t2 WHERE t2.incidente_id = i.id)
+          )
+        )
     `)
     const [stdRow] = await db.execute<{ cnt: number }>(sql`
       SELECT COUNT(*)::int AS cnt FROM contingencias

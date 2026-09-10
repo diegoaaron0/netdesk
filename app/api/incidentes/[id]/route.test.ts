@@ -361,11 +361,12 @@ describe('PUT /api/incidentes/[id] — desactivar mitigación cierra también el
     )
     expect(res.status).toBe(200)
 
-    // El campo viejo sigue sellándose (no se sacó la escritura vieja todavía)…
+    // Corte final: el campo viejo ya NO se escribe — el PUT lo lee del body
+    // sólo como señal de intención.
     const [inc] = await db.select().from(schema.incidentes).where(eq(schema.incidentes.id, incId))
-    expect(inc.contHoraDesactivacion).not.toBeNull()
+    expect(inc.contHoraDesactivacion, 'el campo viejo ya no se escribe').toBeNull()
 
-    // …y ahora el tramo de router también quedó cerrado.
+    // El efecto real es el cierre del tramo.
     const abierto = await tramoAbierto(incId)
     expect(abierto!.tipo, 'el tramo de router no puede seguir abierto').toBe('SIN_MITIGACION')
 
@@ -409,7 +410,7 @@ describe('PUT /api/incidentes/[id] — desactivar mitigación cierra también el
     expect((await tramoAbierto(incId))!.tipo, 'el tramo de datos móviles debe seguir abierto').toBe('DATOS_MOVILES')
   })
 
-  it('un incidente sin tramos (flujo viejo) no se rompe: sigue sellando el campo viejo', async () => {
+  it('un incidente sin tramos (flujo viejo) no se rompe ni inventa tramos', async () => {
     const { db } = await import('@/lib/db')
     const schema = await import('@/drizzle/schema')
     await db.delete(schema.incidentes).where(eq(schema.incidentes.codigo, 'TST-DIV-SIN-TRAMOS'))
@@ -427,7 +428,9 @@ describe('PUT /api/incidentes/[id] — desactivar mitigación cierra también el
     )
     expect(res.status).toBe(200)
     const [after] = await db.select().from(schema.incidentes).where(eq(schema.incidentes.id, inc.id))
-    expect(after.contHoraDesactivacion).not.toBeNull()
+    // Corte final: tampoco acá se escribe. Los datos que ya tenía siguen intactos.
+    expect(after.contHoraDesactivacion, 'ya no se escribe el campo viejo').toBeNull()
+    expect(after.contActivadoPor, 'pero lo que ya estaba cargado no se toca').toBe('AGENTE')
     expect(await tramoAbierto(inc.id), 'no debe inventar tramos donde no había').toBeNull()
   })
 })
