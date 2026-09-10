@@ -48,7 +48,7 @@ export default function ProveedoresPage() {
 
   const [lista, setLista]     = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [filtros, setFiltros] = useState({ buscar: '', plan: '', ordenar: '' })
+  const [filtros, setFiltros] = useState({ buscar: '', ordenar: '' })
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
 
   const [modal, setModal] = useState(false)
@@ -59,7 +59,6 @@ export default function ProveedoresPage() {
     setLoading(true)
     const p = new URLSearchParams()
     if (filtros.buscar)         p.set('buscar',         filtros.buscar)
-    if (filtros.plan)           p.set('plan',           filtros.plan)
     if (filtros.ordenar)        p.set('ordenar',        filtros.ordenar)
     const res = await fetch(`/api/proveedores?${p}`)
     if (!res.ok) { setLoading(false); return }
@@ -83,7 +82,7 @@ export default function ProveedoresPage() {
     : null
 
   function setF(k: string, v: any) { setFiltros(f => ({ ...f, [k]: v })) }
-  const hayFiltros = filtros.buscar || filtros.plan || filtros.ordenar
+  const hayFiltros = filtros.buscar || filtros.ordenar
 
   async function handleCreate() {
     if (!form.nombre?.trim()) return
@@ -161,7 +160,7 @@ export default function ProveedoresPage() {
           {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         {hayFiltros && (
-          <button onClick={() => setFiltros({ buscar: '', plan: '', ordenar: '' })}
+          <button onClick={() => setFiltros({ buscar: '', ordenar: '' })}
             style={{ padding: '6px 12px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', color: 'var(--muted-foreground)', cursor: 'pointer' }}>
             Limpiar
           </button>

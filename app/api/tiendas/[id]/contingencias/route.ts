@@ -37,6 +37,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       AND c.hora_activacion >= ${desde}::timestamptz
       AND c.hora_activacion <  ${hasta}::timestamptz
     ORDER BY c.hora_activacion DESC
+    LIMIT 100
   `)
 
   return NextResponse.json(

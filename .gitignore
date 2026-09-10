@@ -49,3 +49,6 @@ next-env.d.ts
 # Carpetas duplicadas / temporales
 netdesk/
 scripts/*.mjs
+
+# Dumps de BD local (previos a migraciones) — no van al repo
+/backups/

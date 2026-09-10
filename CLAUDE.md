@@ -119,7 +119,12 @@ cajasAfectadas / cajasTotales / ventaParcial / boletaManual   → para cálculo 
 - `ROUTER_PROPIO`: activa `tiendas.contingencia_activa = true`; se registra en `incidentes.cont_*`
 - `ROUTER_EXTERNO`: igual que ROUTER_PROPIO pero `cont_es_externo = true`
 - `DATOS_MOVILES`: NO activa el flag de tienda; se registra en `incidentes.mov_*`
-- Standalone: tabla `contingencias` — cualquier tipo, sin incidente asociado
+- Standalone: tabla `contingencias` — **sin camino de creación activo en la aplicación desde el
+  9 de junio de 2026** (se eliminó a propósito el `POST /api/contingencias`; toda contingencia
+  nueva se activa desde el detalle del incidente, vía `incidentes.cont_*`/`mov_*`). Las filas que
+  existen hoy son históricas, de antes de esa fecha. El único endpoint que queda,
+  `PATCH /api/contingencias/[id]`, sirve solo para poder cerrar (desactivar) esas filas viejas —
+  no para crear nuevas.
 - Desactivar siempre sella timestamps, nunca borra `activadoPor` (preserva historial)
 
 ### Dashboard operativo — fuentes de datos
