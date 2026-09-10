@@ -358,10 +358,18 @@ export const incidenteMitigacionTramosHistorial = pgTable('incidente_mitigacion_
 export const routersExternos = pgTable('routers_externos', {
   id:             uuid('id').primaryKey().defaultRandom(),
   codigo:         text('codigo').unique().notNull(),
-  ip:             text('ip'),
-  password:       text('password'),
+  // Identificación física del equipo (rediseño de la ficha)
+  marca:          text('marca'),
+  modelo:         text('modelo'),
+  serie:          text('serie'),
   chip:           text('chip'),
   plan:           text('plan'),
+  observaciones:  text('observaciones'),
+  // Descontinuados: salieron de la ficha (alta y edición). Las columnas se
+  // conservan porque hay equipos viejos que los tienen cargados y se siguen
+  // mostrando en modo lectura. `password` además ya no viaja en el listado.
+  ip:             text('ip'),
+  password:       text('password'),
   tipoConexion:   text('tipo_conexion'),
   estado:         text('estado').notNull().default('DISPONIBLE'),
   tiendaActualId: uuid('tienda_actual_id').references(() => tiendas.id, { onDelete: 'set null' }),

@@ -411,6 +411,15 @@ async function main() {
   await sql`ALTER TABLE "incidentes" ADD COLUMN IF NOT EXISTS "desc_reinicio_equipo" boolean`
   console.log('[startup] ✓ Columnas desc_cableado / desc_reinicio_equipo en incidentes')
 
+  // Rediseño de la ficha del router de contingencia: la operación necesita
+  // identificar el equipo físico (marca/modelo/serie) y dejar notas libres.
+  // Aditivas y nullable — los routers ya cargados quedan en null.
+  await sql`ALTER TABLE "routers_externos" ADD COLUMN IF NOT EXISTS "marca" text`
+  await sql`ALTER TABLE "routers_externos" ADD COLUMN IF NOT EXISTS "modelo" text`
+  await sql`ALTER TABLE "routers_externos" ADD COLUMN IF NOT EXISTS "serie" text`
+  await sql`ALTER TABLE "routers_externos" ADD COLUMN IF NOT EXISTS "observaciones" text`
+  console.log('[startup] ✓ Columnas marca/modelo/serie/observaciones en routers_externos')
+
   // tiendas_historial.motivo — solo obligatorio en código para acciones sensibles
   // (dar de baja de tienda); default '' para no romper los demás call sites
   // genéricos de esta tabla que no pasan motivo. Ver commit 836f2b8.

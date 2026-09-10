@@ -67,7 +67,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const body = await req.json()
   const patch: Record<string, any> = {}
-  const allowed = ['ip', 'password', 'chip', 'plan', 'tipoConexion', 'codigo', 'fotos']
+  // ip / password / tipoConexion quedaron fuera a propósito: salieron de la ficha
+  // y en los equipos viejos que los tienen cargados se muestran en modo lectura,
+  // así que ya no hay camino para editarlos.
+  const allowed = ['codigo', 'marca', 'modelo', 'serie', 'chip', 'plan', 'observaciones', 'fotos']
   for (const k of allowed) {
     if (k in body) patch[k] = body[k] ?? null
   }

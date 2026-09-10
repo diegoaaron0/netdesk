@@ -4,6 +4,18 @@ import { apiMutate } from '@/lib/api-mutate'
 
 const ALMACENES = ['Almacén Vulcano', 'Almacén Jiron']
 
+/** Campos editables de la ficha del router: [etiqueta, clave, placeholder].
+ *  Observaciones va aparte porque es multilínea y ocupa el ancho completo.
+ *  IP, tipo de conexión y contraseña ya no están: salieron de la ficha y solo
+ *  se muestran, en lectura, en los equipos viejos que los tengan cargados. */
+export const CAMPOS_ROUTER: [string, string, string][] = [
+  ['Marca',    'marca',  'Ej: TP-Link'],
+  ['Modelo',   'modelo', 'Ej: Archer MR600'],
+  ['Serie',    'serie',  'Ej: 22A8W7002531'],
+  ['Chip',     'chip',   'Ej: 999 888 777'],
+  ['Plan',     'plan',   'Ej: 40 GB'],
+]
+
 function fmtMin(min: number): string {
   if (!min || min < 0) return '0m'
   const h = Math.floor(min / 60); const m = min % 60
@@ -89,7 +101,12 @@ function HistorialModal({ router, onClose, onSaved }: { router: any; onClose: ()
       .then(r => r.json())
       .then(d => {
         setDetail(d)
-        setForm({ ip: d.ip ?? '', password: d.password ?? '', chip: d.chip ?? '', plan: d.plan ?? '', tipoConexion: d.tipo_conexion ?? '' })
+        // Solo los campos vigentes: ip/password/tipoConexion salieron de la ficha
+        // y se muestran aparte, en modo lectura.
+        setForm({
+          marca: d.marca ?? '', modelo: d.modelo ?? '', serie: d.serie ?? '',
+          chip: d.chip ?? '', plan: d.plan ?? '', observaciones: d.observaciones ?? '',
+        })
       })
       .finally(() => setLoading(false))
   }, [router.id])
@@ -150,17 +167,48 @@ function HistorialModal({ router, onClose, onSaved }: { router: any; onClose: ()
         ) : (
           <>
             {/* Campos del router */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px', padding: '12px', background: 'var(--muted)', borderRadius: '8px' }}>
-              {([['IP', 'ip'], ['Chip/SIM', 'chip'], ['Plan', 'plan'], ['Tipo conexión', 'tipoConexion'], ['Contraseña', 'password']] as [string, string][]).map(([label, key]) => (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px', padding: '12px', background: 'var(--muted)', borderRadius: '8px' }}>
+              {(CAMPOS_ROUTER).map(([label, key, placeholder]) => (
                 <div key={key}>
                   <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: editing ? '4px' : '2px' }}>{label}</div>
                   {editing
-                    ? <input value={form[key] ?? ''} onChange={e => setForm((f: any) => ({ ...f, [key]: e.target.value }))} style={inp} placeholder={`Ej: ${key === 'ip' ? '192.168.1.1' : '…'}`} />
-                    : <div style={{ fontSize: '11px', fontWeight: 600, fontFamily: 'monospace' }}>{(detail[key === 'tipoConexion' ? 'tipo_conexion' : key]) || '—'}</div>
+                    ? <input value={form[key] ?? ''} onChange={e => setForm((f: any) => ({ ...f, [key]: e.target.value }))} style={inp} placeholder={placeholder} />
+                    : <div style={{ fontSize: '11px', fontWeight: 600, fontFamily: 'monospace' }}>{detail[key] || '—'}</div>
                   }
                 </div>
               ))}
+              {/* Observaciones ocupa el ancho completo: es texto libre y suele
+                  tener varias líneas ("incluye 3 antenas", "puerto WAN no funcional"). */}
+              <div style={{ gridColumn: '1 / -1' }}>
+                <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: editing ? '4px' : '2px' }}>Observaciones</div>
+                {editing
+                  ? <textarea value={form.observaciones ?? ''} onChange={e => setForm((f: any) => ({ ...f, observaciones: e.target.value }))}
+                      rows={3} placeholder="Ej: incluye 3 antenas · puerto WAN no funcional"
+                      style={{ ...inp, resize: 'vertical', fontFamily: 'inherit', minHeight: '54px' }} />
+                  : <div style={{ fontSize: '11px', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{detail.observaciones || '—'}</div>
+                }
+              </div>
             </div>
+
+            {/* Datos descontinuados: salieron de la ficha, pero los equipos que ya
+                los tenían cargados los siguen mostrando. Solo lectura, nunca editables. */}
+            {(detail.ip || detail.tipo_conexion || detail.password) && (
+              <div style={{ marginBottom: '16px', padding: '10px 12px', border: '1px dashed var(--border)', borderRadius: '8px' }}>
+                <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
+                  Datos anteriores <span style={{ textTransform: 'none', fontStyle: 'italic', letterSpacing: 0 }}>· campos descontinuados, solo lectura</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  {([['IP', detail.ip], ['Tipo conexión', detail.tipo_conexion], ['Contraseña', detail.password]] as [string, string | null][])
+                    .filter(([, valor]) => !!valor)
+                    .map(([label, valor]) => (
+                      <div key={label}>
+                        <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>{label}</div>
+                        <div style={{ fontSize: '11px', fontWeight: 600, fontFamily: 'monospace', color: 'var(--muted-foreground)' }}>{valor}</div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
 
             {/* Fotos */}
             <div style={{ marginBottom: '16px' }}>

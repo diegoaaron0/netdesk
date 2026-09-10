@@ -15,10 +15,15 @@ export async function GET() {
       SELECT
         r.id,
         r.codigo,
-        r.ip,
-        r.password,
+        r.marca,
+        r.modelo,
+        r.serie,
         r.chip,
         r.plan,
+        r.observaciones,
+        -- password NO viaja en el listado: es dato sensible y la ficha no lo
+        -- muestra acá. Sigue disponible en GET /api/routers-externos/[id].
+        r.ip,
         r.tipo_conexion,
         r.estado,
         r.activo,
@@ -78,14 +83,18 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   if (!body.codigo?.trim()) return NextResponse.json({ error: 'Código requerido' }, { status: 400 })
 
+  // El alta pide solo el código; el resto de la ficha (marca, modelo, serie,
+  // chip, plan, observaciones y fotos) se completa después desde el detalle.
+  // ip / password / tipoConexion ya no se aceptan al crear: salieron de la ficha.
   const [created] = await db.insert(routersExternos).values({
-    codigo:       body.codigo.trim().toUpperCase(),
-    ip:           body.ip           ?? null,
-    password:     body.password     ?? null,
-    chip:         body.chip         ?? null,
-    plan:         body.plan         ?? null,
-    tipoConexion: body.tipoConexion ?? null,
-    estado:       'DISPONIBLE',
+    codigo:        body.codigo.trim().toUpperCase(),
+    marca:         body.marca         ?? null,
+    modelo:        body.modelo        ?? null,
+    serie:         body.serie         ?? null,
+    chip:          body.chip          ?? null,
+    plan:          body.plan          ?? null,
+    observaciones: body.observaciones ?? null,
+    estado:        'DISPONIBLE',
   }).returning()
 
   return NextResponse.json(created, { status: 201 })

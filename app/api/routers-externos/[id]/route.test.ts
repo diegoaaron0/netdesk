@@ -41,13 +41,15 @@ describe('PUT /api/routers-externos/[id] — permisos (mantenimiento.editar, no 
     const { PUT } = await import('./route')
 
     vi.mocked(auth).mockResolvedValueOnce({ user: { email: 'agente-test@netdesk-test.local', rol: 'AGENTE', id: 'agente-test-id' } } as any)
-    const res = await PUT(reqCon({ ip: '10.0.0.1' }), { params: Promise.resolve({ id: routerId }) })
+    // Campo vigente de la ficha: `ip` salió del formulario y ya no es editable.
+    const res = await PUT(reqCon({ marca: 'TP-Link' }), { params: Promise.resolve({ id: routerId }) })
     expect(res.status).toBe(403)
   })
 
   it('SUPERVISOR (mantenimiento.editar) puede editar (200)', async () => {
     const { PUT } = await import('./route')
-    const res = await PUT(reqCon({ ip: '10.0.0.1' }), { params: Promise.resolve({ id: routerId }) })
+    // Campo vigente de la ficha: `ip` salió del formulario y ya no es editable.
+    const res = await PUT(reqCon({ marca: 'TP-Link' }), { params: Promise.resolve({ id: routerId }) })
     expect(res.status).toBe(200)
   })
 })
