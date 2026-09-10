@@ -112,8 +112,23 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
   // ── Escalamientos por defecto ───────────────────────────────────────────────
   async function saveNivel() {
     if (!nivelForm?.nombreContacto?.trim() || !nivelForm?.nivel) return
-    setSavingNivel(true)
     const isEdit = !!nivelForm.id
+
+    // Confirmación de impacto: al editar un nivel del molde, avisar cuántos
+    // contratos activos (fichas sincronizadas, no personalizadas) van a recibir
+    // el cambio antes de guardarlo.
+    if (isEdit) {
+      const res = await fetch(`/api/proveedores/${id}/niveles/${nivelForm.id}/impacto`)
+      if (res.ok) {
+        const { count } = await res.json()
+        if (count > 0) {
+          const plural = count === 1 ? 'contrato activo' : 'contratos activos'
+          if (!confirm(`Esto va a actualizar el contacto en ${count} ${plural}. ¿Confirmas?`)) return
+        }
+      }
+    }
+
+    setSavingNivel(true)
     const url = isEdit ? `/api/proveedores/${id}/niveles/${nivelForm.id}` : `/api/proveedores/${id}/niveles`
     const { ok } = await apiMutate(url, {
       method: isEdit ? 'PUT' : 'POST', json: nivelForm,
