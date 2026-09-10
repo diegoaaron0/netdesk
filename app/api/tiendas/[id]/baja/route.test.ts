@@ -47,6 +47,10 @@ async function sembrarFixture(): Promise<Fixture> {
         .set({ estado: 'ACTIVA', archivadaEn: null, archivadaPorId: null, archivadaMotivo: null, fichaActivaId: null, proveedorId: null } as any)
         .where(eq(schema.tiendas.id, t.id))
     }
+    // El historial es acumulativo entre corridas: sin esto, las aserciones que
+    // buscan "la fila de historial de esta tienda" (sin ORDER BY) podían agarrar
+    // una fila de una corrida vieja en vez de la recién insertada.
+    await db.delete(schema.tiendasHistorial).where(eq(schema.tiendasHistorial.tiendaId, t.id))
     return t.id
   }
 
