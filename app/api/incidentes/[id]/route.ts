@@ -77,6 +77,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     mitigacionesPrevias:    incidentes.mitigacionesPrevias,
     descEnergia:         incidentes.descEnergia,
     descRouter:          incidentes.descRouter,
+    descCableado:        incidentes.descCableado,
+    descReinicioEquipo:  incidentes.descReinicioEquipo,
     descDns:             incidentes.descDns,
     checkIpconfig:       incidentes.checkIpconfig,
     checkPingGw:         incidentes.checkPingGw,
@@ -320,7 +322,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     'estadoOperacion','operacionManual','tipoOperacionManual','factorOperativo',
     'contActivadoPor','contHoraActivacion','contHoraDesactivacion','contRendimiento','contObservacion','contEsExterno','routerExternoId',
     'movActivadoPor','movHoraActivacion','movHoraDesactivacion','movRendimiento','movObservacion',
-    'descEnergia','descRouter','descDns',
+    // descDns sigue aceptándose para no romper un guardado de un incidente
+    // histórico que lo traiga; el formulario nuevo ya no lo ofrece.
+    'descEnergia','descRouter','descCableado','descReinicioEquipo','descDns',
     'checkIpconfig','checkPingGw','checkPingInternet','checkTracert','checkDns','checkRenovarIp',
     'descartesDetallado','resueltoPor','atribucionFinal','evaluableProveedor',
     'boletaManual','boletaRendimiento','boletaHoraActivacion','ventaParcial','cajasAfectadas','cajasTotales',

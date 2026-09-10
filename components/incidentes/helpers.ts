@@ -59,12 +59,19 @@ export const TIPO_LABELS: Record<string, string> = {
   CORTE_ELECTRICO: '⚡ Corte eléctrico',
 }
 
-function buildDescartes(inc: any): string {
+/** Traduce los descartes a las líneas que ve el proveedor en el correo de
+ *  escalamiento. Exportada para test. */
+export function buildDescartes(inc: any): string {
   const parts: string[] = []
   if (inc.descEnergia === true)  parts.push('Energía verificada: OK')
   if (inc.descEnergia === false) parts.push('Energía verificada: Falla')
   if (inc.descRouter  === true)  parts.push('Router/ONT verificado: OK')
   if (inc.descRouter  === false) parts.push('Router/ONT verificado: Falla')
+  if (inc.descCableado === true)  parts.push('Cableado verificado: OK')
+  if (inc.descCableado === false) parts.push('Cableado verificado: Falla')
+  if (inc.descReinicioEquipo === true)  parts.push('Equipo reiniciado: Sí')
+  if (inc.descReinicioEquipo === false) parts.push('Equipo reiniciado: No')
+  // Descontinuado: solo aparece en incidentes históricos que lo tengan cargado.
   if (inc.descDns     === true)  parts.push('Cambio DNS aplicado: OK')
   if (inc.descDns     === false) parts.push('Cambio DNS aplicado: Falla')
   if (inc.checkIpconfig)     parts.push('Ipconfig ejecutado')

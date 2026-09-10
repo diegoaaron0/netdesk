@@ -403,6 +403,14 @@ async function main() {
   await sql`ALTER TABLE "tiendas" ADD COLUMN IF NOT EXISTS "archivada_motivo" text`
   console.log('[startup] ✓ Enum estado_tienda + columnas tiendas.estado/archivada_* (alta/baja de tienda)')
 
+  // Rediseño del checklist de descartes: capa física gana "cableado conectado"
+  // y aparece el grupo de reinicio del equipo. Aditivas y nullable — los
+  // incidentes ya creados quedan en null (= nunca respondido), que es
+  // exactamente lo que corresponde: nadie les preguntó esto.
+  await sql`ALTER TABLE "incidentes" ADD COLUMN IF NOT EXISTS "desc_cableado" boolean`
+  await sql`ALTER TABLE "incidentes" ADD COLUMN IF NOT EXISTS "desc_reinicio_equipo" boolean`
+  console.log('[startup] ✓ Columnas desc_cableado / desc_reinicio_equipo en incidentes')
+
   // tiendas_historial.motivo — solo obligatorio en código para acciones sensibles
   // (dar de baja de tienda); default '' para no romper los demás call sites
   // genéricos de esta tabla que no pasan motivo. Ver commit 836f2b8.

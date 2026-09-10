@@ -268,9 +268,15 @@ export const incidentes = pgTable('incidentes', {
   // autosellaron al cerrar. Ver migración 0030. Cada reabrir archiva aquí el slot vivo
   // antes de limpiarlo, para poder activar una nueva mitigación sin perder el historial.
   mitigacionesPrevias:     jsonb('mitigaciones_previas'),
-  // Descartes Sí/No
+  // Descartes Sí/No. Nullable a propósito: null = nunca se respondió, distinto
+  // de false = se verificó y falló.
   descEnergia:           boolean('desc_energia'),
   descRouter:            boolean('desc_router'),
+  descCableado:          boolean('desc_cableado'),
+  descReinicioEquipo:    boolean('desc_reinicio_equipo'),
+  // Descontinuado: era "Se cambió DNS", una acción correctiva mal ubicada entre
+  // los diagnósticos. Ya no se ofrece al editar, pero la columna se conserva —
+  // hay incidentes históricos que lo tienen respondido y se siguen mostrando.
   descDns:               boolean('desc_dns'),
   // Checklist
   checkIpconfig:         boolean('check_ipconfig').default(false),

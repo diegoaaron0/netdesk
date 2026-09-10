@@ -108,6 +108,47 @@ export function calcIeiTramoAbierto(
   return Math.round(ventaHora * horas * DASHBOARD_CONFIG.MARGEN_BRUTO * Number(tramo.factor))
 }
 
+/** Checklist de descartes, agrupado por etapa del diagnóstico. Los dos primeros
+ *  grupos son Sí/No (nullable: null = no respondido); los dos últimos, checkbox.
+ *  "Se cambió DNS" (descDns) no está acá a propósito: era una acción correctiva
+ *  entre diagnósticos. Se dejó de ofrecer, pero los incidentes que ya lo tienen
+ *  respondido lo siguen mostrando en modo lectura. */
+export const DESCARTES_SINO = [
+  {
+    titulo: 'Capa física',
+    items: [
+      { key: 'descEnergia',  label: 'Energía eléctrica' },
+      { key: 'descRouter',   label: 'Router / ONT encendido con luces normales' },
+      { key: 'descCableado', label: 'Cableado conectado correctamente' },
+    ],
+  },
+  {
+    titulo: 'Reinicio',
+    items: [
+      { key: 'descReinicioEquipo', label: 'Se reinició el equipo (router / ONT)' },
+    ],
+  },
+]
+
+export const DESCARTES_CHECK = [
+  {
+    titulo: 'Conectividad / red',
+    items: [
+      { key: 'checkIpconfig',     label: 'Se ejecutó ipconfig' },
+      { key: 'checkRenovarIp',    label: 'Se renovó IP (DHCP)' },
+      { key: 'checkPingGw',       label: 'Ping a gateway' },
+      { key: 'checkPingInternet', label: 'Ping a internet' },
+      { key: 'checkTracert',      label: 'Tracert' },
+    ],
+  },
+  {
+    titulo: 'DNS',
+    items: [
+      { key: 'checkDns', label: 'Se validó resolución DNS' },
+    ],
+  },
+]
+
 /** Total de la tabla "Desglose por tramos": suma el ie_tramo ya sellado de los
  *  tramos cerrados más el IEI en vivo del abierto (que aún no tiene ie_tramo).
  *  Es el mismo número que muestra el IEI del incidente, para que la fila de
@@ -270,6 +311,8 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
       routerExternoId:       data.routerExternoId ?? null,
       descEnergia:         data.descEnergia         ?? null,
       descRouter:          data.descRouter          ?? null,
+      descCableado:        data.descCableado        ?? null,
+      descReinicioEquipo:  data.descReinicioEquipo  ?? null,
       descDns:             data.descDns             ?? null,
       checkIpconfig:       data.checkIpconfig       ?? false,
       checkPingGw:         data.checkPingGw         ?? false,
@@ -1216,33 +1259,62 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--foreground)', marginBottom: '12px' }}>Descartes realizados</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div>
-                      {/* Sí/No */}
-                      <div style={{ marginBottom: '12px' }}>
-                        {[{key:'descEnergia',label:'Energía eléctrica'},{key:'descRouter',label:'Router / ONT encendido'},{key:'descDns',label:'Se cambió DNS'}].map(({key,label}) => (
-                          <div key={key} style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'7px' }}>
-                            <span style={{ fontSize:'11px',color:'var(--foreground)' }}>{label}</span>
-                            <div style={{ display:'flex',gap:'4px' }}>
-                              {([true,false] as const).map(val => (
-                                <button key={String(val)} type="button" disabled={!canEditB}
-                                  onClick={() => setEdit(key, editForm[key] === val ? null : val)}
-                                  style={{ padding:'2px 10px',fontSize:'11px',borderRadius:'5px',border:'1px solid var(--border)',cursor:!canEditB?'default':'pointer',background:editForm[key]===val?(val?'#dcfce7':'#fee2e2'):'var(--muted)',color:editForm[key]===val?(val?'#15803d':'#b91c1c'):'var(--muted-foreground)',fontWeight:editForm[key]===val?600:400 }}>
-                                  {val?'Sí':'No'}
-                                </button>
-                              ))}
-                            </div>
+                      {/* Grupos Sí/No: capa física y reinicio */}
+                      {DESCARTES_SINO.map(grupo => (
+                        <div key={grupo.titulo} style={{ marginBottom: '14px' }}>
+                          <div style={{ fontSize:'10px',fontWeight:600,color:'var(--muted-foreground)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:'7px' }}>
+                            {grupo.titulo}
                           </div>
-                        ))}
-                      </div>
-                      {/* Checklist */}
-                      <div style={{ display:'flex',flexDirection:'column',gap:'7px' }}>
-                        {[{key:'checkIpconfig',label:'Se ejecutó ipconfig'},{key:'checkPingGw',label:'Se realizó ping a gateway'},{key:'checkPingInternet',label:'Se realizó ping a internet'},{key:'checkTracert',label:'Se realizó tracert'},{key:'checkDns',label:'Se validó DNS'},{key:'checkRenovarIp',label:'Se renovó IP'}].map(({key,label}) => (
-                          <label key={key} style={{ display:'flex',alignItems:'center',gap:'7px',fontSize:'11px',cursor:!canEditB?'default':'pointer',color:editForm[key]?'var(--foreground)':'var(--muted-foreground)' }}>
-                            <input type="checkbox" disabled={!canEditB} checked={!!editForm[key]} onChange={e => setEdit(key, e.target.checked)}
-                              style={{ cursor:!canEditB?'default':'pointer',accentColor:'hsl(221,83%,45%)',width:'13px',height:'13px' }} />
-                            {label}
-                          </label>
-                        ))}
-                      </div>
+                          {grupo.items.map(({ key, label }) => (
+                            <div key={key} style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'7px',gap:'8px' }}>
+                              <span style={{ fontSize:'11px',color:'var(--foreground)' }}>{label}</span>
+                              <div style={{ display:'flex',gap:'4px',flexShrink:0 }}>
+                                {([true,false] as const).map(val => (
+                                  <button key={String(val)} type="button" disabled={!canEditB}
+                                    onClick={() => setEdit(key, editForm[key] === val ? null : val)}
+                                    style={{ padding:'2px 10px',fontSize:'11px',borderRadius:'5px',border:'1px solid var(--border)',cursor:!canEditB?'default':'pointer',background:editForm[key]===val?(val?'#dcfce7':'#fee2e2'):'var(--muted)',color:editForm[key]===val?(val?'#15803d':'#b91c1c'):'var(--muted-foreground)',fontWeight:editForm[key]===val?600:400 }}>
+                                    {val?'Sí':'No'}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+
+                      {/* Grupos de checkbox: conectividad y DNS */}
+                      {DESCARTES_CHECK.map(grupo => (
+                        <div key={grupo.titulo} style={{ marginBottom: '14px' }}>
+                          <div style={{ fontSize:'10px',fontWeight:600,color:'var(--muted-foreground)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:'7px' }}>
+                            {grupo.titulo}
+                          </div>
+                          <div style={{ display:'flex',flexDirection:'column',gap:'7px' }}>
+                            {grupo.items.map(({ key, label }) => (
+                              <label key={key} style={{ display:'flex',alignItems:'center',gap:'7px',fontSize:'11px',cursor:!canEditB?'default':'pointer',color:editForm[key]?'var(--foreground)':'var(--muted-foreground)' }}>
+                                <input type="checkbox" disabled={!canEditB} checked={!!editForm[key]} onChange={e => setEdit(key, e.target.checked)}
+                                  style={{ cursor:!canEditB?'default':'pointer',accentColor:'hsl(221,83%,45%)',width:'13px',height:'13px' }} />
+                                {label}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Histórico: "Se cambió DNS" se descontinuó, pero los incidentes
+                          que ya lo respondieron lo siguen mostrando, en solo lectura. */}
+                      {(editForm.descDns === true || editForm.descDns === false) && (
+                        <div style={{ borderTop:'1px dashed var(--border)',paddingTop:'10px',marginTop:'2px' }}>
+                          <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',gap:'8px' }}>
+                            <span style={{ fontSize:'11px',color:'var(--muted-foreground)' }}>
+                              Se cambió DNS
+                              <span style={{ fontSize:'10px',fontStyle:'italic' }}> · campo descontinuado</span>
+                            </span>
+                            <span style={{ padding:'2px 10px',fontSize:'11px',borderRadius:'5px',flexShrink:0,background:'var(--muted)',color:editForm.descDns?'#15803d':'#b91c1c',fontWeight:600 }}>
+                              {editForm.descDns ? 'Sí' : 'No'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     {/* Acciones registradas */}
                     <div>
@@ -1258,6 +1330,9 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                             editForm.checkRenovarIp    && 'Renovó IP',
                             editForm.descEnergia === true && 'Energía verificada',
                             editForm.descRouter  === true && 'Router/ONT verificado',
+                            editForm.descCableado === true && 'Cableado verificado',
+                            editForm.descReinicioEquipo === true && 'Equipo reiniciado',
+                            // Solo en incidentes históricos: el campo ya no se ofrece.
                             editForm.descDns     === true && 'Cambio DNS aplicado',
                           ].filter(Boolean) as string[]
                           return acc.length > 0

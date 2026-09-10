@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { setupIncidenteAutoRefresh } from './helpers'
+import { setupIncidenteAutoRefresh, buildDescartes } from './helpers'
 
 // Fake objects para window/document — no hace falta jsdom, setupIncidenteAutoRefresh
 // recibe el target de eventos como parámetro en vez de asumir el global del navegador.
@@ -98,5 +98,87 @@ describe('setupIncidenteAutoRefresh — refetch periódico + al recuperar foco (
 
     vi.advanceTimersByTime(5000)
     expect(fetchInc).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('buildDescartes — líneas que ve el proveedor en el correo de escalamiento', () => {
+  it('los Sí/No distinguen OK de Falla, y el null se omite (nunca respondido)', () => {
+    expect(buildDescartes({ descEnergia: true })).toContain('Energía verificada: OK')
+    expect(buildDescartes({ descEnergia: false })).toContain('Energía verificada: Falla')
+    expect(buildDescartes({ descEnergia: null, descRouter: true })).not.toContain('Energía')
+
+    expect(buildDescartes({ descRouter: true })).toContain('Router/ONT verificado: OK')
+    expect(buildDescartes({ descRouter: false })).toContain('Router/ONT verificado: Falla')
+  })
+
+  it('los checkboxes solo aparecen cuando están en true', () => {
+    const todos = buildDescartes({
+      checkIpconfig: true, checkPingGw: true, checkPingInternet: true,
+      checkTracert: true, checkDns: true, checkRenovarIp: true,
+    })
+    expect(todos).toContain('Ipconfig ejecutado')
+    expect(todos).toContain('Ping a gateway')
+    expect(todos).toContain('Ping a internet')
+    expect(todos).toContain('Tracert ejecutado')
+    expect(todos).toContain('Validó DNS')
+    expect(todos).toContain('Renovó IP')
+
+    expect(buildDescartes({ checkIpconfig: false })).not.toContain('Ipconfig')
+  })
+
+  it('descartesDetallado tiene prioridad sobre el descartesRealizados legado', () => {
+    const conAmbos = buildDescartes({ descartesDetallado: 'detalle nuevo', descartesRealizados: 'texto viejo' })
+    expect(conAmbos).toContain('detalle nuevo')
+    expect(conAmbos).not.toContain('texto viejo')
+    expect(buildDescartes({ descartesRealizados: 'texto viejo' })).toContain('texto viejo')
+  })
+
+  it('sin ningún descarte cargado avisa que está pendiente', () => {
+    expect(buildDescartes({})).toBe('Pendiente de documentar')
+  })
+})
+
+describe('buildDescartes — descartes nuevos del rediseño (capa física y reinicio)', () => {
+  it('cableado distingue OK de Falla y omite el null', () => {
+    expect(buildDescartes({ descCableado: true })).toContain('Cableado verificado: OK')
+    expect(buildDescartes({ descCableado: false })).toContain('Cableado verificado: Falla')
+    expect(buildDescartes({ descCableado: null, descRouter: true })).not.toContain('Cableado')
+  })
+
+  it('el reinicio del equipo se lee como Sí/No, no como OK/Falla', () => {
+    expect(buildDescartes({ descReinicioEquipo: true })).toContain('Equipo reiniciado: Sí')
+    expect(buildDescartes({ descReinicioEquipo: false })).toContain('Equipo reiniciado: No')
+    expect(buildDescartes({ descReinicioEquipo: null, descRouter: true })).not.toContain('reiniciado')
+  })
+
+  it('un incidente histórico con "Se cambió DNS" lo sigue mostrando', () => {
+    expect(buildDescartes({ descDns: true })).toContain('Cambio DNS aplicado: OK')
+    expect(buildDescartes({ descDns: false })).toContain('Cambio DNS aplicado: Falla')
+  })
+
+  it('un incidente nuevo, sin descDns, no menciona el cambio de DNS', () => {
+    const nuevo = buildDescartes({
+      descEnergia: true, descRouter: true, descCableado: true, descReinicioEquipo: true,
+      checkIpconfig: true, checkDns: true,
+    })
+    expect(nuevo).not.toContain('Cambio DNS aplicado')
+    expect(nuevo).toContain('Validó DNS')
+  })
+
+  it('los 4 grupos conviven en el mismo correo', () => {
+    const completo = buildDescartes({
+      descEnergia: true, descRouter: false, descCableado: true,
+      descReinicioEquipo: true,
+      checkIpconfig: true, checkRenovarIp: true, checkPingGw: true,
+      checkPingInternet: true, checkTracert: true,
+      checkDns: true,
+    })
+    const lineas = completo.split('\n')
+    expect(lineas).toHaveLength(10)
+    expect(completo).toContain('Energía verificada: OK')
+    expect(completo).toContain('Cableado verificado: OK')
+    expect(completo).toContain('Equipo reiniciado: Sí')
+    expect(completo).toContain('Renovó IP')
+    expect(completo).toContain('Validó DNS')
   })
 })

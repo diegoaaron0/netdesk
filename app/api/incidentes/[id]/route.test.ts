@@ -215,3 +215,69 @@ describe('GET /api/incidentes/[id] — panel SLA usa % de cumplimiento (cumple/n
     expect(data.slaMetrics.slaResolucionPct).toBeNull()  // aún no hay hora_fin — no se fuerza a 0%
   })
 })
+
+describe('PUT /api/incidentes/[id] — descartes del rediseño (capa física y reinicio)', () => {
+  let incidenteId: string
+
+  beforeAll(async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    const [ref] = await db.select().from(schema.incidentes).where(eq(schema.incidentes.codigo, 'TST-P1-001'))
+
+    await db.delete(schema.incidentes).where(eq(schema.incidentes.codigo, 'TST-DESCARTES-NUEVO'))
+    const [inc] = await db.insert(schema.incidentes).values({
+      codigo: 'TST-DESCARTES-NUEVO', tiendaId: ref.tiendaId, registradoPorId: ref.registradoPorId,
+      nivelImpacto: 'ALTO', tipo: 'CAIDA_TOTAL', estado: 'ABIERTO', horaRegistro: new Date(),
+    }).returning()
+    incidenteId = inc.id
+  })
+
+  it('persiste descCableado y descReinicioEquipo', async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    const { PUT } = await import('./route')
+
+    const req = { json: async () => ({ descCableado: true, descReinicioEquipo: false }) } as any
+    const res = await PUT(req, { params: Promise.resolve({ id: incidenteId }) })
+    expect(res.status).not.toBe(403)
+
+    const [enBd] = await db.select({
+      cableado: schema.incidentes.descCableado,
+      reinicio: schema.incidentes.descReinicioEquipo,
+    }).from(schema.incidentes).where(eq(schema.incidentes.id, incidenteId))
+    expect(enBd.cableado).toBe(true)
+    expect(enBd.reinicio).toBe(false)
+  })
+
+  it('un incidente nuevo arranca con los descartes nuevos en null — nunca respondido, no "falla"', async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+
+    await db.delete(schema.incidentes).where(eq(schema.incidentes.codigo, 'TST-DESCARTES-VIRGEN'))
+    const [ref] = await db.select().from(schema.incidentes).where(eq(schema.incidentes.codigo, 'TST-P1-001'))
+    const [inc] = await db.insert(schema.incidentes).values({
+      codigo: 'TST-DESCARTES-VIRGEN', tiendaId: ref.tiendaId, registradoPorId: ref.registradoPorId,
+      nivelImpacto: 'ALTO', tipo: 'CAIDA_TOTAL', estado: 'ABIERTO', horaRegistro: new Date(),
+    }).returning()
+
+    expect(inc.descCableado).toBeNull()
+    expect(inc.descReinicioEquipo).toBeNull()
+  })
+
+  it('no reinterpreta el descDns de un incidente histórico: si no se envía, no se toca', async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    const { PUT } = await import('./route')
+
+    // Incidente "viejo" con el campo descontinuado ya respondido.
+    await db.update(schema.incidentes).set({ descDns: true }).where(eq(schema.incidentes.id, incidenteId))
+
+    const req = { json: async () => ({ descCableado: false }) } as any
+    await PUT(req, { params: Promise.resolve({ id: incidenteId }) })
+
+    const [enBd] = await db.select({ dns: schema.incidentes.descDns, cableado: schema.incidentes.descCableado })
+      .from(schema.incidentes).where(eq(schema.incidentes.id, incidenteId))
+    expect(enBd.dns, 'el descarte histórico debe sobrevivir intacto').toBe(true)
+    expect(enBd.cableado).toBe(false)
+  })
+})
