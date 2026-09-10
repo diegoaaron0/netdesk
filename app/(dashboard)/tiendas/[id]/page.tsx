@@ -402,6 +402,20 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{ventasExpanded ? '▲' : '▼'}</span>
             </button>
           )}
+
+          {/* Sin datos de venta no se renderizaba nada: ni el botón ni el panel,
+              así que la tienda no daba ninguna señal de por qué su IEI sale en
+              cero. El IEI solo es realmente incalculable si además no hay
+              cluster — con cluster, resolveVentaHora cae a la tarifa de
+              referencia y sí calcula. */}
+          {!(tienda.ventaHoraSoles || tienda.ventaHoraFdsSoles || tienda.ventaMensualSoles) && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '7px', background: '#fee2e2', border: '0.5px solid #dc2626', fontSize: '10px', fontWeight: 600, color: '#991b1b' }}>
+              <span style={{ fontSize: '11px', lineHeight: 1 }}>⚠</span>
+              {tienda.cluster
+                ? <>Sin venta configurada — el IEI usa la tarifa de referencia del cluster {tienda.cluster}</>
+                : <>Sin venta configurada — el IEI no se puede calcular para esta tienda</>}
+            </div>
+          )}
           {iei30d !== null && (
             <button onClick={() => setIeiPanelOpen(true)}
               style={{ textAlign: 'right', background: 'none', border: '0.5px solid var(--border)', borderRadius: '6px', padding: '3px 8px', cursor: 'pointer' }}>
