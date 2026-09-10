@@ -120,6 +120,12 @@ export async function POST(req: NextRequest) {
   if (alcance !== 'ZONA' && !tiendaId)
     return NextResponse.json({ error: 'tiendaId requerido para alcance TIENDA' }, { status: 400 })
 
+  if (alcance !== 'ZONA' && tiendaId) {
+    const [t] = await db.select({ estado: tiendas.estado }).from(tiendas).where(eq(tiendas.id, tiendaId)).limit(1)
+    if (t?.estado === 'ARCHIVADA')
+      return NextResponse.json({ error: 'La tienda está archivada. No se pueden crear acciones de gestión de cambios para una tienda dada de baja.' }, { status: 409 })
+  }
+
   const creadoPorId = (session.user as any)?.id ?? (session.user as any)?.sub ?? null
   if (!creadoPorId) return NextResponse.json({ error: 'No se pudo identificar al usuario de la sesión' }, { status: 401 })
 

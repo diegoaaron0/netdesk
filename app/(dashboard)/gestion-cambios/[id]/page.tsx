@@ -3,6 +3,26 @@ import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { TIPO_LABELS, TIPOS_CON_FICHA } from '@/lib/gestion-cambios-config'
+import { setupIncidenteAutoRefresh } from '@/components/incidentes/helpers'
+
+// Refresco liviano de solo `accion` para el auto-refresh periódico/al recuperar
+// foco. A propósito NO recibe un setter de `loading` — fetchAccion() sí lo hace
+// (setLoading(true) al iniciar), lo que reemplazaría toda la pantalla por
+// "Cargando..." cada vez que corriera; esta versión no puede disparar ese flash.
+export async function fetchAccionOnly(id: string, opts: { fetchImpl?: typeof fetch; setAccion: (d: any) => void }): Promise<void> {
+  const fetchImpl = opts.fetchImpl ?? fetch
+  const res = await fetchImpl(`/api/gestion-cambios/${id}`)
+  const d = await res.json()
+  opts.setAccion(d)
+}
+
+// Estados terminales de una acción de gestión de cambios: ya no cambian, no
+// hace falta seguir refrescando en vivo.
+const ESTADOS_TERMINALES_ACCION = ['COMPLETADO', 'RECHAZADO', 'CANCELADO']
+export function debeAutoRefrescarAccion(estado: string | null | undefined): boolean {
+  if (!estado) return false
+  return !ESTADOS_TERMINALES_ACCION.includes(estado)
+}
 const ESTADO_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
   BORRADOR:      { label: 'Borrador',      bg: '#F1F5F9', color: '#475569' },
   PROPUESTO:     { label: 'Propuesto',     bg: '#EFF6FF', color: '#1D4ED8' },
@@ -100,6 +120,10 @@ export default function AccionDetallePage() {
   }, [id])
 
   useEffect(() => { fetchAccion() }, [fetchAccion])
+  useEffect(() => setupIncidenteAutoRefresh(
+    () => fetchAccionOnly(id, { setAccion }),
+    { enabled: debeAutoRefrescarAccion(accion?.estado) },
+  ), [id, accion?.estado])
 
   useEffect(() => {
     // La ficha se elige al PROPONER (estado BORRADOR), filtrada por el proveedor objetivo.

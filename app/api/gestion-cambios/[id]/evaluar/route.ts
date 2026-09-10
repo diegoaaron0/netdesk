@@ -5,10 +5,22 @@ import { eq, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { SLA_RESOLUCION_DEFAULT_MIN } from '@/lib/sla-core'
-import { calcImpactoRow } from '@/lib/impacto-calc'
+import { getTramosPorIncidentes, calcIeiIncidente, type IncidenteMitigacionInput } from '@/lib/mitigacion-tramos'
 
 // Calcula métricas de un período para una o varias tiendas
-async function calcMetrics(tiendaIds: string[], desde: Date, hasta: Date) {
+// Exportada solo para poder probarla en test. Fase 5, Paso 4: calcIeiIncidente
+// (tramos + fallback legacy) reemplaza a calcImpactoRow — es el consumidor más
+// sensible de toda la iniciativa (el resultado se graba PERMANENTE en
+// acciones_gestion, nunca se recalcula), así que la mecánica de "foto fija"
+// no cambia en absoluto, solo la fuente del número.
+//
+// `estado: 'RESUELTO'` sigue hardcodeado (no `r.estado`) al armar el input de
+// calcIeiIncidente — igual que ya hacía este archivo con calcImpactoRow. El
+// WHERE incluye RESUELTO y CERRADO; sin este hardcodeo, calcIeiIncidente
+// trataría un CERRADO como "todavía abierto" y usaría el instante actual como
+// límite del cálculo en vez de hora_fin — un resultado mucho peor que el 0
+// que daba antes en el caso análogo de snap/route.ts (ver ese archivo).
+export async function calcMetrics(tiendaIds: string[], desde: Date, hasta: Date) {
   // Build tienda filter without ANY() cast to avoid driver encoding issues
   const tiendaFilter = tiendaIds.length === 1
     ? sql`i.tienda_id = ${tiendaIds[0]}`
@@ -16,6 +28,7 @@ async function calcMetrics(tiendaIds: string[], desde: Date, hasta: Date) {
 
   const rows = await db.execute(sql`
     SELECT
+      i.id,
       i.tipo,
       i.hora_registro,
       i.hora_fin,
@@ -28,6 +41,7 @@ async function calcMetrics(tiendaIds: string[], desde: Date, hasta: Date) {
       i.cont_hora_desactivacion,
       i.cont_rendimiento,
       i.cont_es_externo,
+      i.mov_activado_por,
       i.mov_hora_activacion,
       i.mov_hora_desactivacion,
       i.mov_rendimiento,
@@ -54,66 +68,46 @@ async function calcMetrics(tiendaIds: string[], desde: Date, hasta: Date) {
       AND i.estado IN ('RESUELTO','CERRADO')
   `) as any[]
 
+  const tramosPorIncidente = await getTramosPorIncidentes(rows.map((r: any) => r.id))
+
   let totalIncidentes = rows.length
   let slaVencidoCount = 0
   let mttrSum         = 0
   let mttrCount       = 0
   let ieiSum          = 0
   let penalidadSum    = 0
+  let conTramos       = 0
+  let sinTramos       = 0
 
   for (const r of rows) {
     const slaResolucion = Number(r.sla_resol_override ?? SLA_RESOLUCION_DEFAULT_MIN)
     const duracion      = Number(r.duracion_min ?? 0)
     const slaVencido    = duracion > slaResolucion
 
+    const tramos = tramosPorIncidente.get(r.id) ?? []
+    if (tramos.length > 0) conTramos++; else sinTramos++
+
+    const incidenteMitigacion: IncidenteMitigacionInput = {
+      tipo: r.tipo, estado: 'RESUELTO', horaRegistro: r.hora_registro, horaFin: r.hora_fin,
+      contActivadoPor: r.cont_activado_por, contHoraActivacion: r.cont_hora_activacion,
+      contHoraDesactivacion: r.cont_hora_desactivacion, contRendimiento: r.cont_rendimiento, contEsExterno: r.cont_es_externo,
+      movActivadoPor: r.mov_activado_por, movHoraActivacion: r.mov_hora_activacion,
+      movHoraDesactivacion: r.mov_hora_desactivacion, movRendimiento: r.mov_rendimiento,
+      boletaManual: r.boleta_manual, boletaRendimiento: r.boleta_rendimiento, boletaHoraActivacion: r.boleta_hora_activacion,
+    }
+    const ventaTienda = { ventaHoraSoles: r.venta_hora_soles, ventaHoraFdsSoles: r.venta_hora_fds_soles, cluster: r.cluster }
+
     if (slaVencido) {
       slaVencidoCount++
       try {
-        const iei = calcImpactoRow({
-          hora_registro:           r.hora_registro,
-          hora_fin:                r.hora_fin,
-          estado:                  'RESUELTO',
-          tipo:                    r.tipo,
-          venta_hora_soles:        r.venta_hora_soles,
-          venta_hora_fds_soles:    r.venta_hora_fds_soles,
-          cluster:                 r.cluster,
-          cont_hora_activacion:    r.cont_activado_por ? r.cont_hora_activacion : null,
-          cont_hora_desactivacion: r.cont_hora_desactivacion,
-          cont_rendimiento:        r.cont_rendimiento,
-          cont_es_externo:         r.cont_es_externo,
-          mov_hora_activacion:     r.mov_hora_activacion,
-          mov_hora_desactivacion:  r.mov_hora_desactivacion,
-          mov_rendimiento:         r.mov_rendimiento,
-          boleta_manual:           r.boleta_manual,
-          boleta_rendimiento:      r.boleta_rendimiento,
-          boleta_hora_activacion:  r.boleta_hora_activacion,
-        }).impactoEstimado
-        penalidadSum += iei
+        penalidadSum += calcIeiIncidente(incidenteMitigacion, tramos, ventaTienda).iei
       } catch { /* skip */ }
     }
 
     if (r.mttr_minutos != null) { mttrSum += Number(r.mttr_minutos); mttrCount++ }
 
     try {
-      ieiSum += calcImpactoRow({
-        hora_registro:           r.hora_registro,
-        hora_fin:                r.hora_fin,
-        estado:                  'RESUELTO',
-        tipo:                    r.tipo,
-        venta_hora_soles:        r.venta_hora_soles,
-        venta_hora_fds_soles:    r.venta_hora_fds_soles,
-        cluster:                 r.cluster,
-        cont_hora_activacion:    r.cont_activado_por ? r.cont_hora_activacion : null,
-        cont_hora_desactivacion: r.cont_hora_desactivacion,
-        cont_rendimiento:        r.cont_rendimiento,
-        cont_es_externo:         r.cont_es_externo,
-        mov_hora_activacion:     r.mov_hora_activacion,
-        mov_hora_desactivacion:  r.mov_hora_desactivacion,
-        mov_rendimiento:         r.mov_rendimiento,
-        boleta_manual:           r.boleta_manual,
-        boleta_rendimiento:      r.boleta_rendimiento,
-        boleta_hora_activacion:  r.boleta_hora_activacion,
-      }).impactoEstimado
+      ieiSum += calcIeiIncidente(incidenteMitigacion, tramos, ventaTienda).iei
     } catch { /* skip */ }
   }
 
@@ -121,6 +115,11 @@ async function calcMetrics(tiendaIds: string[], desde: Date, hasta: Date) {
     ? Math.round(((totalIncidentes - slaVencidoCount) / totalIncidentes) * 100)
     : 100
   const mttrPromedio = mttrCount > 0 ? Math.round(mttrSum / mttrCount) : null
+  const metodo: 'TRAMOS' | 'LEGACY' | 'MIXTO' | null =
+    totalIncidentes === 0 ? null
+    : conTramos > 0 && sinTramos > 0 ? 'MIXTO'
+    : conTramos > 0 ? 'TRAMOS'
+    : 'LEGACY'
 
   return {
     totalIncidentes,
@@ -129,6 +128,7 @@ async function calcMetrics(tiendaIds: string[], desde: Date, hasta: Date) {
     mttrMin:              mttrPromedio,
     ieiAcumulado:         Math.round(ieiSum * 100) / 100,
     penalidadEstimada:    Math.round(penalidadSum * 100) / 100,
+    metodo,
   }
 }
 
@@ -197,6 +197,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     patch.eval30Nincidentes = metrics.totalIncidentes
     patch.eval30Detalle     = metrics
     patch.eval30Nota        = nota || null
+    patch.eval30Metodo      = metrics.metodo
     patch.penalidadEstimada = metrics.penalidadEstimada
   } else {
     patch.eval90Completada  = true
@@ -207,6 +208,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     patch.eval90Nincidentes = metrics.totalIncidentes
     patch.eval90Detalle     = metrics
     patch.eval90Nota        = nota || null
+    patch.eval90Metodo      = metrics.metodo
     patch.penalidadEstimada = metrics.penalidadEstimada
   }
 

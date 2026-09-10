@@ -6,7 +6,7 @@ import { sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { SLA_RESOLUCION_DEFAULT_MIN } from '@/lib/sla-core'
-import { calcImpactoRow } from '@/lib/impacto-calc'
+import { getTramosPorIncidentes, calcIeiIncidente, type IncidenteMitigacionInput } from '@/lib/mitigacion-tramos'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -59,6 +59,7 @@ export async function GET(req: NextRequest) {
     // Incidentes del período
     const rows = await db.execute(sql`
       SELECT
+        i.id,
         i.tipo,
         i.hora_registro,
         i.hora_fin,
@@ -72,6 +73,7 @@ export async function GET(req: NextRequest) {
         i.cont_hora_desactivacion,
         i.cont_rendimiento,
         i.cont_es_externo,
+        i.mov_activado_por,
         i.mov_hora_activacion,
         i.mov_hora_desactivacion,
         i.mov_rendimiento,
@@ -98,12 +100,16 @@ export async function GET(req: NextRequest) {
         AND i.estado IN ('RESUELTO','CERRADO')
     `) as any[]
 
+    const tramosPorIncidente = await getTramosPorIncidentes((rows as any[]).map(r => r.id))
+
     let totalIncidentes   = rows.length
     let slaVencidoCount   = 0
     let mttrSum           = 0
     let mttrCount         = 0
     let ieiSum            = 0
     let penalidadSum      = 0
+    let conTramos         = 0
+    let sinTramos         = 0
 
     for (const r of rows) {
       const slaResolucion = Number(r.sla_resol_override ?? SLA_RESOLUCION_DEFAULT_MIN)
@@ -112,26 +118,26 @@ export async function GET(req: NextRequest) {
       if (slaVencido) slaVencidoCount++
       if (r.mttr_minutos != null) { mttrSum += Number(r.mttr_minutos); mttrCount++ }
 
+      const tramos = tramosPorIncidente.get(r.id) ?? []
+      if (tramos.length > 0) conTramos++; else sinTramos++
+
+      // estado: 'RESUELTO' fijo (fix autorizado) — antes este archivo pasaba
+      // r.estado real, así que un incidente CERRADO (incluido en el WHERE)
+      // daba 0 en silencio con calcImpactoRow. Con calcIeiIncidente eso
+      // hubiera sido peor (usaría "ahora" como límite en vez de hora_fin) si
+      // no se corrige acá — mismo hardcodeo que ya usa evaluar/route.ts.
       try {
-        const iei = calcImpactoRow({
-          hora_registro:           r.hora_registro,
-          hora_fin:                r.hora_fin,
-          estado:                  r.estado,
-          tipo:                    r.tipo,
-          venta_hora_soles:        r.venta_hora_soles,
-          venta_hora_fds_soles:    r.venta_hora_fds_soles,
-          cluster:                 r.cluster,
-          cont_hora_activacion:    r.cont_activado_por ? r.cont_hora_activacion : null,
-          cont_hora_desactivacion: r.cont_hora_desactivacion,
-          cont_rendimiento:        r.cont_rendimiento,
-          cont_es_externo:         r.cont_es_externo,
-          mov_hora_activacion:     r.mov_hora_activacion,
-          mov_hora_desactivacion:  r.mov_hora_desactivacion,
-          mov_rendimiento:         r.mov_rendimiento,
-          boleta_manual:            r.boleta_manual,
-          boleta_rendimiento:       r.boleta_rendimiento,
-          boleta_hora_activacion:   r.boleta_hora_activacion,
-        }).impactoEstimado
+        const incidenteMitigacion: IncidenteMitigacionInput = {
+          tipo: r.tipo, estado: 'RESUELTO', horaRegistro: r.hora_registro, horaFin: r.hora_fin,
+          contActivadoPor: r.cont_activado_por, contHoraActivacion: r.cont_hora_activacion,
+          contHoraDesactivacion: r.cont_hora_desactivacion, contRendimiento: r.cont_rendimiento, contEsExterno: r.cont_es_externo,
+          movActivadoPor: r.mov_activado_por, movHoraActivacion: r.mov_hora_activacion,
+          movHoraDesactivacion: r.mov_hora_desactivacion, movRendimiento: r.mov_rendimiento,
+          boletaManual: r.boleta_manual, boletaRendimiento: r.boleta_rendimiento, boletaHoraActivacion: r.boleta_hora_activacion,
+        }
+        const { iei } = calcIeiIncidente(incidenteMitigacion, tramos, {
+          ventaHoraSoles: r.venta_hora_soles, ventaHoraFdsSoles: r.venta_hora_fds_soles, cluster: r.cluster,
+        })
         ieiSum += iei
         if (slaVencido) penalidadSum += iei
       } catch { /* skip si no hay datos suficientes */ }
@@ -141,6 +147,11 @@ export async function GET(req: NextRequest) {
       ? Math.round(((totalIncidentes - slaVencidoCount) / totalIncidentes) * 100)
       : 100
     const mttrPromedio = mttrCount > 0 ? Math.round(mttrSum / mttrCount) : null
+    const metodo: 'TRAMOS' | 'LEGACY' | 'MIXTO' | null =
+      totalIncidentes === 0 ? null
+      : conTramos > 0 && sinTramos > 0 ? 'MIXTO'
+      : conTramos > 0 ? 'TRAMOS'
+      : 'LEGACY'
 
     return NextResponse.json({
       // Contexto de la tienda y proveedor
@@ -163,6 +174,7 @@ export async function GET(req: NextRequest) {
       mttrMin:                  mttrPromedio,
       ieiAcumulado:             Math.round(ieiSum * 100) / 100,
       penalidadEstimada:        Math.round(penalidadSum * 100) / 100,
+      metodo,
     })
   } catch (err: any) {
     console.error('[gestion-cambios/snap]', err)

@@ -202,12 +202,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (current.estado !== 'BORRADOR')
     return NextResponse.json({ error: 'Solo se pueden eliminar borradores' }, { status: 409 })
 
-  const userId  = (session.user as any)?.id
-  const userRol = (session.user as any)?.rol ?? ''
-  const esSupervisorOGerencia = ['SUPERVISOR', 'GERENCIA', 'DEMO'].includes(userRol)
+  const userId   = (session.user as any)?.id
   const esCreador = current.creadoPorId === userId
 
-  if (!esCreador && !esSupervisorOGerencia)
+  if (!esCreador && !can(session, 'gestion-cambios.crear'))
     return NextResponse.json({ error: 'Sin permiso para eliminar este borrador' }, { status: 403 })
 
   await db.delete(accionesGestionTiendas).where(eq(accionesGestionTiendas.accionId, id))

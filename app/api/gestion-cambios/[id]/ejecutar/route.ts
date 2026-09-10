@@ -242,6 +242,10 @@ async function _cambiarProveedorTienda(
   usuarioId: string,
   referencia: string,
 ) {
+  const [t] = await tx.select({ estado: tiendas.estado }).from(tiendas).where(eq(tiendas.id, tiendaId)).limit(1)
+  if (t?.estado === 'ARCHIVADA')
+    throw new HttpError(409, 'La tienda está archivada. No se puede cambiar de proveedor.')
+
   // Backfill: incidentes históricos sin proveedor_id explícito → atribuir al proveedor anterior
   // Esto preserva la historia aunque cambie tiendas.proveedor_id (evita que COALESCE los mueva)
   if (proveedorAnteriorId) {
@@ -278,6 +282,10 @@ async function _darDeBajaContrato(
   referencia: string,
   ahora: Date,
 ): Promise<string | null> {
+  const [t] = await tx.select({ estado: tiendas.estado }).from(tiendas).where(eq(tiendas.id, tiendaId)).limit(1)
+  if (t?.estado === 'ARCHIVADA')
+    throw new HttpError(409, 'La tienda está archivada. No se puede dar de baja el contrato.')
+
   const [fichaActiva] = await tx.select({ id: fichas.id })
     .from(fichas)
     .where(and(eq(fichas.tiendaId, tiendaId), eq(fichas.estado, 'ACTIVA')))

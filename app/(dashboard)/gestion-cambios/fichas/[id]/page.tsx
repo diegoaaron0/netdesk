@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { apiMutate } from '@/lib/api-mutate'
+import { SLA_RESPUESTA_MIN, SLA_RESOLUCION_DEFAULT_MIN } from '@/lib/sla-core'
 
 const ESTADO_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
   BORRADOR:     { label: 'Borrador',     bg: '#F1F5F9', color: '#475569' },
@@ -59,6 +60,7 @@ export default function FichaDetallePage() {
   const [saving, setSaving]   = useState(false)
   const [nivelForm, setNivelForm] = useState<any>(null)
   const [savingNivel, setSavingNivel] = useState(false)
+  const [resincronizandoId, setResincronizandoId] = useState<string | null>(null)
 
   const loadFicha = useCallback(() => {
     setLoading(true)
@@ -73,8 +75,8 @@ export default function FichaDetallePage() {
   function startEdit() {
     setDraft({
       ...data,
-      tiempoRespuestaSla:  data.tiempoRespuestaSla  ?? 60,
-      tiempoResolucionSla: data.tiempoResolucionSla ?? 90,
+      tiempoRespuestaSla:  data.tiempoRespuestaSla  ?? SLA_RESPUESTA_MIN,
+      tiempoResolucionSla: data.tiempoResolucionSla ?? SLA_RESOLUCION_DEFAULT_MIN,
     })
     setEditing(true)
   }
@@ -121,6 +123,15 @@ export default function FichaDetallePage() {
   async function deleteNivel(nivelId: string) {
     if (!confirm('¿Eliminar este nivel de escalamiento?')) return
     const { ok } = await apiMutate(`/api/fichas/${id}/niveles/${nivelId}`, { method: 'DELETE', errorPrefix: 'No se pudo eliminar el nivel' })
+    if (!ok) return
+    loadFicha()
+  }
+
+  async function resincronizarNivel(nivelId: string) {
+    if (!confirm('¿Volver a seguir la plantilla del proveedor?\n\nSe sobreescribirán los datos de este nivel con los del molde y volverá a recibir cambios automáticos.')) return
+    setResincronizandoId(nivelId)
+    const { ok } = await apiMutate(`/api/fichas/${id}/niveles/${nivelId}/resincronizar`, { method: 'POST', errorPrefix: 'No se pudo resincronizar el nivel' })
+    setResincronizandoId(null)
     if (!ok) return
     loadFicha()
   }
@@ -222,14 +233,14 @@ export default function FichaDetallePage() {
                 },
                 {
                   label: 'SLA Respuesta',
-                  value: src.tiempoRespuestaSla ?? 60,
+                  value: src.tiempoRespuestaSla ?? SLA_RESPUESTA_MIN,
                   suffix: 'min',
                   color: 'hsl(221,83%,23%)',
                   note: !src.tiempoRespuestaSla ? 'por defecto' : undefined,
                 },
                 {
                   label: 'SLA Resolución',
-                  value: src.tiempoResolucionSla ?? 90,
+                  value: src.tiempoResolucionSla ?? SLA_RESOLUCION_DEFAULT_MIN,
                   suffix: 'min',
                   color: 'hsl(221,83%,23%)',
                   note: !src.tiempoResolucionSla ? 'por defecto' : undefined,
@@ -397,13 +408,28 @@ export default function FichaDetallePage() {
                         N{n.nivel}
                       </span>
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: '13px' }}>{n.nombreContacto}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontWeight: 700, fontSize: '13px' }}>{n.nombreContacto}</span>
+                          {n.personalizado && (
+                            <span title="No recibe cambios automáticos del molde del proveedor"
+                              style={{ fontSize: '9px', fontWeight: 700, padding: '1px 6px', borderRadius: '99px', background: '#FEF3C7', color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                              Personalizado
+                            </span>
+                          )}
+                        </div>
                         <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>
                           {[n.email, n.celular, n.whatsapp].filter(Boolean).join(' · ') || '—'}
                         </div>
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '6px' }}>
+                      {n.personalizado && (
+                        <button onClick={() => resincronizarNivel(n.id)} disabled={resincronizandoId === n.id}
+                          title="Sobreescribe este nivel con los valores actuales del molde del proveedor y lo vuelve a marcar como sincronizado"
+                          style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 500, background: '#EFF6FF', color: '#1D4ED8', border: '0.5px solid #BFDBFE', borderRadius: '6px', cursor: resincronizandoId === n.id ? 'wait' : 'pointer' }}>
+                          {resincronizandoId === n.id ? 'Resincronizando...' : 'Volver a seguir la plantilla'}
+                        </button>
+                      )}
                       <button onClick={() => setNivelForm({ ...n })}
                         style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 500, background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '6px', cursor: 'pointer' }}>
                         Editar

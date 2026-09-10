@@ -16,6 +16,8 @@ interface Fixture {
   tienda3: string; ficha3Activa: string; accion3: string
   tienda4: string; ficha4Activa: string; accion4: string
   tienda5: string; ficha5Activa: string; ficha5Nueva: string; accion5: string
+  tienda6: string; ficha6Activa: string; ficha6Nueva: string; accion6: string
+  tienda7: string; ficha7Activa: string; accion7: string
 }
 
 let fx: Fixture
@@ -124,6 +126,23 @@ async function sembrarFixture(): Promise<Fixture> {
   await db.delete(schema.incidentes).where(eq(schema.incidentes.codigo, 'TST-GC-EJEC-05'))
   const accion5 = await accion('AC-GCTEST-05', 'CAMBIO_CONTRATO', tienda5, { proveedorAnteriorId: provA, proveedorNuevoId: provB, fichaNuevaId: ficha5Nueva })
 
+  // Tienda 6: CAMBIO_CONTRATO, CAMBIO real de proveedor, SIN incidentes, pero
+  // la tienda está ARCHIVADA → debe bloquear en _cambiarProveedorTienda
+  const tienda6 = await tienda('T-GC-EJEC-06', provA)
+  const ficha6Activa = await ficha('FC-GC-EJEC-06A', tienda6, provA, 'ACTIVA')
+  await db.update(schema.tiendas).set({ fichaActivaId: ficha6Activa, estado: 'ARCHIVADA', archivadaEn: new Date(), archivadaMotivo: 'Cierre de prueba' } as any).where(eq(schema.tiendas.id, tienda6))
+  const ficha6Nueva = await ficha('FC-GC-EJEC-06B', tienda6, provB, 'BORRADOR')
+  await db.delete(schema.incidentes).where(eq(schema.incidentes.codigo, 'TST-GC-EJEC-06'))
+  const accion6 = await accion('AC-GCTEST-06', 'CAMBIO_CONTRATO', tienda6, { proveedorAnteriorId: provA, proveedorNuevoId: provB, fichaNuevaId: ficha6Nueva })
+
+  // Tienda 7: BAJA_CONTRATO, SIN incidentes, pero la tienda está ARCHIVADA →
+  // debe bloquear en _darDeBajaContrato (mismo gap que tienda6/_cambiarProveedorTienda)
+  const tienda7 = await tienda('T-GC-EJEC-07', provA)
+  const ficha7Activa = await ficha('FC-GC-EJEC-07A', tienda7, provA, 'ACTIVA')
+  await db.update(schema.tiendas).set({ fichaActivaId: ficha7Activa, estado: 'ARCHIVADA', archivadaEn: new Date(), archivadaMotivo: 'Cierre de prueba' } as any).where(eq(schema.tiendas.id, tienda7))
+  await db.delete(schema.incidentes).where(eq(schema.incidentes.codigo, 'TST-GC-EJEC-07'))
+  const accion7 = await accion('AC-GCTEST-07', 'BAJA_CONTRATO', tienda7)
+
   return {
     provA, provB,
     tienda1, ficha1Activa, ficha1Nueva, accion1,
@@ -131,6 +150,8 @@ async function sembrarFixture(): Promise<Fixture> {
     tienda3, ficha3Activa, accion3,
     tienda4, ficha4Activa, accion4,
     tienda5, ficha5Activa, ficha5Nueva, accion5,
+    tienda6, ficha6Activa, ficha6Nueva, accion6,
+    tienda7, ficha7Activa, accion7,
   }
 }
 
@@ -176,6 +197,27 @@ describe('POST /api/gestion-cambios/[id]/ejecutar — CAMBIO_CONTRATO: bloqueo d
     expect(accion.estado).toBe('APROBADO') // no avanzó a COMPLETADO
   })
 
+  it('tienda ARCHIVADA → bloquea con 409 en _cambiarProveedorTienda, nada cambia (transacción revertida)', async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    const { POST } = await import('./route')
+
+    const res = await POST(reqCon(), { params: Promise.resolve({ id: fx.accion6 }) })
+    expect(res.status).toBe(409)
+    const data = await res.json()
+    expect(data.error).toMatch(/archivada/i)
+
+    const [tienda] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.id, fx.tienda6))
+    expect(tienda.proveedorId).toBe(fx.provA) // no cambió
+    expect(tienda.fichaActivaId).toBe(fx.ficha6Activa) // no cambió
+    const [anterior] = await db.select().from(schema.fichas).where(eq(schema.fichas.id, fx.ficha6Activa))
+    expect(anterior.estado).toBe('ACTIVA')
+    const [nueva] = await db.select().from(schema.fichas).where(eq(schema.fichas.id, fx.ficha6Nueva))
+    expect(nueva.estado).toBe('BORRADOR')
+    const [accion] = await db.select().from(schema.accionesGestion).where(eq(schema.accionesGestion.id, fx.accion6))
+    expect(accion.estado).toBe('APROBADO')
+  })
+
   it('cambio real de proveedor SIN incidentes abiertos → se ejecuta y aplica el cambio de proveedor', async () => {
     const { db } = await import('@/lib/db')
     const schema = await import('@/drizzle/schema')
@@ -206,6 +248,25 @@ describe('POST /api/gestion-cambios/[id]/ejecutar — BAJA_CONTRATO', () => {
     const [tienda] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.id, fx.tienda3))
     expect(tienda.proveedorId).toBe(fx.provA)
     expect(tienda.fichaActivaId).toBe(fx.ficha3Activa)
+  })
+
+  it('tienda ARCHIVADA → bloquea con 409 en _darDeBajaContrato, nada cambia (transacción revertida)', async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    const { POST } = await import('./route')
+
+    const res = await POST(reqCon(), { params: Promise.resolve({ id: fx.accion7 }) })
+    expect(res.status).toBe(409)
+    const data = await res.json()
+    expect(data.error).toMatch(/archivada/i)
+
+    const [ficha] = await db.select().from(schema.fichas).where(eq(schema.fichas.id, fx.ficha7Activa))
+    expect(ficha.estado).toBe('ACTIVA')
+    const [tienda] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.id, fx.tienda7))
+    expect(tienda.fichaActivaId).toBe(fx.ficha7Activa)
+    expect(tienda.proveedorId).toBe(fx.provA)
+    const [accion] = await db.select().from(schema.accionesGestion).where(eq(schema.accionesGestion.id, fx.accion7))
+    expect(accion.estado).toBe('APROBADO')
   })
 
   it('sin ficha nueva y sin incidentes abiertos → ejecuta: ficha ACTIVA pasa a DADA_DE_BAJA, tienda queda sin proveedor ni ficha activa', async () => {

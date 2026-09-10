@@ -75,6 +75,36 @@ describe('POST /api/gestion-cambios — alcance ZONA deshabilitado temporalmente
   })
 })
 
+describe('POST /api/gestion-cambios — rechaza si la tienda está ARCHIVADA', () => {
+  it('devuelve 409 y no crea la acción', async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    const { POST } = await import('./route')
+
+    let [t] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.codigo, 'T-GC-POST-ARCHIVADA'))
+    if (!t) {
+      [t] = await db.insert(schema.tiendas).values({
+        codigo: 'T-GC-POST-ARCHIVADA', nombreCc: 'Tienda archivada — POST gestion-cambios', distrito: 'Test', cluster: 'B',
+        estado: 'ARCHIVADA', archivadaEn: new Date(), archivadaMotivo: 'Cierre de prueba',
+      }).returning()
+    } else {
+      await db.update(schema.tiendas).set({ estado: 'ARCHIVADA', archivadaEn: new Date(), archivadaMotivo: 'Cierre de prueba' } as any).where(eq(schema.tiendas.id, t.id))
+    }
+
+    await db.delete(schema.accionesGestion).where(eq(schema.accionesGestion.titulo, 'Acción sobre tienda archivada (test)'))
+
+    const res = await POST(postReq({
+      tipo: 'RENOVACION_CONTRATO', titulo: 'Acción sobre tienda archivada (test)', motivo: 'test', alcance: 'TIENDA', tiendaId: t.id,
+    }))
+    expect(res.status).toBe(409)
+    const data = await res.json()
+    expect(data.error).toMatch(/archivada/i)
+
+    const [existe] = await db.select().from(schema.accionesGestion).where(eq(schema.accionesGestion.titulo, 'Acción sobre tienda archivada (test)'))
+    expect(existe).toBeUndefined()
+  })
+})
+
 describe('PUT /api/gestion-cambios/[id] — tampoco permite cambiar un borrador a alcance ZONA', () => {
   it('rechaza con 400 el intento de editar un borrador TIENDA para volverlo ZONA', async () => {
     const { db } = await import('@/lib/db')
