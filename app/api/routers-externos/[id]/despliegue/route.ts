@@ -9,7 +9,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  if (!can(session, 'mantenimiento.ver')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  if (!can(session, 'mantenimiento.editar')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const body = await req.json().catch(() => ({}))
   const tiendaDestinoId: string = body.tiendaId ?? ''
@@ -27,8 +27,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'Solo se puede desplegar un router DISPONIBLE' }, { status: 409 })
   }
 
-  const [tiendaDest] = await db.select({ id: tiendas.id }).from(tiendas).where(eq(tiendas.id, tiendaDestinoId))
+  const [tiendaDest] = await db.select({ id: tiendas.id, estado: tiendas.estado }).from(tiendas).where(eq(tiendas.id, tiendaDestinoId))
   if (!tiendaDest) return NextResponse.json({ error: 'Tienda destino no encontrada' }, { status: 404 })
+  if (tiendaDest.estado === 'ARCHIVADA')
+    return NextResponse.json({ error: 'La tienda destino está archivada. No se puede desplegar un router ahí.' }, { status: 409 })
 
   const ahora  = new Date()
   const userId = (session.user as any)?.id ?? null

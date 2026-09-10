@@ -9,7 +9,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  if (!can(session, 'mantenimiento.ver')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  if (!can(session, 'mantenimiento.editar')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const body = await req.json().catch(() => ({}))
   const nota:            string = body.nota ?? ''

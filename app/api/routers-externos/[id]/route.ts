@@ -63,7 +63,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  if (!can(session, 'mantenimiento.ver')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  if (!can(session, 'mantenimiento.editar')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const body = await req.json()
   const patch: Record<string, any> = {}
@@ -81,7 +81,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  if (!can(session, 'mantenimiento.ver')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  if (!can(session, 'mantenimiento.editar')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const [router] = await db.select({ estado: routersExternos.estado }).from(routersExternos).where(eq(routersExternos.id, id))
   if (!router) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
