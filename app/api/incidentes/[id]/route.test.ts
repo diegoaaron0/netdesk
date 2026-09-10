@@ -281,3 +281,153 @@ describe('PUT /api/incidentes/[id] — descartes del rediseño (capa física y r
     expect(enBd.cableado).toBe(false)
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Divergencia tramos ↔ campos viejos: el botón "desactivar contingencia" del
+// dashboard operativo entra por PUT con cont/mov_hora_desactivacion (o
+// boletaManual:false) y nada más. Sellaba el campo viejo pero dejaba el tramo
+// abierto, y como todos los consumidores leen tramos, el IEI seguía acumulando
+// con el factor mitigado. Estos tests fijan que el PUT también cierre el tramo.
+// ─────────────────────────────────────────────────────────────────────────────
+function reqCon(body: Record<string, unknown> = {}) {
+  return { json: async () => body } as any
+}
+
+describe('PUT /api/incidentes/[id] — desactivar mitigación cierra también el tramo', () => {
+  let tiendaDivId: string
+  let registradoPorDivId: string
+
+  beforeAll(async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+
+    const [ref] = await db.select().from(schema.incidentes).where(eq(schema.incidentes.codigo, 'TST-P1-001'))
+    registradoPorDivId = ref.registradoPorId
+
+    let [t] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.codigo, 'T-DIVERGENCIA'))
+    if (!t) {
+      [t] = await db.insert(schema.tiendas).values({
+        codigo: 'T-DIVERGENCIA', nombreCc: 'Tienda divergencia tramos', distrito: 'Test', cluster: 'B',
+        ventaHoraSoles: '100', ventaHoraFdsSoles: '150', tieneContingencia: true,
+      }).returning()
+    } else {
+      await db.update(schema.tiendas)
+        .set({ estado: 'ACTIVA', tieneContingencia: true, ventaHoraSoles: '100' } as any)
+        .where(eq(schema.tiendas.id, t.id))
+    }
+    tiendaDivId = t.id
+  })
+
+  async function incidenteConMitigacion(codigo: string, tipoMitigacion: string) {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    await db.delete(schema.incidentes).where(eq(schema.incidentes.codigo, codigo))
+    const [inc] = await db.insert(schema.incidentes).values({
+      codigo, tiendaId: tiendaDivId, registradoPorId: registradoPorDivId,
+      nivelImpacto: 'ALTO', tipo: 'CAIDA_TOTAL', estado: 'ABIERTO',
+      horaRegistro: new Date(Date.now() - 3 * 3600000),
+    }).returning()
+
+    // Activar por el control nuevo — es lo que hace el detalle del incidente.
+    const { POST: postMitigacion } = await import('./mitigacion/route')
+    const res = await postMitigacion(
+      { json: async () => ({ tipo: tipoMitigacion, rendimiento: 'PARCIAL', activadoPor: 'AGENTE' }) } as any,
+      { params: Promise.resolve({ id: inc.id }) },
+    )
+    expect(res.status, 'la activación de la mitigación debe funcionar').toBe(200)
+    return inc.id
+  }
+
+  async function tramoAbierto(incId: string) {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    const { and, isNull } = await import('drizzle-orm')
+    const [t] = await db.select().from(schema.incidenteMitigacionTramos)
+      .where(and(eq(schema.incidenteMitigacionTramos.incidenteId, incId), isNull(schema.incidenteMitigacionTramos.hasta)))
+    return t ?? null
+  }
+
+  it('router: desactivar desde el operativo cierra el tramo y abre SIN_MITIGACION', async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    const incId = await incidenteConMitigacion('TST-DIV-ROUTER', 'ROUTER_PROPIO')
+    expect((await tramoAbierto(incId))!.tipo).toBe('ROUTER_PROPIO')
+
+    // Exactamente lo que manda el botón del dashboard operativo.
+    const { PUT } = await import('./route')
+    const res = await PUT(
+      reqCon({ contHoraDesactivacion: new Date().toISOString() }),
+      { params: Promise.resolve({ id: incId }) },
+    )
+    expect(res.status).toBe(200)
+
+    // El campo viejo sigue sellándose (no se sacó la escritura vieja todavía)…
+    const [inc] = await db.select().from(schema.incidentes).where(eq(schema.incidentes.id, incId))
+    expect(inc.contHoraDesactivacion).not.toBeNull()
+
+    // …y ahora el tramo de router también quedó cerrado.
+    const abierto = await tramoAbierto(incId)
+    expect(abierto!.tipo, 'el tramo de router no puede seguir abierto').toBe('SIN_MITIGACION')
+
+    const cerrado = await db.select().from(schema.incidenteMitigacionTramos)
+      .where(eq(schema.incidenteMitigacionTramos.incidenteId, incId))
+    const router = cerrado.find(t => t.tipo === 'ROUTER_PROPIO')!
+    expect(router.hasta, 'el tramo cerrado debe tener hora de fin').not.toBeNull()
+    // El IEI queda sellado (no null). El monto es ~0 porque en el test la
+    // activación y la desactivación ocurren con milisegundos de diferencia:
+    // lo que importa es que el tramo dejó de acumular, no cuánto acumuló.
+    expect(router.ieTramo, 'y su IEI sellado, no null').not.toBeNull()
+  })
+
+  it('datos móviles: idem por movHoraDesactivacion', async () => {
+    const incId = await incidenteConMitigacion('TST-DIV-MOVILES', 'DATOS_MOVILES')
+    const { PUT } = await import('./route')
+    const res = await PUT(
+      reqCon({ movHoraDesactivacion: new Date().toISOString() }),
+      { params: Promise.resolve({ id: incId }) },
+    )
+    expect(res.status).toBe(200)
+    expect((await tramoAbierto(incId))!.tipo).toBe('SIN_MITIGACION')
+  })
+
+  it('boleta manual: idem por boletaManual:false', async () => {
+    const incId = await incidenteConMitigacion('TST-DIV-BOLETA', 'BOLETA_MANUAL')
+    const { PUT } = await import('./route')
+    const res = await PUT(reqCon({ boletaManual: false }), { params: Promise.resolve({ id: incId }) })
+    expect(res.status).toBe(200)
+    expect((await tramoAbierto(incId))!.tipo).toBe('SIN_MITIGACION')
+  })
+
+  it('desactivar el router NO cierra un tramo de datos móviles que sigue corriendo', async () => {
+    const incId = await incidenteConMitigacion('TST-DIV-CRUZADO', 'DATOS_MOVILES')
+    const { PUT } = await import('./route')
+    const res = await PUT(
+      reqCon({ contHoraDesactivacion: new Date().toISOString() }),
+      { params: Promise.resolve({ id: incId }) },
+    )
+    expect(res.status).toBe(200)
+    expect((await tramoAbierto(incId))!.tipo, 'el tramo de datos móviles debe seguir abierto').toBe('DATOS_MOVILES')
+  })
+
+  it('un incidente sin tramos (flujo viejo) no se rompe: sigue sellando el campo viejo', async () => {
+    const { db } = await import('@/lib/db')
+    const schema = await import('@/drizzle/schema')
+    await db.delete(schema.incidentes).where(eq(schema.incidentes.codigo, 'TST-DIV-SIN-TRAMOS'))
+    const [inc] = await db.insert(schema.incidentes).values({
+      codigo: 'TST-DIV-SIN-TRAMOS', tiendaId: tiendaDivId, registradoPorId: registradoPorDivId,
+      nivelImpacto: 'ALTO', tipo: 'CAIDA_TOTAL', estado: 'ABIERTO',
+      horaRegistro: new Date(Date.now() - 2 * 3600000),
+      contActivadoPor: 'AGENTE', contHoraActivacion: new Date(Date.now() - 3600000), contRendimiento: 'PARCIAL',
+    }).returning()
+
+    const { PUT } = await import('./route')
+    const res = await PUT(
+      reqCon({ contHoraDesactivacion: new Date().toISOString() }),
+      { params: Promise.resolve({ id: inc.id }) },
+    )
+    expect(res.status).toBe(200)
+    const [after] = await db.select().from(schema.incidentes).where(eq(schema.incidentes.id, inc.id))
+    expect(after.contHoraDesactivacion).not.toBeNull()
+    expect(await tramoAbierto(inc.id), 'no debe inventar tramos donde no había').toBeNull()
+  })
+})

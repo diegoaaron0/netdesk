@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { incidentes, tiendas, proveedores, usuarios, escalamientos, fichasNiveles, adjuntos, atcLlamadas, tiendasHistorial, gruposMasivos, routersExternos } from '@/drizzle/schema'
-import { eq, inArray, sql } from 'drizzle-orm'
+import { incidentes, tiendas, proveedores, usuarios, escalamientos, fichasNiveles, adjuntos, atcLlamadas, tiendasHistorial, gruposMasivos, routersExternos, incidenteMitigacionTramos } from '@/drizzle/schema'
+import { eq, and, isNull, inArray, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
@@ -505,6 +505,56 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     .set({ ...allowedFields, actualizadoEn: new Date() })
     .where(eq(incidentes.id, id))
     .returning()
+
+  // ── Sincronizar el corte de mitigación con la tabla de tramos ──────────────
+  // El botón "desactivar contingencia" del dashboard operativo entra por acá:
+  // manda un PUT con cont_hora_desactivacion / mov_hora_desactivacion /
+  // boletaManual:false y nada más. Hasta este fix sellaba SOLO el campo viejo,
+  // y el tramo quedaba abierto: como todos los consumidores ya leen de tramos
+  // (Fase 5), el IEI seguía acumulando con el factor mitigado como si la
+  // contingencia nunca hubiera terminado.
+  //
+  // En vez de reimplementar el cierre, se delega en POST /mitigacion con
+  // SIN_MITIGACION, que es la misma lógica que usa el control del detalle:
+  // sella el tramo con calcIeTramo, abre el tramo sin mitigación y arrastra
+  // los efectos (estado del router externo, tiendas.contingencia_activa).
+  // Duplicarla sería repetir el error que causó esta divergencia.
+  //
+  // La escritura vieja se mantiene a propósito: ambos caminos quedan
+  // sincronizados hasta el corte final de cont_*/mov_*/boleta_*.
+  const cerroRouter  = allowedFields.contHoraDesactivacion != null
+    || ('contActivadoPor' in allowedFields && !allowedFields.contActivadoPor)
+  const cerroMoviles = allowedFields.movHoraDesactivacion != null
+    || ('movActivadoPor' in allowedFields && !allowedFields.movActivadoPor)
+  const cerroBoleta  = 'boletaManual' in allowedFields && !allowedFields.boletaManual
+
+  if ((cerroRouter || cerroMoviles || cerroBoleta)
+      && !['RESUELTO', 'CANCELADO', 'CERRADO'].includes(updated.estado ?? '')) {
+    const [tramoAbierto] = await db.select({ tipo: incidenteMitigacionTramos.tipo })
+      .from(incidenteMitigacionTramos)
+      .where(and(eq(incidenteMitigacionTramos.incidenteId, id), isNull(incidenteMitigacionTramos.hasta)))
+
+    // Solo si el tramo abierto es del tipo que se acaba de desactivar: apagar
+    // el router no debe cerrar un tramo de datos móviles que sigue corriendo.
+    const tipoAbierto = tramoAbierto?.tipo ?? null
+    const coincide =
+      (cerroRouter  && (tipoAbierto === 'ROUTER_PROPIO' || tipoAbierto === 'ROUTER_EXTERNO')) ||
+      (cerroMoviles && tipoAbierto === 'DATOS_MOVILES') ||
+      (cerroBoleta  && tipoAbierto === 'BOLETA_MANUAL')
+
+    if (coincide) {
+      const { POST: postMitigacion } = await import('./mitigacion/route')
+      const res = await postMitigacion(
+        { json: async () => ({ tipo: 'SIN_MITIGACION' }) } as any,
+        { params: Promise.resolve({ id }) },
+      )
+      if (!res.ok) {
+        // No se revierte el PUT: el campo viejo ya quedó sellado y es lo que
+        // el usuario pidió. Se deja rastro para poder detectar la divergencia.
+        console.error('[incidentes/PUT] no se pudo cerrar el tramo abierto', id, res.status, await res.text().catch(() => ''))
+      }
+    }
+  }
 
   if (body.estado === 'RESUELTO' || body.horaFin) {
     // Escalamientos enviados sin respuesta al cerrar → "sin respuesta" (detiene
