@@ -9,7 +9,7 @@ export async function PUT(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  if (!can(session, 'escalamientos.respuesta')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  if (!can(session, 'escalamientos.crear')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const [updated] = await db.update(escalamientos)
     .set({ noHuboRespuesta: true, estadoCronometro: 'VENCIDO' })

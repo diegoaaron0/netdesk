@@ -9,7 +9,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  if (!can(session, 'escalamientos.respuesta')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  if (!can(session, 'escalamientos.crear')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const body = await req.json().catch(() => ({}))
   const fields: any = {}
@@ -48,7 +48,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  if (!can(session, 'escalamientos.respuesta')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  if (!can(session, 'escalamientos.crear')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   await db.delete(atcLlamadas).where(eq(atcLlamadas.id, id))
   return NextResponse.json({ ok: true })

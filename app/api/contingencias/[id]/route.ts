@@ -9,7 +9,7 @@ export async function PATCH(_req: NextRequest, { params }: { params: Promise<{ i
   const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  if (!can(session, 'contingencias.gestionar')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  if (!can(session, 'grupos.gestionar')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const [updated] = await db.update(contingencias)
     .set({ horaDesactivacion: new Date() })
