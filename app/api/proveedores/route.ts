@@ -14,7 +14,6 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = req.nextUrl
   const buscar     = searchParams.get('buscar')  ?? ''
-  const planFiltro = searchParams.get('plan')    ?? ''
   const ordenar    = searchParams.get('ordenar') ?? ''
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
@@ -106,8 +105,7 @@ export async function GET(req: NextRequest) {
   }))
 
   // ── Filters ─────────────────────────────────────────────────────────────────
-  if (buscar)     result = result.filter(p => p.nombre.toLowerCase().includes(buscar.toLowerCase()))
-  if (planFiltro) result = result.filter(p => p.planPrincipal === planFiltro)
+  if (buscar) result = result.filter(p => p.nombre.toLowerCase().includes(buscar.toLowerCase()))
 
   // ── Sort ─────────────────────────────────────────────────────────────────────
   if      (ordenar === 'z-a')            result.sort((a, b) => b.nombre.localeCompare(a.nombre))
