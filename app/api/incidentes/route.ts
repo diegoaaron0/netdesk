@@ -5,6 +5,7 @@ import { eq, desc, and, gte, lt, sql, inArray, ilike, or } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
+import { getTramosPorIncidentes, normalizarMitigaciones, type IncidenteMitigacionInput } from '@/lib/mitigacion-tramos'
 
 // ─── Aliases ─────────────────────────────────────────────────────────────────
 const provInc   = alias(proveedores, 'pi')   // proveedor histórico del incidente
@@ -47,7 +48,10 @@ const COLS = {
   agenteId:       usuarios.id,
   resueltoPor:       incidentes.resueltoPor,
   contActivadoPor:        incidentes.contActivadoPor,
+  contHoraActivacion:     incidentes.contHoraActivacion,
   contHoraDesactivacion:  incidentes.contHoraDesactivacion,
+  contRendimiento:        incidentes.contRendimiento,
+  contEsExterno:          incidentes.contEsExterno,
   tipoPersonalizado: incidentes.tipoPersonalizado,
   alcanceCorte:      incidentes.alcanceCorte,
   tuvoUps:           incidentes.tuvoUps,
@@ -58,9 +62,27 @@ const COLS = {
   infraNombre:       infraUser.nombre,
   infraApellido:     infraUser.apellido,
   movActivadoPor:       incidentes.movActivadoPor,
+  movHoraActivacion:    incidentes.movHoraActivacion,
   movHoraDesactivacion: incidentes.movHoraDesactivacion,
+  movRendimiento:       incidentes.movRendimiento,
   boletaManual:         incidentes.boletaManual,
   motivoReabertura:     incidentes.motivoReabertura,
+  mitigacionesPrevias:  incidentes.mitigacionesPrevias,
+}
+
+// Fase 5, Paso 2.2 — qué mitigación real (router/datos móviles) está activa
+// AHORA para un lote de incidentes, con tramos y fallback legacy en un solo
+// bloque (evita N+1: una sola query de tramos para toda la página). La badge
+// de Boleta sigue leyendo boletaManual directo — no se toca en este paso.
+async function conMitigacionesActivas<T extends IncidenteMitigacionInput & { id: string }>(rows: T[]): Promise<(T & { mitigacionesActivas: string[] })[]> {
+  const tramosPorIncidente = await getTramosPorIncidentes(rows.map(r => r.id))
+  return rows.map(r => {
+    const segmentos = normalizarMitigaciones(r, tramosPorIncidente.get(r.id) ?? [])
+    const activas = segmentos
+      .filter(s => s.hasta === null && (s.tipo === 'ROUTER_PROPIO' || s.tipo === 'ROUTER_EXTERNO' || s.tipo === 'DATOS_MOVILES'))
+      .map(s => s.tipo)
+    return { ...r, mitigacionesActivas: activas }
+  })
 }
 
 export async function GET(req: NextRequest) {
@@ -97,7 +119,8 @@ export async function GET(req: NextRequest) {
       ))
       .orderBy(desc(incidentes.horaRegistro))
       .limit(300)
-    return NextResponse.json(results.map((i: any) => ({ ...i, isOverdue: false })))
+    const conMitigacion = await conMitigacionesActivas(results as any[])
+    return NextResponse.json(conMitigacion.map((i: any) => ({ ...i, isOverdue: false })))
   }
 
   const { start } = limaDateRange(fechaDesde)
@@ -122,9 +145,14 @@ export async function GET(req: NextRequest) {
     joins(db.select(COLS).from(incidentes)).where(and(...overdueConds)).orderBy(desc(incidentes.horaRegistro)),
   ])
 
+  const [regularConMitigacion, overdueConMitigacion] = await Promise.all([
+    conMitigacionesActivas(regular as any[]),
+    conMitigacionesActivas(overdue as any[]),
+  ])
+
   return NextResponse.json([
-    ...overdue.map((i: any) => ({ ...i, isOverdue: true })),
-    ...regular.map((i: any) => ({ ...i, isOverdue: false })),
+    ...overdueConMitigacion.map((i: any) => ({ ...i, isOverdue: true })),
+    ...regularConMitigacion.map((i: any) => ({ ...i, isOverdue: false })),
   ])
 }
 

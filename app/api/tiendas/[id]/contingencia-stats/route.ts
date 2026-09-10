@@ -1,8 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { sql } from 'drizzle-orm'
+import { sql, eq, and, gte, lt, notInArray } from 'drizzle-orm'
+import { incidentes } from '@/drizzle/schema'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
+import { getTramosPorIncidentes, normalizarMitigaciones, type IncidenteMitigacionInput } from '@/lib/mitigacion-tramos'
+
+const ESTADOS_CERRADOS = ['RESUELTO', 'CANCELADO', 'CERRADO'] as const
+
+// Columnas que normalizarMitigaciones necesita para derivar segmentos legacy
+// cuando el incidente todavía no tiene tramos.
+const COLS_MITIGACION = {
+  id:                     incidentes.id,
+  estado:                 incidentes.estado,
+  tipo:                   incidentes.tipo,
+  horaRegistro:           incidentes.horaRegistro,
+  horaFin:                incidentes.horaFin,
+  contActivadoPor:        incidentes.contActivadoPor,
+  contHoraActivacion:     incidentes.contHoraActivacion,
+  contHoraDesactivacion:  incidentes.contHoraDesactivacion,
+  contRendimiento:        incidentes.contRendimiento,
+  contEsExterno:          incidentes.contEsExterno,
+  movActivadoPor:         incidentes.movActivadoPor,
+  movHoraActivacion:      incidentes.movHoraActivacion,
+  movHoraDesactivacion:   incidentes.movHoraDesactivacion,
+  movRendimiento:         incidentes.movRendimiento,
+  mitigacionesPrevias:    incidentes.mitigacionesPrevias,
+}
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -14,153 +38,113 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const desdeParam = searchParams.get('desde')
   const hastaParam = searchParams.get('hasta')
 
-  const hasta = hastaParam
+  const hastaStr = hastaParam
     ? new Date(hastaParam + 'T23:59:59-05:00').toISOString()
     : new Date().toISOString()
-  const desde = desdeParam
+  const desdeStr = desdeParam
     ? new Date(desdeParam + 'T00:00:00-05:00').toISOString()
     : '1970-01-01T00:00:00Z'
+  const desde = new Date(desdeStr)
+  const hasta = new Date(hastaStr)
 
-  const [[fromInc], [fromStandalone], [fromPrevias]] = await Promise.all([
-    db.execute<{
-      min_router_propio:  number | null
-      min_router_externo: number | null
-      min_datos_moviles:  number | null
-      cnt_router_propio:  number
-      cnt_router_externo: number
-      cnt_datos_moviles:  number
-      activo_propio:      boolean
-      activo_externo:     boolean
-      activo_mov:         boolean
-    }>(sql`
-      SELECT
-        SUM(CASE
-          WHEN cont_activado_por IS NOT NULL AND (cont_es_externo IS FALSE OR cont_es_externo IS NULL)
-            AND cont_hora_activacion IS NOT NULL
-          THEN EXTRACT(EPOCH FROM (
-            COALESCE(cont_hora_desactivacion, hora_fin, NOW())
-            - cont_hora_activacion
-          )) / 60
-          ELSE 0
-        END)::int  AS min_router_propio,
+  const ahora = new Date()
 
-        SUM(CASE
-          WHEN cont_activado_por IS NOT NULL AND cont_es_externo IS TRUE
-            AND cont_hora_activacion IS NOT NULL
-          THEN EXTRACT(EPOCH FROM (
-            COALESCE(cont_hora_desactivacion, hora_fin, NOW())
-            - cont_hora_activacion
-          )) / 60
-          ELSE 0
-        END)::int  AS min_router_externo,
+  // ── Minutos y conteos por tipo, del período — Fase 5, Paso 2.2 ─────────────
+  // Antes: SUM/COUNT en SQL crudo sobre cont_*/mov_* + una tercera query aparte
+  // sobre mitigaciones_previas (jsonb). Ahora: se trae cada incidente del
+  // período con sus tramos (si los tiene) y normalizarMitigaciones deriva los
+  // segmentos — con tramos o sin ellos (legacy + mitigaciones_previas ya
+  // fusionados ahí adentro). El total se redondea una sola vez al final, igual
+  // que hacía el ::int de Postgres sobre el SUM.
+  const incsPeriodo = await db.select(COLS_MITIGACION).from(incidentes).where(and(
+    eq(incidentes.tiendaId, id),
+    gte(incidentes.horaRegistro, desde),
+    lt(incidentes.horaRegistro, hasta),
+  ))
 
-        SUM(CASE
-          WHEN mov_activado_por IS NOT NULL
-            AND mov_hora_activacion IS NOT NULL
-          THEN EXTRACT(EPOCH FROM (
-            COALESCE(mov_hora_desactivacion, hora_fin, NOW())
-            - mov_hora_activacion
-          )) / 60
-          ELSE 0
-        END)::int  AS min_datos_moviles,
+  const tramosPeriodo = await getTramosPorIncidentes(incsPeriodo.map(i => i.id))
 
-        COUNT(CASE WHEN cont_activado_por IS NOT NULL AND (cont_es_externo IS FALSE OR cont_es_externo IS NULL) THEN 1 END)::int AS cnt_router_propio,
-        COUNT(CASE WHEN cont_activado_por IS NOT NULL AND cont_es_externo IS TRUE THEN 1 END)::int AS cnt_router_externo,
-        COUNT(CASE WHEN mov_activado_por IS NOT NULL THEN 1 END)::int AS cnt_datos_moviles,
+  let minRouterPropio = 0, minRouterExterno = 0, minDatosMoviles = 0
+  let cntRouterPropio = 0, cntRouterExterno = 0, cntDatosMoviles = 0
 
-        -- activo_* siempre refleja estado actual, sin filtro de período
-        (SELECT BOOL_OR(cont_activado_por IS NOT NULL AND (cont_es_externo IS FALSE OR cont_es_externo IS NULL) AND cont_hora_desactivacion IS NULL AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')) FROM incidentes WHERE tienda_id = ${id}) AS activo_propio,
-        (SELECT BOOL_OR(cont_activado_por IS NOT NULL AND cont_es_externo IS TRUE AND cont_hora_desactivacion IS NULL AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')) FROM incidentes WHERE tienda_id = ${id}) AS activo_externo,
-        (SELECT BOOL_OR(mov_activado_por IS NOT NULL AND mov_hora_desactivacion IS NULL AND estado NOT IN ('RESUELTO','CANCELADO','CERRADO')) FROM incidentes WHERE tienda_id = ${id}) AS activo_mov
+  for (const inc of incsPeriodo) {
+    const segmentos = normalizarMitigaciones(inc as IncidenteMitigacionInput, tramosPeriodo.get(inc.id) ?? [])
+    for (const s of segmentos) {
+      if (s.tipo !== 'ROUTER_PROPIO' && s.tipo !== 'ROUTER_EXTERNO' && s.tipo !== 'DATOS_MOVILES') continue
+      const minutos = ((s.hasta ?? ahora).getTime() - s.desde.getTime()) / 60000
+      if (s.tipo === 'ROUTER_PROPIO')       { minRouterPropio  += minutos; cntRouterPropio++ }
+      else if (s.tipo === 'ROUTER_EXTERNO') { minRouterExterno += minutos; cntRouterExterno++ }
+      else                                  { minDatosMoviles  += minutos; cntDatosMoviles++ }
+    }
+  }
 
-      FROM incidentes
-      WHERE tienda_id = ${id}
-        AND hora_registro >= ${desde}::timestamptz
-        AND hora_registro <  ${hasta}::timestamptz
-    `),
+  // ── Estado "activo ahora mismo" — sin filtro de período, igual que antes ──
+  // Escanea todos los incidentes NO cerrados de la tienda (cualquier hora_registro)
+  // y se fija si alguno tiene un segmento real todavía abierto (hasta=null).
+  const incsAbiertos = await db.select(COLS_MITIGACION).from(incidentes).where(and(
+    eq(incidentes.tiendaId, id),
+    notInArray(incidentes.estado, ESTADOS_CERRADOS as any),
+  ))
 
-    db.execute<{
-      min_router_propio:  number | null
-      min_router_externo: number | null
-      min_datos_moviles:  number | null
-      cnt_router_propio:  number
-      cnt_router_externo: number
-      cnt_datos_moviles:  number
-      activo_propio:      boolean
-      activo_externo:     boolean
-      activo_mov_std:     boolean
-    }>(sql`
-      SELECT
-        SUM(CASE WHEN tipo = 'ROUTER_PROPIO'
-          THEN EXTRACT(EPOCH FROM (COALESCE(hora_desactivacion, NOW()) - hora_activacion)) / 60
-          ELSE 0 END)::int AS min_router_propio,
-        SUM(CASE WHEN tipo = 'ROUTER_EXTERNO'
-          THEN EXTRACT(EPOCH FROM (COALESCE(hora_desactivacion, NOW()) - hora_activacion)) / 60
-          ELSE 0 END)::int AS min_router_externo,
-        SUM(CASE WHEN tipo = 'DATOS_MOVILES'
-          THEN EXTRACT(EPOCH FROM (COALESCE(hora_desactivacion, NOW()) - hora_activacion)) / 60
-          ELSE 0 END)::int AS min_datos_moviles,
-        COUNT(CASE WHEN tipo = 'ROUTER_PROPIO'  THEN 1 END)::int AS cnt_router_propio,
-        COUNT(CASE WHEN tipo = 'ROUTER_EXTERNO' THEN 1 END)::int AS cnt_router_externo,
-        COUNT(CASE WHEN tipo = 'DATOS_MOVILES'  THEN 1 END)::int AS cnt_datos_moviles,
-        -- activo_* sin filtro de período — estado actual
-        (SELECT BOOL_OR(tipo = 'ROUTER_PROPIO'  AND hora_desactivacion IS NULL) FROM contingencias WHERE tienda_id = ${id}) AS activo_propio,
-        (SELECT BOOL_OR(tipo = 'ROUTER_EXTERNO' AND hora_desactivacion IS NULL) FROM contingencias WHERE tienda_id = ${id}) AS activo_externo,
-        (SELECT BOOL_OR(tipo = 'DATOS_MOVILES'  AND hora_desactivacion IS NULL) FROM contingencias WHERE tienda_id = ${id}) AS activo_mov_std
-      FROM contingencias
-      WHERE tienda_id = ${id}
-        AND hora_activacion >= ${desde}::timestamptz
-        AND hora_activacion <  ${hasta}::timestamptz
-    `),
+  const tramosAbiertos = await getTramosPorIncidentes(incsAbiertos.map(i => i.id))
 
-    // Mitigaciones de periodos anteriores archivadas al reabrir un incidente.
-    // El slot vivo (cont_*/mov_*) se libera en reabrir, así que sus minutos ya no
-    // están en `fromInc`; se recuperan aquí desde mitigaciones_previas (jsonb).
-    db.execute<{
-      min_router_propio:  number | null
-      min_router_externo: number | null
-      min_datos_moviles:  number | null
-      cnt_router_propio:  number
-      cnt_router_externo: number
-      cnt_datos_moviles:  number
-    }>(sql`
-      SELECT
-        SUM(CASE WHEN e->>'clase' = 'ROUTER_PROPIO'
-          THEN EXTRACT(EPOCH FROM ((e->>'horaDesactivacion')::timestamptz - (e->>'horaActivacion')::timestamptz)) / 60
-          ELSE 0 END)::int AS min_router_propio,
-        SUM(CASE WHEN e->>'clase' = 'ROUTER_EXTERNO'
-          THEN EXTRACT(EPOCH FROM ((e->>'horaDesactivacion')::timestamptz - (e->>'horaActivacion')::timestamptz)) / 60
-          ELSE 0 END)::int AS min_router_externo,
-        SUM(CASE WHEN e->>'clase' = 'DATOS_MOVILES'
-          THEN EXTRACT(EPOCH FROM ((e->>'horaDesactivacion')::timestamptz - (e->>'horaActivacion')::timestamptz)) / 60
-          ELSE 0 END)::int AS min_datos_moviles,
-        COUNT(CASE WHEN e->>'clase' = 'ROUTER_PROPIO'  THEN 1 END)::int AS cnt_router_propio,
-        COUNT(CASE WHEN e->>'clase' = 'ROUTER_EXTERNO' THEN 1 END)::int AS cnt_router_externo,
-        COUNT(CASE WHEN e->>'clase' = 'DATOS_MOVILES'  THEN 1 END)::int AS cnt_datos_moviles
-      FROM incidentes i
-      CROSS JOIN LATERAL jsonb_array_elements(i.mitigaciones_previas) e
-      WHERE i.tienda_id = ${id}
-        AND i.mitigaciones_previas IS NOT NULL
-        AND (e->>'horaActivacion') IS NOT NULL
-        AND (e->>'horaDesactivacion') IS NOT NULL
-        AND i.hora_registro >= ${desde}::timestamptz
-        AND i.hora_registro <  ${hasta}::timestamptz
-    `),
-  ])
+  let activoPropio = false, activoExterno = false, activoMov = false
+  for (const inc of incsAbiertos) {
+    const segmentos = normalizarMitigaciones(inc as IncidenteMitigacionInput, tramosAbiertos.get(inc.id) ?? [])
+    for (const s of segmentos) {
+      if (s.hasta !== null) continue
+      if (s.tipo === 'ROUTER_PROPIO') activoPropio = true
+      else if (s.tipo === 'ROUTER_EXTERNO') activoExterno = true
+      else if (s.tipo === 'DATOS_MOVILES') activoMov = true
+    }
+  }
 
-  const inc = fromInc ?? {} as any
+  // ── Contingencias standalone — SIN TOCAR (tabla aparte, fuera de esta migración) ──
+  const [fromStandalone] = await db.execute<{
+    min_router_propio:  number | null
+    min_router_externo: number | null
+    min_datos_moviles:  number | null
+    cnt_router_propio:  number
+    cnt_router_externo: number
+    cnt_datos_moviles:  number
+    activo_propio:      boolean
+    activo_externo:     boolean
+    activo_mov_std:     boolean
+  }>(sql`
+    SELECT
+      SUM(CASE WHEN tipo = 'ROUTER_PROPIO'
+        THEN EXTRACT(EPOCH FROM (COALESCE(hora_desactivacion, NOW()) - hora_activacion)) / 60
+        ELSE 0 END)::int AS min_router_propio,
+      SUM(CASE WHEN tipo = 'ROUTER_EXTERNO'
+        THEN EXTRACT(EPOCH FROM (COALESCE(hora_desactivacion, NOW()) - hora_activacion)) / 60
+        ELSE 0 END)::int AS min_router_externo,
+      SUM(CASE WHEN tipo = 'DATOS_MOVILES'
+        THEN EXTRACT(EPOCH FROM (COALESCE(hora_desactivacion, NOW()) - hora_activacion)) / 60
+        ELSE 0 END)::int AS min_datos_moviles,
+      COUNT(CASE WHEN tipo = 'ROUTER_PROPIO'  THEN 1 END)::int AS cnt_router_propio,
+      COUNT(CASE WHEN tipo = 'ROUTER_EXTERNO' THEN 1 END)::int AS cnt_router_externo,
+      COUNT(CASE WHEN tipo = 'DATOS_MOVILES'  THEN 1 END)::int AS cnt_datos_moviles,
+      -- activo_* sin filtro de período — estado actual
+      (SELECT BOOL_OR(tipo = 'ROUTER_PROPIO'  AND hora_desactivacion IS NULL) FROM contingencias WHERE tienda_id = ${id}) AS activo_propio,
+      (SELECT BOOL_OR(tipo = 'ROUTER_EXTERNO' AND hora_desactivacion IS NULL) FROM contingencias WHERE tienda_id = ${id}) AS activo_externo,
+      (SELECT BOOL_OR(tipo = 'DATOS_MOVILES'  AND hora_desactivacion IS NULL) FROM contingencias WHERE tienda_id = ${id}) AS activo_mov_std
+    FROM contingencias
+    WHERE tienda_id = ${id}
+      AND hora_activacion >= ${desdeStr}::timestamptz
+      AND hora_activacion <  ${hastaStr}::timestamptz
+  `)
+
   const std = fromStandalone ?? {} as any
-  const prev = fromPrevias ?? {} as any
 
   return NextResponse.json({
-    min_router_propio:  (inc.min_router_propio  ?? 0) + (std.min_router_propio  ?? 0) + (prev.min_router_propio  ?? 0),
-    min_router_externo: (inc.min_router_externo ?? 0) + (std.min_router_externo ?? 0) + (prev.min_router_externo ?? 0),
-    min_datos_moviles:  (inc.min_datos_moviles  ?? 0) + (std.min_datos_moviles  ?? 0) + (prev.min_datos_moviles  ?? 0),
-    cnt_router_propio:  (inc.cnt_router_propio  ?? 0) + (std.cnt_router_propio  ?? 0) + (prev.cnt_router_propio  ?? 0),
-    cnt_router_externo: (inc.cnt_router_externo ?? 0) + (std.cnt_router_externo ?? 0) + (prev.cnt_router_externo ?? 0),
-    cnt_datos_moviles:  (inc.cnt_datos_moviles  ?? 0) + (std.cnt_datos_moviles  ?? 0) + (prev.cnt_datos_moviles  ?? 0),
-    activo_propio:  (inc.activo_propio  ?? false) || (std.activo_propio  ?? false),
-    activo_externo: (inc.activo_externo ?? false) || (std.activo_externo ?? false),
-    activo_mov:     (inc.activo_mov     ?? false) || (std.activo_mov_std ?? false),
+    min_router_propio:  Math.round(minRouterPropio)  + (std.min_router_propio  ?? 0),
+    min_router_externo: Math.round(minRouterExterno) + (std.min_router_externo ?? 0),
+    min_datos_moviles:  Math.round(minDatosMoviles)  + (std.min_datos_moviles  ?? 0),
+    cnt_router_propio:  cntRouterPropio  + (std.cnt_router_propio  ?? 0),
+    cnt_router_externo: cntRouterExterno + (std.cnt_router_externo ?? 0),
+    cnt_datos_moviles:  cntDatosMoviles  + (std.cnt_datos_moviles  ?? 0),
+    activo_propio:  activoPropio  || (std.activo_propio  ?? false),
+    activo_externo: activoExterno || (std.activo_externo ?? false),
+    activo_mov:     activoMov     || (std.activo_mov_std ?? false),
   })
 }

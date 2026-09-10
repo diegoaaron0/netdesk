@@ -4,6 +4,23 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Badge, estadoToVariant, impactoToVariant } from '@/components/ui/Badge'
 import { apiMutate } from '@/lib/api-mutate'
+import { setupIncidenteAutoRefresh } from '@/components/incidentes/helpers'
+
+// Construye la URL de /api/incidentes según los filtros activos — extraída para
+// reusarla tanto en el fetch normal (que además resetea la página) como en el
+// refresco periódico en vivo (que NO debe resetear la página en la que está el usuario).
+export function buildIncidentesListaUrl(filters: { estado: string; agente: string; debouncedQ: string; fechaDesde: string; fechaHasta: string }): string {
+  const params = new URLSearchParams()
+  if (filters.estado) params.set('estado', filters.estado)
+  if (filters.agente) params.set('agente', filters.agente)
+  if (filters.debouncedQ) {
+    params.set('q', filters.debouncedQ)
+  } else {
+    params.set('fechaDesde', filters.fechaDesde)
+    params.set('fechaHasta', filters.fechaHasta)
+  }
+  return `/api/incidentes?${params}`
+}
 
 
 function tiempoTranscurrido(desde: string | Date, hasta?: string | Date | null) {
@@ -15,6 +32,14 @@ function tiempoTranscurrido(desde: string | Date, hasta?: string | Date | null) 
 
 function limaToday(): string {
   return new Date(Date.now() - 5 * 3600000).toISOString().slice(0, 10)
+}
+
+// Fase 5, Paso 2.2 — badges Cont./Datos: antes leían contActivadoPor/contHoraDesactivacion
+// y movActivadoPor/movHoraDesactivacion directo; ahora leen `mitigacionesActivas`
+// (calculado en el backend con tramos + fallback legacy, GET /api/incidentes).
+// La badge de Boleta sigue sin tocar — boleta no tiene "hasta" en el modelo legacy.
+export function tieneAlgunaMitigacionActiva(inc: { mitigacionesActivas?: string[] | null }, tipos: string[]): boolean {
+  return Array.isArray(inc.mitigacionesActivas) && tipos.some(t => inc.mitigacionesActivas!.includes(t))
 }
 
 const TIPO_LABELS: Record<string, string> = {
@@ -106,23 +131,21 @@ export default function IncidentesPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const fetchData = useCallback(async () => {
-    const params = new URLSearchParams()
-    if (estado) params.set('estado', estado)
-    if (agente) params.set('agente', agente)
-    if (debouncedQ) {
-      params.set('q', debouncedQ)
-    } else {
-      params.set('fechaDesde', fechaDesde)
-      params.set('fechaHasta', fechaHasta)
-    }
-    const res  = await fetch(`/api/incidentes?${params}`)
+  // Refresco liviano de solo `data` (sin resetear la página en la que está el
+  // usuario) — usado por el auto-refresh periódico/al recuperar foco.
+  const fetchDataOnly = useCallback(async () => {
+    const res  = await fetch(buildIncidentesListaUrl({ estado, agente, debouncedQ, fechaDesde, fechaHasta }))
     const rows = await res.json()
     setData(Array.isArray(rows) ? rows : [])
-    setPage(1)
   }, [estado, agente, fechaDesde, fechaHasta, debouncedQ])
 
+  const fetchData = useCallback(async () => {
+    await fetchDataOnly()
+    setPage(1)
+  }, [fetchDataOnly])
+
   useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => setupIncidenteAutoRefresh(fetchDataOnly, { enabled: true }), [fetchDataOnly])
 
   useEffect(() => {
     fetch('/api/usuarios/publico').then(r => r.json()).then((list: any[]) => {
@@ -176,6 +199,8 @@ export default function IncidentesPage() {
   // Metrics (over full data, not filtered)
   const abiertos  = data.filter(i => OPEN_ESTADOS.includes(i.estado)).length
   const escalados = data.filter(i => i.estado?.startsWith('ESCALADO')).length
+  // A propósito solo RESUELTO (no CANCELADO/CERRADO) — este KPI mide "resueltos
+  // con éxito", no "ya no está activo". Confirmado con Diego, no es un bug.
   const resueltos = data.filter(i => i.estado === 'RESUELTO').length
 
   const selStyle: React.CSSProperties = {
@@ -506,12 +531,12 @@ export default function IncidentesPage() {
                         {inc.resueltoPor === 'AGENTE' ? '↩ Agente' : inc.resueltoPor === 'INFRAESTRUCTURA' ? '↩ Infraestructura' : '↩ Proveedor'}
                       </span>
                     )}
-                    {inc.contActivadoPor && !inc.contHoraDesactivacion && (
+                    {tieneAlgunaMitigacionActiva(inc, ['ROUTER_PROPIO', 'ROUTER_EXTERNO']) && (
                       <span style={{ display: 'inline-block', marginTop: '3px', fontSize: '10px', padding: '1px 6px', borderRadius: '999px', fontWeight: 600, background: isOpen ? 'rgba(251,191,36,0.15)' : '#FEF9C3', color: '#92400E', border: '1px solid #FDE68A' }}>
                         ⚡ Cont.
                       </span>
                     )}
-                    {inc.movActivadoPor && !inc.movHoraDesactivacion && (
+                    {tieneAlgunaMitigacionActiva(inc, ['DATOS_MOVILES']) && (
                       <span style={{ display: 'inline-block', marginTop: '3px', fontSize: '10px', padding: '1px 6px', borderRadius: '999px', fontWeight: 600, background: isOpen ? 'rgba(59,130,246,0.15)' : '#DBEAFE', color: '#1E40AF', border: '1px solid #93C5FD' }}>
                         Datos
                       </span>
