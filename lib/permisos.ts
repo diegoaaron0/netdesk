@@ -24,11 +24,11 @@ export function resolvePermisos(rol: string | null | undefined, custom: unknown)
   return base
 }
 
+/** La usan can() y el Sidebar (para decidir qué ítems del menú mostrar).
+ *  Se eliminó su alias `sessionPermisos`, que no importaba nadie. */
 export function getPermisos(session: Session | null | undefined): string[] {
   return resolvePermisos(session?.user?.rol, session?.user?.permisos)
 }
-
-export const sessionPermisos = getPermisos
 
 export function can(session: Session | null | undefined, permiso: string): boolean {
   return getPermisos(session).includes(permiso)

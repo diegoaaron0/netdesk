@@ -24,31 +24,6 @@ export function getVentaHoraEstimadaOrNull(
 }
 
 
-export function parseSlaMinutos(tiempoRespSev1: string | null | undefined): number | null {
-  if (!tiempoRespSev1) return null
-  const n = Number(tiempoRespSev1)
-  if (!isNaN(n) && n > 0) return n
-  const hMatch = tiempoRespSev1.match(/(\d+)\s*h/)
-  const mMatch = tiempoRespSev1.match(/(\d+)\s*m/)
-  const h = hMatch ? parseInt(hMatch[1]) : 0
-  const m = mMatch ? parseInt(mMatch[1]) : 0
-  if (h > 0 || m > 0) return h * 60 + m
-  // Try HH:MM format
-  const colonMatch = tiempoRespSev1.match(/^(\d+):(\d+)$/)
-  if (colonMatch) return parseInt(colonMatch[1]) * 60 + parseInt(colonMatch[2])
-  return null
-}
-
-export function getSLACumplido(
-  tiempoRespuestaMin: number | null,
-  horaRespuesta: unknown,
-  slaMinutos: number | null,
-): boolean {
-  if (!horaRespuesta) return false
-  if (slaMinutos == null || tiempoRespuestaMin == null) return false
-  return tiempoRespuestaMin <= slaMinutos
-}
-
 export interface ScoreMetricas {
   costo: number
   slaPct: number

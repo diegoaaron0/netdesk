@@ -37,16 +37,6 @@ export function diffMin(a: Date | string | null, b: Date | string | null): numbe
   return diff / 60000
 }
 
-/** MTTR = hora_fin − hora_registro (duración total del incidente, no el reloj SLA) */
-export function calcMTTRMin(
-  horaRegistro: Date | string,
-  horaFin: Date | string | null,
-): number | null {
-  if (!horaFin) return null
-  const diff = new Date(horaFin).getTime() - new Date(horaRegistro).getTime()
-  return diff > 0 ? diff / 60000 : null
-}
-
 // ─── Parser ETA ───────────────────────────────────────────────────────────────
 
 /**

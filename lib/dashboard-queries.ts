@@ -159,34 +159,6 @@ export async function fetchIncidentesPeriodo(
   return rows as unknown as RawIncidente[]
 }
 
-export async function fetchEscalamientosPeriodo(
-  desde: string,
-  hasta: string,
-  proveedorNombre?: string | null,
-): Promise<RawEscalamiento[]> {
-  const rows = await db.execute(sql`
-    SELECT
-      e.id,
-      e.incidente_id,
-      e.nivel,
-      e.hora_envio_correo,
-      e.hora_respuesta,
-      e.tiempo_respuesta_min
-    FROM escalamientos e
-    JOIN incidentes i ON e.incidente_id       = i.id
-    JOIN tiendas t    ON i.tienda_id          = t.id
-    JOIN usuarios u   ON i.registrado_por_id  = u.id
-    LEFT JOIN proveedores p  ON i.proveedor_id = p.id
-    LEFT JOIN proveedores pt ON t.proveedor_id  = pt.id
-    WHERE i.hora_registro >= ${desde}::timestamptz
-      AND i.hora_registro <  ${hasta}::timestamptz
-      AND i.estado != 'CANCELADO'
-      AND u.rol != 'DEMO'
-      ${proveedorNombre ? sql`AND COALESCE(p.nombre, pt.nombre) = ${proveedorNombre}` : sql``}
-  `)
-  return rows as unknown as RawEscalamiento[]
-}
-
 export async function fetchVentasDiarias(): Promise<RawVentaDiaria[]> {
   try {
     const rows = await db.execute(sql`

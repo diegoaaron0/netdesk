@@ -3,7 +3,7 @@
 ## Qué es
 NetDesk es una herramienta operativa desarrollada para Footloose Perú
 (Inversiones Rubin's S.A.C.) que gestiona incidentes de conectividad de red
-en sus 156 tiendas a nivel nacional.
+en sus 184 tiendas a nivel nacional.
 
 ## Para qué sirve
 - Registrar y escalar incidentes de red en tiempo real
@@ -65,7 +65,7 @@ en sus 156 tiendas a nivel nacional.
 | Tabla | Descripción |
 |-------|-------------|
 | `usuarios` | Agentes, supervisores, gerencia, infraestructura |
-| `tiendas` | 156 tiendas con proveedor, cluster, datos de contingencia |
+| `tiendas` | 184 tiendas con proveedor, cluster, datos de contingencia |
 | `proveedores` | Proveedores de conectividad |
 | `fichas` | Contratos/conectividad por tienda (reemplaza a `contratos_proveedor`) |
 | `fichas_niveles` | Contactos de escalamiento por nivel (N1/N2/N3) de cada ficha |
@@ -109,15 +109,19 @@ cajasAfectadas / cajasTotales / ventaParcial / boletaManual   → para cálculo 
 ### Libs de lógica de negocio (lib/)
 | Archivo | Función |
 |---------|---------|
-| `sla-core.ts` | Defaults SLA (Respuesta=60, Resolución=90) y cálculo — fuente única de verdad |
-| `sla-contrato.ts` | Override de SLA por contrato de proveedor |
-| `impacto-calc.ts` | Cálculo del IEI (Impacto Económico del Incidente) |
-| `permisos.ts` | Sistema de permisos granular por rol |
+| `mitigacion-tramos.ts` | **Núcleo del IEI**: factores, `calcIeTramo`, tramos por incidente |
+| `cierre-mitigacion.ts` | Cierre de mitigación al resolver/cancelar — compartido, no duplicar |
+| `tiendas-iei-periodo.ts` | IEI y conteo por tienda en un período (lista de tiendas y su CSV) |
+| `impacto-calc.ts` | Cálculo legacy del IEI — solo fallback para incidentes sin tramos |
+| `sla-core.ts` | Defaults SLA (Respuesta=60, Resolución=90) — fuente única de verdad |
+| `sla-sql.ts` | Expresiones SQL de SLA reutilizables |
+| `report-sql.ts` | SQL compartido de reportes y exportaciones |
+| `alertas-dashboard.ts` | Construcción de las alertas del dashboard operativo |
+| `permisos.ts` | `can()` y resolución de permisos (rol ∪ personalizados) |
 | `permisos-config.ts` | Permisos por defecto de cada rol |
+| `dashboard-calculations.ts` / `dashboard-queries.ts` | Cálculos y consultas del dashboard analítico |
 | `mailer.ts` | Envío de correos para escalamientos |
-| `geo-zones.ts` | Zonificación geográfica para dashboard de impacto |
-| `dashboard-calculations.ts` | Cálculos del dashboard analítico |
-| `insights-gen.ts` | Generación automática de insights gerenciales |
+| `migracion-tramos-historicos.ts` | Reconstrucción de tramos de incidentes históricos |
 
 ### Sistema de contingencias (3 tipos)
 - `ROUTER_PROPIO`: activa `tiendas.contingencia_activa = true`; se registra en `incidentes.cont_*`
@@ -152,9 +156,6 @@ cajasAfectadas / cajasTotales / ventaParcial / boletaManual   → para cálculo 
   SQL** en cada consulta: `COALESCE(f.tiempo_resolucion_sla, 90)` y
   `COALESCE(f.tiempo_respuesta_sla, 60)`, uniendo
   `fichas f ON f.id = COALESCE(i.ficha_id, t.ficha_activa_id)`
-- ⚠️ `getSlaContrato()` en `lib/sla-contrato.ts` NO se usa: es una implementación
-  alternativa que quedó huérfana. Nadie la importa. Si tocás el SLA, el lugar es
-  el SQL de cada consulta, no ese archivo.
 - Defaults centralizados: `SLA_RESPUESTA_MIN` (60) y `SLA_RESOLUCION_DEFAULT_MIN` (90)
 
 ### Timestamps
