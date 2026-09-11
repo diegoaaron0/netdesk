@@ -153,6 +153,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       nombreContacto:  fichasNiveles.nombreContacto,
       email:           fichasNiveles.email,
       celular:         fichasNiveles.celular,
+      correosCopia:    fichasNiveles.correosCopia,
       tiempoRespSev1:  fichasNiveles.tiempoRespSev1,
     }).from(fichasNiveles)
       .where(eq(fichasNiveles.fichaId, inc.fichaId))

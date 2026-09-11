@@ -1,10 +1,11 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { apiMutate } from '@/lib/api-mutate'
 import { AdjuntosZona, compressImage } from '@/components/incidentes/AdjuntosZona'
 import { CronometroEscalamiento } from '@/components/incidentes/CronometroEscalamiento'
 import { buildCorreo, toDatetimeLocal, fromDatetimeLocal, minToHM } from '@/components/incidentes/helpers'
 import { parseEtaMin } from '@/lib/sla-core'
+import { MAX_ADJUNTOS, MAX_ADJUNTO_BYTES, TIPOS_ADJUNTO } from '@/lib/correo-escalamiento'
 
 const IcoTrashEsc = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
 const IcoPhone  = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.43A2 2 0 0 1 3.6 1.25h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.84a16 16 0 0 0 6.07 6.07l.96-1.06a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
@@ -73,8 +74,16 @@ export function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
   const [savingTemplate, setSavingTemplate] = useState(false)
   const [escAdjKey, setEscAdjKey] = useState(0)
 
+  // Adjuntos del correo: viven solo hasta que se manda. No son los adjuntos del
+  // incidente (esos son AdjuntosZona y quedan guardados).
+  const [adjCorreo, setAdjCorreo] = useState<Array<{ nombre: string; tipo: string; dataUrl: string; bytes: number }>>([])
+  const [enviando, setEnviando]   = useState(false)
+  const [errorEnvio, setErrorEnvio] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
+
   const nivelData  = inc.nivelesProveedor?.find((n: any) => n.nivel === esc.nivel)
   const prevEscs   = allEscs.filter((e: any) => e.nivel < esc.nivel).sort((a: any, b: any) => a.nivel - b.nivel)
+  const copias: string[] = (nivelData?.correosCopia ?? []).filter(Boolean)
   const templateText = buildCorreo(inc, nivelData, esc.nivel, prevEscs)
   const [templateBody, setTemplateBody] = useState<string>(esc.cuerpoCorreo ?? templateText)
 
@@ -103,6 +112,56 @@ export function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
   async function handleEnvio() {
     const { ok } = await apiMutate(`/api/escalamientos/${esc.id}/envio`, { method: 'PUT', errorPrefix: 'No se pudo registrar el envío' })
     if (!ok) return
+    onRefresh()
+  }
+
+  async function agregarAdjuntos(files: FileList | null) {
+    if (!files?.length) return
+    setErrorEnvio('')
+    const nuevos: typeof adjCorreo = []
+    for (const file of Array.from(files)) {
+      if (adjCorreo.length + nuevos.length >= MAX_ADJUNTOS) {
+        setErrorEnvio(`Máximo ${MAX_ADJUNTOS} adjuntos por correo.`); break
+      }
+      if (!TIPOS_ADJUNTO.includes(file.type)) {
+        setErrorEnvio(`"${file.name}" no es JPG, PNG ni WebP.`); continue
+      }
+      if (file.size > MAX_ADJUNTO_BYTES) {
+        setErrorEnvio(`"${file.name}" pesa ${(file.size / 1024 / 1024).toFixed(1)} MB. El máximo es 5 MB.`); continue
+      }
+      const dataUrl = await new Promise<string>(res => {
+        const r = new FileReader()
+        r.onload = ev => res(ev.target!.result as string)
+        r.readAsDataURL(file)
+      })
+      nuevos.push({ nombre: file.name, tipo: file.type, dataUrl, bytes: file.size })
+    }
+    if (nuevos.length) setAdjCorreo(a => [...a, ...nuevos])
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
+  async function handleEnviarCorreo() {
+    setEnviando(true)
+    setErrorEnvio('')
+    const res = await fetch(`/api/escalamientos/${esc.id}/enviar-correo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cuerpo: templateBody,
+        adjuntos: adjCorreo.map(a => ({ nombre: a.nombre, tipo: a.tipo, dataUrl: a.dataUrl })),
+      }),
+    }).catch(() => null)
+    setEnviando(false)
+
+    if (!res?.ok) {
+      // El error del servidor se muestra tal cual: distingue "SMTP rechazó" de
+      // "falta configuración" de "el nivel no tiene correo". Sin sellar nada,
+      // así el agente puede corregir y reintentar.
+      const data = await res?.json().catch(() => null)
+      setErrorEnvio(data?.error ?? 'No se pudo enviar el correo. Revisá la conexión y reintentá.')
+      return
+    }
+    setAdjCorreo([])
     onRefresh()
   }
 
@@ -268,12 +327,81 @@ export function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
           <AdjuntosZona key={`${escAdjKey}-1`} escalamientoId={esc.id} contexto="envio" disabled={isClosed} />
         </div>
 
-        {/* Botón correo enviado */}
-        {!esc.horaEnvioCorreo && !isClosed && !isSinRespuesta && (
-          <button onClick={handleEnvio}
-            style={{ width: '100%', padding: '9px', background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', marginBottom: '6px' }}>
-            ✉ Correo enviado → Iniciar cronómetro
-          </button>
+        {/* ── Envío del correo ── */}
+        {!isClosed && !isSinRespuesta && (
+          <div style={{ marginBottom: '6px' }}>
+
+            {/* Destinatarios */}
+            <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '6px', lineHeight: 1.6 }}>
+              <div><span style={{ color: 'var(--faint-foreground)' }}>Para:</span> {esc.emailContacto || <span style={{ color: 'var(--danger)' }}>sin correo en la ficha</span>}</div>
+              {copias.length > 0 && <div><span style={{ color: 'var(--faint-foreground)' }}>CC:</span> {copias.join(', ')}</div>}
+            </div>
+
+            {/* Adjuntos del correo */}
+            <div style={{ marginBottom: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                <button type="button" onClick={() => fileRef.current?.click()} disabled={adjCorreo.length >= MAX_ADJUNTOS}
+                  style={{ fontSize: '10px', padding: '3px 9px', background: 'transparent', color: adjCorreo.length >= MAX_ADJUNTOS ? 'var(--faint-foreground)' : 'var(--muted-foreground)', border: '1px solid var(--border)', borderRadius: '5px', cursor: adjCorreo.length >= MAX_ADJUNTOS ? 'not-allowed' : 'pointer' }}>
+                  📎 Adjuntar imagen
+                </button>
+                <span style={{ fontSize: '9px', color: 'var(--faint-foreground)' }}>
+                  {adjCorreo.length}/{MAX_ADJUNTOS} · JPG, PNG o WebP · máx 5 MB c/u
+                </span>
+              </div>
+              <input ref={fileRef} type="file" accept={TIPOS_ADJUNTO.join(',')} multiple hidden
+                onChange={e => agregarAdjuntos(e.target.files)} />
+
+              {adjCorreo.length > 0 && (
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                  {adjCorreo.map((a, i) => (
+                    <div key={i} style={{ position: 'relative', width: '58px' }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={a.dataUrl} alt={a.nombre}
+                        style={{ width: '58px', height: '44px', objectFit: 'cover', borderRadius: '6px', border: '1px solid var(--border)', display: 'block' }} />
+                      <button type="button" title={`Quitar ${a.nombre}`}
+                        onClick={() => setAdjCorreo(list => list.filter((_, j) => j !== i))}
+                        style={{ position: 'absolute', top: '-5px', right: '-5px', width: '17px', height: '17px', lineHeight: 1, borderRadius: '50%', border: '1px solid var(--danger-border)', background: 'var(--card)', color: 'var(--danger)', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+                        ×
+                      </button>
+                      <div style={{ fontSize: '8px', color: 'var(--faint-foreground)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {(a.bytes / 1024).toFixed(0)} KB
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {errorEnvio && (
+              <div style={{ fontSize: '10px', color: 'var(--danger)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: '6px', padding: '6px 9px', marginBottom: '6px', lineHeight: 1.5 }}>
+                {errorEnvio}
+              </div>
+            )}
+
+            {esc.horaEnvioCorreo ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ flex: 1, fontSize: '11px', color: 'var(--ok)', fontWeight: 600 }}>
+                  ✓ Enviado a las {new Date(esc.horaEnvioCorreo).toLocaleTimeString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit' })}
+                </span>
+                <button onClick={handleEnviarCorreo} disabled={enviando || !esc.emailContacto}
+                  style={{ padding: '6px 12px', background: 'transparent', color: 'var(--muted-foreground)', border: '1px solid var(--border)', borderRadius: '7px', fontSize: '11px', fontWeight: 600, cursor: enviando ? 'wait' : 'pointer' }}>
+                  {enviando ? 'Enviando…' : '↻ Reenviar'}
+                </button>
+              </div>
+            ) : (
+              <>
+                <button onClick={handleEnviarCorreo} disabled={enviando || !esc.emailContacto}
+                  className="nd-btn-primary"
+                  style={{ width: '100%', padding: '9px', fontSize: '12px', marginBottom: '5px' }}>
+                  {enviando ? 'Enviando…' : '✉ Enviar correo al proveedor'}
+                </button>
+                <button onClick={handleEnvio}
+                  style={{ width: '100%', padding: '7px', background: 'transparent', color: 'var(--muted-foreground)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '11px', cursor: 'pointer' }}>
+                  Ya lo mandé por fuera → solo iniciar cronómetro
+                </button>
+              </>
+            )}
+          </div>
         )}
       </div>
 

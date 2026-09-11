@@ -50,6 +50,11 @@ en sus 184 tiendas a nivel nacional.
 ### API routes principales
 - `/api/incidentes` — CRUD incidentes; PUT acepta cualquier campo parcial
 - `/api/incidentes/[id]/escalar` — crea escalamiento a proveedor
+- `/api/escalamientos/[id]/enviar-correo` — POST: manda el correo al proveedor (con CC y
+  adjuntos) y recién ahí sella `hora_envio_correo`. Si el SMTP falla NO sella, para que el
+  agente pueda reintentar. El reenvío manda de nuevo pero **no pisa** `hora_envio_correo`:
+  el SLA se mide desde el primer envío
+- `/api/escalamientos/[id]/envio` — PUT: sello manual ("ya lo mandé por fuera"), sin enviar nada
 - `/api/incidentes/[id]/resolver` — cierra incidente, calcula MTTR
 - `/api/incidentes/[id]/cancelar` — cancela incidente
 - `/api/contingencias` — POST crea contingencia standalone; PATCH desactiva
@@ -120,7 +125,8 @@ cajasAfectadas / cajasTotales / ventaParcial / boletaManual   → para cálculo 
 | `permisos.ts` | `can()` y resolución de permisos (rol ∪ personalizados) |
 | `permisos-config.ts` | Permisos por defecto de cada rol |
 | `dashboard-calculations.ts` / `dashboard-queries.ts` | Cálculos y consultas del dashboard analítico |
-| `mailer.ts` | Envío de correos para escalamientos |
+| `mailer.ts` | Transporte SMTP único (nodemailer). `sendMail` devuelve `{ enviado }` — distingue "se mandó" de "se omitió por falta de SMTP" |
+| `correo-escalamiento.ts` | Asunto, cáscara HTML con branding y validación de adjuntos del correo al proveedor |
 | `migracion-tramos-historicos.ts` | Reconstrucción de tramos de incidentes históricos |
 
 ### Sistema de contingencias (3 tipos)
