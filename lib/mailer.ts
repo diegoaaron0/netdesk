@@ -1,13 +1,25 @@
 import nodemailer from 'nodemailer'
 
+const PUERTO = Number(process.env.SMTP_PORT ?? 587)
+
 const transporter = nodemailer.createTransport({
   host:   process.env.SMTP_HOST,
-  port:   Number(process.env.SMTP_PORT ?? 587),
-  secure: process.env.SMTP_PORT === '465',
+  port:   PUERTO,
+  // 465 es TLS directo; 587 (el de Office 365) es STARTTLS: se abre en claro y
+  // se negocia TLS con el comando. requireTLS aborta si el servidor no lo
+  // ofrece, en vez de mandar la contraseña sin cifrar.
+  secure:     PUERTO === 465,
+  requireTLS: PUERTO !== 465,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+  // Sin esto rigen los defaults de nodemailer —conexión 2 min, socket 10 min—
+  // y un puerto bloqueado deja el request colgado varios minutos: el agente ve
+  // "Enviando…" para siempre en vez de un error que pueda leer.
+  connectionTimeout: 15000,
+  greetingTimeout:   10000,
+  socketTimeout:     20000,
 })
 
 export type AdjuntoMail = {
