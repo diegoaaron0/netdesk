@@ -144,8 +144,6 @@ export default function LoginPage() {
           fontSize: '12px', color: 'var(--faint-foreground)',
         }}>
           <span style={{ fontWeight: 600, color: 'var(--muted-foreground)', letterSpacing: '0.02em' }}>Footloose</span>
-          <span style={{ width: '1px', height: '16px', background: 'var(--border-strong)' }} />
-          <span>Tecnología que impulsa tu negocio</span>
         </div>
 
         <form
