@@ -66,14 +66,25 @@ async function main() {
   }
 
   paso(2, 'DNS')
+  let ipv4: string | null = null
   try {
-    const dirs = await dns.lookup(HOST, { all: true })
-    ok(`${HOST} → ${dirs.map(d => d.address).join(', ')}`)
+    const v4 = await dns.resolve4(HOST).catch(() => [])
+    const v6 = await dns.resolve6(HOST).catch(() => [])
+    ipv4 = v4[0] ?? null
+    ok(`IPv4: ${v4.join(', ') || '(ninguna)'}`)
+    ok(`IPv6: ${v6.join(', ') || '(ninguna)'}`)
+    if (v6.length) {
+      console.log(`     nodemailer elige UNA AL AZAR entre las ${v4.length + v6.length}; por eso se fuerza IPv4.`)
+    }
+    if (!ipv4) { fail('sin IPv4 no hay forma de esquivar el IPv6'); process.exit(1) }
   } catch (e) { fail(`no resuelve ${HOST}`); volcarError(e); process.exit(1) }
 
-  paso(3, `TCP a ${HOST}:${PORT}`)
+  // Se prueba contra la IPv4 concreta, igual que lib/mailer en producción.
+  const destinoTcp = ipv4
+
+  paso(3, `TCP a ${destinoTcp}:${PORT} (IPv4 de ${HOST})`)
   const saludo = await new Promise<string | null>(res => {
-    const sock = net.createConnection({ host: HOST, port: PORT })
+    const sock = net.createConnection({ host: destinoTcp, port: PORT })
     const cerrar = (v: string | null) => { sock.destroy(); res(v) }
     sock.setTimeout(TIMEOUT_MS)
     sock.on('data',    d => cerrar(d.toString().trim()))
@@ -90,9 +101,11 @@ async function main() {
   // usa STARTTLS (TLS negociado sobre la conexión en claro), no TLS directo.
   // El 465 sí es TLS directo.
   const transporter = nodemailer.createTransport({
-    host: HOST, port: PORT,
+    // Igual que lib/mailer: IPv4 fija + servername para que valide el certificado.
+    host: destinoTcp, port: PORT,
     secure: PORT === 465,
     requireTLS: PORT !== 465,
+    tls: { servername: HOST },
     auth: { user: USER, pass: PASS },
     connectionTimeout: TIMEOUT_MS,
     greetingTimeout:   TIMEOUT_MS,
