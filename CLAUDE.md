@@ -125,7 +125,7 @@ cajasAfectadas / cajasTotales / ventaParcial / boletaManual   → para cálculo 
 | `permisos.ts` | `can()` y resolución de permisos (rol ∪ personalizados) |
 | `permisos-config.ts` | Permisos por defecto de cada rol |
 | `dashboard-calculations.ts` / `dashboard-queries.ts` | Cálculos y consultas del dashboard analítico |
-| `mailer.ts` | Transporte SMTP único (nodemailer). `sendMail` devuelve `{ enviado }` — distingue "se mandó" de "se omitió por falta de SMTP" |
+| `mailer.ts` | Transporte SMTP único (nodemailer). `sendMail` devuelve `{ enviado }` — distingue "se mandó" de "se omitió por falta de SMTP". `SMTP_OVERRIDE_TO` desvía **todo** correo a una casilla de prueba |
 | `correo-escalamiento.ts` | Asunto, cáscara HTML con branding y validación de adjuntos del correo al proveedor |
 | `migracion-tramos-historicos.ts` | Reconstrucción de tramos de incidentes históricos |
 

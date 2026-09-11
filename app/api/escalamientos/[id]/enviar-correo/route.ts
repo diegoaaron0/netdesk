@@ -85,8 +85,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const logo = await leerLogo()
   if (logo) attachments.push({ filename: 'netdesk.png', content: logo, contentType: 'image/png', cid: LOGO_CID })
 
+  let redirigidoA: string[] | undefined
   try {
-    const { enviado } = await sendMail({
+    const { enviado, redirigidoA: rd } = await sendMail({
       to:      row.emailContacto,
       cc,
       subject: asuntoEscalamiento({
@@ -98,6 +99,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       attachments,
     })
     if (!enviado) return NextResponse.json({ error: MSG_SIN_SMTP }, { status: 503 })
+    redirigidoA = rd
   } catch (e: any) {
     console.error(`[enviar-correo] fallo SMTP en escalamiento ${id}:`, e)
     return NextResponse.json(
@@ -121,6 +123,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     destinatario: row.emailContacto,
     cc,
     adjuntos:     adj.archivos.length,
+    // Modo prueba: el agente tiene que saber que el proveedor NO lo recibió.
+    ...(redirigidoA ? { redirigidoA } : {}),
     escalamiento: updated,
   })
 }

@@ -79,6 +79,7 @@ export function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
   const [adjCorreo, setAdjCorreo] = useState<Array<{ nombre: string; tipo: string; dataUrl: string; bytes: number }>>([])
   const [enviando, setEnviando]   = useState(false)
   const [errorEnvio, setErrorEnvio] = useState('')
+  const [avisoEnvio, setAvisoEnvio] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
   const nivelData  = inc.nivelesProveedor?.find((n: any) => n.nivel === esc.nivel)
@@ -161,7 +162,12 @@ export function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
       setErrorEnvio(data?.error ?? 'No se pudo enviar el correo. Revisá la conexión y reintentá.')
       return
     }
+    const data = await res.json().catch(() => null)
     setAdjCorreo([])
+    // Modo prueba (SMTP_OVERRIDE_TO): el correo NO llegó al proveedor.
+    setAvisoEnvio(data?.redirigidoA?.length
+      ? `Modo prueba: el correo se desvió a ${data.redirigidoA.join(', ')}. El proveedor NO lo recibió.`
+      : '')
     onRefresh()
   }
 
@@ -371,6 +377,12 @@ export function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
                 </div>
               )}
             </div>
+
+            {avisoEnvio && (
+              <div style={{ fontSize: '10px', color: 'var(--warn)', background: 'var(--warn-bg)', border: '1px solid var(--warn-border)', borderRadius: '6px', padding: '6px 9px', marginBottom: '6px', lineHeight: 1.5 }}>
+                ⚠ {avisoEnvio}
+              </div>
+            )}
 
             {errorEnvio && (
               <div style={{ fontSize: '10px', color: 'var(--danger)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: '6px', padding: '6px 9px', marginBottom: '6px', lineHeight: 1.5 }}>
