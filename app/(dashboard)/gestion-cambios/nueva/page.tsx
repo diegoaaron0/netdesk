@@ -11,7 +11,7 @@ const ZONA_HABILITADA = false
 
 const inp: React.CSSProperties = {
   width: '100%', padding: '7px 10px', fontSize: '12px',
-  border: '0.5px solid var(--border)', borderRadius: '7px',
+  border: '1px solid var(--border)', borderRadius: '7px',
   background: 'var(--background)', boxSizing: 'border-box',
 }
 const lbl: React.CSSProperties = {
@@ -187,7 +187,7 @@ function NuevaAccionForm() {
               <div style={{ display: 'flex', gap: '8px' }}>
                 {(['TIENDA', 'ZONA'] as const).map(a => (
                   <button key={a} type="button" onClick={() => setAlcance(a)}
-                    style={{ padding: '7px 18px', fontSize: '12px', borderRadius: '7px', fontWeight: alcance === a ? 700 : 400, border: `1px solid ${alcance === a ? 'hsl(221,83%,23%)' : 'var(--border)'}`, background: alcance === a ? 'hsl(221,83%,23%)' : 'var(--card)', color: alcance === a ? 'white' : 'var(--foreground)', cursor: 'pointer' }}>
+                    style={{ padding: '7px 18px', fontSize: '12px', borderRadius: '7px', fontWeight: alcance === a ? 700 : 400, border: `1px solid ${alcance === a ? 'var(--primary)' : 'var(--border)'}`, background: alcance === a ? 'var(--gradient-primary)' : 'var(--card)', color: alcance === a ? 'white' : 'var(--foreground)', cursor: 'pointer' }}>
                     {a === 'TIENDA' ? 'Tienda individual' : 'Zona geográfica'}
                   </button>
                 ))}
@@ -234,14 +234,14 @@ function NuevaAccionForm() {
                       { label: 'IEI acumulado',  value: snap.ieiAcumulado > 0 ? `S/ ${Number(snap.ieiAcumulado).toLocaleString('es-PE', { maximumFractionDigits: 0 })}` : '—', alert: false },
                       { label: 'Incidentes',     value: snap.totalIncidentes, alert: false },
                     ].map(({ label, value, alert }) => (
-                      <div key={label} style={{ background: 'var(--card)', borderRadius: '6px', padding: '8px 10px', border: alert ? '1px solid #FCA5A5' : 'none' }}>
-                        <div style={{ fontSize: '9px', color: alert ? '#991B1B' : 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>{label}</div>
-                        <div style={{ fontWeight: 700, fontSize: '13px', color: alert ? '#991B1B' : 'var(--foreground)' }}>{value}</div>
+                      <div key={label} style={{ background: 'var(--card)', borderRadius: '6px', padding: '8px 10px', border: alert ? '1px solid var(--danger-border)' : 'none' }}>
+                        <div style={{ fontSize: '9px', color: alert ? 'var(--danger)' : 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>{label}</div>
+                        <div style={{ fontWeight: 700, fontSize: '13px', color: alert ? 'var(--danger)' : 'var(--foreground)' }}>{value}</div>
                       </div>
                     ))}
                   </div>
                   {snap.penalidadEstimada > 0 && (
-                    <div style={{ marginTop: '8px', fontSize: '11px', color: '#B45309', background: '#FFFBEB', borderRadius: '6px', padding: '6px 10px' }}>
+                    <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--warn)', background: 'var(--warn-bg)', borderRadius: '6px', padding: '6px 10px' }}>
                       Penalidad por SLA vencido (base nota de crédito): <strong>S/ {Number(snap.penalidadEstimada).toLocaleString('es-PE', { minimumFractionDigits: 2 })}</strong>
                     </div>
                   )}
@@ -255,9 +255,9 @@ function NuevaAccionForm() {
                 <input value={zonaDesc} onChange={e => setZonaDesc(e.target.value)} placeholder="Ej: Lima Norte, Zona Selva, Cluster A" style={inp} />
               </div>
               <label style={lbl}>Tiendas de la zona ({tiendaIds.length} seleccionadas)</label>
-              <div style={{ border: '0.5px solid var(--border)', borderRadius: '7px', maxHeight: '200px', overflowY: 'auto', background: 'var(--background)' }}>
+              <div style={{ border: '1px solid var(--border)', borderRadius: '7px', maxHeight: '200px', overflowY: 'auto', background: 'var(--background)' }}>
                 {tiendas.map(t => (
-                  <label key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', cursor: 'pointer', borderBottom: '0.5px solid var(--border)', fontSize: '12px' }}>
+                  <label key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', cursor: 'pointer', borderBottom: '1px solid var(--border)', fontSize: '12px' }}>
                     <input type="checkbox" checked={tiendaIds.includes(t.id)} onChange={() => toggleTiendaZona(t.id)} />
                     <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{t.codigo}</span>
                     <span style={{ color: 'var(--muted-foreground)' }}>{t.nombre_cc} · {t.distrito}</span>
@@ -294,16 +294,16 @@ function NuevaAccionForm() {
           </div>
 
           {error && (
-            <div style={{ background: '#FEE2E2', border: '1px solid #FCA5A5', borderRadius: '7px', padding: '8px 12px', fontSize: '12px', color: '#991B1B' }}>{error}</div>
+            <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: '7px', padding: '8px 12px', fontSize: '12px', color: 'var(--danger)' }}>{error}</div>
           )}
 
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', paddingTop: '4px' }}>
             <button type="button" onClick={() => router.back()}
-              style={{ padding: '8px 18px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', cursor: 'pointer' }}>
+              style={{ padding: '8px 18px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', cursor: 'pointer' }}>
               Cancelar
             </button>
             <button type="submit" disabled={saving}
-              style={{ padding: '8px 20px', fontSize: '12px', fontWeight: 600, background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '7px', cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.6 : 1 }}>
+              style={{ padding: '8px 20px', fontSize: '12px', fontWeight: 600, background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '7px', cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.6 : 1 }}>
               {saving ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Guardar borrador'}
             </button>
           </div>

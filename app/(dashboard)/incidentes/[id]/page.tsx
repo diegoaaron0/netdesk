@@ -608,7 +608,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
     <div style={{ paddingBottom: '64px' }}>
 
       {/* ── Header ── */}
-      <div style={{ background: '#0d1117', borderRadius: '12px', padding: '11px 16px', marginBottom: '12px' }}>
+      <div style={{ background: 'var(--surface-2)', borderRadius: '12px', padding: '11px 16px', marginBottom: '12px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '4px', flexWrap: 'wrap' }}>
@@ -619,13 +619,13 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 e.horaEnvioCorreo && !e.horaRespuesta && !e.noHuboRespuesta &&
                 Date.now() - new Date(e.horaEnvioCorreo).getTime() > 60 * 60000
               ) && (
-                <span title="SLA de respuesta excedido" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '10px', color: '#fca5a5', fontWeight: 600 }}>
-                  <span className="nd-pulse" style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+                <span title="SLA de respuesta excedido" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '10px', color: 'var(--danger)', fontWeight: 600 }}>
+                  <span className="nd-pulse" style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--danger-bg)', flexShrink: 0 }} />
                   SLA vencido
                 </span>
               )}
               {inc.escaladoInfraId && !isClosed && (
-                <span style={{ fontSize: '10px', background: 'rgba(99,102,241,0.25)', color: '#a5b4fc', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, letterSpacing: '0.04em' }}>
+                <span style={{ fontSize: '10px', background: 'rgba(99,102,241,0.25)', color: 'var(--info)', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, letterSpacing: '0.04em' }}>
                   🔧 INFRAESTRUCTURA
                 </span>
               )}
@@ -633,7 +633,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 <span style={{
                   fontSize: '10px',
                   background: inc.resueltoPor === 'AGENTE' ? 'rgba(59,130,246,0.25)' : inc.resueltoPor === 'INFRAESTRUCTURA' ? 'rgba(99,102,241,0.25)' : inc.resueltoPor === 'ENERGIA_ELECTRICA' ? 'rgba(234,179,8,0.25)' : 'rgba(34,197,94,0.25)',
-                  color:      inc.resueltoPor === 'AGENTE' ? '#93c5fd'               : inc.resueltoPor === 'INFRAESTRUCTURA' ? '#a5b4fc'               : inc.resueltoPor === 'ENERGIA_ELECTRICA' ? '#fde047'              : '#86efac',
+                  color:      inc.resueltoPor === 'AGENTE' ? 'var(--info)'               : inc.resueltoPor === 'INFRAESTRUCTURA' ? 'var(--info)'               : inc.resueltoPor === 'ENERGIA_ELECTRICA' ? 'var(--warn)'              : 'var(--ok)',
                   padding: '2px 8px', borderRadius: '4px', fontWeight: 600,
                 }}>
                   {inc.resueltoPor === 'AGENTE' ? 'Resuelto por Agente' : inc.resueltoPor === 'INFRAESTRUCTURA' ? 'Resuelto por Infraestructura' : inc.resueltoPor === 'ENERGIA_ELECTRICA' ? '⚡ Regresó energía eléctrica' : 'Resuelto por Proveedor'}
@@ -645,12 +645,12 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   style={{
                     fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px',
                     background: (inc as any).motivoReabertura === 'TIENDA_SIN_INTERNET' ? 'rgba(185,28,28,0.25)' : 'rgba(146,64,14,0.25)',
-                    color:      (inc as any).motivoReabertura === 'TIENDA_SIN_INTERNET' ? '#fca5a5'              : '#fcd34d',
+                    color:      (inc as any).motivoReabertura === 'TIENDA_SIN_INTERNET' ? 'var(--danger)'              : 'var(--warn)',
                   }}>
                   ↩ reabierto
                 </span>
               )}
-              <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.55)', padding: '2px 8px', borderRadius: '4px' }}>
+              <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.08)', color: 'var(--muted-foreground)', padding: '2px 8px', borderRadius: '4px' }}>
                 {TIPO_LABELS[inc.tipo] ?? inc.tipo}
               </span>
             </div>
@@ -666,15 +666,15 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
             </div>
             {/* Toda la metadata en una sola línea que envuelve, en vez de cinco
                 bloques apilados. No se quita ningún dato, solo se compacta. */}
-            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.38)', lineHeight: 1.6 }}>
+            <div style={{ fontSize: '11px', color: 'var(--faint-foreground)', lineHeight: 1.6 }}>
               {inc.tipo === 'CORTE_ELECTRICO' ? '⚡ Energía Eléctrica' : (inc.proveedorNombre ?? '—')} · {inc.tiendaDistrito}
               {inc.escaladoInfraId
-                ? <> · <span style={{ color: '#a5b4fc' }}>Infra: {[inc.infraNombre, inc.infraApellido].filter(Boolean).join(' ')}</span> · Escalado por: {inc.agenteNombre}</>
+                ? <> · <span style={{ color: 'var(--info)' }}>Infra: {[inc.infraNombre, inc.infraApellido].filter(Boolean).join(' ')}</span> · Escalado por: {inc.agenteNombre}</>
                 : <> · Agente: {inc.agenteNombre}</>
               }
               {inc.tiendaReferencia && <> · {inc.tiendaReferencia}</>}
               {inc.tiendaAdminCelular && (
-                <> · <span style={{ fontFamily: 'monospace', color: 'rgba(255,255,255,0.72)', fontWeight: 600 }}>{inc.tiendaAdminCelular}</span></>
+                <> · <span style={{ fontFamily: 'monospace', color: 'var(--foreground)', fontWeight: 600 }}>{inc.tiendaAdminCelular}</span></>
               )}
               <span style={{ color: 'rgba(255,255,255,0.2)' }}>
                 {' · '}Creado: {new Date((inc as any).horaRegistroOriginal ?? inc.horaRegistro).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
@@ -685,14 +685,14 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, marginLeft: '16px' }}>
             {canDelete && (
               <button onClick={handleEliminar} title="Eliminar incidente"
-                style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.4)', borderRadius: '6px', color: '#fca5a5', cursor: 'pointer', flexShrink: 0 }}>
+                style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.4)', borderRadius: '6px', color: 'var(--danger)', cursor: 'pointer', flexShrink: 0 }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
               </button>
             )}
             <div style={{ position: 'relative' }}
               onMouseEnter={() => setShowGuia(true)}
               onMouseLeave={() => setShowGuia(false)}>
-              <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '1.5px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help', fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.35)', userSelect: 'none' }}>?</div>
+              <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '1.5px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help', fontSize: '11px', fontWeight: 700, color: 'var(--faint-foreground)', userSelect: 'none' }}>?</div>
               {((inc as any).tiendaInstruccion || inc.proveedorInstruccion) && (
                 <div style={{ position: 'absolute', top: '26px', right: 0, zIndex: 200, minWidth: '300px', opacity: showGuia ? 1 : 0, pointerEvents: showGuia ? 'auto' : 'none', transition: 'opacity 0.2s ease', boxShadow: '0 4px 16px rgba(0,0,0,0.3)', borderRadius: '10px', overflow: 'hidden' }}>
                   <GuiaEscalamiento proveedor={inc.proveedorNombre} instruccion={(inc as any).tiendaInstruccion || inc.proveedorInstruccion} />
@@ -705,7 +705,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
 
       {/* ── Reopen modal ── */}
       {showReopenModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '420px', margin: '16px' }}>
             <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '4px' }}>Reabrir incidente</div>
             <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '20px', lineHeight: 1.5 }}>
@@ -721,23 +721,23 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <button
                     onClick={() => setReopenMotivo('TIENDA_SIN_INTERNET')}
-                    style={{ padding: '12px 14px', background: '#fef2f2', border: '1.5px solid #fca5a5', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
+                    style={{ padding: '12px 14px', background: 'var(--danger-bg)', border: '1.5px solid var(--danger-border)', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
                   >
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#b91c1c', marginBottom: '2px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--danger)', marginBottom: '2px' }}>
                       Tienda nuevamente sin internet
                     </div>
-                    <div style={{ fontSize: '10px', color: '#991b1b' }}>
+                    <div style={{ fontSize: '10px', color: 'var(--danger)' }}>
                       El proveedor planteó una solución incorrecta — el servicio volvió a caer.
                     </div>
                   </button>
                   <button
                     onClick={() => setReopenMotivo('ERROR_AGENTE')}
-                    style={{ padding: '12px 14px', background: '#fffbeb', border: '1.5px solid #fde68a', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
+                    style={{ padding: '12px 14px', background: 'var(--warn-bg)', border: '1.5px solid var(--warn-border)', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
                   >
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#92400e', marginBottom: '2px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--warn)', marginBottom: '2px' }}>
                       Error de gestión de agente
                     </div>
-                    <div style={{ fontSize: '10px', color: '#78350f' }}>
+                    <div style={{ fontSize: '10px', color: 'var(--warn)' }}>
                       El incidente se cerró por error — el servicio aún no estaba restablecido.
                     </div>
                   </button>
@@ -756,9 +756,9 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               <>
                 <div style={{
                   padding: '8px 12px', borderRadius: '7px', marginBottom: '14px', fontSize: '11px', fontWeight: 600,
-                  background: reopenMotivo === 'TIENDA_SIN_INTERNET' ? '#fef2f2' : '#fffbeb',
-                  color: reopenMotivo === 'TIENDA_SIN_INTERNET' ? '#b91c1c' : '#92400e',
-                  border: `1px solid ${reopenMotivo === 'TIENDA_SIN_INTERNET' ? '#fca5a5' : '#fde68a'}`,
+                  background: reopenMotivo === 'TIENDA_SIN_INTERNET' ? 'var(--danger-bg)' : 'var(--warn-bg)',
+                  color: reopenMotivo === 'TIENDA_SIN_INTERNET' ? 'var(--danger)' : 'var(--warn)',
+                  border: `1px solid ${reopenMotivo === 'TIENDA_SIN_INTERNET' ? 'var(--danger-border)' : 'var(--warn-border)'}`,
                 }}>
                   {reopenMotivo === 'TIENDA_SIN_INTERNET' ? '🔴 Tienda nuevamente sin internet' : '⚠️ Error de gestión de agente'}
                   <button
@@ -788,7 +788,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   <button
                     onClick={handleReopen}
                     disabled={reopening || !reopenJustificacion.trim()}
-                    style={{ flex: 1, padding: '8px', background: (!reopenJustificacion.trim() || reopening) ? 'var(--muted)' : '#92400e', color: (!reopenJustificacion.trim() || reopening) ? 'var(--muted-foreground)' : '#fde68a', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: (reopening || !reopenJustificacion.trim()) ? 'not-allowed' : 'pointer' }}
+                    style={{ flex: 1, padding: '8px', background: (!reopenJustificacion.trim() || reopening) ? 'var(--muted)' : 'var(--warn-bg)', color: (!reopenJustificacion.trim() || reopening) ? 'var(--muted-foreground)' : 'var(--warn-bg)', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: (reopening || !reopenJustificacion.trim()) ? 'not-allowed' : 'pointer' }}
                   >
                     {reopening ? 'Reabriendo...' : 'Confirmar reapertura'}
                   </button>
@@ -801,9 +801,9 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
 
       {/* ── Reopen warning modal (> 30 min) ── */}
       {showReopenWarning && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '420px', margin: '16px' }}>
-            <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '8px', color: '#d97706' }}>
+            <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '8px', color: 'var(--warn)' }}>
               ⚠ Han pasado {minutosDesdeResolucion >= 60
                 ? `${Math.floor(minutosDesdeResolucion / 60)}h ${minutosDesdeResolucion % 60}m`
                 : `${minutosDesdeResolucion} minutos`} desde la resolución
@@ -816,12 +816,12 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <button onClick={() => { setShowReopenWarning(false); router.push(`/incidentes/nuevo?from=${id}`) }}
-                style={{ padding: '10px', background: 'hsl(221,83%,45%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+                style={{ padding: '10px', background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
                 + Crear nuevo incidente (recomendado)
               </button>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={() => { setShowReopenWarning(false); setShowReopenModal(true) }}
-                  style={{ flex: 1, padding: '8px', background: 'rgba(133,79,11,0.12)', color: '#d97706', border: '1px solid rgba(133,79,11,0.3)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>
+                  style={{ flex: 1, padding: '8px', background: 'rgba(133,79,11,0.12)', color: 'var(--warn)', border: '1px solid rgba(133,79,11,0.3)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>
                   Reabrir de todas formas
                 </button>
                 <button onClick={() => setShowReopenWarning(false)}
@@ -836,7 +836,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
 
       {/* ── Skip nivel confirm modal ── */}
       {skipConfirm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '380px', margin: '16px' }}>
             <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>¿Estás seguro de saltar el N{skipConfirm.saltar}?</div>
             <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '20px' }}>Se registrará un escalamiento de Nivel {skipConfirm.nivel} sin pasar por el N{skipConfirm.saltar}.</div>
@@ -844,7 +844,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               <button onClick={() => setSkipConfirm(null)}
                 style={{ flex: 1, padding: '8px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>Cancelar</button>
               <button onClick={() => { doEscalar(skipConfirm.nivel); setSkipConfirm(null) }}
-                style={{ flex: 1, padding: '8px', background: 'hsl(221,83%,45%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+                style={{ flex: 1, padding: '8px', background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
                 Sí, saltar N{skipConfirm.saltar}
               </button>
             </div>
@@ -854,7 +854,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
 
       {/* ── Resolver modal — paso 1: elegir modo ── */}
       {showResolverModal && !resolverMode && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '360px', margin: '16px' }}>
             <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '16px' }}>¿Cómo se resolvió?</div>
             <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
@@ -867,7 +867,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 <button onClick={() => setResolverMode('INFRAESTRUCTURA')}
                   style={{ flex: 1, minWidth: '80px', padding: '16px 8px', border: '1.5px solid rgba(99,102,241,.4)', borderRadius: '10px', background: 'rgba(99,102,241,.07)', cursor: 'pointer', textAlign: 'center' }}>
                   <div style={{ fontSize: '22px', marginBottom: '4px' }}>🔧</div>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: '#4f46e5' }}>Infraestructura</div>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--purple)' }}>Infraestructura</div>
                 </button>
               ) : (
                 <button onClick={() => setResolverMode('AGENTE')}
@@ -894,7 +894,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
 
       {/* ── Resolver modal — paso 2: confirmar ── */}
       {showResolverModal && resolverMode && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '360px', margin: '16px' }}>
             <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>
               {resolverMode === 'ENERGIA_ELECTRICA'
@@ -911,7 +911,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 ← Volver
               </button>
               <button onClick={() => doResolver(resolverMode)}
-                style={{ flex: 1, padding: '8px', background: '#14532d', color: '#86efac', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+                style={{ flex: 1, padding: '8px', background: 'var(--ok-bg)', color: 'var(--ok)', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
                 Sí, resuelto
               </button>
             </div>
@@ -921,20 +921,20 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
 
       {/* ── Modal Escalar a Infraestructura ── */}
       {showInfraModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '22px 24px', width: '400px', maxWidth: '90vw', boxShadow: '0 8px 32px rgba(0,0,0,.25)' }}>
             <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '4px' }}>🔧 Escalar a Infraestructura</div>
             <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '14px' }}>Selecciona el agente que tomará el caso. El incidente quedará asignado a él.</div>
             {infraLoadingAg ? (
               <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', padding: '12px 0' }}>Cargando agentes...</div>
             ) : infraAgentes.length === 0 ? (
-              <div style={{ fontSize: '11px', color: '#b91c1c', padding: '12px 0' }}>No hay agentes de infraestructura registrados.</div>
+              <div style={{ fontSize: '11px', color: 'var(--danger)', padding: '12px 0' }}>No hay agentes de infraestructura registrados.</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
                 {infraAgentes.map(ag => (
                   <button key={ag.id} onClick={() => setInfraSelectedId(ag.id)}
                     style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: infraSelectedId === ag.id ? 'rgba(99,102,241,.1)' : 'var(--muted)', border: `1.5px solid ${infraSelectedId === ag.id ? '#818cf8' : 'var(--border)'}`, borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(99,102,241,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: '#4f46e5', flexShrink: 0 }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(99,102,241,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: 'var(--purple)', flexShrink: 0 }}>
                       {ag.nombre?.[0]?.toUpperCase() ?? '?'}
                     </div>
                     <div>
@@ -950,11 +950,11 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               <textarea value={infraNota} onChange={e => setInfraNota(e.target.value)} placeholder="Motivo del escalamiento, contexto..."
                 style={{ ...taStyle(), fontSize: '11px', minHeight: '60px' }} />
             </div>
-            {infraError && <div style={{ fontSize: '11px', color: '#b91c1c', marginBottom: '8px' }}>{infraError}</div>}
+            {infraError && <div style={{ fontSize: '11px', color: 'var(--danger)', marginBottom: '8px' }}>{infraError}</div>}
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button onClick={() => setShowInfraModal(false)} style={{ padding: '7px 14px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}>Cancelar</button>
               <button onClick={handleEscalarInfra} disabled={infraSaving || !infraSelectedId}
-                style={{ padding: '7px 14px', background: infraSaving || !infraSelectedId ? '#c7d2fe' : '#4f46e5', color: 'white', border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: 600, cursor: infraSaving || !infraSelectedId ? 'not-allowed' : 'pointer' }}>
+                style={{ padding: '7px 14px', background: infraSaving || !infraSelectedId ? 'var(--info-bg)' : 'var(--purple-bg)', color: 'white', border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: 600, cursor: infraSaving || !infraSelectedId ? 'not-allowed' : 'pointer' }}>
                 {infraSaving ? 'Escalando...' : 'Confirmar'}
               </button>
             </div>
@@ -1016,13 +1016,13 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 const otrosLugares = todosRouters.filter(r => r.estado !== 'EN_TIENDA_ACTIVO' && !(r.estado === 'EN_TIENDA_INACTIVO' && r.tiendaActualId === inc?.tiendaId))
                 const dis = !canEditB || isClosed
                 return (
-                  <div style={{ marginBottom: '10px', padding: '8px 12px', background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: '8px' }}>
-                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Router externo a utilizar</label>
+                  <div style={{ marginBottom: '10px', padding: '8px 12px', background: 'var(--warn-bg)', border: '1px solid var(--warn-border)', borderRadius: '8px' }}>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: 'var(--warn)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Router externo a utilizar</label>
                     <select
                       disabled={dis}
                       value={mitigacionRouterExternoId ?? ''}
                       onChange={e => setMitigacionRouterExternoId(e.target.value || null)}
-                      style={{ width: '100%', padding: '6px 9px', fontSize: '12px', border: '0.5px solid #FCD34D', borderRadius: '6px', background: 'white', color: '#92400E' }}>
+                      style={{ width: '100%', padding: '6px 9px', fontSize: '12px', border: '1px solid var(--warn-border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--warn)' }}>
                       <option value="">— Seleccionar router —</option>
                       {enEstaTienda.length > 0 && (
                         <optgroup label={`En esta tienda — disponibles (${enEstaTienda.length})`}>
@@ -1049,7 +1049,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                       )}
                     </select>
                     {enEstaTienda.length === 0 && (
-                      <div style={{ fontSize: '10px', color: '#92400E', marginTop: '4px', opacity: 0.8 }}>
+                      <div style={{ fontSize: '10px', color: 'var(--warn)', marginTop: '4px', opacity: 0.8 }}>
                         Sin routers en esta tienda. Primero despliega un router desde Routers Contingencia TI.
                       </div>
                     )}
@@ -1060,7 +1060,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 <div style={{ marginBottom: '10px' }}>
                   <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Rendimiento</label>
                   <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                    {[{ v: 'EFECTIVO', l: 'Efectivo', bg: '#dcfce7', c: '#15803d' }, { v: 'PARCIAL', l: 'Parcial', bg: '#fef9c3', c: '#a16207' }, { v: 'NULO', l: 'Nulo', bg: '#fee2e2', c: '#b91c1c' }].map(({ v, l, bg, c }) => {
+                    {[{ v: 'EFECTIVO', l: 'Efectivo', bg: 'var(--ok-bg)', c: 'var(--ok-bg)' }, { v: 'PARCIAL', l: 'Parcial', bg: 'var(--warn-bg)', c: 'var(--warn-bg)' }, { v: 'NULO', l: 'Nulo', bg: 'var(--danger-bg)', c: 'var(--danger-bg)' }].map(({ v, l, bg, c }) => {
                       const sel = mitigacionRendimiento === v
                       const dis = !canEditB || isClosed
                       return (
@@ -1074,10 +1074,10 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 </div>
               )}
               <button type="button" disabled={!canEditB || isClosed || savingMitigacion} onClick={handleGuardarMitigacion}
-                style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 600, borderRadius: '6px', border: 'none', cursor: (!canEditB || isClosed || savingMitigacion) ? 'default' : 'pointer', background: 'hsl(221,83%,45%)', color: 'white', opacity: (!canEditB || isClosed) ? 0.5 : 1 }}>
+                style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 600, borderRadius: '6px', border: 'none', cursor: (!canEditB || isClosed || savingMitigacion) ? 'default' : 'pointer', background: 'var(--gradient-primary)', color: 'white', opacity: (!canEditB || isClosed) ? 0.5 : 1 }}>
                 {savingMitigacion ? 'Guardando...' : 'Guardar mitigación'}
               </button>
-              {mitigacionError && <div style={{ color: '#b91c1c', fontSize: '11px', marginTop: '6px' }}>{mitigacionError}</div>}
+              {mitigacionError && <div style={{ color: 'var(--danger)', fontSize: '11px', marginTop: '6px' }}>{mitigacionError}</div>}
             </div>
 
             {/* Desglose por tramos — Fase 4 */}
@@ -1117,7 +1117,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                             <Fragment key={t.id}>
                               <tr style={{ borderBottom: '1px solid var(--border)', background: abierto ? 'rgba(245,158,11,0.06)' : undefined }}>
                                 <td style={{ padding: '6px 8px' }}>{fmtHora(t.desde)}</td>
-                                <td style={{ padding: '6px 8px' }}>{abierto ? <span style={{ color: '#f59e0b', fontWeight: 600 }}>En curso</span> : fmtHora(t.hasta)}</td>
+                                <td style={{ padding: '6px 8px' }}>{abierto ? <span style={{ color: 'var(--warn)', fontWeight: 600 }}>En curso</span> : fmtHora(t.hasta)}</td>
                                 <td style={{ padding: '6px 8px' }}>{fmtDuracion(t.desde, t.hasta)}</td>
                                 <td style={{ padding: '6px 8px' }}>{claseLabel[t.tipo] ?? t.tipo}</td>
                                 <td style={{ padding: '6px 8px', fontFamily: 'monospace' }}>{Number(t.factor).toFixed(2)}</td>
@@ -1146,7 +1146,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                                         <input type="datetime-local" style={iStyle(false)} value={editTramoHasta} onChange={e => setEditTramoHasta(e.target.value)} />
                                       </div>
                                       <button type="button" disabled={savingTramoEdit} onClick={() => handleGuardarTramoEdit(t.id)}
-                                        style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 600, borderRadius: '6px', border: 'none', cursor: savingTramoEdit ? 'default' : 'pointer', background: 'hsl(221,83%,45%)', color: 'white' }}>
+                                        style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 600, borderRadius: '6px', border: 'none', cursor: savingTramoEdit ? 'default' : 'pointer', background: 'var(--gradient-primary)', color: 'white' }}>
                                         {savingTramoEdit ? 'Guardando...' : 'Guardar'}
                                       </button>
                                       <button type="button" onClick={() => setEditandoTramoId(null)}
@@ -1154,7 +1154,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                                         Cancelar
                                       </button>
                                     </div>
-                                    {tramoEditError && <div style={{ color: '#b91c1c', fontSize: '11px', marginTop: '6px' }}>{tramoEditError}</div>}
+                                    {tramoEditError && <div style={{ color: 'var(--danger)', fontSize: '11px', marginTop: '6px' }}>{tramoEditError}</div>}
                                   </td>
                                 </tr>
                               )}
@@ -1190,14 +1190,14 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--foreground)', marginBottom: '12px' }}>Datos del corte eléctrico</div>
                   <div style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: '10px', padding: '14px' }}>
                     <div style={{ marginBottom: '12px' }}>
-                      <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: '#B45309', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '8px' }}>Alcance del corte</label>
+                      <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--warn)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '8px' }}>Alcance del corte</label>
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         {(['SOLO_TIENDA', 'MALL', 'CUADRA_CALLE', 'ZONA_AMPLIA'] as const).map(v => {
                           const sel = editForm.alcanceCorte === v
                           return (
                             <button key={v} type="button" disabled={!canEditB}
                               onClick={() => setEdit('alcanceCorte', v)}
-                              style={{ padding: '5px 14px', fontSize: '12px', borderRadius: '20px', border: `1px solid ${sel ? '#B45309' : 'var(--border)'}`, cursor: !canEditB ? 'default' : 'pointer', fontWeight: sel ? 600 : 400, background: sel ? 'rgba(245,158,11,0.15)' : 'var(--card)', color: sel ? '#B45309' : 'var(--muted-foreground)' }}>
+                              style={{ padding: '5px 14px', fontSize: '12px', borderRadius: '20px', border: `1px solid ${sel ? 'var(--warn-border)' : 'var(--border)'}`, cursor: !canEditB ? 'default' : 'pointer', fontWeight: sel ? 600 : 400, background: sel ? 'rgba(245,158,11,0.15)' : 'var(--card)', color: sel ? 'var(--warn-bg)' : 'var(--muted-foreground)' }}>
                               {ALCANCE_LABELS[v]}
                             </button>
                           )
@@ -1209,7 +1209,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                         <input type="checkbox" disabled={!canEditB}
                           checked={!!editForm.tuvoUps}
                           onChange={e => setEdit('tuvoUps', e.target.checked)}
-                          style={{ cursor: !canEditB ? 'default' : 'pointer', accentColor: '#B45309', width: '14px', height: '14px' }} />
+                          style={{ cursor: !canEditB ? 'default' : 'pointer', accentColor: 'var(--warn)', width: '14px', height: '14px' }} />
                         La tienda tenía UPS activo
                       </label>
                     </div>
@@ -1233,7 +1233,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                                 {([true,false] as const).map(val => (
                                   <button key={String(val)} type="button" disabled={!canEditB}
                                     onClick={() => setEdit(key, editForm[key] === val ? null : val)}
-                                    style={{ padding:'2px 10px',fontSize:'11px',borderRadius:'5px',border:'1px solid var(--border)',cursor:!canEditB?'default':'pointer',background:editForm[key]===val?(val?'#dcfce7':'#fee2e2'):'var(--muted)',color:editForm[key]===val?(val?'#15803d':'#b91c1c'):'var(--muted-foreground)',fontWeight:editForm[key]===val?600:400 }}>
+                                    style={{ padding:'2px 10px',fontSize:'11px',borderRadius:'5px',border:'1px solid var(--border)',cursor:!canEditB?'default':'pointer',background:editForm[key]===val?(val?'var(--ok-bg)':'var(--danger-bg)'):'var(--muted)',color:editForm[key]===val?(val?'var(--ok-bg)':'var(--danger-bg)'):'var(--muted-foreground)',fontWeight:editForm[key]===val?600:400 }}>
                                     {val?'Sí':'No'}
                                   </button>
                                 ))}
@@ -1253,7 +1253,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                             {grupo.items.map(({ key, label }) => (
                               <label key={key} style={{ display:'flex',alignItems:'center',gap:'7px',fontSize:'11px',cursor:!canEditB?'default':'pointer',color:editForm[key]?'var(--foreground)':'var(--muted-foreground)' }}>
                                 <input type="checkbox" disabled={!canEditB} checked={!!editForm[key]} onChange={e => setEdit(key, e.target.checked)}
-                                  style={{ cursor:!canEditB?'default':'pointer',accentColor:'hsl(221,83%,45%)',width:'13px',height:'13px' }} />
+                                  style={{ cursor:!canEditB?'default':'pointer',accentColor:'var(--primary)',width:'13px',height:'13px' }} />
                                 {label}
                               </label>
                             ))}
@@ -1270,7 +1270,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                               Se cambió DNS
                               <span style={{ fontSize:'10px',fontStyle:'italic' }}> · campo descontinuado</span>
                             </span>
-                            <span style={{ padding:'2px 10px',fontSize:'11px',borderRadius:'5px',flexShrink:0,background:'var(--muted)',color:editForm.descDns?'#15803d':'#b91c1c',fontWeight:600 }}>
+                            <span style={{ padding:'2px 10px',fontSize:'11px',borderRadius:'5px',flexShrink:0,background:'var(--muted)',color:editForm.descDns?'var(--ok-bg)':'var(--danger-bg)',fontWeight:600 }}>
                               {editForm.descDns ? 'Sí' : 'No'}
                             </span>
                           </div>
@@ -1300,7 +1300,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                             ? <div style={{ display:'flex',flexDirection:'column',gap:'5px' }}>
                                 {acc.map(a => (
                                   <div key={a} style={{ display:'flex',alignItems:'center',gap:'6px',fontSize:'11px',color:'var(--foreground)' }}>
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--ok)" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
                                     {a}
                                   </div>
                                 ))}
@@ -1346,7 +1346,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
             </div>
 
             {inc.reabiertaInfo && (
-              <div style={{ marginBottom:'12px',padding:'8px 12px',fontSize:'11px',background:'rgba(146,64,14,0.1)',border:'1px solid rgba(146,64,14,0.25)',borderRadius:'8px',color:'#d97706' }}>
+              <div style={{ marginBottom:'12px',padding:'8px 12px',fontSize:'11px',background:'rgba(146,64,14,0.1)',border:'1px solid rgba(146,64,14,0.25)',borderRadius:'8px',color:'var(--warn)' }}>
                 {inc.reabiertaInfo}
               </div>
             )}
@@ -1368,7 +1368,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               {canManage && (
                 <button onClick={() => setSupervisorEdit(v => !v)}
                   title={supervisorEdit ? 'Salir de edición' : 'Editar campos'}
-                  style={{ width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)', borderRadius: '6px', background: supervisorEdit ? 'hsl(221,83%,45%)' : 'var(--card)', color: supervisorEdit ? 'white' : 'var(--muted-foreground)', cursor: 'pointer' }}>
+                  style={{ width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)', borderRadius: '6px', background: supervisorEdit ? 'var(--gradient-primary)' : 'var(--card)', color: supervisorEdit ? 'white' : 'var(--muted-foreground)', cursor: 'pointer' }}>
                   <IcoEdit />
                 </button>
               )}
@@ -1377,14 +1377,14 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               <ResumenRow icon={<IcoStore />} label="Tienda">{inc.tiendaCodigo} — {inc.tiendaNombre}</ResumenRow>
               <ResumenRow icon={<IcoWifi />} label="Proveedor">
                 {inc.tipo === 'CORTE_ELECTRICO'
-                  ? <span style={{ color: '#B45309', fontWeight: 600 }}>⚡ Energía Eléctrica</span>
+                  ? <span style={{ color: 'var(--warn)', fontWeight: 600 }}>⚡ Energía Eléctrica</span>
                   : (inc.proveedorNombre ?? '—')}
               </ResumenRow>
               {inc.tipo === 'CORTE_ELECTRICO' && (
                 <ResumenRow icon={<IcoConn />} label="Alcance del corte">
                   <span style={{ fontWeight: 500 }}>{ALCANCE_LABELS[inc.alcanceCorte] ?? inc.alcanceCorte ?? '—'}</span>
                   {inc.tuvoUps != null && (
-                    <span style={{ marginLeft: '8px', fontSize: '10px', color: inc.tuvoUps ? '#15803d' : 'var(--muted-foreground)' }}>
+                    <span style={{ marginLeft: '8px', fontSize: '10px', color: inc.tuvoUps ? 'var(--ok)' : 'var(--muted-foreground)' }}>
                       {inc.tuvoUps ? '· UPS activo' : '· Sin UPS'}
                     </span>
                   )}
@@ -1463,25 +1463,25 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 {(() => {
                   const tiene = inc.tiendaTieneContingencia
                   if (!tiene) return <span style={{ color: 'var(--muted-foreground)' }}>No</span>
-                  if (inc.estadoOperacion !== 'CONTINGENCIA') return <span style={{ color: '#15803d', fontWeight: 500 }}>Sí</span>
+                  if (inc.estadoOperacion !== 'CONTINGENCIA') return <span style={{ color: 'var(--ok)', fontWeight: 500 }}>Sí</span>
                   const rend = inc.contRendimiento
                   const rendLabelMap: Record<string,{l:string;c:string}> = {
-                    EFECTIVO:   { l: 'Efectivo 100%',        c: '#15803d' },
-                    TOTAL:      { l: 'Total 100%',           c: '#15803d' },
-                    PARCIAL:    { l: 'Parcial 75%',          c: '#a16207' },
-                    NULO:       { l: 'Nulo 0%',              c: '#b91c1c' },
+                    EFECTIVO:   { l: 'Efectivo 100%',        c: 'var(--ok)' },
+                    TOTAL:      { l: 'Total 100%',           c: 'var(--ok)' },
+                    PARCIAL:    { l: 'Parcial 75%',          c: 'var(--warn)' },
+                    NULO:       { l: 'Nulo 0%',              c: 'var(--danger)' },
                     // legacy
-                    EFECTIVA:   { l: 'Efectivo 100%',        c: '#15803d' },
-                    LIMITADA:   { l: 'Parcial',              c: '#a16207' },
-                    FALLIDA:    { l: 'Nulo 0%',              c: '#b91c1c' },
-                    NO_FUNCIONO:{ l: 'Nulo 0%',              c: '#b91c1c' },
-                    INOPERATIVA:{ l: 'Nulo 0%',              c: '#b91c1c' },
+                    EFECTIVA:   { l: 'Efectivo 100%',        c: 'var(--ok)' },
+                    LIMITADA:   { l: 'Parcial',              c: 'var(--warn)' },
+                    FALLIDA:    { l: 'Nulo 0%',              c: 'var(--danger)' },
+                    NO_FUNCIONO:{ l: 'Nulo 0%',              c: 'var(--danger)' },
+                    INOPERATIVA:{ l: 'Nulo 0%',              c: 'var(--danger)' },
                   }
                   const rendInfo = rend ? rendLabelMap[rend] : null
-                  if (rendInfo?.c === '#b91c1c') {
-                    return <span style={{ color: '#b91c1c', fontWeight: 500 }}>Activa — {rendInfo.l}</span>
+                  if (rendInfo?.c === 'var(--danger)') {
+                    return <span style={{ color: 'var(--danger)', fontWeight: 500 }}>Activa — {rendInfo.l}</span>
                   }
-                  return <span style={{ color: '#15803d', fontWeight: 600 }}>Activa{rendInfo ? ` — ${rendInfo.l}` : ''}</span>
+                  return <span style={{ color: 'var(--ok)', fontWeight: 600 }}>Activa{rendInfo ? ` — ${rendInfo.l}` : ''}</span>
                 })()}
               </ResumenRow>
 
@@ -1495,7 +1495,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                   return minToHM(Math.round((new Date(inc.horaFin).getTime() - new Date(base).getTime()) / 60000))
                 })()} />
                 {(inc as any).tiempoAcumuladoMin != null && (
-                  <TimeRow label="MTTR acumulado (prev.)" value={minToHM((inc as any).tiempoAcumuladoMin)} color="#d97706" />
+                  <TimeRow label="MTTR acumulado (prev.)" value={minToHM((inc as any).tiempoAcumuladoMin)} color="var(--warn)" />
                 )}
                 {(inc as any).motivoReabertura && (
                   <>
@@ -1504,7 +1504,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                     <TimeRow
                       label="Motivo"
                       value={(inc as any).motivoReabertura === 'TIENDA_SIN_INTERNET' ? 'Tienda sin internet (proveedor)' : 'Error de gestión de agente'}
-                      color={(inc as any).motivoReabertura === 'TIENDA_SIN_INTERNET' ? '#b91c1c' : '#92400e'}
+                      color={(inc as any).motivoReabertura === 'TIENDA_SIN_INTERNET' ? 'var(--danger)' : 'var(--warn)'}
                     />
                     {(inc as any).justificacionReabertura && (
                       <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '3px', lineHeight: 1.4, fontStyle: 'italic' }}>
@@ -1513,14 +1513,14 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                     )}
                     {canEditA ? (
                       <div style={{ marginBottom: '5px' }}>
-                        <div style={{ fontSize: '10px', color: '#d97706', marginBottom: '3px' }}>Hora reapertura</div>
+                        <div style={{ fontSize: '10px', color: 'var(--warn)', marginBottom: '3px' }}>Hora reapertura</div>
                         <input type="datetime-local" style={{ ...iStyle(), fontSize: '10px', padding: '4px 6px' }} value={editForm.horaRegistro} onChange={e => setEdit('horaRegistro', e.target.value)} />
                       </div>
                     ) : (
-                      <TimeRow label="Hora reapertura" value={new Date(inc.horaRegistro).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} color="#d97706" />
+                      <TimeRow label="Hora reapertura" value={new Date(inc.horaRegistro).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} color="var(--warn)" />
                     )}
                     {(inc as any).horaFinAnterior && (
-                      <TimeRow label="Cierre anterior" value={new Date((inc as any).horaFinAnterior).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} color="#6b7280" />
+                      <TimeRow label="Cierre anterior" value={new Date((inc as any).horaFinAnterior).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} color="var(--muted-foreground)" />
                     )}
                   </>
                 )}
@@ -1532,14 +1532,14 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                     ? new Date(esc.horaRespuesta).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
                     : null
                   let respColor: string | undefined
-                  if (esc.noHuboRespuesta) respColor = '#b91c1c'
-                  else if (esc.horaEnvioCorreo && esc.estadoCronometro === 'VENCIDO' && !esc.horaRespuesta) respColor = '#d97706'
+                  if (esc.noHuboRespuesta) respColor = 'var(--danger)'
+                  else if (esc.horaEnvioCorreo && esc.estadoCronometro === 'VENCIDO' && !esc.horaRespuesta) respColor = 'var(--warn)'
                   return (
                     <div key={esc.id}>
                       <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '6px 0 4px', borderTop: '1px solid var(--border)', paddingTop: '6px' }}>Nivel {esc.nivel}</div>
                       <TimeRow label={`Enviado N${esc.nivel}`} value={enviado} />
                       {esc.noHuboRespuesta ? (
-                        <TimeRow label={`Respuesta N${esc.nivel}`} value="No hubo respuesta" color="#b91c1c" />
+                        <TimeRow label={`Respuesta N${esc.nivel}`} value="No hubo respuesta" color="var(--danger)" />
                       ) : horaRespStr ? (
                         <div style={{ marginBottom: '5px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
@@ -1565,7 +1565,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 {inc.horaEscaladoInfra && (
                   <>
                     <div style={{ borderTop: '1px solid var(--border)', margin: '6px 0 4px' }} />
-                    <TimeRow label="Escalado a Infra" value={new Date(inc.horaEscaladoInfra).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} color="#6366f1" />
+                    <TimeRow label="Escalado a Infra" value={new Date(inc.horaEscaladoInfra).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} color="var(--purple)" />
                   </>
                 )}
                 {inc.horaFin && (
@@ -1650,7 +1650,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                       <div key={i} style={{ marginBottom: i < entries.length - 1 ? '8px' : 0 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '2px' }}>
                           <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontStyle: e.previo ? 'italic' : 'normal' }}>{e.tipo}</span>
-                          <span style={{ fontSize: '10px', fontWeight: 600, color: e.previo ? 'var(--muted-foreground)' : (e.activo ? '#d97706' : '#15803d') }}>
+                          <span style={{ fontSize: '10px', fontWeight: 600, color: e.previo ? 'var(--muted-foreground)' : (e.activo ? 'var(--warn)' : 'var(--ok)') }}>
                             {e.previo ? '↻ Reapertura' : (e.activo ? '⏱ Activo' : '✓ Fin')}
                           </span>
                         </div>
@@ -1660,7 +1660,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                             {' → '}
                             {e.fin ? toDatetimeLocal(e.fin).slice(11,16) : (e.activo ? 'ahora' : '—')}
                           </span>
-                          <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 500, color: e.activo ? '#d97706' : 'var(--foreground)' }}>
+                          <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 500, color: e.activo ? 'var(--warn)' : 'var(--foreground)' }}>
                             {minToHM(e.mins)}
                           </span>
                         </div>
@@ -1685,7 +1685,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               {inc.tiendaId && (
                 <a href={`/tiendas/${inc.tiendaId}`}
                   onClick={e => { e.preventDefault(); router.push(`/tiendas/${inc.tiendaId}`) }}
-                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'hsl(221,83%,50%)', textDecoration: 'none', whiteSpace: 'nowrap', marginTop: '2px' }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--primary)', textDecoration: 'none', whiteSpace: 'nowrap', marginTop: '2px' }}>
                   Ver historial completo <IcoExt />
                 </a>
               )}
@@ -1727,23 +1727,23 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
         const faltaInfo     = esResuelto && inc.ieiCalc?.faltaInformacion
 
         return (
-          <div style={{ background: 'var(--card)', borderRadius: '12px', border: `1px solid ${esResuelto ? 'var(--border)' : '#f59e0b'}`, marginTop: '16px' }}>
+          <div style={{ background: 'var(--card)', borderRadius: '12px', border: `1px solid ${esResuelto ? 'var(--border)' : 'var(--warn-border)'}`, marginTop: '16px' }}>
             <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{ fontSize: '13px', fontWeight: 600 }}>Impacto Económico Estimado (IEI)</div>
                 {!esResuelto && (
-                  <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', background: '#fef3c7', color: '#92400e', border: '0.5px solid #f59e0b' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', background: 'var(--warn-bg)', color: 'var(--warn)', border: '1px solid var(--warn-border)' }}>
                     En curso ⏱
                   </span>
                 )}
                 {esResuelto && !faltaInfo && (
-                  <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', background: '#d1fae5', color: '#065f46', border: '0.5px solid #6ee7b7' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', background: 'var(--ok-bg)', color: 'var(--ok)', border: '1px solid var(--ok-border)' }}>
                     Calculado
                   </span>
                 )}
               </div>
               {!faltaInfo && (
-                <div style={{ fontFamily: 'monospace', fontSize: '18px', fontWeight: 700, color: displayIei > 0 ? '#b91c1c' : '#16a34a' }}>
+                <div style={{ fontFamily: 'monospace', fontSize: '18px', fontWeight: 700, color: displayIei > 0 ? 'var(--danger)' : 'var(--ok)' }}>
                   {displayIei > 0 ? `S/ ${displayIei.toLocaleString('es-PE')}` : 'S/ 0'}
                   {!esResuelto && <span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--muted-foreground)', marginLeft: '4px' }}>hasta ahora</span>}
                 </div>
@@ -1781,7 +1781,7 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
 
                   {displaySegs.length > 1 && (
                     <div style={{ background: 'var(--muted)', borderRadius: '8px', overflow: 'hidden' }}>
-                      <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '7px 12px', borderBottom: '0.5px solid var(--border)' }}>
+                      <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '7px 12px', borderBottom: '1px solid var(--border)' }}>
                         Detalle del cálculo (motor viejo)
                       </div>
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
@@ -1794,13 +1794,13 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                         </thead>
                         <tbody>
                           {displaySegs.map((seg: any, i: number) => (
-                            <tr key={i} style={{ borderTop: '0.5px solid var(--border)' }}>
+                            <tr key={i} style={{ borderTop: '1px solid var(--border)' }}>
                               <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{fmtMs(seg.desdeMs)}</td>
                               <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{fmtMs(seg.hastaMs)}</td>
                               <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{fmtH(seg.horas)}</td>
                               <td style={{ padding: '6px 10px', color: 'var(--foreground)', textTransform: 'capitalize' }}>{seg.descripcion}</td>
                               <td style={{ padding: '6px 10px', fontFamily: 'monospace', fontWeight: 600 }}>{seg.factor.toFixed(2)}</td>
-                              <td style={{ padding: '6px 10px', fontFamily: 'monospace', fontWeight: 700, color: seg.ieiParcial > 0 ? '#b91c1c' : '#16a34a' }}>
+                              <td style={{ padding: '6px 10px', fontFamily: 'monospace', fontWeight: 700, color: seg.ieiParcial > 0 ? 'var(--danger)' : 'var(--ok)' }}>
                                 {seg.ieiParcial > 0 ? `S/ ${seg.ieiParcial.toLocaleString('es-PE')}` : 'S/ 0'}
                               </td>
                             </tr>
@@ -1833,9 +1833,9 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
               { label: 'SLA Resolución', value: inc.slaMetrics.slaResolucionPct != null ? `${inc.slaMetrics.slaResolucionPct}%` : (inc.slaMetrics.slaRespuestaPct === 0 ? '0%' : '—'), sub: inc.slaMetrics.tResolucionMin != null ? `${inc.slaMetrics.tResolucionMin} min` : (inc.slaMetrics.slaRespuestaPct === 0 ? 'Sin respuesta' : 'En curso'), score: inc.slaMetrics.slaResolucionPct },
               { label: 'T. Resolución', value: inc.slaMetrics.tResolucionMin != null ? `${inc.slaMetrics.tResolucionMin} min` : '—', sub: `límite ${inc.slaMetrics.slaResolucionObj} min`, score: null },
             ].map(m => (
-              <div key={m.label} style={{ background: 'var(--background)', borderRadius: '8px', padding: '10px 14px', border: '0.5px solid var(--border)' }}>
+              <div key={m.label} style={{ background: 'var(--background)', borderRadius: '8px', padding: '10px 14px', border: '1px solid var(--border)' }}>
                 <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '4px' }}>{m.label}</div>
-                <div style={{ fontSize: '18px', fontWeight: 700, color: m.score != null ? (m.score >= 80 ? '#16a34a' : m.score >= 60 ? '#d97706' : '#dc2626') : 'var(--foreground)' }}>{m.value}</div>
+                <div style={{ fontSize: '18px', fontWeight: 700, color: m.score != null ? (m.score >= 80 ? 'var(--ok)' : m.score >= 60 ? 'var(--warn)' : 'var(--danger)') : 'var(--foreground)' }}>{m.value}</div>
                 <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{m.sub}</div>
               </div>
             ))}
@@ -1872,12 +1872,12 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 Cancelar incidente
               </button>
               <button onClick={() => { setResolverMode(null); setShowResolverModal(true) }}
-                style={{ ...btn, background: '#14532d', color: '#86efac' }}>
+                style={{ ...btn, background: 'var(--ok-bg)', color: 'var(--ok)' }}>
                 Marcar como resuelto
               </button>
               <div style={{ position: 'relative' }}>
                 <button onClick={() => setShowNivelMenu(v => !v)}
-                  style={{ ...btn, background: 'hsl(221,83%,45%)', color: 'white', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  style={{ ...btn, background: 'var(--gradient-primary)', color: 'white', display: 'flex', alignItems: 'center', gap: '5px' }}>
                   Escalar incidente <IcoArrow />
                 </button>
                 {showNivelMenu && (
@@ -1928,28 +1928,28 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
                 setShowReopenModal(true)
               }
             }}
-              style={{ ...btn, background: 'rgba(133,79,11,0.15)', color: '#d97706', border: '1px solid rgba(133,79,11,0.3)' }}>
+              style={{ ...btn, background: 'rgba(133,79,11,0.15)', color: 'var(--warn)', border: '1px solid rgba(133,79,11,0.3)' }}>
               Reabrir incidente
             </button>
           )}
           {saveError && (
-            <span style={{ fontSize: '12px', color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', padding: '4px 10px', maxWidth: '320px' }}>
+            <span style={{ fontSize: '12px', color: 'var(--danger)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: '6px', padding: '4px 10px', maxWidth: '320px' }}>
               {saveError}
             </span>
           )}
           {contNotice && (
-            <div style={{ fontSize: '12px', color: '#92400e', background: '#fffbeb', border: '1.5px solid #f59e0b', borderRadius: '8px', padding: '8px 12px', maxWidth: '380px', lineHeight: 1.5, display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+            <div style={{ fontSize: '12px', color: 'var(--warn)', background: 'var(--warn-bg)', border: '1.5px solid var(--warn-border)', borderRadius: '8px', padding: '8px 12px', maxWidth: '380px', lineHeight: 1.5, display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
               <span style={{ fontSize: '16px', flexShrink: 0 }}>⚠</span>
               <span>
                 <strong>Incidente cerrado.</strong> La tienda permanece en <strong>contingencia activa</strong> porque el router temporal sigue instalado.
                 Desactívala desde la ficha de la tienda cuando el proveedor restituya el servicio definitivo.
               </span>
-              <button onClick={() => setContNotice(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#92400e', fontSize: '16px', flexShrink: 0, padding: 0, lineHeight: 1 }}>×</button>
+              <button onClick={() => setContNotice(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--warn)', fontSize: '16px', flexShrink: 0, padding: 0, lineHeight: 1 }}>×</button>
             </div>
           )}
           {(canEditB || canEditA) && (
             <button onClick={handleSave} disabled={saving}
-              style={{ ...btn, background: 'hsl(221,83%,45%)', color: 'white', border: '1px solid hsl(221,83%,35%)' }}>
+              style={{ ...btn, background: 'var(--gradient-primary)', color: 'white', border: '1px solid var(--primary)' }}>
               {saving ? 'Guardando...' : 'Guardar cambios'}
             </button>
           )}

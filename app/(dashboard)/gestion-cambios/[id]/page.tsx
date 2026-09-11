@@ -24,12 +24,12 @@ export function debeAutoRefrescarAccion(estado: string | null | undefined): bool
   return !ESTADOS_TERMINALES_ACCION.includes(estado)
 }
 const ESTADO_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
-  BORRADOR:      { label: 'Borrador',      bg: '#F1F5F9', color: '#475569' },
-  PROPUESTO:     { label: 'Propuesto',     bg: '#EFF6FF', color: '#1D4ED8' },
-  APROBADO:      { label: 'Aprobado',      bg: '#F0FDF4', color: '#15803D' },
-  COMPLETADO:    { label: 'Completado',    bg: '#ECFDF5', color: '#065F46' },
-  RECHAZADO:     { label: 'Rechazado',     bg: '#FEF2F2', color: '#991B1B' },
-  CANCELADO:     { label: 'Cancelado',     bg: '#F8FAFC', color: '#94A3B8' },
+  BORRADOR:      { label: 'Borrador',      bg: 'var(--info-bg)', color: 'var(--muted-foreground)' },
+  PROPUESTO:     { label: 'Propuesto',     bg: 'var(--info-bg)', color: 'var(--info)' },
+  APROBADO:      { label: 'Aprobado',      bg: 'var(--ok-bg)', color: 'var(--ok)' },
+  COMPLETADO:    { label: 'Completado',    bg: 'var(--ok-bg)', color: 'var(--ok)' },
+  RECHAZADO:     { label: 'Rechazado',     bg: 'var(--danger-bg)', color: 'var(--danger)' },
+  CANCELADO:     { label: 'Cancelado',     bg: 'var(--surface-2)', color: 'var(--muted-foreground)' },
 }
 const FLOW = ['BORRADOR','PROPUESTO','APROBADO','COMPLETADO']
 
@@ -69,7 +69,7 @@ function MetricCard({ label, before, after, unit = '' }: { label: string; before
         <span style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>{b != null ? `${b}${unit}` : '—'}</span>
         {a != null && <span style={{ fontSize: '14px', fontWeight: 700 }}>→ {a}{unit}</span>}
         {delta != null && (
-          <span style={{ fontSize: '10px', fontWeight: 700, color: mejor ? '#15803D' : peor ? '#DC2626' : '#6B7280' }}>
+          <span style={{ fontSize: '10px', fontWeight: 700, color: mejor ? 'var(--ok)' : peor ? 'var(--danger)' : 'var(--muted-foreground)' }}>
             {delta > 0 ? '+' : ''}{delta}{unit}
           </span>
         )}
@@ -175,7 +175,7 @@ export default function AccionDetallePage() {
   const dias30 = diasParaEval(accion.fechaEval30)
   const dias90 = diasParaEval(accion.fechaEval90)
 
-  const btnStyle = (active: boolean, color = 'hsl(221,83%,23%)'): React.CSSProperties => ({
+  const btnStyle = (active: boolean, color = 'var(--primary)'): React.CSSProperties => ({
     padding: '8px 16px', fontSize: '12px', fontWeight: 600, borderRadius: '7px', cursor: actBusy || !active ? 'default' : 'pointer',
     border: 'none', background: active ? color : 'var(--muted)', color: active ? 'white' : 'var(--muted-foreground)',
     opacity: actBusy ? 0.6 : 1,
@@ -189,7 +189,7 @@ export default function AccionDetallePage() {
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted-foreground)', fontSize: '18px', lineHeight: 1, flexShrink: 0, marginTop: '2px' }}>←</button>
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '13px', color: 'hsl(221,83%,23%)' }}>{accion.codigo}</span>
+            <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '13px', color: 'var(--primary)' }}>{accion.codigo}</span>
             <span style={{ padding: '2px 8px', borderRadius: '99px', fontSize: '10px', fontWeight: 600, background: est.bg, color: est.color }}>{est.label}</span>
             <span style={{ fontSize: '10px', padding: '2px 8px', background: 'var(--muted)', borderRadius: '99px', color: 'var(--muted-foreground)' }}>{TIPO_LABELS[accion.tipo] ?? accion.tipo}</span>
           </div>
@@ -205,12 +205,12 @@ export default function AccionDetallePage() {
           const cfg     = ESTADO_CONFIG[s]
           return (
             <div key={s} style={{ display: 'flex', alignItems: 'center' }}>
-              <div style={{ textAlign: 'center', padding: '4px 10px', borderRadius: '6px', background: current ? cfg.bg : done ? '#F0FDF4' : 'transparent', border: current ? `1px solid ${cfg.color}` : done ? '1px solid #86EFAC' : '1px solid var(--border)' }}>
-                <div style={{ fontSize: '9px', fontWeight: 700, color: current ? cfg.color : done ? '#15803D' : 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>
+              <div style={{ textAlign: 'center', padding: '4px 10px', borderRadius: '6px', background: current ? cfg.bg : done ? 'var(--ok-bg)' : 'transparent', border: current ? `1px solid ${cfg.color}` : done ? '1px solid var(--ok-bg)' : '1px solid var(--border)' }}>
+                <div style={{ fontSize: '9px', fontWeight: 700, color: current ? cfg.color : done ? 'var(--ok)' : 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>
                   {done ? '✓ ' : ''}{cfg.label}
                 </div>
               </div>
-              {i < FLOW.length - 1 && <div style={{ width: '20px', height: '1px', background: i < step ? '#86EFAC' : 'var(--border)', flexShrink: 0 }} />}
+              {i < FLOW.length - 1 && <div style={{ width: '20px', height: '1px', background: i < step ? 'var(--ok-bg)' : 'var(--border)', flexShrink: 0 }} />}
             </div>
           )
         })}
@@ -220,7 +220,7 @@ export default function AccionDetallePage() {
 
         {/* Acciones disponibles */}
         {actionError && (
-          <div style={{ background: '#FEE2E2', border: '1px solid #FCA5A5', borderRadius: '7px', padding: '8px 12px', fontSize: '12px', color: '#991B1B' }}>{actionError}</div>
+          <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: '7px', padding: '8px 12px', fontSize: '12px', color: 'var(--danger)' }}>{actionError}</div>
         )}
 
         {accion.estado === 'BORRADOR' && (isInfra || isGerencia || accion.creadoPorId === userId) && (
@@ -239,12 +239,12 @@ export default function AccionDetallePage() {
                     </label>
                     <div onClick={() => router.push(`/gestion-cambios/fichas/${fichaActual.id}`)}
                       title="Ver contenido de la ficha"
-                      style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', cursor: 'pointer' }}>
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', cursor: 'pointer' }}>
                       <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 700 }}>{fichaActual.codigo}</span>
                       <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>
                         {fichaActual.proveedorNombre}{fichaActual.tipoConexion ? ` · ${fichaActual.tipoConexion}` : ''}
                       </span>
-                      <span style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 600, color: '#7C3AED' }}>ver ↗</span>
+                      <span style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 600, color: 'var(--purple)' }}>ver ↗</span>
                     </div>
                   </div>
                 )}
@@ -254,29 +254,29 @@ export default function AccionDetallePage() {
                   <span style={{ fontSize: '9px', fontWeight: 400, textTransform: 'none', marginLeft: '4px' }}>(obligatoria — selecciona una)</span>
                 </label>
                 {fichasDisponibles.length === 0 ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: '7px', fontSize: '11px', color: '#C2410C' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: 'var(--warn-bg)', border: '1px solid var(--warn-border)', borderRadius: '7px', fontSize: '11px', color: 'var(--warn)' }}>
                     <span>⚠</span>
                     <span>No hay fichas en borrador para esta acción. Créala en la sección Fichas y vuelve a seleccionarla.</span>
                     <button
                       onClick={() => router.push('/gestion-cambios/fichas')}
-                      style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 600, padding: '3px 8px', borderRadius: '5px', background: '#7C3AED', color: '#fff', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 600, padding: '3px 8px', borderRadius: '5px', background: 'var(--purple-bg)', color: '#fff', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                       Ir a Fichas →
                     </button>
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {fichasDisponibles.map(f => (
-                      <label key={f.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '8px 10px', border: `1px solid ${selectedFichaId === f.id ? '#7C3AED' : 'var(--border)'}`, borderRadius: '7px', cursor: 'pointer', background: selectedFichaId === f.id ? '#F5F3FF' : 'var(--background)' }}>
+                      <label key={f.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '8px 10px', border: `1px solid ${selectedFichaId === f.id ? 'var(--purple-border)' : 'var(--border)'}`, borderRadius: '7px', cursor: 'pointer', background: selectedFichaId === f.id ? 'var(--purple-bg)' : 'var(--background)' }}>
                         <input type="radio" name="fichaSeleccionada" value={f.id} checked={selectedFichaId === f.id} onChange={() => setSelectedFichaId(f.id)}
-                          style={{ marginTop: '1px', accentColor: '#7C3AED' }} />
+                          style={{ marginTop: '1px', accentColor: 'var(--purple)' }} />
                         <div style={{ flex: 1 }}>
                           <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                            <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 700, color: '#7C3AED' }}>{f.codigo}</span>
+                            <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 700, color: 'var(--purple)' }}>{f.codigo}</span>
                             {f.tipoConexion && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{f.tipoConexion}</span>}
                             {f.velocidad && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>· {f.velocidad}</span>}
                             <button type="button" title="Ver contenido de la ficha"
                               onClick={e => { e.preventDefault(); e.stopPropagation(); router.push(`/gestion-cambios/fichas/${f.id}`) }}
-                              style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 600, color: '#7C3AED', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                              style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 600, color: 'var(--purple)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                               ver ↗
                             </button>
                           </div>
@@ -302,7 +302,7 @@ export default function AccionDetallePage() {
                       title={faltaFicha ? 'Adjunta la ficha del nuevo proveedor para poder proponer' : ''}
                       style={btnStyle(!faltaFicha)}>Enviar a aprobación</button>
                     <button onClick={() => router.push(`/gestion-cambios/nueva?id=${accion.id}`)} disabled={actBusy}
-                      style={{ ...btnStyle(false), background: 'var(--muted)', color: 'var(--foreground)', border: '0.5px solid var(--border)' }}>
+                      style={{ ...btnStyle(false), background: 'var(--muted)', color: 'var(--foreground)', border: '1px solid var(--border)' }}>
                       Editar
                     </button>
                   </>
@@ -310,7 +310,7 @@ export default function AccionDetallePage() {
               })()}
               {(accion.creadoPorId === userId || isGerencia || ['SUPERVISOR'].includes(userRol)) && (
                 <button onClick={doEliminar} disabled={deleteBusy || actBusy}
-                  style={{ ...btnStyle(true, '#991B1B'), marginLeft: 'auto', opacity: deleteBusy ? 0.6 : 1 }}>
+                  style={{ ...btnStyle(true, 'var(--danger)'), marginLeft: 'auto', opacity: deleteBusy ? 0.6 : 1 }}>
                   {deleteBusy ? 'Eliminando…' : 'Eliminar borrador'}
                 </button>
               )}
@@ -319,19 +319,19 @@ export default function AccionDetallePage() {
         )}
 
         {accion.estado === 'PROPUESTO' && puedeAprobar && (
-          <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '10px', padding: '14px' }}>
-            <div style={{ fontSize: '11px', fontWeight: 700, color: '#1D4ED8', marginBottom: '10px' }}>Pendiente de tu aprobación</div>
+          <div style={{ background: 'var(--info-bg)', border: '1px solid var(--info-border)', borderRadius: '10px', padding: '14px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--info)', marginBottom: '10px' }}>Pendiente de tu aprobación</div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-              <button onClick={() => doAction('aprobar')} disabled={actBusy} style={btnStyle(true, '#15803D')}>Aprobar</button>
-              <button onClick={() => setShowRechaza(v => !v)} disabled={actBusy} style={btnStyle(true, '#991B1B')}>Rechazar</button>
+              <button onClick={() => doAction('aprobar')} disabled={actBusy} style={btnStyle(true, 'var(--ok)')}>Aprobar</button>
+              <button onClick={() => setShowRechaza(v => !v)} disabled={actBusy} style={btnStyle(true, 'var(--danger)')}>Rechazar</button>
             </div>
             {showRechaza && (
               <div style={{ marginTop: '10px' }}>
                 <textarea value={rechazaMotivo} onChange={e => setRechazaMotivo(e.target.value)}
                   placeholder="Motivo del rechazo…" rows={2}
-                  style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
+                  style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
                 <button onClick={() => doAction('rechazar', { rechazadoMotivo: rechazaMotivo })} disabled={actBusy || !rechazaMotivo.trim()}
-                  style={{ ...btnStyle(!!rechazaMotivo.trim(), '#991B1B'), marginTop: '6px' }}>Confirmar rechazo</button>
+                  style={{ ...btnStyle(!!rechazaMotivo.trim(), 'var(--danger)'), marginTop: '6px' }}>Confirmar rechazo</button>
               </div>
             )}
           </div>
@@ -342,11 +342,11 @@ export default function AccionDetallePage() {
             <div style={{ fontSize: '11px', fontWeight: 600, marginBottom: '8px' }}>Listo para ejecutar</div>
 
             {TIPOS_CON_FICHA.includes(accion.tipo) && (
-              <div style={{ marginBottom: '12px', padding: '8px 10px', background: '#F5F3FF', border: '1px solid #DDD6FE', borderRadius: '7px' }}>
+              <div style={{ marginBottom: '12px', padding: '8px 10px', background: 'var(--purple-bg)', border: '1px solid var(--purple-border)', borderRadius: '7px' }}>
                 <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '3px' }}>
                   Ficha que se activará
                 </div>
-                <div style={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 700, color: '#7C3AED' }}>{accion.fichaNuevaCodigo ?? '—'}</div>
+                <div style={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 700, color: 'var(--purple)' }}>{accion.fichaNuevaCodigo ?? '—'}</div>
                 <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Adjuntada al proponer la acción.</div>
               </div>
             )}
@@ -354,23 +354,23 @@ export default function AccionDetallePage() {
             <div style={{ marginBottom: '10px' }}>
               <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Notas de ejecución (opcional)</label>
               <textarea value={notasEjec} onChange={e => setNotasEjec(e.target.value)} rows={2} placeholder="Coordinaciones con proveedor, hora exacta, incidencias…"
-                style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
+                style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
             </div>
             <button
               onClick={() => doAction('ejecutar', { notasEjecucion: notasEjec })}
               disabled={actBusy}
-              style={btnStyle(true, '#7E22CE')}>
+              style={btnStyle(true, 'var(--purple)')}>
               Ejecutar y completar
             </button>
             {TIPOS_CON_FICHA.includes(accion.tipo) && (
-              <div style={{ fontSize: '10px', color: '#7E22CE', marginTop: '6px' }}>
+              <div style={{ fontSize: '10px', color: 'var(--purple)', marginTop: '6px' }}>
                 {accion.tipo === 'CAMBIO_CONTRATO' && accion.proveedorAnteriorId && accion.proveedorNuevoId && accion.proveedorAnteriorId !== accion.proveedorNuevoId
                   ? `Actualizará el proveedor de la tienda y activará la ficha ${accion.fichaNuevaCodigo ?? ''}.`
                   : `Activará la ficha ${accion.fichaNuevaCodigo ?? ''} en la tienda.`}
               </div>
             )}
             {accion.tipo === 'BAJA_CONTRATO' && (
-              <div style={{ fontSize: '10px', color: '#7E22CE', marginTop: '6px' }}>
+              <div style={{ fontSize: '10px', color: 'var(--purple)', marginTop: '6px' }}>
                 Dará de baja el contrato: la ficha activa quedará archivada (Dada de Baja) y la tienda quedará sin proveedor ni ficha activa.
               </div>
             )}
@@ -381,20 +381,20 @@ export default function AccionDetallePage() {
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px' }}>
             {!showCancela ? (
               <button onClick={() => setShowCancela(true)} disabled={actBusy}
-                style={{ ...btnStyle(true, '#64748B'), background: 'transparent', color: '#64748B', border: '0.5px solid #CBD5E1' }}>
+                style={{ ...btnStyle(true, 'var(--muted-foreground)'), background: 'transparent', color: 'var(--muted-foreground)', border: '1px solid var(--border)' }}>
                 Cancelar acción
               </button>
             ) : (
               <div>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>Cancelar esta acción (no se ejecutará)</div>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: '6px' }}>Cancelar esta acción (no se ejecutará)</div>
                 <textarea value={cancelaMotivo} onChange={e => setCancelaMotivo(e.target.value)}
                   placeholder="Motivo de la cancelación…" rows={2}
-                  style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
+                  style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
                 <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
                   <button onClick={() => doAction('cancelar', { motivo: cancelaMotivo })} disabled={actBusy || !cancelaMotivo.trim()}
-                    style={btnStyle(!!cancelaMotivo.trim(), '#991B1B')}>Confirmar cancelación</button>
+                    style={btnStyle(!!cancelaMotivo.trim(), 'var(--danger)')}>Confirmar cancelación</button>
                   <button onClick={() => { setShowCancela(false); setCancelaMotivo('') }} disabled={actBusy}
-                    style={{ ...btnStyle(false), background: 'var(--muted)', color: 'var(--foreground)', border: '0.5px solid var(--border)' }}>No, volver</button>
+                    style={{ ...btnStyle(false), background: 'var(--muted)', color: 'var(--foreground)', border: '1px solid var(--border)' }}>No, volver</button>
                 </div>
               </div>
             )}
@@ -402,27 +402,27 @@ export default function AccionDetallePage() {
         )}
 
         {accion.estado === 'COMPLETADO' && (
-          <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: '10px', padding: '14px' }}>
-            <div style={{ fontSize: '11px', fontWeight: 700, color: '#92400E', marginBottom: '10px' }}>Evaluación de resultados <span style={{ fontWeight: 400, fontSize: '10px', color: '#A16207' }}>(opcional — no afecta el estado)</span></div>
+          <div style={{ background: 'var(--warn-bg)', border: '1px solid var(--warn-border)', borderRadius: '10px', padding: '14px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--warn)', marginBottom: '10px' }}>Evaluación de resultados <span style={{ fontWeight: 400, fontSize: '10px', color: 'var(--warn)' }}>(opcional — no afecta el estado)</span></div>
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               {!accion.eval30Completada && (
                 <div style={{ flex: 1, minWidth: '240px' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 600, marginBottom: '6px', color: dias30 !== null && dias30 <= 0 ? '#DC2626' : '#92400E' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 600, marginBottom: '6px', color: dias30 !== null && dias30 <= 0 ? 'var(--danger)' : 'var(--warn)' }}>
                     Evaluación 30 días {dias30 !== null ? (dias30 <= 0 ? '(disponible)' : `(en ${dias30}d)`) : ''}
                   </div>
                   <textarea value={evalNota30} onChange={e => setEvalNota30(e.target.value)} rows={2}
                     placeholder="Nota sobre los resultados observados…"
-                    style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid #FCD34D', borderRadius: '7px', boxSizing: 'border-box', resize: 'none', fontFamily: 'inherit', marginBottom: '6px' }} />
+                    style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '1px solid var(--warn-border)', borderRadius: '7px', boxSizing: 'border-box', resize: 'none', fontFamily: 'inherit', marginBottom: '6px' }} />
                   {pendingEval === 30 ? (
-                    <div style={{ background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: '7px', padding: '10px', fontSize: '12px' }}>
-                      <div style={{ fontWeight: 600, marginBottom: '8px', color: '#92400E' }}>¿Calcular evaluación 30d? Esto registrará los resultados definitivos del período.</div>
+                    <div style={{ background: 'var(--warn-bg)', border: '1px solid var(--warn-border)', borderRadius: '7px', padding: '10px', fontSize: '12px' }}>
+                      <div style={{ fontWeight: 600, marginBottom: '8px', color: 'var(--warn)' }}>¿Calcular evaluación 30d? Esto registrará los resultados definitivos del período.</div>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <button onClick={() => { setPendingEval(null); doAction('evaluar', { periodo: 30, nota: evalNota30 }) }} disabled={actBusy} style={btnStyle(true, '#D97706')}>Confirmar</button>
-                        <button onClick={() => setPendingEval(null)} disabled={actBusy} style={{ ...btnStyle(false), background: 'var(--muted)', color: 'var(--foreground)', border: '0.5px solid var(--border)' }}>Cancelar</button>
+                        <button onClick={() => { setPendingEval(null); doAction('evaluar', { periodo: 30, nota: evalNota30 }) }} disabled={actBusy} style={btnStyle(true, 'var(--warn)')}>Confirmar</button>
+                        <button onClick={() => setPendingEval(null)} disabled={actBusy} style={{ ...btnStyle(false), background: 'var(--muted)', color: 'var(--foreground)', border: '1px solid var(--border)' }}>Cancelar</button>
                       </div>
                     </div>
                   ) : (
-                    <button onClick={() => setPendingEval(30)} disabled={actBusy} style={btnStyle(true, '#D97706')}>
+                    <button onClick={() => setPendingEval(30)} disabled={actBusy} style={btnStyle(true, 'var(--warn)')}>
                       Calcular evaluación 30d
                     </button>
                   )}
@@ -430,29 +430,29 @@ export default function AccionDetallePage() {
               )}
               {accion.eval30Completada && !accion.eval90Completada && (
                 <div style={{ flex: 1, minWidth: '240px' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 600, marginBottom: '6px', color: dias90 !== null && dias90 <= 0 ? '#DC2626' : '#92400E' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 600, marginBottom: '6px', color: dias90 !== null && dias90 <= 0 ? 'var(--danger)' : 'var(--warn)' }}>
                     Evaluación 90 días {dias90 !== null ? (dias90 <= 0 ? '(disponible)' : `(en ${dias90}d)`) : ''}
                   </div>
                   <textarea value={evalNota90} onChange={e => setEvalNota90(e.target.value)} rows={2}
                     placeholder="Nota trimestral sobre los resultados…"
-                    style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid #FCD34D', borderRadius: '7px', boxSizing: 'border-box', resize: 'none', fontFamily: 'inherit', marginBottom: '6px' }} />
+                    style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '1px solid var(--warn-border)', borderRadius: '7px', boxSizing: 'border-box', resize: 'none', fontFamily: 'inherit', marginBottom: '6px' }} />
                   {pendingEval === 90 ? (
-                    <div style={{ background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: '7px', padding: '10px', fontSize: '12px' }}>
-                      <div style={{ fontWeight: 600, marginBottom: '8px', color: '#92400E' }}>¿Calcular evaluación 90d? Esto registrará los resultados definitivos del período.</div>
+                    <div style={{ background: 'var(--warn-bg)', border: '1px solid var(--warn-border)', borderRadius: '7px', padding: '10px', fontSize: '12px' }}>
+                      <div style={{ fontWeight: 600, marginBottom: '8px', color: 'var(--warn)' }}>¿Calcular evaluación 90d? Esto registrará los resultados definitivos del período.</div>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <button onClick={() => { setPendingEval(null); doAction('evaluar', { periodo: 90, nota: evalNota90 }) }} disabled={actBusy} style={btnStyle(true, '#D97706')}>Confirmar</button>
-                        <button onClick={() => setPendingEval(null)} disabled={actBusy} style={{ ...btnStyle(false), background: 'var(--muted)', color: 'var(--foreground)', border: '0.5px solid var(--border)' }}>Cancelar</button>
+                        <button onClick={() => { setPendingEval(null); doAction('evaluar', { periodo: 90, nota: evalNota90 }) }} disabled={actBusy} style={btnStyle(true, 'var(--warn)')}>Confirmar</button>
+                        <button onClick={() => setPendingEval(null)} disabled={actBusy} style={{ ...btnStyle(false), background: 'var(--muted)', color: 'var(--foreground)', border: '1px solid var(--border)' }}>Cancelar</button>
                       </div>
                     </div>
                   ) : (
-                    <button onClick={() => setPendingEval(90)} disabled={actBusy} style={btnStyle(true, '#D97706')}>
+                    <button onClick={() => setPendingEval(90)} disabled={actBusy} style={btnStyle(true, 'var(--warn)')}>
                       Calcular evaluación 90d
                     </button>
                   )}
                 </div>
               )}
               {accion.eval30Completada && accion.eval90Completada && (
-                <div style={{ fontSize: '12px', color: '#065F46', fontWeight: 600 }}>✓ Ambas evaluaciones completadas</div>
+                <div style={{ fontSize: '12px', color: 'var(--ok)', fontWeight: 600 }}>✓ Ambas evaluaciones completadas</div>
               )}
             </div>
           </div>
@@ -467,12 +467,12 @@ export default function AccionDetallePage() {
             <div><span style={{ color: 'var(--muted-foreground)' }}>Ejecución planificada</span><br /><strong>{accion.fechaEjecucionPlanificada ? fmtFecha(accion.fechaEjecucionPlanificada) : '—'}</strong></div>
             {accion.aprobadoPorNombre && <div><span style={{ color: 'var(--muted-foreground)' }}>Aprobado por</span><br /><strong>{accion.aprobadoPorNombre}</strong> · {fmtFechaHora(accion.aprobadoEn)}</div>}
             {accion.ejecutadoPorNombre && <div><span style={{ color: 'var(--muted-foreground)' }}>Ejecutado por</span><br /><strong>{accion.ejecutadoPorNombre}</strong> · {fmtFechaHora(accion.ejecutadoEn)}</div>}
-            {accion.rechazadoMotivo && <div style={{ gridColumn: 'span 2' }}><span style={{ color: '#991B1B' }}>Motivo de rechazo:</span><br /><strong style={{ color: '#991B1B' }}>{accion.rechazadoMotivo}</strong></div>}
+            {accion.rechazadoMotivo && <div style={{ gridColumn: 'span 2' }}><span style={{ color: 'var(--danger)' }}>Motivo de rechazo:</span><br /><strong style={{ color: 'var(--danger)' }}>{accion.rechazadoMotivo}</strong></div>}
           </div>
           {accion.motivo && <div style={{ marginTop: '12px', fontSize: '12px' }}><span style={{ color: 'var(--muted-foreground)' }}>Motivo:</span><br />{accion.motivo}</div>}
           {accion.descripcion && <div style={{ marginTop: '8px', fontSize: '12px' }}><span style={{ color: 'var(--muted-foreground)' }}>Descripción:</span><br />{accion.descripcion}</div>}
-          {accion.notasAprobacion && <div style={{ marginTop: '8px', fontSize: '12px', color: '#15803D' }}><span>Nota de aprobación:</span> {accion.notasAprobacion}</div>}
-          {accion.notasEjecucion  && <div style={{ marginTop: '8px', fontSize: '12px', color: '#7E22CE' }}><span>Notas de ejecución:</span> {accion.notasEjecucion}</div>}
+          {accion.notasAprobacion && <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--ok)' }}><span>Nota de aprobación:</span> {accion.notasAprobacion}</div>}
+          {accion.notasEjecucion  && <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--purple)' }}><span>Notas de ejecución:</span> {accion.notasEjecucion}</div>}
         </div>
 
         {/* Alcance */}
@@ -500,10 +500,10 @@ export default function AccionDetallePage() {
           )}
           {(accion.proveedorAnteriorNombre || accion.proveedorNuevoNombre) && (
             <div style={{ marginTop: '12px', display: 'flex', gap: '10px', alignItems: 'center', fontSize: '13px' }}>
-              {accion.proveedorAnteriorNombre && <span style={{ padding: '4px 12px', background: '#FEE2E2', color: '#991B1B', borderRadius: '6px', fontWeight: 700 }}>{accion.proveedorAnteriorNombre}</span>}
+              {accion.proveedorAnteriorNombre && <span style={{ padding: '4px 12px', background: 'var(--danger-bg)', color: 'var(--danger)', borderRadius: '6px', fontWeight: 700 }}>{accion.proveedorAnteriorNombre}</span>}
               {accion.proveedorNuevoNombre && <>
                 <span style={{ color: 'var(--muted-foreground)', fontSize: '18px' }}>→</span>
-                <span style={{ padding: '4px 12px', background: '#DCFCE7', color: '#15803D', borderRadius: '6px', fontWeight: 700 }}>{accion.proveedorNuevoNombre}</span>
+                <span style={{ padding: '4px 12px', background: 'var(--ok-bg)', color: 'var(--ok)', borderRadius: '6px', fontWeight: 700 }}>{accion.proveedorNuevoNombre}</span>
               </>}
             </div>
           )}
@@ -540,20 +540,20 @@ export default function AccionDetallePage() {
             {accion.eval30Completada && (
               <div style={{ marginBottom: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#D97706', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--warn)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     Evaluación 30 días — {fmtFechaHora(accion.eval30Fecha)}
                   </div>
                   {puedeEjecutar && (pendingReset === 30 ? (
                     <div style={{ display: 'flex', gap: '6px', alignItems: 'center', fontSize: '11px' }}>
-                      <span style={{ color: '#92400E' }}>¿Borrar y recalcular?</span>
+                      <span style={{ color: 'var(--warn)' }}>¿Borrar y recalcular?</span>
                       <button onClick={() => { setPendingReset(null); doAction('resetear-eval', { periodo: 30 }) }} disabled={actBusy}
-                        style={{ fontSize: '10px', background: '#D97706', color: 'white', border: 'none', borderRadius: '5px', padding: '3px 8px', cursor: 'pointer' }}>Sí</button>
+                        style={{ fontSize: '10px', background: 'var(--warn-bg)', color: 'white', border: 'none', borderRadius: '5px', padding: '3px 8px', cursor: 'pointer' }}>Sí</button>
                       <button onClick={() => setPendingReset(null)} disabled={actBusy}
-                        style={{ fontSize: '10px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '5px', padding: '3px 8px', cursor: 'pointer' }}>No</button>
+                        style={{ fontSize: '10px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '5px', padding: '3px 8px', cursor: 'pointer' }}>No</button>
                     </div>
                   ) : (
                     <button onClick={() => setPendingReset(30)} disabled={actBusy}
-                      style={{ fontSize: '10px', background: 'none', border: '0.5px solid var(--border)', borderRadius: '5px', padding: '2px 8px', cursor: 'pointer', color: 'var(--muted-foreground)' }}>
+                      style={{ fontSize: '10px', background: 'none', border: '1px solid var(--border)', borderRadius: '5px', padding: '2px 8px', cursor: 'pointer', color: 'var(--muted-foreground)' }}>
                       Recalcular
                     </button>
                   ))}
@@ -565,7 +565,7 @@ export default function AccionDetallePage() {
                   <MetricCard label="IEI acum."    before={accion.snapIei}      after={accion.eval30Iei}      unit=" S/" />
                 </div>
                 {accion.penalidadEstimada && Number(accion.penalidadEstimada) > 0 && (
-                  <div style={{ marginTop: '8px', background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: '6px', padding: '8px 12px', fontSize: '12px', color: '#92400E' }}>
+                  <div style={{ marginTop: '8px', background: 'var(--warn-bg)', border: '1px solid var(--warn-border)', borderRadius: '6px', padding: '8px 12px', fontSize: '12px', color: 'var(--warn)' }}>
                     Penalidad estimada (base nota de crédito): <strong>S/ {Number(accion.penalidadEstimada).toLocaleString('es-PE', { minimumFractionDigits: 2 })}</strong>
                   </div>
                 )}
@@ -576,20 +576,20 @@ export default function AccionDetallePage() {
             {accion.eval90Completada && (
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--ok)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     Evaluación 90 días — {fmtFechaHora(accion.eval90Fecha)}
                   </div>
                   {puedeEjecutar && (pendingReset === 90 ? (
                     <div style={{ display: 'flex', gap: '6px', alignItems: 'center', fontSize: '11px' }}>
-                      <span style={{ color: '#065F46' }}>¿Borrar y recalcular?</span>
+                      <span style={{ color: 'var(--ok)' }}>¿Borrar y recalcular?</span>
                       <button onClick={() => { setPendingReset(null); doAction('resetear-eval', { periodo: 90 }) }} disabled={actBusy}
-                        style={{ fontSize: '10px', background: '#059669', color: 'white', border: 'none', borderRadius: '5px', padding: '3px 8px', cursor: 'pointer' }}>Sí</button>
+                        style={{ fontSize: '10px', background: 'var(--ok-bg)', color: 'white', border: 'none', borderRadius: '5px', padding: '3px 8px', cursor: 'pointer' }}>Sí</button>
                       <button onClick={() => setPendingReset(null)} disabled={actBusy}
-                        style={{ fontSize: '10px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '5px', padding: '3px 8px', cursor: 'pointer' }}>No</button>
+                        style={{ fontSize: '10px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '5px', padding: '3px 8px', cursor: 'pointer' }}>No</button>
                     </div>
                   ) : (
                     <button onClick={() => setPendingReset(90)} disabled={actBusy}
-                      style={{ fontSize: '10px', background: 'none', border: '0.5px solid var(--border)', borderRadius: '5px', padding: '2px 8px', cursor: 'pointer', color: 'var(--muted-foreground)' }}>
+                      style={{ fontSize: '10px', background: 'none', border: '1px solid var(--border)', borderRadius: '5px', padding: '2px 8px', cursor: 'pointer', color: 'var(--muted-foreground)' }}>
                       Recalcular
                     </button>
                   ))}

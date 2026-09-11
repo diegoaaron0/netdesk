@@ -45,12 +45,12 @@ export function CronometroEscalamiento({ horaEnvio, horaRespuesta, limiteMinutos
   )
 
   const colors = {
-    verde:      { bg: '#EAF3DE', color: '#3B6D11' },
-    amber:      { bg: '#FAEEDA', color: '#854F0B' },
-    rojo:       { bg: '#FCEBEB', color: '#A32D2D' },
-    vencido:    { bg: '#FCEBEB', color: '#A32D2D' },
-    respondido: { bg: '#EAF3DE', color: '#3B6D11' },
-    espera:     { bg: '#F1EFE8', color: '#444441' },
+    verde:      { bg: 'var(--ok-bg)', color: 'var(--ok)' },
+    amber:      { bg: 'var(--warn-bg)', color: 'var(--warn)' },
+    rojo:       { bg: 'var(--danger-bg)', color: 'var(--danger)' },
+    vencido:    { bg: 'var(--danger-bg)', color: 'var(--danger)' },
+    respondido: { bg: 'var(--ok-bg)', color: 'var(--ok)' },
+    espera:     { bg: 'var(--muted-foreground)', color: 'var(--muted-foreground)' },
   }
   const { bg, color } = colors[estado]
 

@@ -23,29 +23,31 @@ const TIPO_LABELS: Record<string, string> = {
 
 function slaColor(pct: number | null | undefined) {
   if (pct == null) return 'var(--muted-foreground)'
-  if (pct >= 90) return '#15803d'
-  if (pct >= 70) return '#d97706'
-  return '#b91c1c'
+  if (pct >= 90) return 'var(--ok)'
+  if (pct >= 70) return 'var(--warn)'
+  return 'var(--danger)'
 }
+/** Fondo del panel de SLA global: translúcido, nunca el tono vivo. Un bloque
+ *  pintado de amarillo o rojo sólido sobre navy se lee como una mancha. */
 function slaBg(pct: number | null | undefined) {
-  if (pct == null) return 'var(--muted)'
-  if (pct >= 90) return '#f0fdf4'
-  if (pct >= 70) return '#fffbeb'
-  return '#fef2f2'
+  if (pct == null) return 'var(--surface-2)'
+  if (pct >= 90) return 'var(--ok-bg)'
+  if (pct >= 70) return 'var(--warn-bg)'
+  return 'var(--danger-bg)'
 }
 function mttrColor(min: number | null | undefined) {
   if (min == null) return 'var(--muted-foreground)'
-  if (min < 120) return '#15803d'
-  if (min < 240) return '#d97706'
-  return '#b91c1c'
+  if (min < 120) return 'var(--ok)'
+  if (min < 240) return 'var(--warn)'
+  return 'var(--danger)'
 }
 
 function DeltaBadge({ delta, invertir = false }: { delta: number | null; invertir?: boolean }) {
   if (delta == null) return null
   const mejor = invertir ? delta < 0 : delta > 0
   const mismo = delta === 0
-  const color = mismo ? '#6b7280' : mejor ? '#15803d' : '#b91c1c'
-  const bg    = mismo ? '#f3f4f6' : mejor ? '#f0fdf4' : '#fef2f2'
+  const color = mismo ? 'var(--muted-foreground)' : mejor ? 'var(--ok)' : 'var(--danger)'
+  const bg    = mismo ? 'var(--surface-3)' : mejor ? 'var(--ok-bg)' : 'var(--danger-bg)'
   const sign  = delta > 0 ? '+' : ''
   return (
     <span style={{ fontSize: '10px', fontWeight: 500, padding: '1px 6px', borderRadius: '999px', background: bg, color }}>
@@ -118,26 +120,26 @@ function IncidentList({
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 padding: '7px 10px', borderRadius: '7px', cursor: 'pointer', fontSize: '11px', gap: '8px',
                 background: item.evaluableProveedor ? 'var(--background)' : 'var(--muted)',
-                border: `0.5px solid ${item.evaluableProveedor ? 'var(--border)' : 'transparent'}`,
+                border: `1px solid ${item.evaluableProveedor ? 'var(--border)' : 'transparent'}`,
                 opacity: item.evaluableProveedor ? 1 : 0.75,
               }}
               onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'var(--muted)'}
               onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = item.evaluableProveedor ? 'var(--background)' : 'var(--muted)'}
             >
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
-                <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#185FA5', whiteSpace: 'nowrap' }}>{item.codigo}</span>
+                <span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--info)', whiteSpace: 'nowrap' }}>{item.codigo}</span>
                 <span style={{ color: 'var(--muted-foreground)', fontWeight: 600 }}>{item.tiendaCodigo}</span>
                 <span style={{ color: 'var(--muted-foreground)' }}>{TIPO_LABELS[item.tipo] ?? item.tipo}</span>
                 <span style={{ color: 'var(--muted-foreground)', fontSize: '10px' }}>{item.fecha}</span>
                 {!item.evaluableProveedor && (
-                  <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: '#f3f4f6', color: '#6b7280', fontWeight: 500 }}>no evaluable</span>
+                  <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: 'var(--surface-2)', color: 'var(--muted-foreground)', fontWeight: 500 }}>no evaluable</span>
                 )}
               </div>
               <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>
-                {item.ieiEstimado > 0 && <span style={{ fontSize: '10px', color: '#b91c1c', fontFamily: 'monospace' }}>{fmtCosto(item.ieiEstimado)}</span>}
+                {item.ieiEstimado > 0 && <span style={{ fontSize: '10px', color: 'var(--danger)', fontFamily: 'monospace' }}>{fmtCosto(item.ieiEstimado)}</span>}
                 {item.mttrMin != null && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{fmtMin(item.mttrMin)}</span>}
-                {item.dentroSLA === true  && <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: '#f0fdf4', color: '#15803d', fontWeight: 600 }}>✓SLA</span>}
-                {item.dentroSLA === false && <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: '#fef2f2', color: '#b91c1c', fontWeight: 600 }}>✗SLA</span>}
+                {item.dentroSLA === true  && <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: 'var(--ok-bg)', color: 'var(--ok)', fontWeight: 600 }}>✓SLA</span>}
+                {item.dentroSLA === false && <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: 'var(--danger-bg)', color: 'var(--danger)', fontWeight: 600 }}>✗SLA</span>}
               </div>
             </div>
           )}
@@ -156,7 +158,7 @@ function ProvTable({ rows, selectedProv, onSelect, cols }: {
   cols: Array<{ key: string; label: string; fmt: (v: any) => string; color?: (v: any) => string }>
 }) {
   return (
-    <div style={{ border: '0.5px solid var(--border)', borderRadius: '8px', overflow: 'hidden', marginBottom: '12px' }}>
+    <div style={{ border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', marginBottom: '12px' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
         <thead>
           <tr style={{ background: 'var(--muted)' }}>
@@ -168,11 +170,11 @@ function ProvTable({ rows, selectedProv, onSelect, cols }: {
           {rows.map((r, i) => {
             const isSel = selectedProv === r.nombre
             return (
-              <tr key={r.nombre} onClick={() => onSelect(r.nombre)} style={{ borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', background: isSel ? '#eff6ff' : 'transparent', cursor: 'pointer' }}
+              <tr key={r.nombre} onClick={() => onSelect(r.nombre)} style={{ borderTop: i > 0 ? '1px solid var(--border)' : 'none', background: isSel ? 'var(--info-bg)' : 'transparent', cursor: 'pointer' }}
                 onMouseEnter={e => { if (!isSel) (e.currentTarget as HTMLTableRowElement).style.background = 'var(--muted)' }}
                 onMouseLeave={e => { if (!isSel) (e.currentTarget as HTMLTableRowElement).style.background = 'transparent' }}
               >
-                <td style={{ padding: '7px 10px', fontWeight: isSel ? 600 : 400, color: isSel ? '#1e40af' : 'var(--foreground)' }}>{r.nombre}</td>
+                <td style={{ padding: '7px 10px', fontWeight: isSel ? 600 : 400, color: isSel ? 'var(--info)' : 'var(--foreground)' }}>{r.nombre}</td>
                 {cols.map(c => {
                   const v = (r as any)[c.key]
                   const clr = c.color ? c.color(v) : 'var(--foreground)'
@@ -210,7 +212,7 @@ function PanelSLARespuesta({ data, expandedId, onExpand }: { data: DashboardAnal
         <div style={{ background: 'var(--muted)', borderRadius: '8px', padding: '10px 16px' }}>
           <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '2px' }}>EVALUABLES</div>
           <div style={{ fontSize: '20px', fontWeight: 700 }}>{sla.evaluables.length}</div>
-          <div style={{ fontSize: '10px', color: '#15803d', marginTop: '2px' }}>
+          <div style={{ fontSize: '10px', color: 'var(--ok)', marginTop: '2px' }}>
             {sla.evaluables.filter(e => e.slaRespOk).length} cumplieron
           </div>
         </div>
@@ -254,7 +256,7 @@ function PanelSLAResolucion({ data, expandedId, onExpand }: { data: DashboardAna
         <div style={{ background: 'var(--muted)', borderRadius: '8px', padding: '10px 16px' }}>
           <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '2px' }}>EVALUABLES</div>
           <div style={{ fontSize: '20px', fontWeight: 700 }}>{sla.evaluables.length}</div>
-          <div style={{ fontSize: '10px', color: '#15803d', marginTop: '2px' }}>
+          <div style={{ fontSize: '10px', color: 'var(--ok)', marginTop: '2px' }}>
             {sla.evaluables.filter(e => e.slaResolOk).length} cumplieron
           </div>
         </div>
@@ -326,9 +328,9 @@ function PanelIEI({ data, expandedId, onExpand }: { data: DashboardAnaliticoResp
   return (
     <>
       <div style={{ display: 'flex', gap: '12px', marginBottom: '14px', flexWrap: 'wrap' }}>
-        <div style={{ background: '#fffbeb', border: '0.5px solid #fde68a', borderRadius: '8px', padding: '10px 16px', flex: 1 }}>
-          <div style={{ fontSize: '10px', color: '#92400e', marginBottom: '2px' }}>IEI TOTAL</div>
-          <div style={{ fontSize: '22px', fontWeight: 700, color: '#b45309' }}>{fmtCosto(costo.total)}</div>
+        <div style={{ background: 'var(--warn-bg)', border: '1px solid var(--warn-border)', borderRadius: '8px', padding: '10px 16px', flex: 1 }}>
+          <div style={{ fontSize: '10px', color: 'var(--warn)', marginBottom: '2px' }}>IEI TOTAL</div>
+          <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--warn)' }}>{fmtCosto(costo.total)}</div>
           <DeltaBadge delta={costo.deltaVsAnterior} invertir />
         </div>
         <div style={{ background: 'var(--muted)', borderRadius: '8px', padding: '10px 16px' }}>
@@ -343,7 +345,7 @@ function PanelIEI({ data, expandedId, onExpand }: { data: DashboardAnaliticoResp
         selectedProv={selProv}
         onSelect={p => setSelProv(selProv === p ? null : p)}
         cols={[
-          { key: 'costo', label: 'IEI (S/)', fmt: v => fmtCosto(v), color: () => '#b45309' },
+          { key: 'costo', label: 'IEI (S/)', fmt: v => fmtCosto(v), color: () => 'var(--warn)' },
         ]}
       />
       <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
@@ -373,10 +375,10 @@ function PanelIncidentes({ data, expandedId, onExpand }: { data: DashboardAnalit
           <div style={{ fontSize: '24px', fontWeight: 700 }}>{inc.total}</div>
           <DeltaBadge delta={inc.deltaVsAnterior} invertir />
         </div>
-        <div style={{ background: '#fff7ed', border: '0.5px solid #fed7aa', borderRadius: '8px', padding: '10px 16px' }}>
-          <div style={{ fontSize: '10px', color: '#c2410c', marginBottom: '2px' }}>REINCIDENTES</div>
-          <div style={{ fontSize: '20px', fontWeight: 700, color: '#c2410c' }}>{reInc.total}</div>
-          <div style={{ fontSize: '10px', color: '#c2410c' }}>tiendas con 2+ caídas</div>
+        <div style={{ background: 'var(--warn-bg)', border: '1px solid var(--warn-border)', borderRadius: '8px', padding: '10px 16px' }}>
+          <div style={{ fontSize: '10px', color: 'var(--warn)', marginBottom: '2px' }}>REINCIDENTES</div>
+          <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--warn)' }}>{reInc.total}</div>
+          <div style={{ fontSize: '10px', color: 'var(--warn)' }}>tiendas con 2+ caídas</div>
         </div>
       </div>
 
@@ -397,7 +399,7 @@ function PanelIncidentes({ data, expandedId, onExpand }: { data: DashboardAnalit
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '4px', marginBottom: '10px' }}>
         {([['todos', 'Todos los incidentes'], ['reincidencia', 'Reincidentes']] as const).map(([t, l]) => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: '5px 12px', fontSize: '11px', fontWeight: tab === t ? 600 : 400, borderRadius: '6px', border: 'none', background: tab === t ? '#185FA5' : 'var(--muted)', color: tab === t ? 'white' : 'var(--foreground)', cursor: 'pointer' }}>
+          <button key={t} onClick={() => setTab(t)} style={{ padding: '5px 12px', fontSize: '11px', fontWeight: tab === t ? 600 : 400, borderRadius: '6px', border: 'none', background: tab === t ? 'var(--info-bg)' : 'var(--muted)', boxShadow: tab === t ? 'inset 0 0 0 1px var(--info-border)' : 'none', color: tab === t ? 'var(--info)' : 'var(--muted-foreground)', cursor: 'pointer' }}>
             {l}
           </button>
         ))}
@@ -408,17 +410,17 @@ function PanelIncidentes({ data, expandedId, onExpand }: { data: DashboardAnalit
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {reInc.tiendas.length === 0 && <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', textAlign: 'center', padding: '16px 0' }}>Sin reincidentes en este período.</div>}
           {reInc.tiendas.map(t => (
-            <div key={t.id} style={{ background: '#fff7ed', border: '0.5px solid #fed7aa', borderRadius: '8px', padding: '10px 12px' }}>
+            <div key={t.id} style={{ background: 'var(--warn-bg)', border: '1px solid var(--warn-border)', borderRadius: '8px', padding: '10px 12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
                 <div>
                   <span style={{ fontWeight: 600, fontSize: '12px' }}>{t.codigo}</span>
                   <span style={{ color: 'var(--muted-foreground)', fontSize: '11px', marginLeft: '8px' }}>{t.proveedor}</span>
                 </div>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: '#c2410c' }}>{t.caidas} caídas</span>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--warn)' }}>{t.caidas} caídas</span>
               </div>
-              <div style={{ fontSize: '10px', color: '#92400e' }}>{t.razon} · {t.tipoRepetido} · IEI {fmtCosto(t.costoEstimado)}</div>
+              <div style={{ fontSize: '10px', color: 'var(--warn)' }}>{t.razon} · {t.tipoRepetido} · IEI {fmtCosto(t.costoEstimado)}</div>
               {t.tendencia !== 'ESTABLE' && (
-                <span style={{ fontSize: '9px', padding: '1px 6px', borderRadius: '999px', background: t.tendencia === 'EMPEORA' ? '#fef2f2' : '#eff6ff', color: t.tendencia === 'EMPEORA' ? '#b91c1c' : '#1e40af', fontWeight: 600 }}>
+                <span style={{ fontSize: '9px', padding: '1px 6px', borderRadius: '999px', background: t.tendencia === 'EMPEORA' ? 'var(--danger-bg)' : 'var(--info-bg)', color: t.tendencia === 'EMPEORA' ? 'var(--danger-bg)' : 'var(--info-bg)', fontWeight: 600 }}>
                   {t.tendencia}
                 </span>
               )}
@@ -457,7 +459,7 @@ function PanelTiendas({ data, expandedId, onExpand }: { data: DashboardAnalitico
           <DeltaBadge delta={tiendas.deltaVsAnterior} invertir />
         </div>
       </div>
-      <div style={{ border: '0.5px solid var(--border)', borderRadius: '8px', overflow: 'hidden', marginBottom: '12px' }}>
+      <div style={{ border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', marginBottom: '12px' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
           <thead>
             <tr style={{ background: 'var(--muted)' }}>
@@ -471,17 +473,17 @@ function PanelTiendas({ data, expandedId, onExpand }: { data: DashboardAnalitico
               const isSel = selTienda === t.codigo
               const iei = ieiByTienda.get(t.codigo) ?? 0
               return (
-                <tr key={t.id} onClick={() => setSelTienda(isSel ? null : t.codigo)} style={{ borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', background: isSel ? '#eff6ff' : 'transparent', cursor: 'pointer' }}
+                <tr key={t.id} onClick={() => setSelTienda(isSel ? null : t.codigo)} style={{ borderTop: i > 0 ? '1px solid var(--border)' : 'none', background: isSel ? 'var(--info-bg)' : 'transparent', cursor: 'pointer' }}
                   onMouseEnter={e => { if (!isSel) (e.currentTarget as HTMLTableRowElement).style.background = 'var(--muted)' }}
                   onMouseLeave={e => { if (!isSel) (e.currentTarget as HTMLTableRowElement).style.background = 'transparent' }}
                 >
-                  <td style={{ padding: '7px 10px', fontWeight: 600, color: isSel ? '#1e40af' : 'var(--foreground)' }}>
+                  <td style={{ padding: '7px 10px', fontWeight: 600, color: isSel ? 'var(--info)' : 'var(--foreground)' }}>
                     {t.codigo}
                     {t.nombre && <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', fontWeight: 400 }}>{t.nombre}</div>}
                   </td>
                   <td style={{ padding: '7px 10px', color: 'var(--muted-foreground)' }}>{t.proveedor}</td>
                   <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 600 }}>{t.incidentesCount}</td>
-                  <td style={{ padding: '7px 10px', textAlign: 'right', fontFamily: 'monospace', color: iei > 0 ? '#b45309' : 'var(--muted-foreground)' }}>{iei > 0 ? fmtCosto(Math.round(iei)) : '—'}</td>
+                  <td style={{ padding: '7px 10px', textAlign: 'right', fontFamily: 'monospace', color: iei > 0 ? 'var(--warn)' : 'var(--muted-foreground)' }}>{iei > 0 ? fmtCosto(Math.round(iei)) : '—'}</td>
                 </tr>
               )
             })}
@@ -491,7 +493,7 @@ function PanelTiendas({ data, expandedId, onExpand }: { data: DashboardAnalitico
       <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
         Incidentes {selTienda ? `— ${selTienda}` : '(todas las tiendas)'}
         {selTienda && (
-          <button onClick={() => setSelTienda(null)} style={{ marginLeft: '8px', fontSize: '10px', background: 'none', border: 'none', cursor: 'pointer', color: '#185FA5', textDecoration: 'underline', padding: 0 }}>
+          <button onClick={() => setSelTienda(null)} style={{ marginLeft: '8px', fontSize: '10px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--info)', textDecoration: 'underline', padding: 0 }}>
             ver todas
           </button>
         )}
@@ -517,17 +519,17 @@ function PanelProveedorCritico({ data, expandedId, onExpand }: { data: Dashboard
 
   return (
     <>
-      <div style={{ background: '#fef2f2', border: '0.5px solid #fca5a5', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
-        <div style={{ fontSize: '10px', color: '#b91c1c', fontWeight: 600, marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Proveedor más crítico del período</div>
-        <div style={{ fontSize: '20px', fontWeight: 700, color: '#991b1b', marginBottom: '10px' }}>{prov.nombre}</div>
+      <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
+        <div style={{ fontSize: '10px', color: 'var(--danger)', fontWeight: 600, marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Proveedor más crítico del período</div>
+        <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--danger)', marginBottom: '10px' }}>{prov.nombre}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
           {[
             { label: 'SLA Respuesta',  value: slaProvData ? `${slaProvData.slaRespuestaPct}%`  : `${prov.metricas.slaPct}%`, bad: (slaProvData?.slaRespuestaPct ?? prov.metricas.slaPct) < 90 },
             { label: 'SLA Resolución', value: slaProvData ? `${slaProvData.slaResolucionPct}%` : '—',                         bad: (slaProvData?.slaResolucionPct ?? 100) < 90 },
           ].map(({ label, value, bad }) => (
-            <div key={label} style={{ background: 'white', borderRadius: '6px', padding: '8px 10px', border: `0.5px solid ${bad ? '#fca5a5' : '#e5e7eb'}` }}>
+            <div key={label} style={{ background: 'var(--card)', borderRadius: '6px', padding: '8px 10px', border: `1px solid ${bad ? 'var(--danger-border)' : 'var(--border)'}` }}>
               <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', marginBottom: '2px' }}>{label}</div>
-              <div style={{ fontSize: '18px', fontWeight: 700, color: bad ? '#b91c1c' : '#15803d' }}>{value}</div>
+              <div style={{ fontSize: '18px', fontWeight: 700, color: bad ? 'var(--danger)' : 'var(--ok)' }}>{value}</div>
               <div style={{ fontSize: '9px', color: 'var(--muted-foreground)' }}>meta: 90%</div>
             </div>
           ))}
@@ -539,17 +541,17 @@ function PanelProveedorCritico({ data, expandedId, onExpand }: { data: Dashboard
             { label: 'Incidentes',    value: String(prov.metricas.incidentes),             bad: false },
             { label: 'Reincidentes',  value: String(prov.metricas.reincidenciaTiendas),    bad: prov.metricas.reincidenciaTiendas > 0 },
           ].map(({ label, value, bad }) => (
-            <div key={label} style={{ background: 'white', borderRadius: '6px', padding: '6px 8px', border: `0.5px solid ${bad ? '#fca5a5' : '#e5e7eb'}` }}>
+            <div key={label} style={{ background: 'var(--card)', borderRadius: '6px', padding: '6px 8px', border: `1px solid ${bad ? 'var(--danger-border)' : 'var(--border)'}` }}>
               <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', marginBottom: '1px' }}>{label}</div>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: bad ? '#b91c1c' : 'var(--foreground)' }}>{value}</div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: bad ? 'var(--danger)' : 'var(--foreground)' }}>{value}</div>
             </div>
           ))}
         </div>
       </div>
 
       {mejor && (
-        <div style={{ background: '#f0fdf4', border: '0.5px solid #bbf7d0', borderRadius: '8px', padding: '10px 14px', marginBottom: '14px', fontSize: '11px' }}>
-          <span style={{ color: '#15803d', fontWeight: 600 }}>Mejor del período: {mejor.nombre}</span>
+        <div style={{ background: 'var(--ok-bg)', border: '1px solid var(--ok-border)', borderRadius: '8px', padding: '10px 14px', marginBottom: '14px', fontSize: '11px' }}>
+          <span style={{ color: 'var(--ok)', fontWeight: 600 }}>Mejor del período: {mejor.nombre}</span>
           <span style={{ color: 'var(--muted-foreground)', marginLeft: '8px' }}>SLA {mejor.slaPct}% · MTTR {fmtMin(mejor.tResolPromMin)}</span>
         </div>
       )}
@@ -564,28 +566,64 @@ function PanelProveedorCritico({ data, expandedId, onExpand }: { data: Dashboard
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 
-function KpiCard({ id, label, value, sub, delta, invertirDelta = false, color, bg, selected, onClick }: {
+/**
+ * Tarjeta de KPI del analítico. Mismo lenguaje que las del dashboard operativo:
+ * el FONDO siempre es oscuro y el estado se comunica con el acento (ícono,
+ * subrayado y velo de esquina), nunca tiñendo la tarjeta entera. Antes el
+ * fondo recibía el color de estado —`var(--warn)` sólido en IEI, `var(--danger)`
+ * en Prov. Crítico— y quedaban como manchas claras pegadas sobre el navy.
+ */
+function KpiCard({ label, value, sub, delta, invertirDelta = false, acento, icono, selected, onClick }: {
   id: string; label: string; value: string; sub?: string
   delta?: number | null; invertirDelta?: boolean
-  color: string; bg: string; selected: boolean; onClick: () => void
+  acento: string; icono: string; selected: boolean; onClick: () => void
 }) {
   return (
     <div
       onClick={onClick}
       style={{
-        flex: '1 1 120px', minWidth: '120px', padding: '12px 14px',
-        background: selected ? '#eff6ff' : bg,
-        border: selected ? '1.5px solid #3b82f6' : '0.5px solid var(--border)',
-        borderRadius: '10px', cursor: 'pointer', transition: 'box-shadow 0.15s',
-        boxShadow: selected ? '0 0 0 2px rgba(59,130,246,0.15)' : 'none',
+        position: 'relative', overflow: 'hidden',
+        flex: '1 1 140px', minWidth: '140px', padding: '13px 14px 14px',
+        background: 'var(--card)',
+        border: `1px solid ${selected ? acento : 'var(--border)'}`,
+        borderRadius: 'var(--radius-md)', cursor: 'pointer',
+        boxShadow: selected ? `0 0 22px -6px ${acento}` : 'var(--shadow-sm)',
+        display: 'flex', flexDirection: 'column', gap: '9px',
+        transition: 'transform var(--t) var(--ease), border-color var(--t) var(--ease), box-shadow var(--t) var(--ease)',
       }}
-      onMouseEnter={e => { if (!selected) (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)' }}
-      onMouseLeave={e => { if (!selected) (e.currentTarget as HTMLDivElement).style.boxShadow = 'none' }}
+      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; if (!selected) e.currentTarget.style.borderColor = 'var(--border-strong)' }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'none'; if (!selected) e.currentTarget.style.borderColor = 'var(--border)' }}
     >
-      <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>{label}</div>
-      <div style={{ fontSize: '22px', fontWeight: 700, color, lineHeight: 1, marginBottom: '4px' }}>{value}</div>
-      {sub && <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '3px' }}>{sub}</div>}
-      {delta != null && <DeltaBadge delta={delta} invertir={invertirDelta} />}
+      {/* Velo del acento en la esquina — da color sin teñir la tarjeta */}
+      <div aria-hidden style={{
+        position: 'absolute', top: '-40px', right: '-40px', width: '110px', height: '110px',
+        borderRadius: '50%', background: acento, opacity: 0.10, pointerEvents: 'none',
+      }} />
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
+        <div style={{
+          width: 30, height: 30, borderRadius: 'var(--radius-sm)',
+          background: `color-mix(in srgb, ${acento} 14%, transparent)`,
+          border: `1px solid color-mix(in srgb, ${acento} 32%, transparent)`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '13px', flexShrink: 0,
+        }}>
+          {icono}
+        </div>
+        <div style={{ fontSize: '9.5px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', lineHeight: 1.25 }}>
+          {label}
+        </div>
+      </div>
+
+      <div style={{ position: 'relative' }}>
+        <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--foreground)', lineHeight: 1.1, letterSpacing: '-0.02em', wordBreak: 'break-word' }}>
+          {value}
+        </div>
+        <div style={{ width: '30px', height: '3px', borderRadius: '99px', background: acento, marginTop: '8px', opacity: 0.9 }} />
+      </div>
+
+      {sub && <div style={{ fontSize: '9.5px', color: 'var(--faint-foreground)', position: 'relative' }}>{sub}</div>}
+      {delta != null && <div style={{ position: 'relative' }}><DeltaBadge delta={delta} invertir={invertirDelta} /></div>}
     </div>
   )
 }
@@ -643,16 +681,16 @@ export default function DashboardAnalitico() {
     <div style={{ minHeight: '100vh', background: 'var(--background)', position: 'relative' }}>
 
       {/* ── Filtros ──────────────────────────────────────────────────────── */}
-      <div style={{ padding: '16px 24px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', borderBottom: '0.5px solid var(--border)' }}>
-        <input type="date" value={desde} onChange={e => setDesde(e.target.value)} style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }} />
-        <input type="date" value={hasta} onChange={e => setHasta(e.target.value)} style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }} />
+      <div style={{ padding: '16px 24px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', borderBottom: '1px solid var(--border)' }}>
+        <input type="date" value={desde} onChange={e => setDesde(e.target.value)} style={{ padding: '6px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }} />
+        <input type="date" value={hasta} onChange={e => setHasta(e.target.value)} style={{ padding: '6px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }} />
         {data?.proveedores && (
-          <select value={proveedorId} onChange={e => setProveedorId(e.target.value)} style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
+          <select value={proveedorId} onChange={e => setProveedorId(e.target.value)} style={{ padding: '6px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
             <option value="">Todos los proveedores</option>
             {data.proveedores.map(p => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
           </select>
         )}
-        <button onClick={fetchData} disabled={loading} style={{ padding: '6px 16px', fontSize: '12px', fontWeight: 600, background: loading ? '#93c5fd' : '#185FA5', color: 'white', border: 'none', borderRadius: '7px', cursor: loading ? 'default' : 'pointer' }}>
+        <button onClick={fetchData} disabled={loading} className="nd-btn-primary" style={{ padding: '6px 16px', fontSize: '12px', borderRadius: '7px' }}>
           {loading ? 'Cargando…' : 'Actualizar'}
         </button>
         <button onClick={() => { setDesde(firstDayOfMonth()); setHasta(todayStr()); setProveedorId('') }} style={{ padding: '6px 12px', fontSize: '12px', background: 'var(--muted)', border: 'none', borderRadius: '7px', cursor: 'pointer', color: 'var(--foreground)' }}>
@@ -662,8 +700,8 @@ export default function DashboardAnalitico() {
 
       {/* ── Estado vacío / error ─────────────────────────────────────────── */}
       {error && !loading && (
-        <div style={{ padding: '48px', textAlign: 'center', color: '#b91c1c', fontSize: '13px' }}>
-          Error cargando datos. <button onClick={fetchData} style={{ background: 'none', border: 'none', color: '#185FA5', cursor: 'pointer', textDecoration: 'underline' }}>Intenta de nuevo.</button>
+        <div style={{ padding: '48px', textAlign: 'center', color: 'var(--danger)', fontSize: '13px' }}>
+          Error cargando datos. <button onClick={fetchData} style={{ background: 'none', border: 'none', color: 'var(--info)', cursor: 'pointer', textDecoration: 'underline' }}>Intenta de nuevo.</button>
         </div>
       )}
       {!data && !loading && !error && (
@@ -684,7 +722,7 @@ export default function DashboardAnalitico() {
               value={`${sla!.slaRespuestaPct}%`}
               sub={`${sla!.evaluables.length} evaluables`}
               delta={sla!.deltaRespuestaPct}
-              color={slaColor(sla!.slaRespuestaPct)} bg={slaBg(sla!.slaRespuestaPct)}
+              acento={slaColor(sla!.slaRespuestaPct)} icono="⚡"
               selected={selectedCard === 'slaResp'} onClick={() => handleCardClick('slaResp')}
             />
             <KpiCard
@@ -692,7 +730,7 @@ export default function DashboardAnalitico() {
               value={`${sla!.slaResolucionPct}%`}
               sub={`${sla!.evaluables.filter(e => e.slaResolOk).length} cumplieron`}
               delta={sla!.deltaResolucionPct}
-              color={slaColor(sla!.slaResolucionPct)} bg={slaBg(sla!.slaResolucionPct)}
+              acento={slaColor(sla!.slaResolucionPct)} icono="✓"
               selected={selectedCard === 'slaResol'} onClick={() => handleCardClick('slaResol')}
             />
             <KpiCard
@@ -700,7 +738,7 @@ export default function DashboardAnalitico() {
               value={fmtMin(c.mttrPromedio.minutos)}
               sub="promedio resolución"
               delta={c.mttrPromedio.deltaMinutos != null ? -c.mttrPromedio.deltaMinutos : null}
-              color={mttrColor(c.mttrPromedio.minutos)} bg="var(--card)"
+              acento={mttrColor(c.mttrPromedio.minutos)} icono="⏱"
               selected={selectedCard === 'mttr'} onClick={() => handleCardClick('mttr')}
             />
             <KpiCard
@@ -708,7 +746,7 @@ export default function DashboardAnalitico() {
               value={fmtCosto(c.costoEstimado.total)}
               sub={c.costoEstimado.proveedorMayorImpacto ? `Mayor: ${c.costoEstimado.proveedorMayorImpacto.nombre}` : undefined}
               delta={c.costoEstimado.deltaVsAnterior} invertirDelta
-              color="#b45309" bg="#fffbeb"
+              acento="var(--warn)" icono="S/"
               selected={selectedCard === 'iei'} onClick={() => handleCardClick('iei')}
             />
             <KpiCard
@@ -716,7 +754,7 @@ export default function DashboardAnalitico() {
               value={String(c.incidentes.total)}
               sub={`${c.reincidenciaCritica.total} tiendas reincidentes`}
               delta={c.incidentes.deltaVsAnterior} invertirDelta
-              color="#185FA5" bg="var(--card)"
+              acento="var(--info)" icono="📋"
               selected={selectedCard === 'incidentes'} onClick={() => handleCardClick('incidentes')}
             />
             <KpiCard
@@ -724,14 +762,14 @@ export default function DashboardAnalitico() {
               value={String(c.tiendasAfectadas.total)}
               sub={`${c.tiendasAfectadas.porcentajeRed}% de la red`}
               delta={c.tiendasAfectadas.deltaVsAnterior} invertirDelta
-              color="#1d9e75" bg="var(--card)"
+              acento="var(--ok)" icono="🏪"
               selected={selectedCard === 'tiendas'} onClick={() => handleCardClick('tiendas')}
             />
             <KpiCard
               id="provCrit" label="Prov. Crítico"
               value={provCrit?.nombre ?? '—'}
               sub={provCrit ? `Score: ${provCrit.score} · SLA ${provCrit.metricas.slaPct}%` : 'Sin alertas'}
-              color={provCrit ? '#b91c1c' : '#15803d'} bg={provCrit ? '#fef2f2' : 'var(--card)'}
+              acento={provCrit ? 'var(--danger)' : 'var(--ok)'} icono="⚠"
               selected={selectedCard === 'provCrit'} onClick={() => handleCardClick('provCrit')}
             />
           </div>
@@ -744,13 +782,13 @@ export default function DashboardAnalitico() {
       {/* ── Panel lateral ───────────────────────────────────────────────── */}
       {selectedCard && data && (
         <>
-          <div onClick={() => setSelectedCard(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.25)', zIndex: 79 }} />
+          <div onClick={() => setSelectedCard(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)', zIndex: 79 }} />
           <aside style={{
             position: 'fixed', top: 0, right: 0, width: '480px', maxWidth: '95vw',
-            height: '100vh', background: 'var(--card)', borderLeft: '0.5px solid var(--border)',
+            height: '100vh', background: 'var(--card)', borderLeft: '1px solid var(--border)',
             zIndex: 80, overflowY: 'auto', display: 'flex', flexDirection: 'column',
           }}>
-            <div style={{ padding: '16px 20px', borderBottom: '0.5px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'var(--card)', zIndex: 1 }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'var(--card)', zIndex: 1 }}>
               <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--foreground)', lineHeight: 1.3 }}>
                 {PANEL_TITLES[selectedCard]}
               </div>

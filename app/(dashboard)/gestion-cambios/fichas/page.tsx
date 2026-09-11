@@ -3,10 +3,10 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 const ESTADO_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
-  BORRADOR:     { label: 'Borrador',     bg: '#F1F5F9', color: '#475569' },
-  ACTIVA:       { label: 'Activa',       bg: '#ECFDF5', color: '#065F46' },
-  HISTORICA:    { label: 'Desactivada',  bg: '#F8FAFC', color: '#94A3B8' },
-  DADA_DE_BAJA: { label: 'Dada de Baja', bg: '#FEF2F2', color: '#B91C1C' },
+  BORRADOR:     { label: 'Borrador',     bg: 'var(--info-bg)', color: 'var(--muted-foreground)' },
+  ACTIVA:       { label: 'Activa',       bg: 'var(--ok-bg)', color: 'var(--ok)' },
+  HISTORICA:    { label: 'Desactivada',  bg: 'var(--surface-2)', color: 'var(--muted-foreground)' },
+  DADA_DE_BAJA: { label: 'Dada de Baja', bg: 'var(--danger-bg)', color: 'var(--danger)' },
 }
 
 function GcTabs({ active }: { active: 'acciones' | 'fichas' }) {
@@ -16,10 +16,10 @@ function GcTabs({ active }: { active: 'acciones' | 'fichas' }) {
     { id: 'fichas'   as const, label: 'Fichas',   href: '/gestion-cambios/fichas' },
   ]
   return (
-    <div style={{ display: 'flex', gap: '2px', borderBottom: '0.5px solid var(--border)', marginBottom: '16px' }}>
+    <div style={{ display: 'flex', gap: '2px', borderBottom: '1px solid var(--border)', marginBottom: '16px' }}>
       {tabs.map(t => (
         <button key={t.id} onClick={() => router.push(t.href)}
-          style={{ padding: '8px 16px', fontSize: '12px', fontWeight: active === t.id ? 700 : 400, background: 'none', border: 'none', cursor: 'pointer', color: active === t.id ? 'var(--foreground)' : 'var(--muted-foreground)', borderBottom: active === t.id ? '2px solid hsl(221,83%,23%)' : '2px solid transparent', transition: 'color 0.15s' }}>
+          style={{ padding: '8px 16px', fontSize: '12px', fontWeight: active === t.id ? 700 : 400, background: 'none', border: 'none', cursor: 'pointer', color: active === t.id ? 'var(--foreground)' : 'var(--muted-foreground)', borderBottom: active === t.id ? '2px solid var(--primary)' : '2px solid transparent', transition: 'color 0.15s' }}>
           {t.label}
         </button>
       ))}
@@ -69,7 +69,7 @@ export default function FichasPage() {
         </div>
         <button
           onClick={() => router.push('/gestion-cambios/fichas/nueva')}
-          style={{ padding: '8px 16px', fontSize: '12px', fontWeight: 600, background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+          style={{ padding: '8px 16px', fontSize: '12px', fontWeight: 600, background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
           + Nueva ficha
         </button>
       </div>
@@ -78,10 +78,10 @@ export default function FichasPage() {
 
       {/* Banner tienda filtrada */}
       {tiendaIdUrl && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', padding: '7px 12px', background: '#EFF6FF', border: '0.5px solid #BFDBFE', borderRadius: '8px', fontSize: '12px', color: '#1D4ED8' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', padding: '7px 12px', background: 'var(--info-bg)', border: '1px solid var(--info-border)', borderRadius: '8px', fontSize: '12px', color: 'var(--info)' }}>
           <span>Mostrando fichas de una tienda específica.</span>
           <button onClick={() => router.push('/gestion-cambios/fichas')}
-            style={{ fontSize: '11px', fontWeight: 600, background: 'none', border: 'none', color: '#1D4ED8', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
+            style={{ fontSize: '11px', fontWeight: 600, background: 'none', border: 'none', color: 'var(--info)', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
             Ver todas
           </button>
         </div>
@@ -93,21 +93,21 @@ export default function FichasPage() {
           value={buscar}
           onChange={e => setBuscar(e.target.value)}
           placeholder="Buscar por código..."
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--background)', minWidth: '160px' }}
+          style={{ padding: '6px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--background)', minWidth: '160px' }}
         />
         <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--background)' }}>
+          style={{ padding: '6px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--background)' }}>
           <option value="">Todos los estados</option>
           {Object.entries(ESTADO_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
         </select>
         <select value={filtroProveedor} onChange={e => setFiltroProveedor(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--background)' }}>
+          style={{ padding: '6px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--background)' }}>
           <option value="">Todos los proveedores</option>
           {proveedores.map((p: any) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
         </select>
         {(filtroEstado || filtroProveedor || buscar) && (
           <button onClick={() => { setFiltroEstado(''); setFiltroProveedor(''); setBuscar('') }}
-            style={{ padding: '6px 12px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', cursor: 'pointer' }}>
+            style={{ padding: '6px 12px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', cursor: 'pointer' }}>
             Limpiar
           </button>
         )}
@@ -136,13 +136,13 @@ export default function FichasPage() {
                 return (
                   <tr key={r.id}
                     onClick={() => router.push(`/gestion-cambios/fichas/${r.id}`)}
-                    style={{ borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', cursor: 'pointer', transition: 'background 0.1s' }}
+                    style={{ borderTop: i > 0 ? '1px solid var(--border)' : 'none', cursor: 'pointer', transition: 'background 0.1s' }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
                     onMouseLeave={e => (e.currentTarget.style.background = '')}>
                     <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
                       <span style={{ padding: '2px 8px', borderRadius: '99px', fontSize: '10px', fontWeight: 600, background: est.bg, color: est.color }}>{est.label}</span>
                     </td>
-                    <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontWeight: 700, fontSize: '11px', color: 'hsl(221,83%,23%)', whiteSpace: 'nowrap' }}>{r.codigo}</td>
+                    <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontWeight: 700, fontSize: '11px', color: 'var(--primary)', whiteSpace: 'nowrap' }}>{r.codigo}</td>
                     <td style={{ padding: '10px 12px' }}>
                       <div style={{ fontWeight: 700, fontSize: '12px', color: 'var(--foreground)' }}>{r.tiendaCodigo}</div>
                       <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{r.tiendaNombreCc}</div>
@@ -158,10 +158,10 @@ export default function FichasPage() {
                       {r.nivelesStr
                         ? <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                             {r.nivelesStr.split(' ').map((n: string, i: number) => (
-                              <span key={`${n}-${i}`} style={{ background: '#EFF6FF', color: '#1D4ED8', padding: '1px 7px', borderRadius: '4px', fontWeight: 700, fontSize: '10px', fontFamily: 'monospace' }}>{n}</span>
+                              <span key={`${n}-${i}`} style={{ background: 'var(--info-bg)', color: 'var(--info)', padding: '1px 7px', borderRadius: '4px', fontWeight: 700, fontSize: '10px', fontFamily: 'monospace' }}>{n}</span>
                             ))}
                           </div>
-                        : <span style={{ color: '#DC2626', fontSize: '10px' }}>Sin niveles</span>}
+                        : <span style={{ color: 'var(--danger)', fontSize: '10px' }}>Sin niveles</span>}
                     </td>
                   </tr>
                 )

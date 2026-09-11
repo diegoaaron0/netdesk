@@ -18,26 +18,26 @@ export async function loadTiendaOnly(id: string, opts: { fetchImpl?: typeof fetc
 }
 
 const PROVEEDOR_COLORS: Record<string, { bg: string; color: string }> = {
-  BITEL:             { bg: '#dbeafe', color: '#1e40af' },
-  CLARO:             { bg: '#fee2e2', color: '#b91c1c' },
-  CONVERGIA:         { bg: '#ede9fe', color: '#7c3aed' },
-  ENTEL:             { bg: '#dcfce7', color: '#15803d' },
-  MOVISTAR:          { bg: '#1e3a8a', color: '#bfdbfe' },
-  GTD:               { bg: '#ffedd5', color: '#c2410c' },
-  'GTD PERU':        { bg: '#ffedd5', color: '#c2410c' },
-  FIBERLUX:          { bg: '#fef9c3', color: '#854d0e' },
-  FIBERTEL:          { bg: '#fef3c7', color: '#713f12' },
-  'FIBRA AMAZÓNICA': { bg: '#d1fae5', color: '#065f46' },
-  DITSAC:            { bg: '#fce7f3', color: '#9d174d' },
-  'DIT SAC':         { bg: '#fce7f3', color: '#9d174d' },
-  TELCONET:          { bg: '#e0f2fe', color: '#075985' },
-  GONET:             { bg: '#d1fae5', color: '#064e3b' },
-  AMERICATEL:        { bg: '#e0e7ff', color: '#3730a3' },
-  WIN:               { bg: '#ecfdf5', color: '#047857' },
+  BITEL:             { bg: 'var(--info-bg)', color: 'var(--info)' },
+  CLARO:             { bg: 'var(--danger-bg)', color: 'var(--danger)' },
+  CONVERGIA:         { bg: 'var(--purple-bg)', color: 'var(--purple)' },
+  ENTEL:             { bg: 'var(--ok-bg)', color: 'var(--ok)' },
+  MOVISTAR:          { bg: 'var(--info-bg)', color: 'var(--info)' },
+  GTD:               { bg: 'var(--warn-bg)', color: 'var(--warn)' },
+  'GTD PERU':        { bg: 'var(--warn-bg)', color: 'var(--warn)' },
+  FIBERLUX:          { bg: 'var(--warn-bg)', color: 'var(--warn)' },
+  FIBERTEL:          { bg: 'var(--warn-bg)', color: 'var(--warn)' },
+  'FIBRA AMAZÓNICA': { bg: 'var(--ok-bg)', color: 'var(--ok)' },
+  DITSAC:            { bg: 'var(--danger-bg)', color: 'var(--danger)' },
+  'DIT SAC':         { bg: 'var(--danger-bg)', color: 'var(--danger)' },
+  TELCONET:          { bg: 'var(--info-bg)', color: 'var(--info)' },
+  GONET:             { bg: 'var(--ok-bg)', color: 'var(--ok)' },
+  AMERICATEL:        { bg: 'var(--info-bg)', color: 'var(--purple)' },
+  WIN:               { bg: 'var(--ok-bg)', color: 'var(--ok)' },
 }
 function provColor(n: string | null) {
-  if (!n) return { bg: '#f3f4f6', color: '#6b7280' }
-  return PROVEEDOR_COLORS[n.toUpperCase()] ?? { bg: '#f3f4f6', color: '#6b7280' }
+  if (!n) return { bg: 'var(--muted-foreground)', color: 'var(--muted-foreground)' }
+  return PROVEEDOR_COLORS[n.toUpperCase()] ?? { bg: 'var(--surface-2)', color: 'var(--muted-foreground)' }
 }
 
 const CAMPO_LABELS: Record<string, string> = {
@@ -61,9 +61,9 @@ const CAMPO_LABELS: Record<string, string> = {
 }
 
 const CLASIFICACION_COLORS: Record<string, string> = {
-  verde: '#22c55e',
+  verde: 'var(--ok)',
   amarillo: '#eab308',
-  rojo: '#ef4444',
+  rojo: 'var(--danger)',
 }
 
 function todayStr() { return new Date().toISOString().slice(0, 10) }
@@ -89,16 +89,16 @@ function fmtTs(d: string | null | undefined) {
 
 function estadoBadge(est: string | null | undefined): { bg: string; color: string } {
   const m: Record<string, { bg: string; color: string }> = {
-    ABIERTO:         { bg: '#fee2e2', color: '#991b1b' },
-    EN_SEGUIMIENTO:  { bg: '#fef9c3', color: '#92400e' },
-    ESCALADO_N1:     { bg: '#ffedd5', color: '#9a3412' },
-    ESCALADO_N2:     { bg: '#fed7aa', color: '#7c2d12' },
-    ESCALADO_N3:     { bg: '#fecaca', color: '#7f1d1d' },
-    RESUELTO:        { bg: '#dcfce7', color: '#166534' },
-    CERRADO:         { bg: '#f3f4f6', color: '#374151' },
-    CANCELADO:       { bg: '#f3f4f6', color: '#6b7280' },
+    ABIERTO:         { bg: 'var(--danger-bg)', color: 'var(--danger)' },
+    EN_SEGUIMIENTO:  { bg: 'var(--warn-bg)', color: 'var(--warn)' },
+    ESCALADO_N1:     { bg: 'var(--warn-bg)', color: 'var(--warn)' },
+    ESCALADO_N2:     { bg: 'var(--warn-bg)', color: 'var(--warn)' },
+    ESCALADO_N3:     { bg: 'var(--danger-bg)', color: 'var(--danger)' },
+    RESUELTO:        { bg: 'var(--ok-bg)', color: 'var(--ok)' },
+    CERRADO:         { bg: 'var(--muted-foreground)', color: 'var(--muted-foreground)' },
+    CANCELADO:       { bg: 'var(--muted-foreground)', color: 'var(--muted-foreground)' },
   }
-  return m[est ?? ''] ?? { bg: '#f3f4f6', color: '#6b7280' }
+  return m[est ?? ''] ?? { bg: 'var(--surface-2)', color: 'var(--muted-foreground)' }
 }
 
 function tipoLabel(t: string | null | undefined) {
@@ -111,7 +111,7 @@ function tipoLabel(t: string | null | undefined) {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px', paddingBottom: '5px', borderBottom: '0.5px solid var(--border)' }}>
+    <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px', paddingBottom: '5px', borderBottom: '1px solid var(--border)' }}>
       {children}
     </div>
   )
@@ -126,9 +126,9 @@ function Field({ label, value, editing, onChange, type = 'text' }: {
       {editing ? (
         type === 'textarea'
           ? <textarea value={value ?? ''} onChange={e => onChange(e.target.value)}
-              style={{ width: '100%', padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', boxSizing: 'border-box', minHeight: '54px', resize: 'vertical' }} />
+              style={{ width: '100%', padding: '5px 8px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', boxSizing: 'border-box', minHeight: '54px', resize: 'vertical' }} />
           : <input type={type} value={value ?? ''} onChange={e => onChange(e.target.value)}
-              style={{ width: '100%', padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', boxSizing: 'border-box' }} />
+              style={{ width: '100%', padding: '5px 8px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', boxSizing: 'border-box' }} />
       ) : (
         <div style={{ fontSize: '11px', color: value ? 'var(--foreground)' : 'var(--muted-foreground)', minHeight: '18px' }}>
           {value || '—'}
@@ -139,10 +139,10 @@ function Field({ label, value, editing, onChange, type = 'text' }: {
 }
 
 function contingenciaStatus(tienda: any): { label: string; color: string; bg: string } {
-  if (tienda.contingenciaActiva) return { label: 'ACTIVADA', color: '#92400e', bg: '#fef3c7' }
-  if (tienda.datosMovilesActivos) return { label: 'DATOS', color: '#1e40af', bg: '#dbeafe' }
-  if (tienda.tieneContingencia) return { label: 'Sí', color: '#065f46', bg: '#d1fae5' }
-  return { label: 'No', color: '#6b7280', bg: '#f3f4f6' }
+  if (tienda.contingenciaActiva) return { label: 'ACTIVADA', color: 'var(--warn)', bg: 'var(--warn-bg)' }
+  if (tienda.datosMovilesActivos) return { label: 'DATOS', color: 'var(--info)', bg: 'var(--info-bg)' }
+  if (tienda.tieneContingencia) return { label: 'Sí', color: 'var(--ok)', bg: 'var(--ok-bg)' }
+  return { label: 'No', color: 'var(--muted-foreground)', bg: 'var(--surface-2)' }
 }
 
 export default function TiendaDetallePage({ params }: { params: Promise<{ id: string }> }) {
@@ -328,19 +328,19 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
         <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', fontWeight: 500, flexShrink: 0 }}>Período</span>
         <input
           type="date" value={filtroDesde} onChange={e => setFiltroDesde(e.target.value)}
-          style={{ padding: '5px 9px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', colorScheme: 'dark' }}
+          style={{ padding: '5px 9px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', colorScheme: 'dark' }}
         />
         <span style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>—</span>
         <input
           type="date" value={filtroHasta} onChange={e => setFiltroHasta(e.target.value)}
-          style={{ padding: '5px 9px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', colorScheme: 'dark' }}
+          style={{ padding: '5px 9px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', colorScheme: 'dark' }}
         />
       </div>
 
       {/* ── Header strip ── */}
-      <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
         <button onClick={() => router.push('/tiendas')}
-          style={{ padding: '5px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', color: 'var(--foreground)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
+          style={{ padding: '5px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', color: 'var(--foreground)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
           ← Volver
         </button>
 
@@ -359,12 +359,12 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
             <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>CID {tienda.fichaActiva.cidServicio}</span>
           )}
           {tienda.contingenciaActiva && !hayRouterExternoActivo && (
-            <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 7px', borderRadius: '4px', background: '#fef3c7', color: '#92400e', border: '0.5px solid #f59e0b' }}>
+            <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 7px', borderRadius: '4px', background: 'var(--warn-bg)', color: 'var(--warn)', border: '1px solid var(--warn-border)' }}>
               Contingencia activa
             </span>
           )}
           {hayRouterExternoActivo && (
-            <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 7px', borderRadius: '4px', background: '#FFF7ED', color: '#C2410C', border: '0.5px solid #FDBA74' }}>
+            <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 7px', borderRadius: '4px', background: 'var(--warn-bg)', color: 'var(--warn)', border: '1px solid var(--warn-border)' }}>
               Router externo activo
             </span>
           )}
@@ -381,16 +381,16 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
           {(tienda.ventaHoraSoles || tienda.ventaHoraFdsSoles || tienda.ventaMensualSoles) && (
             <button
               onClick={() => setVentasExpanded(v => !v)}
-              style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '4px 8px', border: '0.5px solid var(--border)', borderRadius: '7px', background: ventasExpanded ? 'var(--muted)' : 'var(--card)', cursor: 'pointer' }}>
+              style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '4px 8px', border: '1px solid var(--border)', borderRadius: '7px', background: ventasExpanded ? 'var(--muted)' : 'var(--card)', cursor: 'pointer' }}>
               {tienda.ventaHoraSoles && (
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontWeight: 700, color: '#15803d', fontSize: '12px' }}>S/ {Number(tienda.ventaHoraSoles).toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+                  <div style={{ fontWeight: 700, color: 'var(--ok)', fontSize: '12px' }}>S/ {Number(tienda.ventaHoraSoles).toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
                   <div style={{ fontSize: '8px', color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>L-J /h</div>
                 </div>
               )}
               {tienda.ventaHoraFdsSoles && (
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontWeight: 700, color: '#1d4ed8', fontSize: '12px' }}>S/ {Number(tienda.ventaHoraFdsSoles).toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+                  <div style={{ fontWeight: 700, color: 'var(--info)', fontSize: '12px' }}>S/ {Number(tienda.ventaHoraFdsSoles).toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
                   <div style={{ fontSize: '8px', color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>V-D /h</div>
                 </div>
               )}
@@ -410,7 +410,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               cluster — con cluster, resolveVentaHora cae a la tarifa de
               referencia y sí calcula. */}
           {!(tienda.ventaHoraSoles || tienda.ventaHoraFdsSoles || tienda.ventaMensualSoles) && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '7px', background: '#fee2e2', border: '0.5px solid #dc2626', fontSize: '10px', fontWeight: 600, color: '#991b1b' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '7px', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', fontSize: '10px', fontWeight: 600, color: 'var(--danger)' }}>
               <span style={{ fontSize: '11px', lineHeight: 1 }}>⚠</span>
               {tienda.cluster
                 ? <>Sin venta configurada — el IEI usa la tarifa de referencia del cluster {tienda.cluster}</>
@@ -419,8 +419,8 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
           )}
           {iei30d !== null && (
             <button onClick={() => setIeiPanelOpen(true)}
-              style={{ textAlign: 'right', background: 'none', border: '0.5px solid var(--border)', borderRadius: '6px', padding: '3px 8px', cursor: 'pointer' }}>
-              <div style={{ fontWeight: 700, color: iei30d > 0 ? '#b91c1c' : '#16a34a', fontSize: '12px' }}>
+              style={{ textAlign: 'right', background: 'none', border: '1px solid var(--border)', borderRadius: '6px', padding: '3px 8px', cursor: 'pointer' }}>
+              <div style={{ fontWeight: 700, color: iei30d > 0 ? 'var(--danger)' : 'var(--ok)', fontSize: '12px' }}>
                 {iei30d > 0 ? `S/ ${iei30d.toLocaleString('es-PE')}` : 'S/ 0'}
               </div>
               <div style={{ fontSize: '8px', color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>IEI período ↗</div>
@@ -438,17 +438,17 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
             {editing ? (
               <>
                 <button onClick={() => { setEditing(false); setForm(tienda) }}
-                  style={{ padding: '5px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', color: 'var(--foreground)', cursor: 'pointer' }}>
+                  style={{ padding: '5px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', color: 'var(--foreground)', cursor: 'pointer' }}>
                   Cancelar
                 </button>
                 <button onClick={handleSave} disabled={saving}
-                  style={{ padding: '5px 12px', fontSize: '12px', border: 'none', borderRadius: '7px', background: 'hsl(221,83%,23%)', color: 'white', fontWeight: 500, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+                  style={{ padding: '5px 12px', fontSize: '12px', border: 'none', borderRadius: '7px', background: 'var(--gradient-primary)', color: 'white', fontWeight: 500, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
                   {saving ? 'Guardando...' : 'Guardar'}
                 </button>
               </>
             ) : (
               <button onClick={() => setEditing(true)}
-                style={{ padding: '5px 12px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', cursor: 'pointer' }}>
+                style={{ padding: '5px 12px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', cursor: 'pointer' }}>
                 Editar
               </button>
             )}
@@ -466,15 +466,15 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
         const fmt = (n: number) => n.toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
         const fmt2 = (n: number) => n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
         return (
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 16px' }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 16px' }}>
             {/* Badge fuente de datos */}
             {tienda.fuenteVentas === 'ESTIMADO' && (
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '2px 9px', marginBottom: '10px', borderRadius: '5px', background: '#fef9c3', border: '0.5px solid #ca8a04', fontSize: '10px', fontWeight: 600, color: '#713f12' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '2px 9px', marginBottom: '10px', borderRadius: '5px', background: 'var(--warn-bg)', border: '1px solid #ca8a04', fontSize: '10px', fontWeight: 600, color: 'var(--warn)' }}>
                 Estimado — datos limitados (muestra reducida)
               </div>
             )}
             {tienda.fuenteVentas === 'REFERENCIA' && (
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '2px 9px', marginBottom: '10px', borderRadius: '5px', background: '#ffedd5', border: '0.5px solid #f97316', fontSize: '10px', fontWeight: 600, color: '#9a3412' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '2px 9px', marginBottom: '10px', borderRadius: '5px', background: 'var(--warn-bg)', border: '1px solid #f97316', fontSize: '10px', fontWeight: 600, color: 'var(--warn)' }}>
                 Referencia cluster {tienda.cluster ?? '?'} — sin data propia
               </div>
             )}
@@ -500,7 +500,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
             {canEdit && !editingVentas && (
               <button
                 onClick={() => { setVentaMensualInput(mes > 0 ? mes.toFixed(2) : ''); setEditingVentas(true) }}
-                style={{ marginTop: '10px', padding: '4px 10px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--muted)', color: 'var(--foreground)', cursor: 'pointer' }}>
+                style={{ marginTop: '10px', padding: '4px 10px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--muted)', color: 'var(--foreground)', cursor: 'pointer' }}>
                 Actualizar venta mensual
               </button>
             )}
@@ -512,17 +512,17 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                   value={ventaMensualInput}
                   onChange={e => setVentaMensualInput(e.target.value)}
                   placeholder="Ej: 175000"
-                  style={{ padding: '4px 8px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', width: '140px' }}
+                  style={{ padding: '4px 8px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', width: '140px' }}
                 />
                 <button
                   onClick={previewVentaUpdate}
                   disabled={!ventaMensualInput || isNaN(parseFloat(ventaMensualInput))}
-                  style={{ padding: '4px 12px', fontSize: '11px', border: 'none', borderRadius: '6px', background: 'hsl(221,83%,23%)', color: 'white', cursor: 'pointer', opacity: (!ventaMensualInput || isNaN(parseFloat(ventaMensualInput))) ? 0.5 : 1 }}>
+                  style={{ padding: '4px 12px', fontSize: '11px', border: 'none', borderRadius: '6px', background: 'var(--gradient-primary)', color: 'white', cursor: 'pointer', opacity: (!ventaMensualInput || isNaN(parseFloat(ventaMensualInput))) ? 0.5 : 1 }}>
                   Guardar
                 </button>
                 <button
                   onClick={() => setEditingVentas(false)}
-                  style={{ padding: '4px 10px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--muted)', color: 'var(--foreground)', cursor: 'pointer' }}>
+                  style={{ padding: '4px 10px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--muted)', color: 'var(--foreground)', cursor: 'pointer' }}>
                   Cancelar
                 </button>
               </div>
@@ -538,25 +538,25 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
 
           {/* Card A: Tienda / contacto */}
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
             <SectionTitle>Tienda</SectionTitle>
 
             {/* Celular destacado */}
-            <div style={{ padding: '7px 10px', background: form.celularTienda ? '#EFF6FF' : 'var(--muted)', border: `0.5px solid ${form.celularTienda ? '#BFDBFE' : 'var(--border)'}`, borderRadius: '7px', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+            <div style={{ padding: '7px 10px', background: form.celularTienda ? 'var(--info-bg)' : 'var(--muted)', border: `1px solid ${form.celularTienda ? 'var(--info-border)' : 'var(--border)'}`, borderRadius: '7px', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '9px', fontWeight: 700, color: '#1D4ED8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '2px' }}>Celular de tienda</div>
+                <div style={{ fontSize: '9px', fontWeight: 700, color: 'var(--info)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '2px' }}>Celular de tienda</div>
                 {editing ? (
                   <input value={form.celularTienda ?? ''} onChange={e => setF('celularTienda', e.target.value)} placeholder="Ej: 987 654 321"
-                    style={{ width: '100%', padding: '3px 6px', fontSize: '12px', fontWeight: 600, border: '0.5px solid #93C5FD', borderRadius: '5px', background: 'white', color: '#1D4ED8', outline: 'none', boxSizing: 'border-box' }} />
+                    style={{ width: '100%', padding: '3px 6px', fontSize: '12px', fontWeight: 600, border: '1px solid var(--info-border)', borderRadius: '5px', background: 'var(--card)', color: 'var(--info)', outline: 'none', boxSizing: 'border-box' }} />
                 ) : (
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: form.celularTienda ? '#1D4ED8' : 'var(--muted-foreground)', fontFamily: form.celularTienda ? 'monospace' : 'inherit' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: form.celularTienda ? 'var(--info)' : 'var(--muted-foreground)', fontFamily: form.celularTienda ? 'monospace' : 'inherit' }}>
                     {form.celularTienda || 'Sin registrar'}
                   </div>
                 )}
               </div>
               {!editing && form.celularTienda && (
                 <a href={`tel:${form.celularTienda.replace(/\s/g, '')}`}
-                  style={{ padding: '4px 8px', background: '#1D4ED8', color: 'white', borderRadius: '5px', fontSize: '10px', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  style={{ padding: '4px 8px', background: 'var(--info-bg)', color: 'white', borderRadius: '5px', fontSize: '10px', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}>
                   Llamar
                 </a>
               )}
@@ -572,21 +572,21 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               <Field label="Ubicación"  value={form.ubicacion  ?? ''} editing={editing} onChange={v => setF('ubicacion', v)} />
             </div>
 
-            <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '8px', marginTop: '2px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '8px', marginTop: '2px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
               <Field label="Admin. nombre"  value={form.administradorNombre  ?? ''} editing={editing} onChange={v => setF('administradorNombre', v)} />
               <Field label="Admin. celular" value={form.administradorCelular ?? ''} editing={editing} onChange={v => setF('administradorCelular', v)} />
               <Field label="Email"          value={form.administradorEmail   ?? ''} editing={editing} onChange={v => setF('administradorEmail', v)} />
               <Field label="AnyDesk ID"     value={form.anydeskId            ?? ''} editing={editing} onChange={v => setF('anydeskId', v)} />
             </div>
 
-            <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '8px', marginTop: '4px' }}>
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '8px', marginTop: '4px' }}>
               <div style={{ marginBottom: '8px' }}>
                 <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Gabinete</div>
                 {editing ? (
                   <div style={{ display: 'flex', gap: '5px' }}>
                     {([{ v: true, l: 'Sí' }, { v: false, l: 'No' }] as const).map(({ v, l }) => (
                       <button key={l} type="button" onClick={() => setF('gabinete', v)}
-                        style={{ padding: '3px 8px', fontSize: '11px', borderRadius: '5px', cursor: 'pointer', border: form.gabinete === v ? '1.5px solid hsl(221,83%,23%)' : '0.5px solid var(--border)', background: form.gabinete === v ? 'hsl(221,83%,23%)' : 'var(--muted)', color: form.gabinete === v ? 'white' : 'var(--foreground)', outline: 'none' }}>
+                        style={{ padding: '3px 8px', fontSize: '11px', borderRadius: '5px', cursor: 'pointer', border: form.gabinete === v ? '1.5px solid var(--primary)' : '1px solid var(--border)', background: form.gabinete === v ? 'var(--gradient-primary)' : 'var(--muted)', color: form.gabinete === v ? 'white' : 'var(--foreground)', outline: 'none' }}>
                         {l}
                       </button>
                     ))}
@@ -600,12 +600,12 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
           </div>
 
           {/* Card B: Conectividad — solo lectura, gestionada vía Fichas */}
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
 
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', paddingBottom: '5px', borderBottom: '0.5px solid var(--border)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', paddingBottom: '5px', borderBottom: '1px solid var(--border)' }}>
               <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Conectividad</div>
-              <span style={{ fontSize: '9px', fontWeight: 600, color: '#7c3aed', background: '#ede9fe', padding: '1px 8px', borderRadius: '4px', letterSpacing: '0.04em' }}>Vía Fichas</span>
+              <span style={{ fontSize: '9px', fontWeight: 600, color: 'var(--purple)', background: 'var(--purple-bg)', padding: '1px 8px', borderRadius: '4px', letterSpacing: '0.04em' }}>Vía Fichas</span>
             </div>
 
             {/* Proveedor */}
@@ -624,24 +624,24 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
 
             {/* Ficha activa / sin ficha */}
             {tienda.fichaActiva ? (
-              <div style={{ marginBottom: '10px', padding: '7px 12px', background: '#f0fdf4', border: '0.5px solid #86efac', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+              <div style={{ marginBottom: '10px', padding: '7px 12px', background: 'var(--ok-bg)', border: '1px solid var(--ok-border)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                 <div>
-                  <div style={{ fontSize: '9px', fontWeight: 600, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>Ficha de servicio activa</div>
-                  <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '12px', color: '#166534' }}>{tienda.fichaActiva.codigo}</span>
+                  <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--ok)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>Ficha de servicio activa</div>
+                  <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '12px', color: 'var(--ok)' }}>{tienda.fichaActiva.codigo}</span>
                   {tienda.fichaActiva.totalNiveles > 0 && (
-                    <span style={{ marginLeft: '8px', fontSize: '10px', color: '#166534' }}>{tienda.fichaActiva.totalNiveles} nivel{tienda.fichaActiva.totalNiveles !== 1 ? 'es' : ''} escalamiento</span>
+                    <span style={{ marginLeft: '8px', fontSize: '10px', color: 'var(--ok)' }}>{tienda.fichaActiva.totalNiveles} nivel{tienda.fichaActiva.totalNiveles !== 1 ? 'es' : ''} escalamiento</span>
                   )}
                 </div>
                 <button onClick={() => router.push(`/gestion-cambios/fichas/${tienda.fichaActiva.id}`)}
-                  style={{ padding: '4px 12px', fontSize: '11px', fontWeight: 600, border: '0.5px solid #86efac', borderRadius: '6px', background: 'white', color: '#166534', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  style={{ padding: '4px 12px', fontSize: '11px', fontWeight: 600, border: '1px solid var(--ok-border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--ok)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
                   Ver ficha
                 </button>
               </div>
             ) : (
-              <div style={{ marginBottom: '10px', padding: '7px 12px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+              <div style={{ marginBottom: '10px', padding: '7px 12px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                 <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Sin ficha activa</span>
                 <button onClick={() => router.push('/gestion-cambios/fichas/nueva')}
-                  style={{ padding: '3px 10px', fontSize: '11px', fontWeight: 600, border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'hsl(221,83%,23%)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  style={{ padding: '3px 10px', fontSize: '11px', fontWeight: 600, border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--primary)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
                   Crear ficha
                 </button>
               </div>
@@ -656,17 +656,17 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
             </div>
 
             {/* Servicio */}
-            <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '8px', marginTop: '2px' }}>
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '8px', marginTop: '2px' }}>
               <Field label="Costo mensual (S/.)"   value={tienda.fichaActiva?.costoMensual != null ? String(tienda.fichaActiva.costoMensual) : ''} editing={false} onChange={() => {}} />
               <Field label="Descripción servicio"  value={tienda.fichaActiva?.descripcionServicio ?? ''} editing={false} onChange={() => {}} type="textarea" />
             </div>
 
             {/* Contrato */}
-            <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '8px', marginTop: '2px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '8px', marginTop: '2px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
               <Field label="Vigencia contrato"   value={tienda.fichaActiva?.vigenciaContrato  ?? ''} editing={false} onChange={() => {}} />
               <div style={{ marginBottom: '8px' }}>
                 <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>Estado servicio</div>
-                <div style={{ fontSize: '11px', color: tienda.fichaActiva?.estadoServicio && tienda.fichaActiva.estadoServicio !== 'ACTIVO' ? '#b91c1c' : 'var(--foreground)' }}>
+                <div style={{ fontSize: '11px', color: tienda.fichaActiva?.estadoServicio && tienda.fichaActiva.estadoServicio !== 'ACTIVO' ? 'var(--danger)' : 'var(--foreground)' }}>
                   {tienda.fichaActiva?.estadoServicio || 'Activo'}
                 </div>
               </div>
@@ -675,13 +675,13 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
             </div>
 
             {/* Soporte */}
-            <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '8px', marginTop: '2px' }}>
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '8px', marginTop: '2px' }}>
               <Field label="Contacto soporte" value={tienda.contactoSoporte ?? ''} editing={false} onChange={() => {}} />
               <Field label="Coordenadas"      value={tienda.coordenadas     ?? ''} editing={false} onChange={() => {}} />
             </div>
 
             {/* Historial de fichas */}
-            <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '8px', marginTop: '4px', display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '8px', marginTop: '4px', display: 'flex', justifyContent: 'flex-end' }}>
               <button onClick={() => router.push(`/gestion-cambios/fichas?tiendaId=${tienda.id}`)}
                 style={{ fontSize: '11px', color: 'var(--muted-foreground)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                 Ver historial de fichas →
@@ -690,7 +690,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
           </div>
 
           {/* Card C: Supervisor */}
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
             <SectionTitle>Supervisor</SectionTitle>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
               <Field label="Nombre" value={form.supervisorNombre  ?? ''} editing={editing} onChange={v => setF('supervisorNombre', v)} />
@@ -704,15 +704,15 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                 {editing ? (
                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                     <button type="button" onClick={() => setF('perfilSupervisor', null)}
-                      style={{ width: '20px', height: '20px', borderRadius: '3px', border: `1.5px solid ${!form.perfilSupervisor ? 'hsl(221,83%,23%)' : 'var(--border)'}`, background: 'transparent', cursor: 'pointer', outline: 'none' }} />
+                      style={{ width: '20px', height: '20px', borderRadius: '3px', border: `1.5px solid ${!form.perfilSupervisor ? 'var(--primary)' : 'var(--border)'}`, background: 'transparent', cursor: 'pointer', outline: 'none' }} />
                     {(['verde', 'amarillo', 'rojo'] as const).map(color => (
                       <button key={color} type="button" onClick={() => setF('perfilSupervisor', color)}
-                        style={{ width: '20px', height: '20px', borderRadius: '3px', background: CLASIFICACION_COLORS[color], border: 'none', cursor: 'pointer', outline: form.perfilSupervisor === color ? `2px solid hsl(221,83%,23%)` : 'none', outlineOffset: '2px' }} />
+                        style={{ width: '20px', height: '20px', borderRadius: '3px', background: CLASIFICACION_COLORS[color], border: 'none', cursor: 'pointer', outline: form.perfilSupervisor === color ? `2px solid var(--primary)` : 'none', outlineOffset: '2px' }} />
                     ))}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <div style={{ width: '14px', height: '14px', borderRadius: '3px', background: tienda.perfilSupervisor ? CLASIFICACION_COLORS[tienda.perfilSupervisor] ?? 'var(--muted)' : 'var(--muted)', border: '0.5px solid var(--border)' }} />
+                    <div style={{ width: '14px', height: '14px', borderRadius: '3px', background: tienda.perfilSupervisor ? CLASIFICACION_COLORS[tienda.perfilSupervisor] ?? 'var(--muted)' : 'var(--muted)', border: '1px solid var(--border)' }} />
                     {tienda.perfilSupervisor && <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', textTransform: 'capitalize' }}>{tienda.perfilSupervisor}</span>}
                   </div>
                 )}
@@ -722,7 +722,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                 <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Cluster</div>
                 {editing ? (
                   <select value={form.cluster ?? ''} onChange={e => handleClusterChange(e.target.value)}
-                    style={{ width: '100%', padding: '5px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
+                    style={{ width: '100%', padding: '5px 8px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
                     <option value="">Sin cluster</option>
                     {['A','B','C','D'].map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
@@ -734,13 +734,13 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               </div>
             </div>
 
-            <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '8px' }}>
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '8px' }}>
               <Field label="Instrucción específica" value={form.instruccionReporte ?? ''} editing={editing} onChange={v => setF('instruccionReporte', v)} type="textarea" />
             </div>
           </div>
 
           {/* Card D: Contingencia propia + Extras (no se muestra activada si la única activa es ROUTER_EXTERNO) */}
-          <div style={{ background: (tienda.contingenciaActiva && !hayRouterExternoActivo) ? '#fffbeb' : 'var(--card)', border: `0.5px solid ${(tienda.contingenciaActiva && !hayRouterExternoActivo) ? '#f59e0b' : 'var(--border)'}`, borderRadius: '10px', padding: '12px 14px' }}>
+          <div style={{ background: (tienda.contingenciaActiva && !hayRouterExternoActivo) ? 'var(--warn-bg)' : 'var(--card)', border: `1px solid ${(tienda.contingenciaActiva && !hayRouterExternoActivo) ? 'var(--warn-border)' : 'var(--border)'}`, borderRadius: '10px', padding: '12px 14px' }}>
             <SectionTitle>Contingencia</SectionTitle>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 10px' }}>
@@ -751,13 +751,13 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                   <div style={{ display: 'flex', gap: '5px' }}>
                     {[{ v: true, l: 'Sí' }, { v: false, l: 'No' }].map(({ v, l }) => (
                       <button key={l} type="button" onClick={() => setF('tieneContingencia', v)}
-                        style={{ padding: '3px 8px', fontSize: '11px', borderRadius: '5px', cursor: 'pointer', border: form.tieneContingencia === v ? '1.5px solid hsl(221,83%,23%)' : '0.5px solid var(--border)', background: form.tieneContingencia === v ? 'hsl(221,83%,23%)' : 'var(--muted)', color: form.tieneContingencia === v ? 'white' : 'var(--foreground)', outline: 'none' }}>
+                        style={{ padding: '3px 8px', fontSize: '11px', borderRadius: '5px', cursor: 'pointer', border: form.tieneContingencia === v ? '1.5px solid var(--primary)' : '1px solid var(--border)', background: form.tieneContingencia === v ? 'var(--gradient-primary)' : 'var(--muted)', color: form.tieneContingencia === v ? 'white' : 'var(--foreground)', outline: 'none' }}>
                         {l}
                       </button>
                     ))}
                   </div>
                 ) : (
-                  <div style={{ fontSize: '11px', fontWeight: 600, color: tienda.tieneContingencia ? '#059669' : 'var(--muted-foreground)' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: tienda.tieneContingencia ? 'var(--ok)' : 'var(--muted-foreground)' }}>
                     {tienda.tieneContingencia ? 'Sí' : 'No'}
                   </div>
                 )}
@@ -766,7 +766,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               <div style={{ marginBottom: '8px' }}>
                 <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '3px' }}>Estado</div>
                 {(tienda.contingenciaActiva && !hayRouterExternoActivo)
-                  ? <span style={{ fontSize: '11px', fontWeight: 700, color: '#92400e', background: '#fef3c7', padding: '2px 7px', borderRadius: '4px' }}>Activada</span>
+                  ? <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--warn)', background: 'var(--warn-bg)', padding: '2px 7px', borderRadius: '4px' }}>Activada</span>
                   : <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Desactivada</span>}
               </div>
               <Field label="Chip"    value={form.contingenciaChip    ?? ''} editing={editing} onChange={v => setF('contingenciaChip', v)} />
@@ -776,11 +776,11 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
             {(tienda.contingenciaActiva && !hayRouterExternoActivo) && (
               <div style={{ marginBottom: '8px' }}>
                 {tienda.contingenciaDescripcion && (
-                  <div style={{ fontSize: '11px', color: '#78350f', lineHeight: 1.5, background: '#fef3c7', padding: '6px 8px', borderRadius: '6px', marginBottom: '4px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--warn)', lineHeight: 1.5, background: 'var(--warn-bg)', padding: '6px 8px', borderRadius: '6px', marginBottom: '4px' }}>
                     {tienda.contingenciaDescripcion}
                   </div>
                 )}
-                <div style={{ fontSize: '10px', color: '#92400e', display: 'flex', gap: '12px' }}>
+                <div style={{ fontSize: '10px', color: 'var(--warn)', display: 'flex', gap: '12px' }}>
                   {tienda.contingenciaActivadaPor && <span>Por: {tienda.contingenciaActivadaPor}</span>}
                   {tienda.contingenciaFecha && (
                     <span>{new Date(tienda.contingenciaFecha).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
@@ -789,7 +789,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               </div>
             )}
 
-            <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '8px', marginTop: '2px' }}>
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '8px', marginTop: '2px' }}>
               <Field label="Extras / notas" value={form.extras ?? ''} editing={editing} onChange={v => setF('extras', v)} type="textarea" />
             </div>
           </div>
@@ -799,26 +799,26 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
 
           {/* Acciones */}
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
             <SectionTitle>Acciones</SectionTitle>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <a href={`/incidentes/nuevo?tiendaId=${tienda.id}`}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '9px 12px', background: 'hsl(221,83%,23%)', color: 'white', borderRadius: '7px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', textDecoration: 'none' }}>
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '9px 12px', background: 'var(--gradient-primary)', color: 'white', borderRadius: '7px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', textDecoration: 'none' }}>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Crear incidente
               </a>
               {(contList.some((c: any) => !c.horaDesactivacion) || routersTienda.some((r: any) => r.estado === 'EN_TIENDA_ACTIVO') || tienda?.contingenciaActiva) && (
-                <div style={{ padding: '8px 10px', background: 'rgba(245,158,11,0.08)', border: '0.5px solid rgba(245,158,11,0.4)', borderRadius: '7px', fontSize: '11px', color: '#92400e', textAlign: 'center' }}>
+                <div style={{ padding: '8px 10px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: '7px', fontSize: '11px', color: 'var(--warn)', textAlign: 'center' }}>
                   Contingencia activa
                 </div>
               )}
               <a href={`/incidentes?tiendaId=${tienda.id}`}
-                style={{ display: 'block', padding: '9px 12px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '7px', fontSize: '12px', color: 'var(--foreground)', textDecoration: 'none', textAlign: 'center' }}>
+                style={{ display: 'block', padding: '9px 12px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '7px', fontSize: '12px', color: 'var(--foreground)', textDecoration: 'none', textAlign: 'center' }}>
                 Ver incidentes
               </a>
               {tienda.proveedorId && (
                 <a href={`/proveedores/${tienda.proveedorId}`}
-                  style={{ display: 'block', padding: '9px 12px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '7px', fontSize: '12px', color: 'var(--foreground)', textDecoration: 'none', textAlign: 'center' }}>
+                  style={{ display: 'block', padding: '9px 12px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '7px', fontSize: '12px', color: 'var(--foreground)', textDecoration: 'none', textAlign: 'center' }}>
                   Ver proveedor →
                 </a>
               )}
@@ -828,31 +828,31 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
           {/* Contingencias autónomas activas */}
           {/* Routers externos en esta tienda */}
           {routersTienda.length > 0 && (
-            <div style={{ background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: '10px', padding: '12px 14px' }}>
+            <div style={{ background: 'var(--warn-bg)', border: '1px solid var(--warn-border)', borderRadius: '10px', padding: '12px 14px' }}>
               <SectionTitle>Router{routersTienda.length > 1 ? 's' : ''} externo{routersTienda.length > 1 ? 's' : ''} en tienda</SectionTitle>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {routersTienda.map((r: any) => {
                   const activo = r.estado === 'EN_TIENDA_ACTIVO'
                   return (
-                    <div key={r.id} style={{ padding: '8px 10px', background: 'white', borderRadius: '7px', border: `0.5px solid ${activo ? '#F59E0B' : '#E5E7EB'}` }}>
+                    <div key={r.id} style={{ padding: '8px 10px', background: 'var(--card)', borderRadius: '7px', border: `1px solid ${activo ? 'var(--warn-border)' : 'var(--border)'}` }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '14px', color: '#92400E' }}>{r.codigo}</span>
-                        <span style={{ fontSize: '9px', fontWeight: 700, padding: '2px 7px', borderRadius: '999px', background: activo ? '#FEF3C7' : '#E0E7FF', color: activo ? '#92400E' : '#3730A3' }}>
+                        <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '14px', color: 'var(--warn)' }}>{r.codigo}</span>
+                        <span style={{ fontSize: '9px', fontWeight: 700, padding: '2px 7px', borderRadius: '999px', background: activo ? 'var(--warn-bg)' : 'var(--info-bg)', color: activo ? 'var(--warn-bg)' : 'var(--purple-bg)' }}>
                           {activo ? 'ACTIVO' : 'inactivo'}
                         </span>
                         {r.fecha_ingreso_actual && (
-                          <span style={{ fontSize: '10px', color: '#92400E', opacity: 0.75 }}>
+                          <span style={{ fontSize: '10px', color: 'var(--warn)', opacity: 0.75 }}>
                             Desde {new Date(r.fecha_ingreso_actual).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', timeZone: 'America/Lima' })}
                           </span>
                         )}
                         {!activo && (
-                          <span style={{ fontSize: '9px', color: '#6B7280', flex: 1, textAlign: 'right', fontStyle: 'italic' }}>
+                          <span style={{ fontSize: '9px', color: 'var(--muted-foreground)', flex: 1, textAlign: 'right', fontStyle: 'italic' }}>
                             Inactivo · actívalo desde el incidente
                           </span>
                         )}
                       </div>
                       {activo && r.cont_observacion_actual && (
-                        <div style={{ marginTop: '5px', fontSize: '10px', color: '#78350F', background: '#FEF3C7', borderRadius: '5px', padding: '4px 7px', lineHeight: 1.4 }}>
+                        <div style={{ marginTop: '5px', fontSize: '10px', color: 'var(--warn)', background: 'var(--warn-bg)', borderRadius: '5px', padding: '4px 7px', lineHeight: 1.4 }}>
                           {r.cont_observacion_actual}
                         </div>
                       )}
@@ -867,7 +867,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
             const activas = contList.filter((c: any) => !c.horaDesactivacion && c.tipo !== 'ROUTER_EXTERNO')
             const TIPO_LABEL: Record<string, string> = { ROUTER_PROPIO: '📶 Router propio', ROUTER_EXTERNO: '📦 Router externo', DATOS_MOVILES: 'Datos móviles' }
             return (
-              <div style={{ background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: '10px', padding: '12px 14px' }}>
+              <div style={{ background: 'var(--warn-bg)', border: '1px solid var(--warn-border)', borderRadius: '10px', padding: '12px 14px' }}>
                 <SectionTitle>Contingencias activas</SectionTitle>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {activas.map((c: any) => {
@@ -875,16 +875,16 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                     const dur = mins >= 60 ? `${Math.floor(mins/60)}h ${mins%60}m` : `${mins}m`
                     const deactivating = desactivandoContId === c.id
                     return (
-                      <div key={c.id} style={{ background: 'white', border: '0.5px solid #fcd34d', borderRadius: '7px', padding: '7px 9px' }}>
+                      <div key={c.id} style={{ background: 'var(--card)', border: '1px solid var(--warn-border)', borderRadius: '7px', padding: '7px 9px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 600, color: '#92400e' }}>{TIPO_LABEL[c.tipo] ?? c.tipo}</span>
-                          <span style={{ fontSize: '11px', fontFamily: 'monospace', fontWeight: 700, color: '#d97706' }}>{dur} ⏱</span>
+                          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--warn)' }}>{TIPO_LABEL[c.tipo] ?? c.tipo}</span>
+                          <span style={{ fontSize: '11px', fontFamily: 'monospace', fontWeight: 700, color: 'var(--warn)' }}>{dur} ⏱</span>
                         </div>
-                        <div style={{ fontSize: '9px', color: '#78350f', marginBottom: '5px', lineHeight: 1.4 }}>{c.justificacion}</div>
+                        <div style={{ fontSize: '9px', color: 'var(--warn)', marginBottom: '5px', lineHeight: 1.4 }}>{c.justificacion}</div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '9px', color: '#92400e', opacity: 0.7 }}>Por: {c.activadoPor}</span>
+                          <span style={{ fontSize: '9px', color: 'var(--warn)', opacity: 0.7 }}>Por: {c.activadoPor}</span>
                           <button onClick={() => handleDesactivarCont(c.id)} disabled={deactivating}
-                            style={{ padding: '2px 8px', fontSize: '9px', fontWeight: 600, border: '0.5px solid #f59e0b', borderRadius: '4px', background: '#fef3c7', color: '#78350f', cursor: 'pointer', opacity: deactivating ? 0.5 : 1 }}>
+                            style={{ padding: '2px 8px', fontSize: '9px', fontWeight: 600, border: '1px solid var(--warn-border)', borderRadius: '4px', background: 'var(--warn-bg)', color: 'var(--warn)', cursor: 'pointer', opacity: deactivating ? 0.5 : 1 }}>
                             {deactivating ? '…' : 'Desactivar'}
                           </button>
                         </div>
@@ -898,7 +898,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
 
           {/* SLA (30d) */}
           {tienda && (
-            <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
               <SectionTitle>SLA proveedor (30d){tienda.slaTienda?.totalEvaluables > 0 ? ` — ${tienda.slaTienda.totalEvaluables} inc. eval.` : ''}</SectionTitle>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {[
@@ -907,9 +907,9 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                   { label: 'SLA Resolución',     value: tienda.slaTienda?.slaResolucionPct != null ? `${tienda.slaTienda.slaResolucionPct}%` : '—', score: tienda.slaTienda?.slaResolucionPct ?? null },
                   { label: 'T. resol. promedio', value: tienda.slaTienda?.tResolucionPromedio     != null ? `${tienda.slaTienda.tResolucionPromedio} min`   : '—', score: null },
                 ].map(r => (
-                  <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '0.5px solid var(--border)' }}>
+                  <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid var(--border)' }}>
                     <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{r.label}</span>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: r.score != null ? (r.score >= 80 ? '#16a34a' : r.score >= 60 ? '#d97706' : '#dc2626') : 'var(--muted-foreground)' }}>{r.value}</span>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: r.score != null ? (r.score >= 80 ? 'var(--ok)' : r.score >= 60 ? 'var(--warn)' : 'var(--danger)') : 'var(--muted-foreground)' }}>{r.value}</span>
                   </div>
                 ))}
               </div>
@@ -924,17 +924,17 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               return `${Math.floor(m / 60)}h ${m % 60}m`
             }
             const rows = [
-              { label: 'Router propio', min: contStats.min_router_propio, cnt: contStats.cnt_router_propio, active: !!contStats.activo_propio, color: '#d97706', bg: '#fffbeb' },
-              { label: 'Router externo', min: contStats.min_router_externo, cnt: contStats.cnt_router_externo, active: !!contStats.activo_externo, color: '#ea580c', bg: '#fff7ed' },
-              { label: 'Datos móviles', min: contStats.min_datos_moviles, cnt: contStats.cnt_datos_moviles, active: !!contStats.activo_mov, color: '#2563eb', bg: '#eff6ff' },
+              { label: 'Router propio', min: contStats.min_router_propio, cnt: contStats.cnt_router_propio, active: !!contStats.activo_propio, color: 'var(--warn)', bg: 'var(--warn-bg)' },
+              { label: 'Router externo', min: contStats.min_router_externo, cnt: contStats.cnt_router_externo, active: !!contStats.activo_externo, color: 'var(--warn)', bg: 'var(--warn-bg)' },
+              { label: 'Datos móviles', min: contStats.min_datos_moviles, cnt: contStats.cnt_datos_moviles, active: !!contStats.activo_mov, color: 'var(--info)', bg: 'var(--info-bg)' },
             ].filter(r => r.cnt > 0)
             const totalContMin = (contStats.min_router_propio ?? 0) + (contStats.min_router_externo ?? 0) + (contStats.min_datos_moviles ?? 0)
             return (
-              <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+              <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
                 <SectionTitle>Uso de contingencia</SectionTitle>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {rows.map(r => (
-                    <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', background: r.bg, borderRadius: '7px', border: `0.5px solid ${r.color}33` }}>
+                    <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', background: r.bg, borderRadius: '7px', border: `1px solid ${r.color}33` }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: '10px', fontWeight: 600, color: r.color, display: 'flex', alignItems: 'center', gap: '5px' }}>
                           {r.label}
@@ -949,7 +949,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                     </div>
                   ))}
                   {rows.length > 1 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', borderTop: '0.5px solid var(--border)', marginTop: '2px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', borderTop: '1px solid var(--border)', marginTop: '2px' }}>
                       <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--foreground)' }}>Total contingencia</span>
                       <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--foreground)', fontFamily: 'monospace' }}>{mhm(totalContMin)}</span>
                     </div>
@@ -962,7 +962,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
           {/* Historial — botón que abre panel lateral */}
           <button
             onClick={() => setHistorialOpen(true)}
-            style={{ width: '100%', background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '10px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left' }}>
+            style={{ width: '100%', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left' }}>
             <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Historial de cambios</span>
             <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{historial.length > 0 ? `${historial.length} cambios` : 'Sin cambios'} →</span>
           </button>
@@ -970,7 +970,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
           {/* Historial de proveedores */}
           <button
             onClick={() => setProvHistOpen(true)}
-            style={{ width: '100%', background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '10px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left' }}>
+            style={{ width: '100%', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left' }}>
             <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Historial de proveedores</span>
             <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
               {provHist.length > 0 ? `${provHist.length} cambio${provHist.length !== 1 ? 's' : ''}` : 'Sin cambios'} →
@@ -981,7 +981,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
 
       {/* ── Side panel IEI 30d ── */}
       {ieiPanelOpen && (
-        <div onClick={() => setIeiPanelOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.22)' }} />
+        <div onClick={() => setIeiPanelOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)' }} />
       )}
       <div style={{
         position: 'fixed', top: 0, right: 0, bottom: 0, width: 480, maxWidth: '95vw',
@@ -992,10 +992,10 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
         transition: 'transform 0.26s cubic-bezier(0.4,0,0.2,1)',
         overflow: 'hidden',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderBottom: '0.5px solid var(--border)', background: 'var(--muted)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderBottom: '1px solid var(--border)', background: 'var(--muted)', flexShrink: 0 }}>
           <div>
             <div style={{ fontSize: '13px', fontWeight: 600 }}>IEI del período — {tienda?.codigo}</div>
-            <div style={{ fontSize: '11px', color: iei30d && iei30d > 0 ? '#b91c1c' : 'var(--muted-foreground)', fontWeight: 600 }}>
+            <div style={{ fontSize: '11px', color: iei30d && iei30d > 0 ? 'var(--danger)' : 'var(--muted-foreground)', fontWeight: 600 }}>
               Total: {iei30d != null ? (iei30d > 0 ? `S/ ${iei30d.toLocaleString('es-PE')}` : 'S/ 0') : '—'}
             </div>
           </div>
@@ -1015,20 +1015,20 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               const esCorte = inc.tipo === 'CORTE_ELECTRICO'
               return (
                 <div key={inc.id}
-                  style={{ background: esCorte ? '#fffbeb' : 'var(--background)', borderRadius: '8px', padding: '10px 12px', border: `0.5px solid ${esCorte ? '#f59e0b' : 'var(--border)'}`, cursor: 'pointer' }}
+                  style={{ background: esCorte ? 'var(--warn-bg)' : 'var(--background)', borderRadius: '8px', padding: '10px 12px', border: `1px solid ${esCorte ? 'var(--warn-border)' : 'var(--border)'}`, cursor: 'pointer' }}
                   onClick={() => router.push(`/incidentes/${inc.id}`)}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 600 }}>{inc.codigo}</span>
                       {esCorte && (
-                        <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '3px', background: '#fef3c7', color: '#92400e', border: '0.5px solid #f59e0b' }}>
+                        <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '3px', background: 'var(--warn-bg)', color: 'var(--warn)', border: '1px solid var(--warn-border)' }}>
                           ⚡ Corte de energía
                         </span>
                       )}
                     </div>
-                    <span style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: 700, color: esCorte ? '#92400e' : '#b91c1c' }}>S/ {inc.iei.toLocaleString('es-PE')}</span>
+                    <span style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: 700, color: esCorte ? 'var(--warn)' : 'var(--danger)' }}>S/ {inc.iei.toLocaleString('es-PE')}</span>
                   </div>
-                  <div style={{ display: 'flex', gap: '10px', fontSize: '10px', color: esCorte ? '#78350f' : 'var(--muted-foreground)' }}>
+                  <div style={{ display: 'flex', gap: '10px', fontSize: '10px', color: esCorte ? 'var(--warn)' : 'var(--muted-foreground)' }}>
                     <span>{TIPO_LABEL[inc.tipo] ?? inc.tipo}</span>
                     {inc.mttrMinutos && <span>{inc.mttrMinutos >= 60 ? `${Math.floor(inc.mttrMinutos/60)}h ${inc.mttrMinutos%60}m` : `${inc.mttrMinutos}m`}</span>}
                     <span style={{ flex: 1, textAlign: 'right', textTransform: 'capitalize' }}>{inc.motivo}</span>
@@ -1042,7 +1042,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
 
       {/* Side panel — Historial de cambios */}
       {historialOpen && (
-        <div onClick={() => setHistorialOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.22)' }} />
+        <div onClick={() => setHistorialOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)' }} />
       )}
       <div style={{
         position: 'fixed', top: 0, right: 0, bottom: 0, width: 460, maxWidth: '95vw',
@@ -1053,7 +1053,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
         transition: 'transform 0.26s cubic-bezier(0.4,0,0.2,1)',
         overflow: 'hidden',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderBottom: '0.5px solid var(--border)', background: 'var(--muted)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderBottom: '1px solid var(--border)', background: 'var(--muted)', flexShrink: 0 }}>
           <div style={{ fontSize: '13px', fontWeight: 600 }}>Historial de cambios — {tienda?.codigo}</div>
           <button onClick={() => setHistorialOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--muted-foreground)', lineHeight: 1 }}>✕</button>
         </div>
@@ -1065,7 +1065,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               ? new Date(h.editadoEn).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
               : '—'
             return (
-              <div key={h.id} style={{ background: 'var(--background)', borderRadius: '8px', padding: '10px 12px', border: '0.5px solid var(--border)' }}>
+              <div key={h.id} style={{ background: 'var(--background)', borderRadius: '8px', padding: '10px 12px', border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
                   <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--foreground)' }}>{CAMPO_LABELS[h.campoEditado] ?? h.campoEditado}</span>
                   <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap', marginLeft: '8px' }}>{relTime(h.editadoEn)}</span>
@@ -1086,7 +1086,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
 
       {/* ── Side panel — Historial de proveedores ── */}
       {provHistOpen && (
-        <div onClick={() => setProvHistOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.22)' }} />
+        <div onClick={() => setProvHistOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)' }} />
       )}
       <div style={{
         position: 'fixed', top: 0, right: 0, bottom: 0, width: 420, maxWidth: '95vw',
@@ -1097,7 +1097,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
         transition: 'transform 0.26s cubic-bezier(0.4,0,0.2,1)',
         overflow: 'hidden',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderBottom: '0.5px solid var(--border)', background: 'var(--muted)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderBottom: '1px solid var(--border)', background: 'var(--muted)', flexShrink: 0 }}>
           <div style={{ fontSize: '13px', fontWeight: 600 }}>Historial de proveedores — {tienda?.codigo}</div>
           <button onClick={() => setProvHistOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--muted-foreground)', lineHeight: 1 }}>✕</button>
         </div>
@@ -1109,7 +1109,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
               ? new Date(h.editadoEn).toLocaleString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
               : '—'
             return (
-              <div key={h.id} style={{ background: 'var(--background)', borderRadius: '8px', padding: '10px 12px', border: '0.5px solid var(--border)' }}>
+              <div key={h.id} style={{ background: 'var(--background)', borderRadius: '8px', padding: '10px 12px', border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px', flexWrap: 'wrap' }}>
                   {h.anteriorNombre
                     ? <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--muted-foreground)', textDecoration: 'line-through' }}>{h.anteriorNombre}</span>
@@ -1119,7 +1119,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                   <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--foreground)' }}>{h.nuevoNombre ?? '—'}</span>
                 </div>
                 {h.via && (
-                  <div style={{ fontSize: '10px', color: '#7C3AED', fontWeight: 500, marginBottom: '3px', fontFamily: 'monospace' }}>
+                  <div style={{ fontSize: '10px', color: 'var(--purple)', fontWeight: 500, marginBottom: '3px', fontFamily: 'monospace' }}>
                     vía {h.via}
                   </div>
                 )}
@@ -1134,8 +1134,8 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
 
       {/* ── Modal: confirmar cambio de cluster ── */}
       {pendingCluster !== null && (
-        <div onClick={() => setPendingCluster(null)} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '22px 24px', width: '340px', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+        <div onClick={() => setPendingCluster(null)} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '22px 24px', width: '340px', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
             <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '8px' }}>Cambiar cluster</div>
             <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '18px', lineHeight: 1.5 }}>
               ¿Confirmas cambiar el cluster de{' '}
@@ -1146,11 +1146,11 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
             </div>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button onClick={() => setPendingCluster(null)}
-                style={{ padding: '6px 14px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', color: 'var(--foreground)', cursor: 'pointer' }}>
+                style={{ padding: '6px 14px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', color: 'var(--foreground)', cursor: 'pointer' }}>
                 Cancelar
               </button>
               <button onClick={confirmClusterChange}
-                style={{ padding: '6px 14px', fontSize: '12px', border: 'none', borderRadius: '7px', background: 'hsl(221,83%,23%)', color: 'white', fontWeight: 600, cursor: 'pointer' }}>
+                style={{ padding: '6px 14px', fontSize: '12px', border: 'none', borderRadius: '7px', background: 'var(--gradient-primary)', color: 'white', fontWeight: 600, cursor: 'pointer' }}>
                 Confirmar cambio
               </button>
             </div>
@@ -1160,8 +1160,8 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
 
       {/* ── Modal: confirmar actualización de venta mensual ── */}
       {confirmVenta && (
-        <div onClick={() => setConfirmVenta(null)} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '22px 24px', width: '380px', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+        <div onClick={() => setConfirmVenta(null)} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '22px 24px', width: '380px', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
             <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '8px' }}>Actualizar venta mensual</div>
             <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '14px' }}>
               Se recalcularán los valores de venta por hora automáticamente:
@@ -1180,11 +1180,11 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
             </div>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button onClick={() => setConfirmVenta(null)} disabled={savingVenta}
-                style={{ padding: '6px 14px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', color: 'var(--foreground)', cursor: 'pointer' }}>
+                style={{ padding: '6px 14px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', color: 'var(--foreground)', cursor: 'pointer' }}>
                 Cancelar
               </button>
               <button onClick={handleConfirmVenta} disabled={savingVenta}
-                style={{ padding: '6px 14px', fontSize: '12px', border: 'none', borderRadius: '7px', background: 'hsl(221,83%,23%)', color: 'white', fontWeight: 600, cursor: 'pointer', opacity: savingVenta ? 0.7 : 1 }}>
+                style={{ padding: '6px 14px', fontSize: '12px', border: 'none', borderRadius: '7px', background: 'var(--gradient-primary)', color: 'white', fontWeight: 600, cursor: 'pointer', opacity: savingVenta ? 0.7 : 1 }}>
                 {savingVenta ? 'Guardando...' : 'Confirmar'}
               </button>
             </div>
@@ -1199,8 +1199,8 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
           ? incRecientes.filter((i: any) => i.prov_nombre === filtroProveedor)
           : incRecientes
         return (
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', overflow: 'hidden', marginTop: '16px' }}>
-            <div style={{ padding: '12px 18px', borderBottom: '0.5px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden', marginTop: '16px' }}>
+            <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
               <div style={{ fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted-foreground)', flex: 1 }}>
                 Incidentes del período
                 <span style={{ marginLeft: '8px', fontSize: '11px', fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}>
@@ -1213,7 +1213,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                 <select
                   value={filtroProveedor}
                   onChange={e => setFiltroProveedor(e.target.value)}
-                  style={{ padding: '4px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
+                  style={{ padding: '4px 8px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
                   <option value="">Todos los proveedores</option>
                   {proveedoresEnPeriodo.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
@@ -1236,7 +1236,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                     const pc = provColor(inc.prov_nombre)
                     return (
                       <tr key={inc.id}
-                        style={{ borderTop: '0.5px solid var(--border)', cursor: 'pointer' }}
+                        style={{ borderTop: '1px solid var(--border)', cursor: 'pointer' }}
                         onClick={() => router.push(`/incidentes/${inc.id}`)}
                         onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
                         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
@@ -1251,7 +1251,7 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
                         <td style={{ padding: '8px 10px', fontSize: '11px' }}>{inc.mttr_minutos ? `${inc.mttr_minutos}m` : '—'}</td>
                         <td style={{ padding: '8px 10px', fontSize: '11px', fontFamily: 'monospace' }}>
                           {inc.iei != null
-                            ? <span style={{ color: inc.iei > 0 ? '#b91c1c' : '#16a34a', fontWeight: 600 }}>
+                            ? <span style={{ color: inc.iei > 0 ? 'var(--danger)' : 'var(--ok)', fontWeight: 600 }}>
                                 {inc.iei > 0 ? `S/ ${inc.iei.toLocaleString('es-PE')}` : 'S/ 0'}
                               </span>
                             : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}

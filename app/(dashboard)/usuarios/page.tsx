@@ -5,11 +5,11 @@ import { PERMISOS_POR_ROL, can } from '@/lib/permisos'
 import { apiMutate } from '@/lib/api-mutate'
 
 const ROL_META: Record<string, { label: string; bg: string; color: string; desc: string }> = {
-  AGENTE:          { label: 'Agente TTI',      bg: '#f3f4f6', color: '#374151', desc: 'Operación diaria de incidentes' },
-  SUPERVISOR:      { label: 'Supervisor',      bg: '#dbeafe', color: '#1e40af', desc: 'Gestión completa del sistema' },
-  GERENCIA:        { label: 'Gerencia',         bg: '#dcfce7', color: '#15803d', desc: 'Visibilidad total, solo lectura' },
-  INFRAESTRUCTURA: { label: 'Infraestructura', bg: '#ede9fe', color: '#7c3aed', desc: 'Operación + configuración + reportes' },
-  DEMO:            { label: 'Demo',             bg: '#fff7ed', color: '#c2410c', desc: 'Acceso total — solo para pruebas' },
+  AGENTE:          { label: 'Agente TTI',      bg: 'var(--surface-2)', color: 'var(--muted-foreground)', desc: 'Operación diaria de incidentes' },
+  SUPERVISOR:      { label: 'Supervisor',      bg: 'var(--info-bg)', color: 'var(--info)', desc: 'Gestión completa del sistema' },
+  GERENCIA:        { label: 'Gerencia',         bg: 'var(--ok-bg)', color: 'var(--ok)', desc: 'Visibilidad total, solo lectura' },
+  INFRAESTRUCTURA: { label: 'Infraestructura', bg: 'var(--purple-bg)', color: 'var(--purple)', desc: 'Operación + configuración + reportes' },
+  DEMO:            { label: 'Demo',             bg: 'var(--warn-bg)', color: 'var(--warn)', desc: 'Acceso total — solo para pruebas' },
 }
 
 const PERMISOS_GRUPOS = [
@@ -97,7 +97,7 @@ function fmtMttr(mins: number | null | undefined) {
 }
 
 function inputStyle(): React.CSSProperties {
-  return { width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', boxSizing: 'border-box' }
+  return { width: '100%', padding: '7px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', boxSizing: 'border-box' }
 }
 
 export default function UsuariosPage() {
@@ -238,7 +238,7 @@ export default function UsuariosPage() {
         </div>
         {canCreate && (
           <button onClick={openNew}
-            style={{ padding: '7px 14px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>
+            style={{ padding: '7px 14px', background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>
             + Nuevo usuario
           </button>
         )}
@@ -252,13 +252,13 @@ export default function UsuariosPage() {
           const isActive = filtroRol === rol
           return (
             <div key={rol} onClick={() => setFiltroRol(rol)}
-              style={{ background: 'var(--card)', border: `1px solid ${isActive ? '#185FA5' : 'var(--border)'}`, borderRadius: '10px', padding: '10px 14px', cursor: 'pointer', boxShadow: isActive ? '0 0 0 2px rgba(24,95,165,0.12)' : 'none' }}>
+              style={{ background: 'var(--card)', border: `1px solid ${isActive ? 'var(--info-border)' : 'var(--border)'}`, borderRadius: '10px', padding: '10px 14px', cursor: 'pointer', boxShadow: isActive ? '0 0 0 2px rgba(24,95,165,0.12)' : 'none' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--foreground)' }}>{meta?.label ?? 'Todos los roles'}</div>
                   {meta && <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px', lineHeight: 1.3 }}>{meta.desc}</div>}
                 </div>
-                <div style={{ fontSize: '20px', fontWeight: 700, color: meta?.color ?? '#185FA5', lineHeight: 1, marginLeft: '8px' }}>{count}</div>
+                <div style={{ fontSize: '20px', fontWeight: 700, color: meta?.color ?? 'var(--info)', lineHeight: 1, marginLeft: '8px' }}>{count}</div>
               </div>
               {meta && (
                 <div style={{ marginTop: '6px' }}>
@@ -271,7 +271,7 @@ export default function UsuariosPage() {
       </div>
 
       {/* Tabla */}
-      <div style={{ background: 'var(--card)', borderRadius: '10px', border: '0.5px solid var(--border)', overflow: 'hidden' }}>
+      <div style={{ background: 'var(--card)', borderRadius: '10px', border: '1px solid var(--border)', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: 'var(--muted)' }}>
@@ -286,7 +286,7 @@ export default function UsuariosPage() {
               const nombreCompleto = [u.nombre, u.apellido].filter(Boolean).join(' ')
               return (
                 <tr key={u.id}
-                  style={{ borderTop: idx > 0 ? '0.5px solid var(--border)' : 'none', opacity: u.activo ? 1 : 0.45, cursor: 'pointer' }}
+                  style={{ borderTop: idx > 0 ? '1px solid var(--border)' : 'none', opacity: u.activo ? 1 : 0.45, cursor: 'pointer' }}
                   onClick={() => openHistorial(u)}
                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
@@ -297,10 +297,10 @@ export default function UsuariosPage() {
                       </div>
                       <div>
                         <div style={{ fontSize: '12px', fontWeight: 500 }}>{nombreCompleto}</div>
-                        {!u.activo && <div style={{ fontSize: '9px', color: '#dc2626', fontWeight: 600 }}>INACTIVO</div>}
+                        {!u.activo && <div style={{ fontSize: '9px', color: 'var(--danger)', fontWeight: 600 }}>INACTIVO</div>}
                         {u.sinPassword && (
                           <div title="Este usuario no tiene contraseña y no puede iniciar sesión. Edítalo para asignarle una."
-                            style={{ fontSize: '9px', color: '#b45309', fontWeight: 600 }}>⚠ SIN CONTRASEÑA</div>
+                            style={{ fontSize: '9px', color: 'var(--warn)', fontWeight: 600 }}>⚠ SIN CONTRASEÑA</div>
                         )}
                       </div>
                     </div>
@@ -310,17 +310,17 @@ export default function UsuariosPage() {
                   <td style={{ padding: '10px 14px' }}>
                     <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: rc.bg, color: rc.color }}>{rc.label}</span>
                     {u.permisos && Array.isArray(u.permisos) && u.permisos.length > 0 && (
-                      <div style={{ fontSize: '9px', color: '#854F0B', marginTop: '2px' }}>Permisos personalizados</div>
+                      <div style={{ fontSize: '9px', color: 'var(--warn)', marginTop: '2px' }}>Permisos personalizados</div>
                     )}
                   </td>
                   <td style={{ padding: '10px 14px' }} onClick={e => e.stopPropagation()}>
                     {canEdit ? (
                       <button onClick={() => toggleActivo(u)}
-                        style={{ position: 'relative', width: '36px', height: '20px', borderRadius: '10px', border: 'none', cursor: 'pointer', background: u.activo ? '#22c55e' : '#d1d5db', transition: 'background 0.2s' }}>
-                        <span style={{ position: 'absolute', top: '2px', left: u.activo ? '18px' : '2px', width: '16px', height: '16px', borderRadius: '50%', background: 'white', transition: 'left 0.2s' }} />
+                        style={{ position: 'relative', width: '36px', height: '20px', borderRadius: '10px', border: 'none', cursor: 'pointer', background: u.activo ? 'var(--ok-bg)' : 'var(--surface-3)', transition: 'background 0.2s' }}>
+                        <span style={{ position: 'absolute', top: '2px', left: u.activo ? '18px' : '2px', width: '16px', height: '16px', borderRadius: '50%', background: 'var(--card)', transition: 'left 0.2s' }} />
                       </button>
                     ) : (
-                      <span style={{ fontSize: '10px', fontWeight: 600, color: u.activo ? '#15803d' : '#dc2626' }}>{u.activo ? 'Activo' : 'Inactivo'}</span>
+                      <span style={{ fontSize: '10px', fontWeight: 600, color: u.activo ? 'var(--ok)' : 'var(--danger)' }}>{u.activo ? 'Activo' : 'Inactivo'}</span>
                     )}
                   </td>
                   <td style={{ padding: '10px 14px' }} onClick={e => e.stopPropagation()}>
@@ -336,7 +336,7 @@ export default function UsuariosPage() {
                       {canEdit && (
                         <button onClick={() => handleDelete(u)}
                           title="Eliminar usuario"
-                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#dc2626', fontSize: '13px', padding: '3px 7px', borderRadius: '5px' }}
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--danger)', fontSize: '13px', padding: '3px 7px', borderRadius: '5px' }}
                           onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(220,38,38,0.08)' }}
                           onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}>
                           🗑
@@ -359,22 +359,22 @@ export default function UsuariosPage() {
       {/* Panel historial */}
       {historial.open && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 90, display: 'flex' }}>
-          <div style={{ flex: 1, background: 'rgba(0,0,0,0.3)' }} onClick={() => setHistorial(p => ({ ...p, open: false }))} />
-          <div style={{ width: '520px', background: 'var(--card)', borderLeft: '0.5px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ padding: '14px 18px', borderBottom: '0.5px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+          <div style={{ flex: 1, background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)' }} onClick={() => setHistorial(p => ({ ...p, open: false }))} />
+          <div style={{ width: '520px', background: 'var(--card)', borderLeft: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
               <div style={{ fontSize: '13px', fontWeight: 600 }}>Historial de gestión — {historial.usuario?.nombre}</div>
               <button onClick={() => setHistorial(p => ({ ...p, open: false }))}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--muted-foreground)' }}>✕</button>
             </div>
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: '4px', padding: '10px 18px 0', flexShrink: 0, borderBottom: '0.5px solid var(--border)' }}>
+            <div style={{ display: 'flex', gap: '4px', padding: '10px 18px 0', flexShrink: 0, borderBottom: '1px solid var(--border)' }}>
               {(['todos', 'resueltos'] as const).map(tab => (
                 <button key={tab} onClick={() => setHistorialTab(tab)} style={{
                   padding: '5px 12px', fontSize: '11px', fontWeight: 500, border: 'none', cursor: 'pointer',
                   borderRadius: '6px 6px 0 0', marginBottom: '-0.5px',
                   background: historialTab === tab ? 'var(--card)' : 'transparent',
                   color: historialTab === tab ? 'var(--foreground)' : 'var(--muted-foreground)',
-                  borderBottom: historialTab === tab ? '2px solid #185FA5' : '2px solid transparent',
+                  borderBottom: historialTab === tab ? '2px solid var(--info-border)' : '2px solid transparent',
                 }}>
                   {tab === 'todos' ? 'Todos' : 'Resueltos por mí'}
                 </button>
@@ -399,26 +399,26 @@ export default function UsuariosPage() {
                       ? historial.items.filter((inc: any) => inc.resueltoPor === 'AGENTE' || inc.resueltoPor === 'INFRAESTRUCTURA')
                       : historial.items
                     ).map((inc: any) => (
-                      <tr key={inc.id} style={{ borderTop: '0.5px solid var(--border)' }}>
+                      <tr key={inc.id} style={{ borderTop: '1px solid var(--border)' }}>
                         <td style={{ padding: '7px 10px', fontFamily: 'monospace', fontWeight: 600, fontSize: '11px' }}>{inc.codigo}</td>
                         <td style={{ padding: '7px 10px', fontSize: '11px', color: 'var(--muted-foreground)' }}>{inc.tiendaCodigo ?? '—'}</td>
                         <td style={{ padding: '7px 10px', fontSize: '11px' }}>{inc.tipo ?? '—'}</td>
                         <td style={{ padding: '7px 10px', fontSize: '11px' }}>{fmtMttr(inc.mttrMinutos)}</td>
                         <td style={{ padding: '7px 10px' }}>
-                          <span style={{ fontSize: '10px', fontWeight: 600, padding: '1px 6px', borderRadius: '4px', background: '#f3f4f6', color: '#374151' }}>{inc.estado}</span>
+                          <span style={{ fontSize: '10px', fontWeight: 600, padding: '1px 6px', borderRadius: '4px', background: 'var(--surface-2)', color: 'var(--muted-foreground)' }}>{inc.estado}</span>
                         </td>
                         <td style={{ padding: '7px 10px', fontSize: '10px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>
                           {inc.horaRegistro ? new Date(inc.horaRegistro).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
                         </td>
                         <td style={{ padding: '7px 10px' }}>
                           {inc.resueltoPor === 'AGENTE' && (
-                            <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '999px', background: '#EFF6FF', color: '#1D4ED8' }}>↩ Agente</span>
+                            <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '999px', background: 'var(--info-bg)', color: 'var(--info)' }}>↩ Agente</span>
                           )}
                           {inc.resueltoPor === 'INFRAESTRUCTURA' && (
-                            <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '999px', background: '#EEF2FF', color: '#4338CA' }}>↩ Infraestructura</span>
+                            <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '999px', background: 'var(--info-bg)', color: 'var(--purple)' }}>↩ Infraestructura</span>
                           )}
                           {inc.resueltoPor === 'PROVEEDOR' && (
-                            <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '999px', background: '#F0FDF4', color: '#15803D' }}>↩ Proveedor</span>
+                            <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '999px', background: 'var(--ok-bg)', color: 'var(--ok)' }}>↩ Proveedor</span>
                           )}
                           {!inc.resueltoPor && <span style={{ color: 'var(--muted-foreground)', fontSize: '10px' }}>—</span>}
                         </td>
@@ -434,9 +434,9 @@ export default function UsuariosPage() {
 
       {/* Modal */}
       {modal.open && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', width: '100%', maxWidth: '520px', maxHeight: '92vh', overflow: 'auto' }}>
-            <div style={{ padding: '14px 20px', borderBottom: '0.5px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', width: '100%', maxWidth: '520px', maxHeight: '92vh', overflow: 'auto' }}>
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontSize: '13px', fontWeight: 600 }}>{modal.isNew ? 'Nuevo usuario' : 'Editar usuario'}</div>
               <button onClick={() => setModal(m => ({ ...m, open: false }))} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--muted-foreground)' }}>✕</button>
             </div>
@@ -461,12 +461,12 @@ export default function UsuariosPage() {
 
               <div style={{ marginBottom: '10px' }}>
                 <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '3px' }}>
-                  Contraseña{modal.isNew && <span style={{ color: '#dc2626' }}> *</span>}
+                  Contraseña{modal.isNew && <span style={{ color: 'var(--danger)' }}> *</span>}
                 </label>
                 <div style={{ display: 'flex', gap: '6px' }}>
                   <input type={showPass ? 'text' : 'password'} required={modal.isNew} value={modal.data.password ?? ''} onChange={e => { setField('password', e.target.value); setPasswordModified(true) }} placeholder={modal.isNew ? 'Obligatoria' : '(sin cambios)'} style={{ ...inp, flex: 1 }} />
                   <button type="button" onClick={() => setShowPass(v => !v)}
-                    style={{ padding: '7px 10px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--muted)', cursor: 'pointer', fontSize: '11px', color: 'var(--muted-foreground)' }}>
+                    style={{ padding: '7px 10px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--muted)', cursor: 'pointer', fontSize: '11px', color: 'var(--muted-foreground)' }}>
                     {showPass ? 'Ocultar' : 'Ver'}
                   </button>
                 </div>
@@ -516,24 +516,24 @@ export default function UsuariosPage() {
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
                 <button type="button" onClick={() => setField('activo', !modal.data.activo)}
-                  style={{ position: 'relative', width: '36px', height: '20px', borderRadius: '10px', border: 'none', cursor: 'pointer', background: modal.data.activo ? '#22c55e' : '#d1d5db' }}>
-                  <span style={{ position: 'absolute', top: '2px', left: modal.data.activo ? '18px' : '2px', width: '16px', height: '16px', borderRadius: '50%', background: 'white' }} />
+                  style={{ position: 'relative', width: '36px', height: '20px', borderRadius: '10px', border: 'none', cursor: 'pointer', background: modal.data.activo ? 'var(--ok-bg)' : 'var(--surface-3)' }}>
+                  <span style={{ position: 'absolute', top: '2px', left: modal.data.activo ? '18px' : '2px', width: '16px', height: '16px', borderRadius: '50%', background: 'var(--card)' }} />
                 </button>
                 <span style={{ fontSize: '12px', color: 'var(--foreground)' }}>{modal.data.activo ? 'Activo' : 'Inactivo'}</span>
               </div>
 
               {saveError && (
-                <div style={{ marginBottom: '10px', padding: '8px 12px', background: '#fee2e2', border: '0.5px solid #fca5a5', borderRadius: '7px', fontSize: '11px', color: '#b91c1c' }}>
+                <div style={{ marginBottom: '10px', padding: '8px 12px', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: '7px', fontSize: '11px', color: 'var(--danger)' }}>
                   {saveError}
                 </div>
               )}
               <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                 <button onClick={() => { setModal(m => ({ ...m, open: false })); setSaveError('') }}
-                  style={{ padding: '8px 16px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>
+                  style={{ padding: '8px 16px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>
                   Cancelar
                 </button>
                 <button onClick={handleSave} disabled={saving}
-                  style={{ padding: '8px 16px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>
+                  style={{ padding: '8px 16px', background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>
                   {saving ? 'Guardando...' : 'Guardar'}
                 </button>
               </div>

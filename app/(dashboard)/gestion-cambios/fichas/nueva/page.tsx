@@ -77,13 +77,13 @@ export default function NuevaFichaPage() {
   )
 
   const labelStyle: React.CSSProperties = { display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }
-  const inputStyle: React.CSSProperties = { width: '100%', padding: '7px 9px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--background)', boxSizing: 'border-box' }
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '7px 9px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--background)', boxSizing: 'border-box' }
 
   return (
     <div style={{ padding: '20px 24px', maxWidth: '720px', margin: '0 auto' }}>
       {/* Breadcrumb */}
       <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '12px', display: 'flex', gap: '6px', alignItems: 'center' }}>
-        <span style={{ cursor: 'pointer', color: 'hsl(221,83%,23%)' }} onClick={() => router.push('/gestion-cambios/fichas')}>Fichas</span>
+        <span style={{ cursor: 'pointer', color: 'var(--primary)' }} onClick={() => router.push('/gestion-cambios/fichas')}>Fichas</span>
         <span>/</span>
         <span>Nueva</span>
       </div>
@@ -172,18 +172,18 @@ export default function NuevaFichaPage() {
         </div>
 
         {error && (
-          <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '8px', padding: '10px 14px', fontSize: '12px', color: '#991B1B', marginBottom: '12px' }}>
+          <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: '8px', padding: '10px 14px', fontSize: '12px', color: 'var(--danger)', marginBottom: '12px' }}>
             {error}
           </div>
         )}
 
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
           <button type="button" onClick={() => router.push('/gestion-cambios/fichas')}
-            style={{ padding: '8px 18px', fontSize: '12px', fontWeight: 600, background: 'var(--muted)', color: 'var(--muted-foreground)', border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'pointer' }}>
+            style={{ padding: '8px 18px', fontSize: '12px', fontWeight: 600, background: 'var(--muted)', color: 'var(--muted-foreground)', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer' }}>
             Cancelar
           </button>
           <button type="submit" disabled={saving}
-            style={{ padding: '8px 18px', fontSize: '12px', fontWeight: 600, background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+            style={{ padding: '8px 18px', fontSize: '12px', fontWeight: 600, background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
             {saving ? 'Creando...' : 'Crear ficha (Borrador)'}
           </button>
         </div>

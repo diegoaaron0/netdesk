@@ -31,7 +31,7 @@ function mttrDisplay(minutos: number | null): string {
 function fieldLabel(text: string, required?: boolean) {
   return (
     <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '5px' }}>
-      {text}{required && <span style={{ color: '#ef4444', marginLeft: '2px' }}>*</span>}
+      {text}{required && <span style={{ color: 'var(--danger)', marginLeft: '2px' }}>*</span>}
     </label>
   )
 }
@@ -190,7 +190,7 @@ export default function NuevoIncidentePage() {
         <div>
           <h1 style={{ fontSize: '18px', fontWeight: 600, margin: 0, color: 'var(--foreground)', lineHeight: 1.2 }}>Nuevo incidente</h1>
           {fromId ? (
-            <div style={{ fontSize: '11px', color: '#1e40af', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--info)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '5px' }}>
               <span style={{ fontWeight: 600 }}>Continuación de incidente anterior</span>
               <span style={{ color: 'var(--muted-foreground)' }}>— tienda y tipo pre-cargados</span>
             </div>
@@ -237,7 +237,7 @@ export default function NuevoIncidentePage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--muted)' }}>
                     <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '12px' }}>{tienda.codigo}</span>
                     <span style={{ fontSize: '12px', flex: 1 }}>{tienda.nombreCc}</span>
-                    {fromId && <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '4px', background: '#dbeafe', color: '#1e40af', fontWeight: 600 }}>Pre-cargada</span>}
+                    {fromId && <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '4px', background: 'var(--info-bg)', color: 'var(--info)', fontWeight: 600 }}>Pre-cargada</span>}
                     <button type="button" onClick={() => setTienda(null)}
                       style={{ fontSize: '11px', color: 'var(--muted-foreground)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px' }}>
                       Cambiar
@@ -256,24 +256,24 @@ export default function NuevoIncidentePage() {
 
               {/* Advertencia incidente abierto */}
               {tienda && historial.some(h => OPEN_ESTADOS.includes(h.estado)) && (
-                <div style={{ background: '#fffbeb', border: '1.5px solid #f59e0b', borderRadius: '10px', padding: '12px 16px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#92400e', marginBottom: '8px' }}>
+                <div style={{ background: 'var(--warn-bg)', border: '1.5px solid var(--warn-border)', borderRadius: '10px', padding: '12px 16px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--warn)', marginBottom: '8px' }}>
                     ⚠ Ya existe un incidente abierto para esta tienda
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                     {historial.filter(h => OPEN_ESTADOS.includes(h.estado)).map(h => (
                       <div key={h.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px' }}>
-                        <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#92400e' }}>{h.codigo}</span>
+                        <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--warn)' }}>{h.codigo}</span>
                         <Badge variant={estadoToVariant(h.estado)} />
                         <span style={{ color: 'var(--muted-foreground)' }}>{TIPO_LABELS[h.tipo] ?? h.tipo}</span>
                         <button type="button" onClick={() => router.push(`/incidentes/${h.id}`)}
-                          style={{ marginLeft: 'auto', fontSize: '11px', color: 'hsl(221,83%,50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
+                          style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
                           Ver →
                         </button>
                       </div>
                     ))}
                   </div>
-                  <div style={{ fontSize: '10px', color: '#78350f', marginTop: '8px' }}>
+                  <div style={{ fontSize: '10px', color: 'var(--warn)', marginTop: '8px' }}>
                     Puedes registrar igualmente si es un problema diferente.
                   </div>
                 </div>
@@ -281,11 +281,11 @@ export default function NuevoIncidentePage() {
 
               {/* Banner: tienda con contingencia activa en un incidente en curso */}
               {tienda && contActivaTienda?.activa && (
-                <div style={{ background: '#fff7ed', border: '1.5px solid #f97316', borderRadius: '10px', padding: '12px 16px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#c2410c', marginBottom: '4px' }}>
+                <div style={{ background: 'var(--warn-bg)', border: '1.5px solid #f97316', borderRadius: '10px', padding: '12px 16px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--warn)', marginBottom: '4px' }}>
                     📶 Contingencia activa en esta tienda
                   </div>
-                  <div style={{ fontSize: '11px', color: '#7c2d12', lineHeight: 1.5 }}>
+                  <div style={{ fontSize: '11px', color: 'var(--warn)', lineHeight: 1.5 }}>
                     {contActivaTienda.activadaPor
                       ? <>Activada por <strong>{contActivaTienda.activadaPor}</strong>.</>
                       : 'Esta tienda tiene una contingencia activa.'}
@@ -312,7 +312,7 @@ export default function NuevoIncidentePage() {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Contingencia:</span>
-                    <span style={{ padding: '2px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 600, background: tienda.tieneContingencia ? '#dcfce7' : 'var(--muted)', color: tienda.tieneContingencia ? '#15803d' : 'var(--muted-foreground)', border: `1px solid ${tienda.tieneContingencia ? '#86efac' : 'var(--border)'}` }}>
+                    <span style={{ padding: '2px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 600, background: tienda.tieneContingencia ? 'var(--ok-bg)' : 'var(--muted)', color: tienda.tieneContingencia ? 'var(--ok-bg)' : 'var(--muted-foreground)', border: `1px solid ${tienda.tieneContingencia ? 'var(--ok-border)' : 'var(--border)'}` }}>
                       {tienda.tieneContingencia ? 'Sí' : 'No'}
                     </span>
                   </div>
@@ -341,13 +341,13 @@ export default function NuevoIncidentePage() {
                   {form.tipo === 'CORTE_ELECTRICO' && (
                     <div style={{ marginTop: '10px', padding: '12px', background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       <div>
-                        <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#92400E', marginBottom: '6px' }}>Alcance del corte</div>
+                        <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--warn)', marginBottom: '6px' }}>Alcance del corte</div>
                         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                           {(['SOLO_TIENDA', 'MALL', 'CUADRA_CALLE', 'ZONA_AMPLIA'] as const).map(v => {
                             const sel = form.alcanceCorte === v
                             return (
                               <button key={v} type="button" onClick={() => set('alcanceCorte', v)}
-                                style={{ padding: '4px 12px', fontSize: '11px', borderRadius: '999px', cursor: 'pointer', border: `1px solid ${sel ? '#B45309' : 'var(--border)'}`, background: sel ? '#FEF3C7' : 'var(--card)', color: sel ? '#92400E' : 'var(--foreground)', fontWeight: sel ? 700 : 400, outline: 'none' }}>
+                                style={{ padding: '4px 12px', fontSize: '11px', borderRadius: '999px', cursor: 'pointer', border: `1px solid ${sel ? 'var(--warn-border)' : 'var(--border)'}`, background: sel ? 'var(--warn-bg)' : 'var(--card)', color: sel ? 'var(--warn-bg)' : 'var(--foreground)', fontWeight: sel ? 700 : 400, outline: 'none' }}>
                                 {ALCANCE_LABELS[v]}
                               </button>
                             )
@@ -358,7 +358,7 @@ export default function NuevoIncidentePage() {
                         <input type="checkbox" checked={form.tuvoUps} onChange={e => set('tuvoUps', e.target.checked)} style={{ width: '14px', height: '14px' }} />
                         La tienda tenía UPS activo
                       </label>
-                      <div style={{ fontSize: '10px', color: '#92400E' }}>
+                      <div style={{ fontSize: '10px', color: 'var(--warn)' }}>
                         Este incidente se marcará automáticamente como no evaluable para el proveedor de internet.
                       </div>
                     </div>
@@ -410,7 +410,7 @@ export default function NuevoIncidentePage() {
           <div style={{ marginTop: '16px' }}>
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
               <button type="submit" disabled={saving}
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '11px 24px', background: saving ? 'hsl(221,83%,35%)' : 'hsl(221,83%,45%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: saving ? 'wait' : 'pointer', boxShadow: '0 1px 3px rgba(59,130,246,0.3)' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '11px 24px', background: saving ? 'var(--gradient-primary)' : 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: saving ? 'wait' : 'pointer', boxShadow: '0 1px 3px rgba(59,130,246,0.3)' }}>
                 <IcoDoc />
                 {saving ? 'Registrando...' : 'Registrar incidente'}
               </button>
@@ -497,7 +497,7 @@ export default function NuevoIncidentePage() {
                 <a
                   href={`/tiendas/${tienda.id}`}
                   onClick={e => { e.preventDefault(); router.push(`/tiendas/${tienda.id}`) }}
-                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'hsl(221,83%,50%)', textDecoration: 'none', whiteSpace: 'nowrap', marginTop: '2px' }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--primary)', textDecoration: 'none', whiteSpace: 'nowrap', marginTop: '2px' }}>
                   Ver historial completo <IcoExt />
                 </a>
               </div>

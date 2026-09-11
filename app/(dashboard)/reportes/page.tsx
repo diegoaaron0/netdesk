@@ -73,8 +73,8 @@ const EXPORT_CARDS = [
     id: 'gerencial',
     titulo: 'Reporte Gerencial',
     badge: 'Informe completo',
-    color: '#185FA5',
-    bg: '#E6F1FB',
+    color: 'var(--info)',
+    bg: 'var(--info-bg)',
     Icon: IconGerencial,
     contenido: [
       { label: 'Resumen ejecutivo', detail: 'Total incidentes · MTTR prom · SLA% · Tiendas afectadas · IEI — cada métrica con variación vs período anterior' },
@@ -95,8 +95,8 @@ const EXPORT_CARDS = [
     id: 'proveedores',
     titulo: 'Seguimiento Proveedores',
     badge: null,
-    color: '#1D9E75',
-    bg: '#EAF3DE',
+    color: 'var(--ok)',
+    bg: 'var(--ok-bg)',
     Icon: IconProveedores,
     contenido: [
       { label: 'Resumen por proveedor', detail: 'Proveedor · Total · Evaluables SLA · SLA% · MTTR prom · T. respuesta · T. resolución · Escalados N2+ · Reaperturas · Tasa · Motivo frecuente · IEI' },
@@ -109,8 +109,8 @@ const EXPORT_CARDS = [
     id: 'fuera-sla',
     titulo: 'Incumplimientos SLA',
     badge: null,
-    color: '#B91C1C',
-    bg: '#FEE2E2',
+    color: 'var(--danger)',
+    bg: 'var(--danger-bg)',
     Icon: IconFueraSLA,
     contenido: [
       { label: 'Una fila por incidente fuera de SLA', detail: 'Código · Tienda · Proveedor · Tipo · Estado · MTTR real · Límite SLA · Exceso resolución · T. respuesta N1 · Exceso respuesta' },
@@ -123,8 +123,8 @@ const EXPORT_CARDS = [
     id: 'tiendas-criticas',
     titulo: 'Tiendas Críticas',
     badge: null,
-    color: '#854F0B',
-    bg: '#FAEEDA',
+    color: 'var(--warn)',
+    bg: 'var(--warn-bg)',
     Icon: IconTiendas,
     contenido: [
       { label: 'Una fila por tienda reincidente', detail: '# · Código · Nombre CC · Distrito · Proveedor · Incidentes · Tipo más frecuente · MTTR prom · SLA % · Días entre caídas' },
@@ -137,8 +137,8 @@ const EXPORT_CARDS = [
     id: 'operativos',
     titulo: 'Incidentes Operativos',
     badge: null,
-    color: '#374151',
-    bg: '#F1F5F9',
+    color: 'var(--muted-foreground)',
+    bg: 'var(--info-bg)',
     Icon: IconOperativos,
     contenido: [
       { label: 'Una fila por incidente', detail: 'Código · Tickets · Tienda · Proveedor · CID · Tipo · Impacto · Escalado · Contingencia · Fecha · Hora inicio · MTTR · N1/N2/N3 envío y respuesta' },
@@ -182,17 +182,17 @@ export default function ReportesPage() {
   return (
     <div>
       {/* ── Período de descarga ───────────────────────────────────────────────── */}
-      <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '14px 16px', marginBottom: '16px' }}>
+      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px 16px', marginBottom: '16px' }}>
         <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>
           Período de descarga
         </div>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <input type="date" value={desde} onChange={e => setDesde(e.target.value)}
-              style={{ padding: '6px 9px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }} />
+              style={{ padding: '6px 9px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }} />
             <span style={{ color: 'var(--muted-foreground)', fontSize: '12px' }}>—</span>
             <input type="date" value={hasta} onChange={e => setHasta(e.target.value)}
-              style={{ padding: '6px 9px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }} />
+              style={{ padding: '6px 9px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }} />
           </div>
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
             {([
@@ -203,7 +203,7 @@ export default function ReportesPage() {
               ['6 meses',  () => setQuick(daysAgo(180), todayStr())],
             ] as [string, () => void][]).map(([label, fn]) => (
               <button key={label} onClick={fn}
-                style={{ padding: '5px 10px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--muted)', color: 'var(--foreground)', cursor: 'pointer' }}>
+                style={{ padding: '5px 10px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--muted)', color: 'var(--foreground)', cursor: 'pointer' }}>
                 {label}
               </button>
             ))}
@@ -265,7 +265,7 @@ export default function ReportesPage() {
           </div>
           {/* right: botón */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-            {dlErrors[main.id] && <div style={{ fontSize: '11px', color: '#ef4444' }}>{dlErrors[main.id]}</div>}
+            {dlErrors[main.id] && <div style={{ fontSize: '11px', color: 'var(--danger)' }}>{dlErrors[main.id]}</div>}
             <button
               disabled={dlLoading[main.id]}
               onClick={() => download(main.id, main.path)}
@@ -279,7 +279,7 @@ export default function ReportesPage() {
         {rest.map(card => (
           <div key={card.id} style={{
             background: 'var(--card)',
-            border: '0.5px solid var(--border)',
+            border: '1px solid var(--border)',
             borderRadius: '12px',
             padding: '18px 20px',
             display: 'flex',
@@ -307,7 +307,7 @@ export default function ReportesPage() {
               ))}
             </div>
 
-            {dlErrors[card.id] && <div style={{ fontSize: '11px', color: '#ef4444' }}>{dlErrors[card.id]}</div>}
+            {dlErrors[card.id] && <div style={{ fontSize: '11px', color: 'var(--danger)' }}>{dlErrors[card.id]}</div>}
             <button
               disabled={dlLoading[card.id]}
               onClick={() => download(card.id, card.path)}

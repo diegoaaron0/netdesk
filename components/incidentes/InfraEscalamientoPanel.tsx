@@ -21,11 +21,11 @@ export function InfraEscalamientoPanel({ inc, isClosed, onRefresh }: { inc: any;
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '13px' }}>🔧</span>
-          <span style={{ fontSize: '12px', fontWeight: 700, color: '#4f46e5' }}>Escalado a Infraestructura</span>
+          <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--purple)' }}>Escalado a Infraestructura</span>
         </div>
         {!isClosed && (
           <button onClick={handleLiberar}
-            style={{ fontSize: '10px', padding: '2px 8px', background: 'transparent', border: '1px solid rgba(99,102,241,.4)', borderRadius: '4px', color: '#6366f1', cursor: 'pointer' }}>
+            style={{ fontSize: '10px', padding: '2px 8px', background: 'transparent', border: '1px solid rgba(99,102,241,.4)', borderRadius: '4px', color: 'var(--purple)', cursor: 'pointer' }}>
             Liberar
           </button>
         )}

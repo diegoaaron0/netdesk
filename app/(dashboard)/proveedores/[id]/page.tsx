@@ -23,15 +23,15 @@ function fmtDate(d: string | null | undefined) {
 }
 
 function slaColor(v: number | null) {
-  if (v == null) return '#9ca3af'
-  if (v >= 80) return '#16a34a'
-  if (v >= 60) return '#d97706'
-  return '#dc2626'
+  if (v == null) return 'var(--muted-foreground)'
+  if (v >= 80) return 'var(--ok)'
+  if (v >= 60) return 'var(--warn)'
+  return 'var(--danger)'
 }
 
 const INP: React.CSSProperties = {
   width: '100%', padding: '6px 9px', fontSize: '12px',
-  border: '0.5px solid var(--border)', borderRadius: '7px',
+  border: '1px solid var(--border)', borderRadius: '7px',
   background: 'var(--card)', color: 'var(--foreground)', outline: 'none', boxSizing: 'border-box',
 }
 
@@ -53,7 +53,7 @@ function Val({ v, mono }: { v: string | null | undefined; mono?: boolean }) {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px', paddingBottom: '6px', borderBottom: '0.5px solid var(--border)' }}>
+    <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px', paddingBottom: '6px', borderBottom: '1px solid var(--border)' }}>
       {children}
     </div>
   )
@@ -190,7 +190,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '16px' }}>
         <button onClick={() => router.push('/proveedores')}
-          style={{ padding: '6px 12px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', cursor: 'pointer', whiteSpace: 'nowrap', marginTop: '2px' }}>
+          style={{ padding: '6px 12px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', cursor: 'pointer', whiteSpace: 'nowrap', marginTop: '2px' }}>
           ← Volver
         </button>
         <div style={{ flex: 1 }}>
@@ -201,14 +201,14 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
         </div>
         {canEdit && (
           <button onClick={() => { setEditForm({ ...data }); setEditProv(true) }}
-            style={{ padding: '7px 14px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', cursor: 'pointer', whiteSpace: 'nowrap', marginTop: '2px' }}>
+            style={{ padding: '7px 14px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', cursor: 'pointer', whiteSpace: 'nowrap', marginTop: '2px' }}>
             Editar proveedor
           </button>
         )}
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '2px', borderBottom: '0.5px solid var(--border)', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', gap: '2px', borderBottom: '1px solid var(--border)', marginBottom: '16px' }}>
         {([
           { id: 'resumen',       label: 'Resumen' },
           { id: 'tiendas',       label: 'Tiendas asignadas' },
@@ -216,7 +216,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
           { id: 'escalamientos', label: 'Escalamientos por defecto' },
         ] as const).map(t => (
           <button key={t.id} onClick={() => setTab(t.id as any)}
-            style={{ padding: '8px 16px', fontSize: '12px', fontWeight: tab === t.id ? 600 : 400, background: 'none', border: 'none', cursor: 'pointer', color: tab === t.id ? 'var(--foreground)' : 'var(--muted-foreground)', borderBottom: tab === t.id ? '2px solid hsl(221,83%,23%)' : '2px solid transparent', transition: 'color 0.15s' }}>
+            style={{ padding: '8px 16px', fontSize: '12px', fontWeight: tab === t.id ? 600 : 400, background: 'none', border: 'none', cursor: 'pointer', color: tab === t.id ? 'var(--foreground)' : 'var(--muted-foreground)', borderBottom: tab === t.id ? '2px solid var(--primary)' : '2px solid transparent', transition: 'color 0.15s' }}>
             {t.label}
           </button>
         ))}
@@ -228,12 +228,12 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
           {/* KPI chips */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '14px' }}>
             {[
-              { label: 'Tiendas asignadas', value: String(metricas?.totalTiendas ?? 0), color: 'hsl(221,83%,23%)' },
+              { label: 'Tiendas asignadas', value: String(metricas?.totalTiendas ?? 0), color: 'var(--primary)' },
               { label: 'SLA Respuesta 30d', value: metricas?.slaRespuestaPct  != null ? `${metricas.slaRespuestaPct}%`  : '—', color: slaColor(metricas?.slaRespuestaPct  ?? null) },
               { label: 'SLA Resolución 30d', value: metricas?.slaResolucionPct != null ? `${metricas.slaResolucionPct}%` : '—', color: slaColor(metricas?.slaResolucionPct ?? null) },
-              { label: 'Incidentes 30d', value: String(metricas?.incidentes30d ?? 0), color: (metricas?.incidentes30d ?? 0) > 0 ? '#b45309' : '#6b7280' },
+              { label: 'Incidentes 30d', value: String(metricas?.incidentes30d ?? 0), color: (metricas?.incidentes30d ?? 0) > 0 ? 'var(--warn)' : 'var(--muted-foreground)' },
             ].map(k => (
-              <div key={k.label} style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '14px 16px' }}>
+              <div key={k.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px 16px' }}>
                 <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>{k.label}</div>
                 <div style={{ fontSize: '24px', fontWeight: 700, color: k.color, lineHeight: 1 }}>{k.value}</div>
               </div>
@@ -242,7 +242,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '16px' }}>
           {/* Left */}
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
             <SectionTitle>Información general</SectionTitle>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
               <div><Label>Nombre</Label><Val v={data.nombre} /></div>
@@ -250,7 +250,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
               <div><Label>Canal de atención</Label><Val v={data.canalAtencion} /></div>
             </div>
             {(data.correoSoporte || data.telefonoSoporte || nivelContacto) && (
-              <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '10px', marginTop: '2px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: '10px', marginTop: '2px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
                 {data.correoSoporte  && <div><Label>Correo soporte</Label><Val v={data.correoSoporte} /></div>}
                 {data.telefonoSoporte && <div><Label>Teléfono</Label><Val v={data.telefonoSoporte} /></div>}
                 {nivelContacto && <>
@@ -260,7 +260,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
               </div>
             )}
             {data.observaciones && (
-              <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: '10px', marginTop: '2px' }}>
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: '10px', marginTop: '2px' }}>
                 <Label>Observaciones</Label>
                 <div style={{ fontSize: '12px', color: 'var(--foreground)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{data.observaciones}</div>
               </div>
@@ -275,7 +275,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
 
           {/* Right: métricas */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
               <SectionTitle>Métricas (30 días)</SectionTitle>
               {[
                 { label: 'Costo mensual total ↗',       value: fmtSoles(metricas?.costoTotal), onClick: () => setPanelMetrica('costo') },
@@ -285,14 +285,14 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
                 { label: 'T. resolución promedio ↗',   value: metricas?.tResolucionPromedio != null ? `${metricas.tResolucionPromedio} min` : '—', onClick: () => setPanelMetrica('tResol') },
                 { label: 'MTTR promedio ↗',            value: fmtMttr(metricas?.mttrPromedio), onClick: () => setPanelMetrica('mttr') },
                 { label: 'Incidentes (30d)',            value: String(metricas?.incidentes30d ?? 0) },
-                { label: 'Tiendas críticas',            value: String(metricas?.tiendasCriticas ?? 0), color: metricas?.tiendasCriticas > 0 ? '#ef4444' : undefined },
+                { label: 'Tiendas críticas',            value: String(metricas?.tiendasCriticas ?? 0), color: metricas?.tiendasCriticas > 0 ? 'var(--danger)' : undefined },
                 { label: 'Tiempo caído total ↗',       value: fmtMttr(metricas?.mttrTotal), onClick: () => setPanelMetrica('tiempoCaido') },
                 { label: 'Tiendas asociadas',           value: String(metricas?.totalTiendas ?? 0) },
-                { label: 'IEI acumulado (30d) ↗',      value: metricas?.iei30d != null && metricas.iei30d > 0 ? `S/ ${metricas.iei30d.toLocaleString('es-PE')}` : '—', color: metricas?.iei30d > 0 ? '#b91c1c' : undefined, onClick: () => setIeiPanelOpen(true) },
+                { label: 'IEI acumulado (30d) ↗',      value: metricas?.iei30d != null && metricas.iei30d > 0 ? `S/ ${metricas.iei30d.toLocaleString('es-PE')}` : '—', color: metricas?.iei30d > 0 ? 'var(--danger)' : undefined, onClick: () => setIeiPanelOpen(true) },
               ].map(r => (
                 <div key={r.label}
                   onClick={(r as any).onClick}
-                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '0.5px solid var(--border)', cursor: (r as any).onClick ? 'pointer' : 'default' }}>
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid var(--border)', cursor: (r as any).onClick ? 'pointer' : 'default' }}>
                   <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{r.label}</span>
                   <span style={{ fontSize: '12px', fontWeight: 600, color: (r as any).color ?? 'var(--foreground)' }}>{r.value}</span>
                 </div>
@@ -309,7 +309,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
             <input placeholder="Buscar por código o nombre..." value={buscarT}
               onChange={e => setBuscarT(e.target.value)}
-              style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', minWidth: '220px' }} />
+              style={{ padding: '6px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', minWidth: '220px' }} />
 
             {/* Chips de vencimiento */}
             <div style={{ display: 'flex', gap: '4px' }}>
@@ -317,7 +317,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
                 const activo = filtroVenc === val
                 return (
                   <button key={val} onClick={() => setFiltroVenc(val)}
-                    style={{ padding: '5px 10px', fontSize: '11px', fontWeight: activo ? 600 : 400, borderRadius: '7px', cursor: 'pointer', whiteSpace: 'nowrap', border: `0.5px solid ${activo ? 'hsl(221,83%,33%)' : 'var(--border)'}`, background: activo ? 'hsl(221,83%,23%)' : 'var(--card)', color: activo ? '#fff' : 'var(--muted-foreground)' }}>
+                    style={{ padding: '5px 10px', fontSize: '11px', fontWeight: activo ? 600 : 400, borderRadius: '7px', cursor: 'pointer', whiteSpace: 'nowrap', border: `1px solid ${activo ? 'var(--primary)' : 'var(--border)'}`, background: activo ? 'var(--gradient-primary)' : 'var(--card)', color: activo ? '#fff' : 'var(--muted-foreground)' }}>
                     {label}
                   </button>
                 )
@@ -327,7 +327,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
             {/* Orden por vencimiento */}
             <button onClick={() => setOrdenVenc(v => !v)}
               title="Ordenar por fecha de vencimiento (más cercana primero)"
-              style={{ padding: '5px 10px', fontSize: '11px', fontWeight: ordenVenc ? 600 : 400, borderRadius: '7px', cursor: 'pointer', whiteSpace: 'nowrap', border: `0.5px solid ${ordenVenc ? 'hsl(221,83%,33%)' : 'var(--border)'}`, background: ordenVenc ? '#eef4ff' : 'var(--card)', color: ordenVenc ? 'hsl(221,83%,23%)' : 'var(--muted-foreground)' }}>
+              style={{ padding: '5px 10px', fontSize: '11px', fontWeight: ordenVenc ? 600 : 400, borderRadius: '7px', cursor: 'pointer', whiteSpace: 'nowrap', border: `1px solid ${ordenVenc ? 'var(--primary)' : 'var(--border)'}`, background: ordenVenc ? 'var(--info-bg)' : 'var(--card)', color: ordenVenc ? 'var(--primary)' : 'var(--muted-foreground)' }}>
               ↑ Próximas a vencer
             </button>
 
@@ -335,15 +335,15 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
               <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap', marginLeft: 'auto' }}>
                 {tiendasFiltradas.length} tienda{tiendasFiltradas.length !== 1 ? 's' : ''}
                 {tiendasFiltradas.filter((t: any) => !t.fichaActiva).length > 0 && (
-                  <span style={{ color: '#d97706', marginLeft: '6px' }}>· {tiendasFiltradas.filter((t: any) => !t.fichaActiva).length} sin ficha</span>
+                  <span style={{ color: 'var(--warn)', marginLeft: '6px' }}>· {tiendasFiltradas.filter((t: any) => !t.fichaActiva).length} sin ficha</span>
                 )}
               </span>
             )}
           </div>
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
               <thead>
-                <tr style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--muted)' }}>
+                <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}>
                   {['Tienda', 'Distrito', 'CID', 'Conexión', 'Cluster', 'Costo', 'Contingencia', 'Estado', 'Inc. 30d', 'Vencimiento', 'Contrato SLA', ''].map(h => (
                     <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
@@ -354,7 +354,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
                 {!loadingT && tiendasFiltradas.length === 0 && <tr><td colSpan={12} style={{ padding: '24px', textAlign: 'center', color: 'var(--muted-foreground)' }}>Sin tiendas</td></tr>}
                 {!loadingT && tiendasFiltradas.map((t, i) => (
                   <tr key={t.id}
-                    style={{ borderBottom: i < tiendasFiltradas.length - 1 ? '0.5px solid var(--border)' : 'none', cursor: 'pointer' }}
+                    style={{ borderBottom: i < tiendasFiltradas.length - 1 ? '1px solid var(--border)' : 'none', cursor: 'pointer' }}
                     onClick={() => router.push(`/proveedores/${id}/tienda/${t.id}`)}
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
@@ -370,15 +370,15 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
                     </td>
                     <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: '11px' }}>{fmtSoles(t.costoMensual)}</td>
                     <td style={{ padding: '8px 10px' }}>
-                      <span style={{ fontSize: '10px', fontWeight: 600, color: t.tieneContingencia ? '#059669' : '#9ca3af' }}>{t.tieneContingencia ? 'Sí' : 'No'}</span>
+                      <span style={{ fontSize: '10px', fontWeight: 600, color: t.tieneContingencia ? 'var(--ok)' : 'var(--muted-foreground)' }}>{t.tieneContingencia ? 'Sí' : 'No'}</span>
                     </td>
                     <td style={{ padding: '8px 10px' }}>
-                      <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: t.estadoServicio === 'ACTIVO' ? '#d1fae5' : '#fee2e2', color: t.estadoServicio === 'ACTIVO' ? '#065f46' : '#b91c1c' }}>
+                      <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: t.estadoServicio === 'ACTIVO' ? 'var(--ok-bg)' : 'var(--danger-bg)', color: t.estadoServicio === 'ACTIVO' ? 'var(--ok-bg)' : 'var(--danger-bg)' }}>
                         {t.estadoServicio ?? 'ACTIVO'}
                       </span>
                     </td>
                     <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                      {t.incidentes30d > 0 ? <span style={{ fontWeight: 700, color: '#dc2626' }}>{t.incidentes30d}</span> : <span style={{ color: 'var(--muted-foreground)' }}>0</span>}
+                      {t.incidentes30d > 0 ? <span style={{ fontWeight: 700, color: 'var(--danger)' }}>{t.incidentes30d}</span> : <span style={{ color: 'var(--muted-foreground)' }}>0</span>}
                     </td>
                     <td style={{ padding: '8px 10px' }}>
                       {(() => {
@@ -398,7 +398,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
                     <td style={{ padding: '8px 10px' }}>
                       {t.contratoEspecifico ? (
                         <div>
-                          <span style={{ fontSize: '10px', fontWeight: 600, padding: '1px 5px', borderRadius: '4px', background: '#dbeafe', color: '#1e40af' }}>Específico</span>
+                          <span style={{ fontSize: '10px', fontWeight: 600, padding: '1px 5px', borderRadius: '4px', background: 'var(--info-bg)', color: 'var(--info)' }}>Específico</span>
                           <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px', fontFamily: 'monospace' }}>
                             {t.contratoEspecifico.tiempo_respuesta_sla ?? '—'}m / {t.contratoEspecifico.tiempo_resolucion_sla ?? '—'}m
                           </div>
@@ -410,17 +410,17 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
                     <td style={{ padding: '8px 10px' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                         <button onClick={e => { e.stopPropagation(); router.push(`/proveedores/${id}/tienda/${t.id}`) }}
-                          style={{ padding: '4px 10px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                          style={{ padding: '4px 10px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--card)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                           Ver servicio
                         </button>
                         {t.fichaActiva ? (
                           <button onClick={e => { e.stopPropagation(); router.push(`/gestion-cambios/fichas/${t.fichaActiva.id}`) }}
-                            style={{ padding: '4px 10px', fontSize: '11px', border: '0.5px solid #86efac', borderRadius: '6px', background: '#f0fdf4', color: '#166534', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                            style={{ padding: '4px 10px', fontSize: '11px', border: '1px solid var(--ok-border)', borderRadius: '6px', background: 'var(--ok-bg)', color: 'var(--ok)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                             {t.fichaActiva.codigo}
                           </button>
                         ) : (
                           <button onClick={e => { e.stopPropagation(); router.push(`/gestion-cambios/fichas/nueva?tiendaId=${t.id}&proveedorId=${id}`) }}
-                            style={{ padding: '4px 10px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--muted-foreground)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                            style={{ padding: '4px 10px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--muted-foreground)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                             + Ficha
                           </button>
                         )}
@@ -438,10 +438,10 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
 
       {/* ── Tab: Históricas ──────────────────────────────────────────────────── */}
       {tab === 'historicas' && (
-        <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
             <thead>
-              <tr style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--muted)' }}>
+              <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}>
                 {['Tienda', 'Distrito', 'Incidentes', 'MTTR prom', 'Último incidente', 'Salida del proveedor', 'Proveedor actual'].map(h => (
                   <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
@@ -452,7 +452,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
                 <tr><td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: 'var(--muted-foreground)' }}>Sin tiendas históricas</td></tr>
               ) : (data.tiendasHistoricas ?? []).map((t: any, i: number) => (
                 <tr key={t.tiendaId}
-                  style={{ borderBottom: i < (data.tiendasHistoricas.length - 1) ? '0.5px solid var(--border)' : 'none', cursor: 'pointer' }}
+                  style={{ borderBottom: i < (data.tiendasHistoricas.length - 1) ? '1px solid var(--border)' : 'none', cursor: 'pointer' }}
                   onClick={() => router.push(`/proveedores/${id}/tienda/${t.tiendaId}`)}
                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
@@ -487,31 +487,31 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
             </div>
             {canEdit && (
               <button onClick={() => setNivelForm({ nivel: nivelesDefault.length ? Math.max(...nivelesDefault.map((n: any) => n.nivel)) + 1 : 1, nombreContacto: '', canal: 'correo' })}
-                style={{ padding: '8px 14px', fontSize: '12px', fontWeight: 600, background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                style={{ padding: '8px 14px', fontSize: '12px', fontWeight: 600, background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                 + Agregar nivel
               </button>
             )}
           </div>
 
           {nivelesDefault.length === 0 ? (
-            <div style={{ textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px', padding: '32px 0', background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px' }}>
+            <div style={{ textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px', padding: '32px 0', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px' }}>
               Este proveedor aún no tiene escalamientos por defecto.
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {nivelesDefault.map((n: any) => (
-                <div key={n.id} style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+                <div key={n.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#1D4ED8', background: '#EFF6FF', padding: '2px 8px', borderRadius: '999px' }}>N{n.nivel}</span>
-                      <span style={{ fontSize: '13px', fontWeight: 600 }}>{n.nombreContacto || <span style={{ color: '#DC2626', fontStyle: 'italic' }}>sin nombre</span>}</span>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--info)', background: 'var(--info-bg)', padding: '2px 8px', borderRadius: '999px' }}>N{n.nivel}</span>
+                      <span style={{ fontSize: '13px', fontWeight: 600 }}>{n.nombreContacto || <span style={{ color: 'var(--danger)', fontStyle: 'italic' }}>sin nombre</span>}</span>
                     </div>
                     {canEdit && (
                       <div style={{ display: 'flex', gap: '6px' }}>
                         <button onClick={() => setNivelForm({ ...n })}
-                          style={{ fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', background: 'var(--muted)', color: 'var(--foreground)', border: '0.5px solid var(--border)', cursor: 'pointer' }}>Editar</button>
+                          style={{ fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', background: 'var(--muted)', color: 'var(--foreground)', border: '1px solid var(--border)', cursor: 'pointer' }}>Editar</button>
                         <button onClick={() => deleteNivel(n.id)}
-                          style={{ fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', background: 'rgba(220,38,38,0.1)', color: '#dc2626', border: '0.5px solid rgba(220,38,38,0.3)', cursor: 'pointer' }}>Eliminar</button>
+                          style={{ fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', background: 'rgba(220,38,38,0.1)', color: 'var(--danger)', border: '1px solid rgba(220,38,38,0.3)', cursor: 'pointer' }}>Eliminar</button>
                       </div>
                     )}
                   </div>
@@ -530,8 +530,8 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
 
           {/* Form agregar/editar */}
           {nivelForm && (
-            <div onClick={() => !savingNivel && setNivelForm(null)} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-              <div onClick={e => e.stopPropagation()} style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '20px', width: '460px', maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+            <div onClick={() => !savingNivel && setNivelForm(null)} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+              <div onClick={e => e.stopPropagation()} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', width: '460px', maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
                 <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '14px' }}>{nivelForm.id ? `Editar nivel N${nivelForm.nivel}` : 'Nuevo nivel de escalamiento'}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr', gap: '10px', alignItems: 'center' }}>
                   {([
@@ -549,15 +549,15 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
                       <input type={type} value={nivelForm[k] ?? ''}
                         disabled={k === 'nivel' && !!nivelForm.id}
                         onChange={e => setNivelForm((p: any) => ({ ...p, [k]: type === 'number' ? Number(e.target.value) : e.target.value }))}
-                        style={{ padding: '6px 8px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '6px', background: (k === 'nivel' && nivelForm.id) ? 'var(--muted)' : 'var(--background)', boxSizing: 'border-box' }} />
+                        style={{ padding: '6px 8px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '6px', background: (k === 'nivel' && nivelForm.id) ? 'var(--muted)' : 'var(--background)', boxSizing: 'border-box' }} />
                     </Fragment>
                   ))}
                 </div>
                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '16px' }}>
                   <button onClick={() => setNivelForm(null)} disabled={savingNivel}
-                    style={{ padding: '7px 14px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', color: 'var(--foreground)', cursor: 'pointer' }}>Cancelar</button>
+                    style={{ padding: '7px 14px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', color: 'var(--foreground)', cursor: 'pointer' }}>Cancelar</button>
                   <button onClick={saveNivel} disabled={savingNivel || !nivelForm.nombreContacto?.trim()}
-                    style={{ padding: '7px 16px', fontSize: '12px', fontWeight: 600, background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '7px', cursor: savingNivel ? 'wait' : 'pointer', opacity: nivelForm.nombreContacto?.trim() ? 1 : 0.5 }}>
+                    style={{ padding: '7px 16px', fontSize: '12px', fontWeight: 600, background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '7px', cursor: savingNivel ? 'wait' : 'pointer', opacity: nivelForm.nombreContacto?.trim() ? 1 : 0.5 }}>
                     {savingNivel ? 'Guardando…' : 'Guardar'}
                   </button>
                 </div>
@@ -595,7 +595,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
 
       {/* ── Side panel genérico de métricas ── */}
       {panelMetrica && (
-        <div onClick={() => setPanelMetrica(null)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.22)' }} />
+        <div onClick={() => setPanelMetrica(null)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)' }} />
       )}
       {(() => {
         const slaRows: any[] = data?.metricas?.slaBreakdown ?? []
@@ -605,7 +605,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
           const h = Math.floor(m / 60), min = m % 60
           return h > 0 ? `${h}h ${min}m` : `${min}m`
         }
-        const slaCol = (v: number | null | undefined) => v == null ? '#9ca3af' : v >= 80 ? '#16a34a' : v >= 60 ? '#d97706' : '#dc2626'
+        const slaCol = (v: number | null | undefined) => v == null ? 'var(--muted-foreground)' : v >= 80 ? 'var(--ok)' : v >= 60 ? 'var(--warn)' : 'var(--danger)'
         const TIPO: Record<string, string> = { CAIDA_TOTAL: 'Caída', INTERMITENCIA: 'Intermitencia', LENTITUD: 'Lentitud', CORTE_ELECTRICO: 'Corte elét.' }
 
         const config: Record<string, { title: string; cols: string[]; rows: () => any[]; render: (r: any) => React.ReactNode[] }> = {
@@ -703,7 +703,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
             transition: 'transform 0.26s cubic-bezier(0.4,0,0.2,1)',
             overflow: 'hidden',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderBottom: '0.5px solid var(--border)', background: 'var(--muted)', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderBottom: '1px solid var(--border)', background: 'var(--muted)', flexShrink: 0 }}>
               <div style={{ fontSize: '13px', fontWeight: 600 }}>{cfg?.title ?? ''}</div>
               <button onClick={() => setPanelMetrica(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--muted-foreground)' }}>✕</button>
             </div>
@@ -715,7 +715,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
                   <thead style={{ position: 'sticky', top: 0, background: 'var(--muted)', zIndex: 1 }}>
                     <tr>
                       {cfg?.cols.map(h => (
-                        <th key={h} style={{ padding: '7px 12px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', borderBottom: '0.5px solid var(--border)' }}>{h}</th>
+                        <th key={h} style={{ padding: '7px 12px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', borderBottom: '1px solid var(--border)' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -725,7 +725,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
                       const isInc = !!r.id
                       return (
                         <tr key={i}
-                          style={{ borderBottom: '0.5px solid var(--border)', cursor: isInc ? 'pointer' : 'default' }}
+                          style={{ borderBottom: '1px solid var(--border)', cursor: isInc ? 'pointer' : 'default' }}
                           onClick={isInc ? () => router.push(`/incidentes/${r.id}`) : undefined}
                           onMouseEnter={isInc ? e => (e.currentTarget.style.background = 'var(--muted)') : undefined}
                           onMouseLeave={isInc ? e => (e.currentTarget.style.background = 'transparent') : undefined}>
@@ -745,7 +745,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
 
       {/* ── Side panel IEI 30d por tienda ── */}
       {ieiPanelOpen && (
-        <div onClick={() => setIeiPanelOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.22)' }} />
+        <div onClick={() => setIeiPanelOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)' }} />
       )}
       <div style={{
         position: 'fixed', top: 0, right: 0, bottom: 0, width: 520, maxWidth: '95vw',
@@ -756,10 +756,10 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
         transition: 'transform 0.26s cubic-bezier(0.4,0,0.2,1)',
         overflow: 'hidden',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderBottom: '0.5px solid var(--border)', background: 'var(--muted)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderBottom: '1px solid var(--border)', background: 'var(--muted)', flexShrink: 0 }}>
           <div>
             <div style={{ fontSize: '13px', fontWeight: 600 }}>IEI acumulado 30 días — {data?.nombre}</div>
-            <div style={{ fontSize: '11px', color: data?.metricas?.iei30d > 0 ? '#b91c1c' : 'var(--muted-foreground)', fontWeight: 600 }}>
+            <div style={{ fontSize: '11px', color: data?.metricas?.iei30d > 0 ? 'var(--danger)' : 'var(--muted-foreground)', fontWeight: 600 }}>
               Total: {data?.metricas?.iei30d > 0 ? `S/ ${Math.round(data.metricas.iei30d).toLocaleString('es-PE')}` : 'S/ 0'}
             </div>
           </div>
@@ -769,22 +769,22 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
           {(data?.metricas?.iei30dBreakdown ?? []).length === 0 ? (
             <div style={{ textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px', padding: '32px 0' }}>Sin incidentes con IEI en los últimos 30 días</div>
           ) : (data?.metricas?.iei30dBreakdown ?? []).map((t: any) => (
-            <div key={t.tiendaId} style={{ background: 'var(--background)', borderRadius: '8px', border: '0.5px solid var(--border)', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--muted)', borderBottom: '0.5px solid var(--border)' }}>
+            <div key={t.tiendaId} style={{ background: 'var(--background)', borderRadius: '8px', border: '1px solid var(--border)', overflow: 'hidden' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
                 <div>
                   <span style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: 700 }}>{t.tiendaCodigo}</span>
                   {t.tiendaNombre && <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginLeft: '6px' }}>{t.tiendaNombre}</span>}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{t.incidentes.length} inc.</span>
-                  <span style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: 700, color: '#b91c1c' }}>S/ {t.ieiTotal.toLocaleString('es-PE')}</span>
+                  <span style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: 700, color: 'var(--danger)' }}>S/ {t.ieiTotal.toLocaleString('es-PE')}</span>
                 </div>
               </div>
               {t.incidentes.sort((a: any, b: any) => b.iei - a.iei).map((inc: any) => {
                 const TIPO_LABEL: Record<string, string> = { CAIDA_TOTAL: 'Caída', INTERMITENCIA: 'Intermitencia', LENTITUD: 'Lentitud', CORTE_ELECTRICO: 'Corte elét.' }
                 return (
                   <div key={inc.id}
-                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', borderBottom: '0.5px solid var(--border)', cursor: 'pointer', fontSize: '11px' }}
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', borderBottom: '1px solid var(--border)', cursor: 'pointer', fontSize: '11px' }}
                     onClick={() => router.push(`/incidentes/${inc.id}`)}
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
@@ -793,7 +793,7 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
                       <span style={{ color: 'var(--muted-foreground)' }}>{TIPO_LABEL[inc.tipo] ?? inc.tipo}</span>
                       {inc.mttrMinutos && <span style={{ color: 'var(--muted-foreground)' }}>{inc.mttrMinutos >= 60 ? `${Math.floor(inc.mttrMinutos/60)}h ${inc.mttrMinutos%60}m` : `${inc.mttrMinutos}m`}</span>}
                     </div>
-                    <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#b91c1c', flexShrink: 0 }}>S/ {inc.iei.toLocaleString('es-PE')}</span>
+                    <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--danger)', flexShrink: 0 }}>S/ {inc.iei.toLocaleString('es-PE')}</span>
                   </div>
                 )
               })}
@@ -808,9 +808,9 @@ export default function ProveedorDetallePage({ params }: { params: Promise<{ id:
 // ── UI Sub-components ──────────────────────────────────────────────────────────
 function ModalWrap({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-      <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflow: 'auto' }}>
-        <div style={{ padding: '14px 18px', borderBottom: '0.5px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflow: 'auto' }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ fontSize: '13px', fontWeight: 600 }}>{title}</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--muted-foreground)' }}>✕</button>
         </div>
@@ -837,11 +837,11 @@ function ModalFooter({ onCancel, onSave, saving }: { onCancel: () => void; onSav
   return (
     <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '12px' }}>
       <button onClick={onCancel}
-        style={{ padding: '8px 16px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>
+        style={{ padding: '8px 16px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>
         Cancelar
       </button>
       <button onClick={onSave} disabled={saving}
-        style={{ padding: '8px 16px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+        style={{ padding: '8px 16px', background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
         {saving ? 'Guardando...' : 'Guardar'}
       </button>
     </div>

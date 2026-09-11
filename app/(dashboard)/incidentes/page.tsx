@@ -60,7 +60,7 @@ function sortIncidentes(items: any[]): any[] {
 
 // SVG icons
 const IconAbiertos = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#378ADD" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--info)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="4" width="20" height="16" rx="2"/><path d="M8 2v4M16 2v4M2 10h20"/>
   </svg>
 )
@@ -70,7 +70,7 @@ const IconEscalados = () => (
   </svg>
 )
 const IconResueltos = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#27500A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ok)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
   </svg>
 )
@@ -223,14 +223,14 @@ export default function IncidentesPage() {
         <button
           onClick={() => router.push('/incidentes/nuevo')}
           style={{
-            padding: '10px 22px', background: 'hsl(221,83%,42%)', color: 'white',
+            padding: '10px 22px', background: 'var(--gradient-primary)', color: 'white',
             border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
             cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '7px',
             boxShadow: '0 2px 8px rgba(37,99,235,0.35), 0 1px 2px rgba(0,0,0,0.12)',
             letterSpacing: '0.01em',
           }}
-          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'hsl(221,83%,38%)' }}
-          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'hsl(221,83%,42%)' }}>
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--primary)' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--primary)' }}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
           Nuevo incidente
         </button>
@@ -239,9 +239,9 @@ export default function IncidentesPage() {
       {/* Métricas inline */}
       <div style={{ background: 'var(--card)', borderRadius: '10px', border: '1px solid var(--border)', display: 'flex', overflow: 'hidden' }}>
         {[
-          { label: 'Abiertos',  value: abiertos,  color: '#185FA5', icon: <IconAbiertos /> },
-          { label: 'Escalados', value: escalados, color: '#854F0B', icon: <IconEscalados /> },
-          { label: 'Resueltos', value: resueltos, color: '#27500A', icon: <IconResueltos /> },
+          { label: 'Abiertos',  value: abiertos,  color: 'var(--info)', icon: <IconAbiertos /> },
+          { label: 'Escalados', value: escalados, color: 'var(--warn)', icon: <IconEscalados /> },
+          { label: 'Resueltos', value: resueltos, color: 'var(--ok)', icon: <IconResueltos /> },
         ].map((m, i) => (
           <div key={m.label} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 20px', borderLeft: i > 0 ? '1px solid var(--border)' : 'none' }}>
             <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -269,10 +269,10 @@ export default function IncidentesPage() {
             onClick={() => { setMisRegistros(v => !v); setPage(1) }}
             style={{
               padding: '6px 14px', fontSize: '12px', fontWeight: misRegistros ? 600 : 400,
-              border: misRegistros ? '1px solid #166534' : '1px solid var(--border)',
+              border: misRegistros ? '1px solid var(--ok-border)' : '1px solid var(--border)',
               borderRadius: '8px', cursor: 'pointer',
-              background: misRegistros ? '#14532d' : 'var(--card)',
-              color: misRegistros ? '#86efac' : 'var(--foreground)', outline: 'none',
+              background: misRegistros ? 'var(--ok-bg)' : 'var(--card)',
+              color: misRegistros ? 'var(--ok)' : 'var(--foreground)', outline: 'none',
               whiteSpace: 'nowrap',
             }}>
             Mis registros
@@ -296,8 +296,8 @@ export default function IncidentesPage() {
                 onClick={() => { setFiltroTipo(v); setPage(1) }}
                 style={{
                   padding: '3px 10px', fontSize: '11px', borderRadius: '999px', cursor: 'pointer',
-                  border: sel ? '1px solid hsl(221,83%,45%)' : '1px solid var(--border)',
-                  background: sel ? 'hsl(221,83%,45%)' : 'var(--card)',
+                  border: sel ? '1px solid var(--primary)' : '1px solid var(--border)',
+                  background: sel ? 'var(--gradient-primary)' : 'var(--card)',
                   color: sel ? 'white' : 'var(--foreground)',
                   fontWeight: sel ? 600 : 400, outline: 'none',
                 }}>{l}</button>
@@ -366,7 +366,7 @@ export default function IncidentesPage() {
       <div style={{ background: 'var(--card)', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ background: 'var(--muted)', borderBottom: '2px solid hsl(221,83%,45%)' }}>
+            <tr style={{ background: 'var(--muted)', borderBottom: '2px solid var(--primary)' }}>
               {['ID / Hora', 'Tienda', 'Proveedor', 'Usuario', 'Tipo', 'Impacto', 'Estado', 'Cluster', 'Duración', ''].map(h => (
                 <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: '10px', fontWeight: 700, color: 'var(--foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}>{h}</th>
               ))}
@@ -394,14 +394,14 @@ export default function IncidentesPage() {
               if (isOverdue) {
                 rowBg      = 'rgba(239,68,68,0.06)'
                 rowBgHover = 'rgba(239,68,68,0.12)'
-                textColor  = '#dc2626'
+                textColor  = 'var(--danger)'
                 mutedColor = '#f87171'
               } else if (isOpen && isElectric) {
                 rowBg      = 'rgba(245,158,11,0.07)'
                 rowBgHover = 'rgba(245,158,11,0.13)'
               } else if (isOpen) {
-                rowBg      = '#0d1117'
-                rowBgHover = '#111827'
+                rowBg      = 'var(--muted-foreground)'
+                rowBgHover = 'var(--muted-foreground)'
                 textColor  = 'rgba(255,255,255,0.9)'
                 mutedColor = 'rgba(255,255,255,0.45)'
               } else if (isClosed) {
@@ -410,11 +410,11 @@ export default function IncidentesPage() {
               }
 
               const leftBorder = isOverdue
-                ? '3px solid #ef4444'
+                ? '3px solid var(--danger)'
                 : (isOpen && isElectric)
-                  ? '3px solid #f59e0b'
+                  ? '3px solid var(--warn)'
                   : isOpen
-                    ? '3px solid #1d4ed8'
+                    ? '3px solid var(--info)'
                     : '3px solid transparent'
 
               return (
@@ -423,7 +423,7 @@ export default function IncidentesPage() {
                   style={{
                     borderTop:    idx > 0 ? '1px solid var(--border)' : 'none',
                     borderLeft:   leftBorder,
-                    borderBottom: inc.grupoMasivoId ? '2px solid #f59e0b' : undefined,
+                    borderBottom: inc.grupoMasivoId ? '2px solid var(--warn-border)' : undefined,
                     background:   rowBg,
                     cursor:       'pointer',
                   }}
@@ -437,12 +437,12 @@ export default function IncidentesPage() {
                         {inc.codigo}
                       </span>
                       {isOverdue && ['ESCALADO_N1','ESCALADO_N2','ESCALADO_N3'].includes(inc.estado) && (
-                        <span className="nd-pulse" title="SLA vencido" style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+                        <span className="nd-pulse" title="SLA vencido" style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: 'var(--danger-bg)', flexShrink: 0 }} />
                       )}
                     </div>
                     {inc.grupoMasivoCodigo && (
                       <div style={{ marginTop: '2px' }}>
-                        <span title={inc.grupoMasivoRazon ?? ''} style={{ fontSize: '9px', fontFamily: 'monospace', fontWeight: 700, background: 'rgba(245,158,11,0.15)', color: '#92400e', border: '1px solid rgba(245,158,11,0.4)', borderRadius: '3px', padding: '1px 5px', letterSpacing: '0.03em' }}>
+                        <span title={inc.grupoMasivoRazon ?? ''} style={{ fontSize: '9px', fontFamily: 'monospace', fontWeight: 700, background: 'rgba(245,158,11,0.15)', color: 'var(--warn)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: '3px', padding: '1px 5px', letterSpacing: '0.03em' }}>
                           ⛓ {inc.grupoMasivoCodigo}
                         </span>
                       </div>
@@ -454,7 +454,7 @@ export default function IncidentesPage() {
                           style={{
                             fontSize: '9px', fontWeight: 700, borderRadius: '3px', padding: '1px 5px',
                             background: (inc as any).motivoReabertura === 'TIENDA_SIN_INTERNET' ? 'rgba(185,28,28,0.1)' : 'rgba(146,64,14,0.1)',
-                            color:      (inc as any).motivoReabertura === 'TIENDA_SIN_INTERNET' ? '#b91c1c' : '#92400e',
+                            color:      (inc as any).motivoReabertura === 'TIENDA_SIN_INTERNET' ? 'var(--danger)' : 'var(--warn)',
                             border:     `1px solid ${(inc as any).motivoReabertura === 'TIENDA_SIN_INTERNET' ? 'rgba(185,28,28,0.3)' : 'rgba(146,64,14,0.3)'}`,
                           }}>
                           ↩ REABIERTO
@@ -488,7 +488,7 @@ export default function IncidentesPage() {
                   {/* Proveedor */}
                   <td style={{ padding: '9px 12px', fontSize: '11px', whiteSpace: 'nowrap' }}>
                     {isElectric
-                      ? <span style={{ color: '#B45309', fontWeight: 600 }}>⚡ Energía Eléctrica</span>
+                      ? <span style={{ color: 'var(--warn)', fontWeight: 600 }}>⚡ Energía Eléctrica</span>
                       : <span style={{ color: textColor }}>{inc.proveedorNombre ?? <span style={{ color: mutedColor }}>—</span>}</span>
                     }
                   </td>
@@ -497,7 +497,7 @@ export default function IncidentesPage() {
                   <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>
                     {inc.escaladoInfraId ? (
                       <>
-                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#6366f1', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--purple)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                           🔧 {[inc.infraNombre, inc.infraApellido].filter(Boolean).join(' ')}
                         </div>
                         <div style={{ fontSize: '10px', color: mutedColor, marginTop: '1px' }}>
@@ -525,24 +525,24 @@ export default function IncidentesPage() {
                     <Badge variant={estadoToVariant(inc.estado)} />
                     {inc.estado === 'RESUELTO' && inc.resueltoPor && (
                       <span style={{ display: 'block', marginTop: '2px', fontSize: '10px', padding: '1px 6px', borderRadius: '999px', fontWeight: 600,
-                        background: inc.resueltoPor === 'AGENTE' ? '#EFF6FF' : inc.resueltoPor === 'INFRAESTRUCTURA' ? '#EEF2FF' : '#F0FDF4',
-                        color:      inc.resueltoPor === 'AGENTE' ? '#1D4ED8' : inc.resueltoPor === 'INFRAESTRUCTURA' ? '#4338CA' : '#15803D',
+                        background: inc.resueltoPor === 'AGENTE' ? 'var(--info-bg)' : inc.resueltoPor === 'INFRAESTRUCTURA' ? 'var(--info-bg)' : 'var(--ok-bg)',
+                        color:      inc.resueltoPor === 'AGENTE' ? 'var(--info)' : inc.resueltoPor === 'INFRAESTRUCTURA' ? 'var(--purple)' : 'var(--ok)',
                       }}>
                         {inc.resueltoPor === 'AGENTE' ? '↩ Agente' : inc.resueltoPor === 'INFRAESTRUCTURA' ? '↩ Infraestructura' : '↩ Proveedor'}
                       </span>
                     )}
                     {tieneAlgunaMitigacionActiva(inc, ['ROUTER_PROPIO', 'ROUTER_EXTERNO']) && (
-                      <span style={{ display: 'inline-block', marginTop: '3px', fontSize: '10px', padding: '1px 6px', borderRadius: '999px', fontWeight: 600, background: isOpen ? 'rgba(251,191,36,0.15)' : '#FEF9C3', color: '#92400E', border: '1px solid #FDE68A' }}>
+                      <span style={{ display: 'inline-block', marginTop: '3px', fontSize: '10px', padding: '1px 6px', borderRadius: '999px', fontWeight: 600, background: isOpen ? 'rgba(251,191,36,0.15)' : 'var(--warn-bg)', color: 'var(--warn)', border: '1px solid var(--warn-border)' }}>
                         ⚡ Cont.
                       </span>
                     )}
                     {tieneAlgunaMitigacionActiva(inc, ['DATOS_MOVILES']) && (
-                      <span style={{ display: 'inline-block', marginTop: '3px', fontSize: '10px', padding: '1px 6px', borderRadius: '999px', fontWeight: 600, background: isOpen ? 'rgba(59,130,246,0.15)' : '#DBEAFE', color: '#1E40AF', border: '1px solid #93C5FD' }}>
+                      <span style={{ display: 'inline-block', marginTop: '3px', fontSize: '10px', padding: '1px 6px', borderRadius: '999px', fontWeight: 600, background: isOpen ? 'rgba(59,130,246,0.15)' : 'var(--info-bg)', color: 'var(--info)', border: '1px solid var(--info-border)' }}>
                         Datos
                       </span>
                     )}
                     {inc.boletaManual && (
-                      <span style={{ display: 'inline-block', marginTop: '3px', fontSize: '10px', padding: '1px 6px', borderRadius: '999px', fontWeight: 600, background: isOpen ? 'rgba(180,83,9,0.15)' : '#FEF3C7', color: '#92400E', border: '1px solid #FCD34D' }}>
+                      <span style={{ display: 'inline-block', marginTop: '3px', fontSize: '10px', padding: '1px 6px', borderRadius: '999px', fontWeight: 600, background: isOpen ? 'rgba(180,83,9,0.15)' : 'var(--warn-bg)', color: 'var(--warn)', border: '1px solid var(--warn-border)' }}>
                         Boleta
                       </span>
                     )}
@@ -559,12 +559,12 @@ export default function IncidentesPage() {
                   {/* Duración */}
                   <td style={{ padding: '9px 12px', fontFamily: 'monospace', fontSize: '11px', whiteSpace: 'nowrap' }}>
                     {CLOSED_ESTADOS.includes(inc.estado) && inc.mttrMinutos != null
-                      ? <span style={{ color: inc.mttrMinutos > 120 ? '#dc2626' : mutedColor, fontWeight: 500 }}>
+                      ? <span style={{ color: inc.mttrMinutos > 120 ? 'var(--danger)' : mutedColor, fontWeight: 500 }}>
                           {inc.mttrMinutos >= 60
                             ? `${Math.floor(inc.mttrMinutos / 60)}h ${inc.mttrMinutos % 60}m`
                             : `${inc.mttrMinutos}m`}
                         </span>
-                      : <span style={{ color: isOverdue ? '#dc2626' : mutedColor, fontWeight: isOverdue ? 700 : 400 }}>
+                      : <span style={{ color: isOverdue ? 'var(--danger)' : mutedColor, fontWeight: isOverdue ? 700 : 400 }}>
                           {tiempoTranscurrido(inc.horaRegistro, inc.horaFin)}
                         </span>
                     }
@@ -576,7 +576,7 @@ export default function IncidentesPage() {
                       <button
                         onClick={e => handleDelete(e, inc.id)}
                         title="Eliminar incidente"
-                        style={{ padding: '4px 8px', fontSize: '11px', background: 'rgba(220,38,38,0.1)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '5px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        style={{ padding: '4px 8px', fontSize: '11px', background: 'rgba(220,38,38,0.1)', color: 'var(--danger)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '5px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                         onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(220,38,38,0.2)' }}
                         onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(220,38,38,0.1)' }}>
                         <IconTrash /> Eliminar
@@ -604,7 +604,7 @@ export default function IncidentesPage() {
               style={{ padding: '4px 8px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--card)', color: 'var(--foreground)', cursor: page <= 1 ? 'default' : 'pointer', opacity: page <= 1 ? 0.4 : 1 }}>
               ‹
             </button>
-            <span style={{ fontSize: '12px', padding: '4px 10px', border: '1px solid hsl(221,83%,45%)', borderRadius: '6px', background: 'hsl(221,83%,45%)', color: 'white', minWidth: '28px', textAlign: 'center' }}>
+            <span style={{ fontSize: '12px', padding: '4px 10px', border: '1px solid var(--primary)', borderRadius: '6px', background: 'var(--gradient-primary)', color: 'white', minWidth: '28px', textAlign: 'center' }}>
               {page}
             </span>
             <button

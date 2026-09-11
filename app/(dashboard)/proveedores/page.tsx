@@ -11,17 +11,17 @@ function fmtSoles(v: string | number | null | undefined) {
 }
 
 function slaColor(v: number | null) {
-  if (v == null) return '#9ca3af'
-  if (v >= 80) return '#16a34a'
-  if (v >= 60) return '#d97706'
-  return '#dc2626'
+  if (v == null) return 'var(--muted-foreground)'
+  if (v >= 80) return 'var(--ok)'
+  if (v >= 60) return 'var(--warn)'
+  return 'var(--danger)'
 }
 
 function slaBg(v: number | null) {
   if (v == null) return 'transparent'
-  if (v >= 80) return '#f0fdf4'
-  if (v >= 60) return '#fffbeb'
-  return '#fef2f2'
+  if (v >= 80) return 'var(--ok)'
+  if (v >= 60) return 'var(--warn)'
+  return 'var(--danger)'
 }
 
 const SORT_OPTIONS = [
@@ -37,7 +37,7 @@ const thStyle: React.CSSProperties = {
   padding: '9px 12px', fontSize: '10px', fontWeight: 700,
   color: 'var(--muted-foreground)', textTransform: 'uppercase',
   letterSpacing: '0.06em', textAlign: 'left',
-  borderBottom: '0.5px solid var(--border)',
+  borderBottom: '1px solid var(--border)',
   background: 'var(--muted)', whiteSpace: 'nowrap',
 }
 
@@ -97,7 +97,7 @@ export default function ProveedoresPage() {
 
   const inp: React.CSSProperties = {
     width: '100%', padding: '6px 9px', fontSize: '12px',
-    border: '0.5px solid var(--border)', borderRadius: '7px',
+    border: '1px solid var(--border)', borderRadius: '7px',
     background: 'var(--card)', color: 'var(--foreground)', outline: 'none', boxSizing: 'border-box',
   }
 
@@ -112,7 +112,7 @@ export default function ProveedoresPage() {
         </div>
         {canEdit && (
           <button onClick={() => { setForm({}); setModal(true) }}
-            style={{ padding: '7px 14px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>
+            style={{ padding: '7px 14px', background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>
             + Nuevo proveedor
           </button>
         )}
@@ -120,31 +120,31 @@ export default function ProveedoresPage() {
 
       {/* KPI cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: '10px' }}>
-        <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
           <div style={{ fontSize: '22px', fontWeight: 700, color: '#3b82f6' }}>{totalProveedores}</div>
           <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Proveedores</div>
         </div>
-        <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
-          <div style={{ fontSize: '22px', fontWeight: 700, color: '#10b981' }}>{totalTiendas}</div>
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+          <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--ok)' }}>{totalTiendas}</div>
           <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Tiendas cubiertas</div>
         </div>
-        <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
-          <div style={{ fontSize: '18px', fontWeight: 700, color: '#8b5cf6', letterSpacing: '-0.02em' }}>{fmtSoles(costoTotal)}</div>
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+          <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--purple)', letterSpacing: '-0.02em' }}>{fmtSoles(costoTotal)}</div>
           <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Costo mensual total</div>
         </div>
-        <div style={{ background: slaRespGlobal != null ? slaBg(slaRespGlobal) : 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+        <div style={{ background: slaRespGlobal != null ? slaBg(slaRespGlobal) : 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
           <div style={{ fontSize: '22px', fontWeight: 700, color: slaColor(slaRespGlobal) }}>{slaRespGlobal != null ? `${slaRespGlobal}%` : '—'}</div>
           <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>SLA Respuesta 30d</div>
           {peorProveedor && slaRespGlobal != null && slaRespGlobal < 80 && (
-            <div style={{ fontSize: '9px', color: '#dc2626', marginTop: '3px' }}>Peor: {peorProveedor.nombre} ({peorProveedor.slaRespuesta}%)</div>
+            <div style={{ fontSize: '9px', color: 'var(--danger)', marginTop: '3px' }}>Peor: {peorProveedor.nombre} ({peorProveedor.slaRespuesta}%)</div>
           )}
         </div>
-        <div style={{ background: slaResolGlobal != null ? slaBg(slaResolGlobal) : 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+        <div style={{ background: slaResolGlobal != null ? slaBg(slaResolGlobal) : 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
           <div style={{ fontSize: '22px', fontWeight: 700, color: slaColor(slaResolGlobal) }}>{slaResolGlobal != null ? `${slaResolGlobal}%` : '—'}</div>
           <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>SLA Resolución 30d</div>
         </div>
-        <div style={{ background: totalInc30d > 0 ? '#fef2f2' : 'var(--card)', border: `0.5px solid ${totalInc30d > 0 ? '#fecaca' : 'var(--border)'}`, borderRadius: '10px', padding: '12px 14px' }}>
-          <div style={{ fontSize: '22px', fontWeight: 700, color: totalInc30d > 0 ? '#dc2626' : 'var(--muted-foreground)' }}>{totalInc30d}</div>
+        <div style={{ background: totalInc30d > 0 ? 'var(--danger-bg)' : 'var(--card)', border: `1px solid ${totalInc30d > 0 ? 'var(--danger-border)' : 'var(--border)'}`, borderRadius: '10px', padding: '12px 14px' }}>
+          <div style={{ fontSize: '22px', fontWeight: 700, color: totalInc30d > 0 ? 'var(--danger)' : 'var(--muted-foreground)' }}>{totalInc30d}</div>
           <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Incidentes 30d</div>
         </div>
       </div>
@@ -153,15 +153,15 @@ export default function ProveedoresPage() {
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
         <input placeholder="Buscar proveedor..." value={filtros.buscar}
           onChange={e => setF('buscar', e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', minWidth: '200px' }} />
+          style={{ padding: '6px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', minWidth: '200px' }} />
         <select value={filtros.ordenar} onChange={e => setF('ordenar', e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
+          style={{ padding: '6px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
           <option value="">Ordenar: A→Z</option>
           {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         {hayFiltros && (
           <button onClick={() => setFiltros({ buscar: '', ordenar: '' })}
-            style={{ padding: '6px 12px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', color: 'var(--muted-foreground)', cursor: 'pointer' }}>
+            style={{ padding: '6px 12px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', color: 'var(--muted-foreground)', cursor: 'pointer' }}>
             Limpiar
           </button>
         )}
@@ -171,7 +171,7 @@ export default function ProveedoresPage() {
       </div>
 
       {/* Tabla */}
-      <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
           <thead>
             <tr>
@@ -205,7 +205,7 @@ export default function ProveedoresPage() {
                   onMouseEnter={() => setHoveredRow(p.id)}
                   onMouseLeave={() => setHoveredRow(null)}
                   style={{
-                    borderBottom: i < lista.length - 1 ? '0.5px solid var(--border)' : 'none',
+                    borderBottom: i < lista.length - 1 ? '1px solid var(--border)' : 'none',
                     cursor: 'pointer',
                     background: isHov ? 'var(--muted)' : 'transparent',
                   }}>
@@ -215,7 +215,7 @@ export default function ProveedoresPage() {
                     <div style={{ fontWeight: 700, fontSize: '12px', color: 'var(--foreground)' }}>{p.nombre}</div>
                     <div style={{ display: 'flex', gap: '5px', marginTop: '3px', flexWrap: 'wrap' }}>
                       {(p.planContrato ?? p.planPrincipal) && (
-                        <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: '#EEF4FF', color: '#185FA5', fontWeight: 600 }}>
+                        <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: 'var(--info-bg)', color: 'var(--info)', fontWeight: 600 }}>
                           {p.planContrato ?? p.planPrincipal}
                         </span>
                       )}
@@ -234,8 +234,8 @@ export default function ProveedoresPage() {
                     {(p.incidentes30d ?? 0) > 0 ? (
                       <span style={{
                         fontWeight: 700, fontSize: '12px',
-                        color: incAlta ? '#dc2626' : incMedia ? '#d97706' : '#374151',
-                        background: incAlta ? '#fef2f2' : incMedia ? '#fffbeb' : 'transparent',
+                        color: incAlta ? 'var(--danger)' : incMedia ? 'var(--warn)' : 'var(--muted-foreground)',
+                        background: incAlta ? 'var(--danger-bg)' : incMedia ? 'var(--warn-bg)' : 'transparent',
                         padding: incAlta || incMedia ? '1px 6px' : '0',
                         borderRadius: '4px',
                       }}>
@@ -302,9 +302,9 @@ export default function ProveedoresPage() {
 
       {/* Modal nuevo proveedor */}
       {modal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', width: '100%', maxWidth: '480px', maxHeight: '90vh', overflow: 'auto' }}>
-            <div style={{ padding: '14px 18px', borderBottom: '0.5px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', width: '100%', maxWidth: '480px', maxHeight: '90vh', overflow: 'auto' }}>
+            <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontSize: '13px', fontWeight: 600 }}>Nuevo proveedor</div>
               <button onClick={() => setModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--muted-foreground)' }}>✕</button>
             </div>
@@ -334,11 +334,11 @@ export default function ProveedoresPage() {
               </div>
               <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px' }}>
                 <button onClick={() => setModal(false)}
-                  style={{ padding: '8px 16px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: 'var(--foreground)' }}>
+                  style={{ padding: '8px 16px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: 'var(--foreground)' }}>
                   Cancelar
                 </button>
                 <button onClick={handleCreate} disabled={saving || !form.nombre?.trim()}
-                  style={{ padding: '8px 16px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', opacity: saving || !form.nombre?.trim() ? 0.6 : 1 }}>
+                  style={{ padding: '8px 16px', background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', opacity: saving || !form.nombre?.trim() ? 0.6 : 1 }}>
                   {saving ? 'Guardando...' : 'Guardar'}
                 </button>
               </div>

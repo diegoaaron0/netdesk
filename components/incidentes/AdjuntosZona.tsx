@@ -189,7 +189,7 @@ export function AdjuntosZona({
             onChange={e => handleFiles(e.target.files)}
           />
           {uploadError && (
-            <div style={{ fontSize: '11px', color: '#DC2626', marginTop: '4px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--danger)', marginTop: '4px' }}>
               {uploadError}
             </div>
           )}
@@ -199,7 +199,7 @@ export function AdjuntosZona({
       {!noGrid && adjuntos.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginTop: '10px' }}>
           {adjuntos.map(adj => (
-            <div key={adj.id} style={{ position: 'relative', borderRadius: '6px', overflow: 'hidden', border: '0.5px solid var(--border)', background: 'var(--muted)', aspectRatio: '1' }}>
+            <div key={adj.id} style={{ position: 'relative', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--muted)', aspectRatio: '1' }}>
               {isImage(adj) ? (
                 <img
                   src={adj.url}
@@ -219,13 +219,13 @@ export function AdjuntosZona({
               {!disabled && (
                 <button
                   onClick={e => { e.stopPropagation(); handleDelete(adj.id) }}
-                  style={{ position: 'absolute', top: '3px', right: '3px', width: '18px', height: '18px', borderRadius: '50%', background: 'rgba(0,0,0,0.55)', border: 'none', color: 'white', fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
+                  style={{ position: 'absolute', top: '3px', right: '3px', width: '18px', height: '18px', borderRadius: '50%', background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)', border: 'none', color: 'white', fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
                 >
                   ×
                 </button>
               )}
               {adj.tamanoBytes && (
-                <div style={{ position: 'absolute', bottom: '2px', left: '3px', fontSize: '8px', color: 'rgba(255,255,255,0.7)', background: 'rgba(0,0,0,0.4)', padding: '1px 4px', borderRadius: '3px' }}>
+                <div style={{ position: 'absolute', bottom: '2px', left: '3px', fontSize: '8px', color: 'rgba(255,255,255,0.7)', background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)', padding: '1px 4px', borderRadius: '3px' }}>
                   {formatBytes(adj.tamanoBytes)}
                 </div>
               )}
@@ -237,7 +237,7 @@ export function AdjuntosZona({
       {lightbox && (
         <div
           onClick={() => setLightbox(null)}
-          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out' }}
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out' }}
         >
           <img
             src={lightbox}

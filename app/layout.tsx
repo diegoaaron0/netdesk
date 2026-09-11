@@ -19,7 +19,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={`${geistSans.variable} ${geistMono.variable}`}>
+    // El background en <html> evita el destello blanco entre la carga del
+    // documento y la del CSS, y cubre el overscroll en los bordes.
+    <html
+      lang="es"
+      className={`${geistSans.variable} ${geistMono.variable}`}
+      style={{ background: '#080d24', colorScheme: 'dark' }}
+    >
       <body style={{ margin: 0, minHeight: '100vh' }}>{children}</body>
     </html>
   );

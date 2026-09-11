@@ -1,17 +1,37 @@
 type BadgeVariant = 'alto'|'medio'|'bajo'|'escalado_n1'|'escalado_n2'|'escalado_n3'|'abierto'|'en_seguimiento'|'resuelto'|'cerrado'|'cancelado'
 
-const STYLES: Record<BadgeVariant, { bg: string; color: string }> = {
-  alto:           { bg: '#FCEBEB', color: '#A32D2D' },
-  medio:          { bg: '#FAEEDA', color: '#854F0B' },
-  bajo:           { bg: '#E6F1FB', color: '#185FA5' },
-  escalado_n1:    { bg: '#FAEEDA', color: '#633806' },
-  escalado_n2:    { bg: '#FAEEDA', color: '#633806' },
-  escalado_n3:    { bg: '#FAEEDA', color: '#633806' },
-  abierto:        { bg: '#E6F1FB', color: '#0C447C' },
-  en_seguimiento: { bg: '#E6F1FB', color: '#0C447C' },
-  resuelto:       { bg: '#EAF3DE', color: '#27500A' },
-  cerrado:        { bg: '#F1EFE8', color: '#444441' },
-  cancelado:      { bg: '#F1EFE8', color: '#444441' },
+/** Familia semántica de cada variante. El chip se arma con el tríptico
+ *  fondo translúcido + borde del mismo tono + texto vivo, que es lo que hace
+ *  legible un badge de color sobre navy. */
+type Familia = 'danger' | 'warn' | 'info' | 'ok' | 'purple' | 'neutro'
+
+const FAMILIA: Record<BadgeVariant, Familia> = {
+  alto:           'danger',
+  medio:          'warn',
+  bajo:           'info',
+  escalado_n1:    'warn',
+  escalado_n2:    'warn',
+  escalado_n3:    'danger',
+  abierto:        'info',
+  en_seguimiento: 'purple',
+  resuelto:       'ok',
+  cerrado:        'neutro',
+  cancelado:      'neutro',
+}
+
+function estilo(f: Familia): React.CSSProperties {
+  if (f === 'neutro') {
+    return {
+      background: 'var(--surface-3)',
+      border: '1px solid var(--border)',
+      color: 'var(--muted-foreground)',
+    }
+  }
+  return {
+    background: `var(--${f}-bg)`,
+    border: `1px solid var(--${f}-border)`,
+    color: `var(--${f})`,
+  }
 }
 
 const LABELS: Record<BadgeVariant, string> = {
@@ -36,9 +56,13 @@ export function impactoToVariant(impacto: string): BadgeVariant {
 }
 
 export function Badge({ variant }: { variant: BadgeVariant }) {
-  const s = STYLES[variant]
   return (
-    <span style={{ display: 'inline-block', padding: '2px 7px', borderRadius: '4px', fontSize: '10px', fontWeight: 500, background: s.bg, color: s.color, whiteSpace: 'nowrap' }}>
+    <span style={{
+      display: 'inline-block', padding: '2px 8px', borderRadius: '999px',
+      fontSize: '10px', fontWeight: 600, letterSpacing: '0.01em',
+      whiteSpace: 'nowrap', lineHeight: 1.6,
+      ...estilo(FAMILIA[variant]),
+    }}>
       {LABELS[variant]}
     </span>
   )

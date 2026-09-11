@@ -12,10 +12,10 @@ function GcTabs({ active }: { active: 'acciones' | 'fichas' }) {
     { id: 'fichas'   as const, label: 'Fichas',     href: '/gestion-cambios/fichas' },
   ]
   return (
-    <div style={{ display: 'flex', gap: '2px', borderBottom: '0.5px solid var(--border)', marginBottom: '16px' }}>
+    <div style={{ display: 'flex', gap: '2px', borderBottom: '1px solid var(--border)', marginBottom: '16px' }}>
       {tabs.map(t => (
         <button key={t.id} onClick={() => router.push(t.href)}
-          style={{ padding: '8px 16px', fontSize: '12px', fontWeight: active === t.id ? 700 : 400, background: 'none', border: 'none', cursor: 'pointer', color: active === t.id ? 'var(--foreground)' : 'var(--muted-foreground)', borderBottom: active === t.id ? '2px solid hsl(221,83%,23%)' : '2px solid transparent', transition: 'color 0.15s' }}>
+          style={{ padding: '8px 16px', fontSize: '12px', fontWeight: active === t.id ? 700 : 400, background: 'none', border: 'none', cursor: 'pointer', color: active === t.id ? 'var(--foreground)' : 'var(--muted-foreground)', borderBottom: active === t.id ? '2px solid var(--primary)' : '2px solid transparent', transition: 'color 0.15s' }}>
           {t.label}
         </button>
       ))}
@@ -24,12 +24,12 @@ function GcTabs({ active }: { active: 'acciones' | 'fichas' }) {
 }
 
 const ESTADO_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
-  BORRADOR:      { label: 'Borrador',       bg: '#F1F5F9', color: '#475569' },
-  PROPUESTO:     { label: 'Propuesto',      bg: '#EFF6FF', color: '#1D4ED8' },
-  APROBADO:      { label: 'Aprobado',       bg: '#F0FDF4', color: '#15803D' },
-  COMPLETADO:    { label: 'Completado',     bg: '#ECFDF5', color: '#065F46' },
-  RECHAZADO:     { label: 'Rechazado',      bg: '#FEF2F2', color: '#991B1B' },
-  CANCELADO:     { label: 'Cancelado',      bg: '#F8FAFC', color: '#94A3B8' },
+  BORRADOR:      { label: 'Borrador',       bg: 'var(--info-bg)', color: 'var(--muted-foreground)' },
+  PROPUESTO:     { label: 'Propuesto',      bg: 'var(--info-bg)', color: 'var(--info)' },
+  APROBADO:      { label: 'Aprobado',       bg: 'var(--ok-bg)', color: 'var(--ok)' },
+  COMPLETADO:    { label: 'Completado',     bg: 'var(--ok-bg)', color: 'var(--ok)' },
+  RECHAZADO:     { label: 'Rechazado',      bg: 'var(--danger-bg)', color: 'var(--danger)' },
+  CANCELADO:     { label: 'Cancelado',      bg: 'var(--surface-2)', color: 'var(--muted-foreground)' },
 }
 
 function fmtFecha(d: string | null) {
@@ -98,7 +98,7 @@ export default function GestionCambiosPage() {
         </div>
         <button
           onClick={() => router.push('/gestion-cambios/nueva')}
-          style={{ padding: '8px 16px', fontSize: '12px', fontWeight: 600, background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+          style={{ padding: '8px 16px', fontSize: '12px', fontWeight: 600, background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
           + Nueva acción
         </button>
       </div>
@@ -108,7 +108,7 @@ export default function GestionCambiosPage() {
       {/* Alertas rápidas */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' }}>
         {pendientesAprobacion > 0 && (
-          <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '8px', padding: '8px 14px', fontSize: '12px', color: '#1D4ED8' }}>
+          <div style={{ background: 'var(--info-bg)', border: '1px solid var(--info-border)', borderRadius: '8px', padding: '8px 14px', fontSize: '12px', color: 'var(--info)' }}>
             <strong>{pendientesAprobacion}</strong> acción{pendientesAprobacion > 1 ? 'es' : ''} esperando aprobación de gerencia
           </div>
         )}
@@ -118,7 +118,7 @@ export default function GestionCambiosPage() {
           const dias   = dias30 ?? dias90
           if (dias === null || dias > 7) return null
           return (
-            <div key={r.id} style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: '8px', padding: '8px 14px', fontSize: '12px', color: '#92400E', cursor: 'pointer' }}
+            <div key={r.id} style={{ background: 'var(--warn-bg)', border: '1px solid var(--warn-border)', borderRadius: '8px', padding: '8px 14px', fontSize: '12px', color: 'var(--warn)', cursor: 'pointer' }}
               onClick={() => router.push(`/gestion-cambios/${r.id}`)}>
               <strong>{r.codigo}</strong> — evaluación {dias30 !== null ? '30d' : '90d'} vence en {dias <= 0 ? 'hoy/vencida' : `${dias}d`}
             </div>
@@ -129,18 +129,18 @@ export default function GestionCambiosPage() {
       {/* Filtros */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', flexWrap: 'wrap' }}>
         <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--background)' }}>
+          style={{ padding: '6px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--background)' }}>
           <option value="">Todos los estados</option>
           {Object.entries(ESTADO_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
         </select>
         <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--background)' }}>
+          style={{ padding: '6px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--background)' }}>
           <option value="">Todos los tipos</option>
           {Object.entries(TIPO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
         {(filtroEstado || filtroTipo) && (
           <button onClick={() => { setFiltroEstado(''); setFiltroTipo('') }}
-            style={{ padding: '6px 12px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', cursor: 'pointer' }}>
+            style={{ padding: '6px 12px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', cursor: 'pointer' }}>
             Limpiar
           </button>
         )}
@@ -173,10 +173,10 @@ export default function GestionCambiosPage() {
                 return (
                   <tr key={r.id}
                     onClick={() => router.push(`/gestion-cambios/${r.id}`)}
-                    style={{ borderTop: i > 0 ? '0.5px solid var(--border)' : 'none', cursor: 'pointer', transition: 'background 0.1s' }}
+                    style={{ borderTop: i > 0 ? '1px solid var(--border)' : 'none', cursor: 'pointer', transition: 'background 0.1s' }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
                     onMouseLeave={e => (e.currentTarget.style.background = '')}>
-                    <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontWeight: 700, fontSize: '11px', color: 'hsl(221,83%,23%)', whiteSpace: 'nowrap' }}>{r.codigo}</td>
+                    <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontWeight: 700, fontSize: '11px', color: 'var(--primary)', whiteSpace: 'nowrap' }}>{r.codigo}</td>
                     <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
                       <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '99px', background: 'var(--muted)', color: 'var(--muted-foreground)', fontWeight: 500 }}>
                         {TIPO_LABELS[r.tipo] ?? r.tipo}
@@ -192,7 +192,7 @@ export default function GestionCambiosPage() {
                     </td>
                     <td style={{ padding: '10px 12px', fontSize: '11px', whiteSpace: 'nowrap' }}>
                       {r.proveedorAnteriorNombre && r.proveedorNuevoNombre
-                        ? <span style={{ color: 'var(--muted-foreground)' }}>{r.proveedorAnteriorNombre} <span style={{ color: '#059669' }}>→</span> {r.proveedorNuevoNombre}</span>
+                        ? <span style={{ color: 'var(--muted-foreground)' }}>{r.proveedorAnteriorNombre} <span style={{ color: 'var(--ok)' }}>→</span> {r.proveedorNuevoNombre}</span>
                         : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
                     </td>
                     <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
@@ -200,12 +200,12 @@ export default function GestionCambiosPage() {
                     </td>
                     <td style={{ padding: '10px 12px', fontSize: '10px', whiteSpace: 'nowrap' }}>
                       {dias30 !== null && (
-                        <span style={{ color: dias30 <= 0 ? '#DC2626' : dias30 <= 7 ? '#D97706' : '#059669', fontWeight: evalAlert ? 700 : 400 }}>
+                        <span style={{ color: dias30 <= 0 ? 'var(--danger)' : dias30 <= 7 ? 'var(--warn)' : 'var(--ok)', fontWeight: evalAlert ? 700 : 400 }}>
                           30d: {dias30 <= 0 ? 'vencida' : `en ${dias30}d`}
                         </span>
                       )}
                       {dias90 !== null && (
-                        <span style={{ marginLeft: dias30 !== null ? '6px' : 0, color: dias90 <= 0 ? '#DC2626' : dias90 <= 7 ? '#D97706' : '#6B7280' }}>
+                        <span style={{ marginLeft: dias30 !== null ? '6px' : 0, color: dias90 <= 0 ? 'var(--danger)' : dias90 <= 7 ? 'var(--warn)' : 'var(--muted-foreground)' }}>
                           90d: {dias90 <= 0 ? 'vencida' : `en ${dias90}d`}
                         </span>
                       )}
@@ -224,7 +224,7 @@ export default function GestionCambiosPage() {
                         <button
                           onClick={e => eliminarBorrador(e, r.id, r.codigo)}
                           disabled={deletingId === r.id}
-                          style={{ padding: '4px 10px', fontSize: '10px', fontWeight: 600, background: '#FEE2E2', color: '#991B1B', border: '1px solid #FECACA', borderRadius: '6px', cursor: 'pointer', opacity: deletingId === r.id ? 0.6 : 1 }}>
+                          style={{ padding: '4px 10px', fontSize: '10px', fontWeight: 600, background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)', borderRadius: '6px', cursor: 'pointer', opacity: deletingId === r.id ? 0.6 : 1 }}>
                           {deletingId === r.id ? '…' : 'Eliminar'}
                         </button>
                       )}

@@ -21,22 +21,43 @@ const TIPO_LABELS: Record<string, string> = {
   CAIDA_TOTAL: 'Caída total', INTERMITENCIA: 'Intermitencia',
   LENTITUD: 'Lentitud', OTROS: 'Otros', CORTE_ELECTRICO: 'Corte eléctrico',
 }
-const TIPO_COLORS = ['#3b82f6', '#f59e0b', '#ef4444', '#10b981', '#8b5cf6', '#6b7280']
+// Paleta de series. Hex literal a propósito: recharts las escribe como
+// atributos SVG y las reusa en tooltips y leyendas calculadas en JS, donde
+// una var() de CSS no resuelve.
+const TIPO_COLORS = ['#60a5fa', '#fbbf24', '#f87171', '#34d399', '#a78bfa', '#8792bd']
+
+// Tema oscuro compartido por todas las gráficas.
+const EJE = { fill: '#8792bd', fontSize: 9 }
+const EJE_LINEA = 'rgba(255,255,255,0.10)'
+const REJILLA = 'rgba(255,255,255,0.06)'
+const TOOLTIP = {
+  contentStyle: {
+    background: '#0f1734',
+    border: '1px solid rgba(255,255,255,0.14)',
+    borderRadius: 10,
+    boxShadow: '0 16px 48px rgba(0,0,0,0.55)',
+    fontSize: 11,
+    padding: '8px 10px',
+  },
+  labelStyle: { color: '#e9edfb', fontWeight: 600, marginBottom: 2 },
+  itemStyle: { color: '#8792bd' },
+  cursor: { fill: 'rgba(255,255,255,0.04)' },
+}
 
 function slaFill(pct: number) {
-  if (pct >= 90) return '#16a34a'
-  if (pct >= 70) return '#d97706'
-  return '#dc2626'
+  if (pct >= 90) return '#34d399'
+  if (pct >= 70) return '#fbbf24'
+  return '#f87171'
 }
 function slaBg(pct: number) {
-  if (pct >= 90) return '#f0fdf4'
-  if (pct >= 70) return '#fffbeb'
-  return '#fef2f2'
+  if (pct >= 90) return 'var(--ok-bg)'
+  if (pct >= 70) return 'var(--warn-bg)'
+  return 'var(--danger-bg)'
 }
 function mttrFill(min: number) {
-  if (min < 120) return '#16a34a'
-  if (min < 240) return '#d97706'
-  return '#dc2626'
+  if (min < 120) return '#34d399'
+  if (min < 240) return '#fbbf24'
+  return '#f87171'
 }
 
 // ─── Shared primitives ────────────────────────────────────────────────────────
@@ -48,7 +69,7 @@ function ChartCard({ title, detail, children }: {
 }) {
   const [open, setOpen] = useState(false)
   return (
-    <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '14px 16px' }}>
+    <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px 16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
         <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
           {title}
@@ -59,8 +80,9 @@ function ChartCard({ title, detail, children }: {
             style={{
               fontSize: '10px', fontWeight: 600, padding: '3px 8px', borderRadius: '5px', border: 'none',
               cursor: 'pointer', transition: 'background 0.15s',
-              background: open ? '#185FA5' : 'var(--muted)',
-              color: open ? 'white' : 'var(--muted-foreground)',
+              background: open ? 'var(--info-bg)' : 'var(--muted)',
+              boxShadow: open ? 'inset 0 0 0 1px var(--info-border)' : 'none',
+              color: open ? 'var(--info)' : 'var(--muted-foreground)',
             }}
           >
             {open ? 'Cerrar' : 'Detalle'}
@@ -69,7 +91,7 @@ function ChartCard({ title, detail, children }: {
       </div>
       {children}
       {open && detail && (
-        <div style={{ borderTop: '0.5px solid var(--border)', marginTop: '10px', paddingTop: '8px' }}>
+        <div style={{ borderTop: '1px solid var(--border)', marginTop: '10px', paddingTop: '8px' }}>
           {detail}
         </div>
       )}
@@ -87,7 +109,7 @@ function DLabel({ children }: { children: React.ReactNode }) {
 
 function DRow({ left, right, rightColor, muted }: { left: React.ReactNode; right: React.ReactNode; rightColor?: string; muted?: boolean }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', fontSize: '10px', borderBottom: '0.5px solid var(--border)', gap: '8px' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', fontSize: '10px', borderBottom: '1px solid var(--border)', gap: '8px' }}>
       <span style={{ color: muted ? 'var(--muted-foreground)' : 'var(--foreground)', flex: 1, minWidth: 0 }}>{left}</span>
       <span style={{ fontFamily: 'monospace', fontWeight: 600, color: rightColor ?? 'var(--foreground)', flexShrink: 0 }}>{right}</span>
     </div>
@@ -104,22 +126,22 @@ function IncidentMini({ item }: { item: IncidenteListItem }) {
       style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         padding: '5px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '10px',
-        gap: '6px', background: 'var(--background)', border: '0.5px solid var(--border)',
+        gap: '6px', background: 'var(--background)', border: '1px solid var(--border)',
         marginBottom: '3px', transition: 'background 0.1s',
       }}
-      onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = '#eff6ff'}
+      onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'var(--surface-3)'}
       onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'var(--background)'}
     >
       <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flex: 1, minWidth: 0, flexWrap: 'wrap' }}>
-        <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#185FA5' }}>{item.codigo}</span>
+        <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--info)' }}>{item.codigo}</span>
         <span style={{ fontWeight: 600, color: 'var(--muted-foreground)' }}>{item.tiendaCodigo}</span>
         <span style={{ color: 'var(--muted-foreground)' }}>{TIPO_LABELS[item.tipo] ?? item.tipo}</span>
         <span style={{ color: 'var(--muted-foreground)', fontSize: '9px' }}>{item.horaInicio}</span>
       </div>
       <div style={{ display: 'flex', gap: '5px', alignItems: 'center', flexShrink: 0 }}>
-        {item.ieiEstimado > 0 && <span style={{ color: '#b45309', fontFamily: 'monospace' }}>{fmtCosto(item.ieiEstimado)}</span>}
+        {item.ieiEstimado > 0 && <span style={{ color: 'var(--warn)', fontFamily: 'monospace' }}>{fmtCosto(item.ieiEstimado)}</span>}
         {item.mttrMin != null && <span style={{ color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{fmtMin(item.mttrMin)}</span>}
-        <span style={{ color: '#185FA5', fontSize: '11px' }}>→</span>
+        <span style={{ color: 'var(--info)', fontSize: '11px' }}>→</span>
       </div>
     </div>
   )
@@ -132,7 +154,7 @@ function IncidentLink({ id, children }: { id: string; children: React.ReactNode 
     <div
       onClick={() => router.push(`/incidentes/${id}`)}
       style={{ cursor: 'pointer', borderRadius: '4px', transition: 'background 0.1s' }}
-      onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = '#eff6ff'}
+      onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'var(--surface-3)'}
       onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
     >
       {children}
@@ -185,17 +207,17 @@ function ChartTendencia({ data }: { data: DashboardAnaliticoResponse }) {
               style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 padding: '4px 6px', borderRadius: '5px', cursor: 'pointer', fontSize: '10px',
-                background: sel ? '#eff6ff' : 'transparent',
-                border: `0.5px solid ${sel ? '#bfdbfe' : 'var(--border)'}`,
+                background: sel ? 'var(--info-bg)' : 'transparent',
+                border: `1px solid ${sel ? 'var(--info-border)' : 'var(--border)'}`,
                 marginBottom: '2px',
               }}
               onMouseEnter={e => { if (!sel) (e.currentTarget as HTMLDivElement).style.background = 'var(--muted)' }}
               onMouseLeave={e => { if (!sel) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
             >
-              <span style={{ color: sel ? '#1e40af' : 'var(--foreground)', fontWeight: sel ? 600 : 400 }}>
+              <span style={{ color: sel ? 'var(--info)' : 'var(--foreground)', fontWeight: sel ? 600 : 400 }}>
                 {sel ? '▾' : '▸'} {i + 1}. {fmtDia(d.dia)}
               </span>
-              <span style={{ color: sel ? '#1e40af' : 'var(--muted-foreground)', fontFamily: 'monospace', fontWeight: 600 }}>
+              <span style={{ color: sel ? 'var(--info)' : 'var(--muted-foreground)', fontFamily: 'monospace', fontWeight: 600 }}>
                 {d.total} incidente{d.total !== 1 ? 's' : ''}
               </span>
             </div>
@@ -225,25 +247,25 @@ function ChartTendencia({ data }: { data: DashboardAnaliticoResponse }) {
         <AreaChart data={byDay} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
           <defs>
             <linearGradient id="gradInc" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#185FA5" stopOpacity={0.28} />
-              <stop offset="95%" stopColor="#185FA5" stopOpacity={0} />
+              <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.28} />
+              <stop offset="95%" stopColor="#60a5fa" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-          <XAxis dataKey="dia" tick={{ fontSize: 9 }} tickFormatter={fmtDia} interval="preserveStartEnd" />
-          <YAxis allowDecimals={false} tick={{ fontSize: 9 }} />
-          <Tooltip
+          <CartesianGrid strokeDasharray="3 3" stroke={REJILLA} vertical={false} />
+          <XAxis axisLine={{ stroke: EJE_LINEA }} tickLine={{ stroke: EJE_LINEA }} dataKey="dia" tick={{ ...EJE, fontSize: 9 }} tickFormatter={fmtDia} interval="preserveStartEnd" />
+          <YAxis axisLine={{ stroke: EJE_LINEA }} tickLine={{ stroke: EJE_LINEA }} allowDecimals={false} tick={{ ...EJE, fontSize: 9 }} />
+          <Tooltip {...TOOLTIP}
             content={({ active, payload, label }: any) => {
               if (!active || !payload?.length) return null
               return (
-                <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '6px', padding: '7px 10px', fontSize: '11px' }}>
+                <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '6px', padding: '7px 10px', fontSize: '11px' }}>
                   <div style={{ fontWeight: 600 }}>{fmtDia(label)}</div>
-                  <div style={{ color: '#185FA5' }}>{payload[0].value} incidentes</div>
+                  <div style={{ color: 'var(--info)' }}>{payload[0].value} incidentes</div>
                 </div>
               )
             }}
           />
-          <Area type="monotone" dataKey="total" stroke="#185FA5" strokeWidth={2} fill="url(#gradInc)" dot={false} activeDot={{ r: 4, fill: '#185FA5' }} />
+          <Area type="monotone" dataKey="total" stroke="#60a5fa" strokeWidth={2} fill="url(#gradInc)" dot={false} activeDot={{ r: 4, fill: '#60a5fa' }} />
         </AreaChart>
       </ResponsiveContainer>
       <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '8px' }}>
@@ -282,8 +304,8 @@ function ChartSLARespuesta({ data }: { data: DashboardAnaliticoResponse }) {
           {delta != null && (
             <span style={{
               fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '999px', flexShrink: 0,
-              background: delta >= 0 ? '#f0fdf4' : '#fef2f2',
-              color: delta >= 0 ? '#15803d' : '#b91c1c',
+              background: delta >= 0 ? 'var(--ok-bg)' : 'var(--danger-bg)',
+              color: delta >= 0 ? 'var(--ok)' : 'var(--danger)',
             }}>
               {delta > 0 ? '+' : ''}{delta}pp vs anterior
             </span>
@@ -293,12 +315,12 @@ function ChartSLARespuesta({ data }: { data: DashboardAnaliticoResponse }) {
 
       {/* Tabla de proveedores: SLA% + evaluables + T.prom + exceso */}
       <DLabel>Desglose por proveedor</DLabel>
-      <div style={{ border: '0.5px solid var(--border)', borderRadius: '7px', overflow: 'hidden', marginBottom: '10px' }}>
+      <div style={{ border: '1px solid var(--border)', borderRadius: '7px', overflow: 'hidden', marginBottom: '10px' }}>
         {[...provs].sort((a, b) => a.slaRespuestaPct - b.slaRespuestaPct).map((p, idx, arr) => (
           <div key={p.nombre} style={{
             display: 'grid', gridTemplateColumns: '1fr auto auto auto auto',
             gap: '8px', alignItems: 'center', padding: '6px 10px', fontSize: '10px',
-            borderBottom: idx < arr.length - 1 ? '0.5px solid var(--border)' : 'none',
+            borderBottom: idx < arr.length - 1 ? '1px solid var(--border)' : 'none',
           }}>
             <span style={{ fontWeight: 600 }}>{p.nombre}</span>
             <span style={{
@@ -309,7 +331,7 @@ function ChartSLARespuesta({ data }: { data: DashboardAnaliticoResponse }) {
             <span style={{ fontFamily: 'monospace', color: 'var(--muted-foreground)', textAlign: 'right' }}>
               {p.tRespPromMin != null ? fmtMin(p.tRespPromMin) : '—'}
             </span>
-            <span style={{ fontFamily: 'monospace', fontWeight: 700, textAlign: 'right', color: p.excessoRespuestaMin > 0 ? '#dc2626' : '#15803d', minWidth: '48px' }}>
+            <span style={{ fontFamily: 'monospace', fontWeight: 700, textAlign: 'right', color: p.excessoRespuestaMin > 0 ? 'var(--danger)' : 'var(--ok)', minWidth: '48px' }}>
               {p.excessoRespuestaMin > 0 ? `+${fmtMin(p.excessoRespuestaMin)}` : '✓'}
             </span>
           </div>
@@ -331,12 +353,12 @@ function ChartSLARespuesta({ data }: { data: DashboardAnaliticoResponse }) {
               return b.minRespuesta - a.minRespuesta
             }).map(i => (
             <IncidentLink key={i.id} id={i.id}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', fontSize: '10px', borderBottom: '0.5px solid var(--border)', gap: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', fontSize: '10px', borderBottom: '1px solid var(--border)', gap: '6px' }}>
                 <span style={{ flex: 1, minWidth: 0 }}><strong>{i.proveedor}</strong> · {i.tiendaCodigo} · {TIPO_LABELS[i.tipo] ?? i.tipo} · {i.fecha}</span>
-                <span style={{ fontFamily: 'monospace', color: i.slaRespOk === false ? '#dc2626' : 'var(--muted-foreground)', flexShrink: 0 }}>{i.minRespuesta != null ? fmtMin(i.minRespuesta) : '—'}</span>
-                {i.slaRespOk === true  && <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: '#f0fdf4', color: '#15803d', fontWeight: 600, flexShrink: 0 }}>✓</span>}
-                {i.slaRespOk === false && <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: '#fef2f2', color: '#b91c1c', fontWeight: 600, flexShrink: 0 }}>✗</span>}
-                <span style={{ color: '#185FA5', fontSize: '11px', flexShrink: 0 }}>→</span>
+                <span style={{ fontFamily: 'monospace', color: i.slaRespOk === false ? 'var(--danger)' : 'var(--muted-foreground)', flexShrink: 0 }}>{i.minRespuesta != null ? fmtMin(i.minRespuesta) : '—'}</span>
+                {i.slaRespOk === true  && <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: 'var(--ok-bg)', color: 'var(--ok)', fontWeight: 600, flexShrink: 0 }}>✓</span>}
+                {i.slaRespOk === false && <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: 'var(--danger-bg)', color: 'var(--danger)', fontWeight: 600, flexShrink: 0 }}>✗</span>}
+                <span style={{ color: 'var(--info)', fontSize: '11px', flexShrink: 0 }}>→</span>
               </div>
             </IncidentLink>
           ))}
@@ -349,11 +371,11 @@ function ChartSLARespuesta({ data }: { data: DashboardAnaliticoResponse }) {
     <ChartCard title="SLA Respuesta por proveedor" detail={detail}>
       <ResponsiveContainer width="100%" height={Math.max(100, provs.length * 42 + 32)}>
         <BarChart layout="vertical" data={chartData} margin={{ top: 0, right: 36, left: 0, bottom: 0 }}>
-          <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 9 }} tickFormatter={v => `${v}%`} />
-          <YAxis type="category" dataKey="nombre" tick={{ fontSize: 10 }} width={72} />
-          <ReferenceLine x={90} stroke="#15803d" strokeDasharray="4 2" strokeWidth={1.5} />
-          <Tooltip formatter={(v: any) => [`${v}%`, 'SLA Respuesta']} />
-          <Bar dataKey="pct" radius={[0, 4, 4, 0]} label={{ position: 'right', fontSize: 10, formatter: (v: any) => `${v}%` }}>
+          <XAxis axisLine={{ stroke: EJE_LINEA }} tickLine={{ stroke: EJE_LINEA }} type="number" domain={[0, 100]} tick={{ ...EJE, fontSize: 9 }} tickFormatter={v => `${v}%`} />
+          <YAxis axisLine={{ stroke: EJE_LINEA }} tickLine={{ stroke: EJE_LINEA }} type="category" dataKey="nombre" tick={{ ...EJE, fontSize: 10 }} width={72} />
+          <ReferenceLine x={90} stroke="#34d399" strokeDasharray="4 2" strokeWidth={1.5} />
+          <Tooltip {...TOOLTIP} formatter={(v: any) => [`${v}%`, 'SLA Respuesta']} />
+          <Bar dataKey="pct" radius={[0, 4, 4, 0]} label={{ position: 'right', fill: '#e9edfb', fontWeight: 600, fontSize: 10, formatter: (v: any) => `${v}%` }}>
             {chartData.map((e, i) => <Cell key={i} fill={slaFill(e.pct)} />)}
           </Bar>
         </BarChart>
@@ -391,8 +413,8 @@ function ChartSLAResolucion({ data }: { data: DashboardAnaliticoResponse }) {
           {delta != null && (
             <span style={{
               fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '999px', flexShrink: 0,
-              background: delta >= 0 ? '#f0fdf4' : '#fef2f2',
-              color: delta >= 0 ? '#15803d' : '#b91c1c',
+              background: delta >= 0 ? 'var(--ok-bg)' : 'var(--danger-bg)',
+              color: delta >= 0 ? 'var(--ok)' : 'var(--danger)',
             }}>
               {delta > 0 ? '+' : ''}{delta}pp vs anterior
             </span>
@@ -402,12 +424,12 @@ function ChartSLAResolucion({ data }: { data: DashboardAnaliticoResponse }) {
 
       {/* Tabla de proveedores */}
       <DLabel>Desglose por proveedor</DLabel>
-      <div style={{ border: '0.5px solid var(--border)', borderRadius: '7px', overflow: 'hidden', marginBottom: '10px' }}>
+      <div style={{ border: '1px solid var(--border)', borderRadius: '7px', overflow: 'hidden', marginBottom: '10px' }}>
         {[...provs].sort((a, b) => a.slaResolucionPct - b.slaResolucionPct).map((p, idx, arr) => (
           <div key={p.nombre} style={{
             display: 'grid', gridTemplateColumns: '1fr auto auto auto auto',
             gap: '8px', alignItems: 'center', padding: '6px 10px', fontSize: '10px',
-            borderBottom: idx < arr.length - 1 ? '0.5px solid var(--border)' : 'none',
+            borderBottom: idx < arr.length - 1 ? '1px solid var(--border)' : 'none',
           }}>
             <span style={{ fontWeight: 600 }}>{p.nombre}</span>
             <span style={{
@@ -418,7 +440,7 @@ function ChartSLAResolucion({ data }: { data: DashboardAnaliticoResponse }) {
             <span style={{ fontFamily: 'monospace', color: 'var(--muted-foreground)', textAlign: 'right' }}>
               {p.tResolPromMin != null ? fmtMin(p.tResolPromMin) : '—'}
             </span>
-            <span style={{ fontFamily: 'monospace', fontWeight: 700, textAlign: 'right', color: p.excessoResolucionMin > 0 ? '#dc2626' : '#15803d', minWidth: '48px' }}>
+            <span style={{ fontFamily: 'monospace', fontWeight: 700, textAlign: 'right', color: p.excessoResolucionMin > 0 ? 'var(--danger)' : 'var(--ok)', minWidth: '48px' }}>
               {p.excessoResolucionMin > 0 ? `+${fmtMin(p.excessoResolucionMin)}` : '✓'}
             </span>
           </div>
@@ -439,12 +461,12 @@ function ChartSLAResolucion({ data }: { data: DashboardAnaliticoResponse }) {
               return b.minSolucionDesdeCorreo - a.minSolucionDesdeCorreo
             }).map(i => (
             <IncidentLink key={i.id} id={i.id}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', fontSize: '10px', borderBottom: '0.5px solid var(--border)', gap: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', fontSize: '10px', borderBottom: '1px solid var(--border)', gap: '6px' }}>
                 <span style={{ flex: 1, minWidth: 0 }}><strong>{i.proveedor}</strong> · {i.tiendaCodigo} · {TIPO_LABELS[i.tipo] ?? i.tipo} · {i.fecha}</span>
-                <span style={{ fontFamily: 'monospace', color: i.slaResolOk === false ? '#dc2626' : 'var(--muted-foreground)', flexShrink: 0 }}>{i.minSolucionDesdeCorreo != null ? fmtMin(i.minSolucionDesdeCorreo) : '—'}</span>
-                {i.slaResolOk === true  && <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: '#f0fdf4', color: '#15803d', fontWeight: 600, flexShrink: 0 }}>✓</span>}
-                {i.slaResolOk === false && <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: '#fef2f2', color: '#b91c1c', fontWeight: 600, flexShrink: 0 }}>✗</span>}
-                <span style={{ color: '#185FA5', fontSize: '11px', flexShrink: 0 }}>→</span>
+                <span style={{ fontFamily: 'monospace', color: i.slaResolOk === false ? 'var(--danger)' : 'var(--muted-foreground)', flexShrink: 0 }}>{i.minSolucionDesdeCorreo != null ? fmtMin(i.minSolucionDesdeCorreo) : '—'}</span>
+                {i.slaResolOk === true  && <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: 'var(--ok-bg)', color: 'var(--ok)', fontWeight: 600, flexShrink: 0 }}>✓</span>}
+                {i.slaResolOk === false && <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: 'var(--danger-bg)', color: 'var(--danger)', fontWeight: 600, flexShrink: 0 }}>✗</span>}
+                <span style={{ color: 'var(--info)', fontSize: '11px', flexShrink: 0 }}>→</span>
               </div>
             </IncidentLink>
           ))}
@@ -457,11 +479,11 @@ function ChartSLAResolucion({ data }: { data: DashboardAnaliticoResponse }) {
     <ChartCard title="SLA Resolución por proveedor" detail={detail}>
       <ResponsiveContainer width="100%" height={Math.max(100, provs.length * 42 + 32)}>
         <BarChart layout="vertical" data={chartData} margin={{ top: 0, right: 36, left: 0, bottom: 0 }}>
-          <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 9 }} tickFormatter={v => `${v}%`} />
-          <YAxis type="category" dataKey="nombre" tick={{ fontSize: 10 }} width={72} />
-          <ReferenceLine x={90} stroke="#15803d" strokeDasharray="4 2" strokeWidth={1.5} />
-          <Tooltip formatter={(v: any) => [`${v}%`, 'SLA Resolución']} />
-          <Bar dataKey="pct" radius={[0, 4, 4, 0]} label={{ position: 'right', fontSize: 10, formatter: (v: any) => `${v}%` }}>
+          <XAxis axisLine={{ stroke: EJE_LINEA }} tickLine={{ stroke: EJE_LINEA }} type="number" domain={[0, 100]} tick={{ ...EJE, fontSize: 9 }} tickFormatter={v => `${v}%`} />
+          <YAxis axisLine={{ stroke: EJE_LINEA }} tickLine={{ stroke: EJE_LINEA }} type="category" dataKey="nombre" tick={{ ...EJE, fontSize: 10 }} width={72} />
+          <ReferenceLine x={90} stroke="#34d399" strokeDasharray="4 2" strokeWidth={1.5} />
+          <Tooltip {...TOOLTIP} formatter={(v: any) => [`${v}%`, 'SLA Resolución']} />
+          <Bar dataKey="pct" radius={[0, 4, 4, 0]} label={{ position: 'right', fill: '#e9edfb', fontWeight: 600, fontSize: 10, formatter: (v: any) => `${v}%` }}>
             {chartData.map((e, i) => <Cell key={i} fill={slaFill(e.pct)} />)}
           </Bar>
         </BarChart>
@@ -488,7 +510,7 @@ function ChartMTTR({ data }: { data: DashboardAnaliticoResponse }) {
   const mttrGlobal = data.cards.mttrPromedio.minutos
   const delta = data.cards.mttrPromedio.deltaMinutos
   const tendenciaTxt = delta == null ? null : delta < 0 ? '↓ Mejorando' : delta > 0 ? '↑ Empeorando' : '→ Estable'
-  const tendenciaColor = delta == null ? '#6b7280' : delta < 0 ? '#15803d' : delta > 0 ? '#dc2626' : '#6b7280'
+  const tendenciaColor = delta == null ? 'var(--muted-foreground)' : delta < 0 ? 'var(--ok)' : delta > 0 ? 'var(--danger)' : 'var(--muted-foreground)'
 
   const detail = (
     <>
@@ -517,10 +539,10 @@ function ChartMTTR({ data }: { data: DashboardAnaliticoResponse }) {
           <DLabel>Evolución MTTR diario (últimos 14 días)</DLabel>
           <ResponsiveContainer width="100%" height={60}>
             <LineChart data={sparkData} margin={{ top: 2, right: 4, left: -28, bottom: 0 }}>
-              <XAxis dataKey="dia" tick={{ fontSize: 8 }} tickFormatter={fmtDia} interval="preserveStartEnd" />
-              <YAxis tick={{ fontSize: 8 }} tickFormatter={v => `${v}m`} />
-              <ReferenceLine y={120} stroke="#d97706" strokeDasharray="3 2" strokeWidth={1} />
-              <Line type="monotone" dataKey="mttrMinutos" stroke="#d97706" strokeWidth={1.5} dot={false} />
+              <XAxis axisLine={{ stroke: EJE_LINEA }} tickLine={{ stroke: EJE_LINEA }} dataKey="dia" tick={{ ...EJE, fontSize: 8 }} tickFormatter={fmtDia} interval="preserveStartEnd" />
+              <YAxis axisLine={{ stroke: EJE_LINEA }} tickLine={{ stroke: EJE_LINEA }} tick={{ ...EJE, fontSize: 8 }} tickFormatter={v => `${v}m`} />
+              <ReferenceLine y={120} stroke="#fbbf24" strokeDasharray="3 2" strokeWidth={1} />
+              <Line type="monotone" dataKey="mttrMinutos" stroke="#fbbf24" strokeWidth={1.5} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </>
@@ -529,12 +551,12 @@ function ChartMTTR({ data }: { data: DashboardAnaliticoResponse }) {
       {/* Tabla por proveedor: MTTR prom + delta + mejor + peor */}
       <div style={{ marginTop: '8px' }}>
         <DLabel>Desglose por proveedor</DLabel>
-        <div style={{ border: '0.5px solid var(--border)', borderRadius: '7px', overflow: 'hidden', marginBottom: '8px' }}>
+        <div style={{ border: '1px solid var(--border)', borderRadius: '7px', overflow: 'hidden', marginBottom: '8px' }}>
           {[...provs].sort((a, b) => b.mttrMinutos - a.mttrMinutos).map((p, idx, arr) => (
             <div key={p.nombre} style={{
               display: 'grid', gridTemplateColumns: '1fr auto auto auto',
               gap: '8px', alignItems: 'center', padding: '6px 10px', fontSize: '10px',
-              borderBottom: idx < arr.length - 1 ? '0.5px solid var(--border)' : 'none',
+              borderBottom: idx < arr.length - 1 ? '1px solid var(--border)' : 'none',
             }}>
               <span style={{ fontWeight: 600 }}>{p.nombre}</span>
               <span style={{ fontFamily: 'monospace', fontWeight: 700, color: mttrFill(p.mttrMinutos) }}>
@@ -559,7 +581,7 @@ function ChartMTTR({ data }: { data: DashboardAnaliticoResponse }) {
             <IncidentLink key={i.id} id={i.id}>
               <DRow
                 left={<><strong>{i.proveedor}</strong> · {i.tiendaCodigo} · {TIPO_LABELS[i.tipo] ?? i.tipo} · {i.fecha}</>}
-                right={<>{fmtMin(i.mttrMin)} <span style={{ color: '#185FA5', marginLeft: '4px' }}>→</span></>}
+                right={<>{fmtMin(i.mttrMin)} <span style={{ color: 'var(--info)', marginLeft: '4px' }}>→</span></>}
                 rightColor={mttrFill(i.mttrMin ?? 0)}
               />
             </IncidentLink>
@@ -573,11 +595,11 @@ function ChartMTTR({ data }: { data: DashboardAnaliticoResponse }) {
     <ChartCard title="MTTR por proveedor (minutos)" detail={detail}>
       <ResponsiveContainer width="100%" height={Math.max(100, provs.length * 42 + 32)}>
         <BarChart layout="vertical" data={chartData} margin={{ top: 0, right: 60, left: 0, bottom: 0 }}>
-          <XAxis type="number" tick={{ fontSize: 9 }} tickFormatter={v => `${v}m`} />
-          <YAxis type="category" dataKey="nombre" tick={{ fontSize: 10 }} width={72} />
-          <ReferenceLine x={120} stroke="#d97706" strokeDasharray="4 2" strokeWidth={1.5} />
-          <Tooltip formatter={(v: any) => [fmtMin(v), 'MTTR']} />
-          <Bar dataKey="min" radius={[0, 4, 4, 0]} label={{ position: 'right', fontSize: 10, formatter: (v: any) => fmtMin(v) }}>
+          <XAxis axisLine={{ stroke: EJE_LINEA }} tickLine={{ stroke: EJE_LINEA }} type="number" tick={{ ...EJE, fontSize: 9 }} tickFormatter={v => `${v}m`} />
+          <YAxis axisLine={{ stroke: EJE_LINEA }} tickLine={{ stroke: EJE_LINEA }} type="category" dataKey="nombre" tick={{ ...EJE, fontSize: 10 }} width={72} />
+          <ReferenceLine x={120} stroke="#fbbf24" strokeDasharray="4 2" strokeWidth={1.5} />
+          <Tooltip {...TOOLTIP} formatter={(v: any) => [fmtMin(v), 'MTTR']} />
+          <Bar dataKey="min" radius={[0, 4, 4, 0]} label={{ position: 'right', fill: '#e9edfb', fontWeight: 600, fontSize: 10, formatter: (v: any) => fmtMin(v) }}>
             {chartData.map((e, i) => <Cell key={i} fill={mttrFill(e.min)} />)}
           </Bar>
         </BarChart>
@@ -601,8 +623,8 @@ function ChartIEI({ data }: { data: DashboardAnaliticoResponse }) {
     <>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
         {[
-          { label: 'Atribuible a proveedor', value: fmtCosto(totalProv), color: '#dc2626' },
-          { label: 'Resuelto por agente', value: fmtCosto(totalAgente), color: '#d97706' },
+          { label: 'Atribuible a proveedor', value: fmtCosto(totalProv), color: 'var(--danger)' },
+          { label: 'Resuelto por agente', value: fmtCosto(totalAgente), color: 'var(--warn)' },
         ].map(item => (
           <div key={item.label} style={{ background: 'var(--muted)', borderRadius: '6px', padding: '8px 10px' }}>
             <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', marginBottom: '2px' }}>{item.label}</div>
@@ -619,7 +641,7 @@ function ChartIEI({ data }: { data: DashboardAnaliticoResponse }) {
               key={t.codigo}
               left={<>{idx + 1}. <strong>{t.codigo}</strong> · {t.proveedor} · {t.horasAfectadas}h caída{t.huboContingencia ? ' · c/contingencia' : ''}</>}
               right={fmtCosto(t.costo)}
-              rightColor="#b45309"
+              rightColor="var(--warn)"
             />
           ))}
         </>
@@ -631,10 +653,10 @@ function ChartIEI({ data }: { data: DashboardAnaliticoResponse }) {
     <ChartCard title="IEI estimado por proveedor (S/)" detail={detail}>
       <ResponsiveContainer width="100%" height={Math.max(100, provs.length * 42 + 32)}>
         <BarChart layout="vertical" data={provs} margin={{ top: 0, right: 64, left: 0, bottom: 0 }}>
-          <XAxis type="number" tick={{ fontSize: 9 }} tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} />
-          <YAxis type="category" dataKey="nombre" tick={{ fontSize: 10 }} width={72} />
-          <Tooltip formatter={(v: any) => [fmtCosto(v), 'IEI']} />
-          <Bar dataKey="costo" fill="#b45309" radius={[0, 4, 4, 0]} label={{ position: 'right', fontSize: 10, fill: '#b45309', formatter: (v: any) => fmtCosto(v) }} />
+          <XAxis axisLine={{ stroke: EJE_LINEA }} tickLine={{ stroke: EJE_LINEA }} type="number" tick={{ ...EJE, fontSize: 9 }} tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} />
+          <YAxis axisLine={{ stroke: EJE_LINEA }} tickLine={{ stroke: EJE_LINEA }} type="category" dataKey="nombre" tick={{ ...EJE, fontSize: 10 }} width={72} />
+          <Tooltip {...TOOLTIP} formatter={(v: any) => [fmtCosto(v), 'IEI']} />
+          <Bar dataKey="costo" fill="#fbbf24" radius={[0, 4, 4, 0]} label={{ position: 'right', fontWeight: 600, fontSize: 10, fill: '#fbbf24', formatter: (v: any) => fmtCosto(v) }} />
         </BarChart>
       </ResponsiveContainer>
     </ChartCard>
@@ -669,7 +691,7 @@ function ChartTipos({ data }: { data: DashboardAnaliticoResponse }) {
     <>
       <DLabel>Estadísticas por tipo</DLabel>
       {pieData.map((e, i) => (
-        <div key={e.tipo} style={{ padding: '5px 0', borderBottom: '0.5px solid var(--border)' }}>
+        <div key={e.tipo} style={{ padding: '5px 0', borderBottom: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginBottom: '2px' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
               <div style={{ width: '7px', height: '7px', borderRadius: '2px', background: TIPO_COLORS[i % TIPO_COLORS.length], flexShrink: 0 }} />
@@ -690,10 +712,10 @@ function ChartTipos({ data }: { data: DashboardAnaliticoResponse }) {
     <ChartCard title="Distribución por tipo" detail={detail}>
       <div style={{ display: 'flex', justifyContent: 'center' }}>
         <PieChart width={170} height={150}>
-          <Pie data={pieData} cx={85} cy={75} innerRadius={42} outerRadius={68} paddingAngle={2} dataKey="value" nameKey="label">
+          <Pie data={pieData} cx={85} cy={75} innerRadius={42} outerRadius={68} paddingAngle={2} stroke="#0d1430" dataKey="value" nameKey="label">
             {pieData.map((_, i) => <Cell key={i} fill={TIPO_COLORS[i % TIPO_COLORS.length]} />)}
           </Pie>
-          <Tooltip formatter={(v: any, name: any) => [v, name]} />
+          <Tooltip {...TOOLTIP} formatter={(v: any, name: any) => [v, name]} />
         </PieChart>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '4px' }}>
@@ -735,8 +757,9 @@ function ChartSupervisores({ data }: { data: DashboardAnaliticoResponse }) {
             onClick={() => setSelSup(s.nombre)}
             style={{
               fontSize: '10px', fontWeight: 600, padding: '3px 8px', borderRadius: '5px', border: 'none', cursor: 'pointer',
-              background: selSup === s.nombre ? '#185FA5' : 'var(--muted)',
-              color: selSup === s.nombre ? 'white' : 'var(--muted-foreground)',
+              background: selSup === s.nombre ? 'var(--info-bg)' : 'var(--muted)',
+              boxShadow: selSup === s.nombre ? 'inset 0 0 0 1px var(--info-border)' : 'none',
+              color: selSup === s.nombre ? 'var(--info)' : 'var(--muted-foreground)',
             }}
           >
             {s.nombre.split(' ')[0]}
@@ -748,7 +771,7 @@ function ChartSupervisores({ data }: { data: DashboardAnaliticoResponse }) {
         <div style={{ display: 'flex', gap: '12px', color: 'var(--muted-foreground)' }}>
           <span>{supActivo.incidentes} incidentes</span>
           <span>{supActivo.tiendasAfectadas} tiendas afectadas</span>
-          <span style={{ color: '#b45309' }}>{fmtCosto(supActivo.ieiTotal)} IEI</span>
+          <span style={{ color: 'var(--warn)' }}>{fmtCosto(supActivo.ieiTotal)} IEI</span>
           <span>{fmtMin(supActivo.tiempoTotalMin)} caído en total</span>
         </div>
       </div>
@@ -758,7 +781,7 @@ function ChartSupervisores({ data }: { data: DashboardAnaliticoResponse }) {
           key={t.codigo}
           left={<><strong>{t.codigo}</strong> · {t.incidentes} inc · {fmtMin(t.tiempoTotalMin)} caído</>}
           right={fmtCosto(t.ieiTotal)}
-          rightColor="#b45309"
+          rightColor="var(--warn)"
         />
       ))}
     </>
@@ -768,23 +791,23 @@ function ChartSupervisores({ data }: { data: DashboardAnaliticoResponse }) {
     <ChartCard title="Incidentes por supervisor" detail={detail}>
       <ResponsiveContainer width="100%" height={Math.max(100, chartData.length * 38 + 32)}>
         <BarChart layout="vertical" data={chartData} margin={{ top: 0, right: 24, left: 0, bottom: 0 }}>
-          <XAxis type="number" allowDecimals={false} tick={{ fontSize: 9 }} />
-          <YAxis type="category" dataKey="nombre" tick={<TruncTick />} width={90} />
-          <Tooltip
+          <XAxis axisLine={{ stroke: EJE_LINEA }} tickLine={{ stroke: EJE_LINEA }} type="number" allowDecimals={false} tick={{ ...EJE, fontSize: 9 }} />
+          <YAxis axisLine={{ stroke: EJE_LINEA }} tickLine={{ stroke: EJE_LINEA }} type="category" dataKey="nombre" tick={<TruncTick />} width={90} />
+          <Tooltip {...TOOLTIP}
             content={({ active, payload, label }: any) => {
               if (!active || !payload?.length) return null
               const s = supervisores.find(x => x.nombre === label)
               return (
-                <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '6px', padding: '8px 10px', fontSize: '11px', maxWidth: '200px' }}>
+                <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '6px', padding: '8px 10px', fontSize: '11px', maxWidth: '200px' }}>
                   <div style={{ fontWeight: 600, marginBottom: '4px' }}>{label}</div>
                   <div>{payload[0].value} incidentes · {s?.tiendasAfectadas} tiendas</div>
-                  {s && <div style={{ color: '#b45309' }}>{fmtCosto(s.ieiTotal)} IEI</div>}
+                  {s && <div style={{ color: 'var(--warn)' }}>{fmtCosto(s.ieiTotal)} IEI</div>}
                   {s?.tiempoTotalMin ? <div style={{ color: 'var(--muted-foreground)' }}>{fmtMin(s.tiempoTotalMin)} caído total</div> : null}
                 </div>
               )
             }}
           />
-          <Bar dataKey="incidentes" fill="#185FA5" radius={[0, 4, 4, 0]} />
+          <Bar dataKey="incidentes" fill="#60a5fa" radius={[0, 4, 4, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </ChartCard>
@@ -798,9 +821,11 @@ function ChartClusters({ data }: { data: DashboardAnaliticoResponse }) {
   if (!clusters.length) return null
 
   const maxInc = Math.max(...clusters.map(c => c.incidentes), 1)
-  const ACCENT: Record<string, string> = { A: '#1d4ed8', B: '#16a34a', C: '#d97706', D: '#dc2626' }
-  const BG: Record<string, string>     = { A: '#eff6ff', B: '#f0fdf4', C: '#fffbeb', D: '#fef2f2' }
-  const BORDER: Record<string, string> = { A: '#bfdbfe', B: '#bbf7d0', C: '#fde68a', D: '#fca5a5' }
+  const ACCENT: Record<string, string> = { A: 'var(--info)', B: 'var(--ok)', C: 'var(--warn)', D: 'var(--danger)' }
+  // Fondo translúcido + borde del mismo tono: el par que da el chip legible
+  // sobre navy. Antes eran pastel claro + trazo medio, del tema claro.
+  const BG: Record<string, string>     = { A: 'var(--info-bg)', B: 'var(--ok-bg)', C: 'var(--warn-bg)', D: 'var(--danger-bg)' }
+  const BORDER: Record<string, string> = { A: 'var(--info-border)', B: 'var(--ok-border)', C: 'var(--warn-border)', D: 'var(--danger-border)' }
 
   const allClusters = ['A', 'B', 'C', 'D'].map(cl =>
     clusters.find(c => c.cluster === cl) ?? { cluster: cl, incidentes: 0, tiendasAfectadas: 0, ieiTotal: 0 }
@@ -812,7 +837,7 @@ function ChartClusters({ data }: { data: DashboardAnaliticoResponse }) {
     <>
       <DLabel>Ranking de clusters por impacto</DLabel>
       {sorted.map((c, idx) => (
-        <div key={c.cluster} style={{ padding: '5px 0', borderBottom: '0.5px solid var(--border)' }}>
+        <div key={c.cluster} style={{ padding: '5px 0', borderBottom: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginBottom: '2px' }}>
             <span style={{ fontWeight: 600, color: ACCENT[c.cluster] ?? 'var(--foreground)' }}>
               {idx + 1}. Cluster {c.cluster}
@@ -821,7 +846,7 @@ function ChartClusters({ data }: { data: DashboardAnaliticoResponse }) {
           </div>
           <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', display: 'flex', gap: '12px' }}>
             <span>{c.tiendasAfectadas} tiendas afectadas</span>
-            {c.ieiTotal > 0 && <span style={{ color: '#b45309' }}>IEI: {fmtCosto(c.ieiTotal)}</span>}
+            {c.ieiTotal > 0 && <span style={{ color: 'var(--warn)' }}>IEI: {fmtCosto(c.ieiTotal)}</span>}
           </div>
         </div>
       ))}
@@ -833,11 +858,11 @@ function ChartClusters({ data }: { data: DashboardAnaliticoResponse }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
         {allClusters.map(c => {
           const hasData = c.incidentes > 0
-          const accent = ACCENT[c.cluster] ?? '#6b7280'
+          const accent = ACCENT[c.cluster] ?? 'var(--muted-foreground)'
           return (
             <div key={c.cluster} style={{
               background: hasData ? BG[c.cluster] : 'var(--muted)',
-              border: `0.5px solid ${hasData ? BORDER[c.cluster] : 'var(--border)'}`,
+              border: `1px solid ${hasData ? BORDER[c.cluster] : 'var(--border)'}`,
               borderRadius: '8px', padding: '10px 12px',
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
@@ -853,7 +878,7 @@ function ChartClusters({ data }: { data: DashboardAnaliticoResponse }) {
               </div>
               <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', display: 'flex', gap: '8px' }}>
                 <span>{c.tiendasAfectadas} tiendas</span>
-                {c.ieiTotal > 0 && <span style={{ color: '#b45309' }}>{fmtCosto(c.ieiTotal)}</span>}
+                {c.ieiTotal > 0 && <span style={{ color: 'var(--warn)' }}>{fmtCosto(c.ieiTotal)}</span>}
               </div>
             </div>
           )

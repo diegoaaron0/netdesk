@@ -46,28 +46,28 @@ export function rangoDePeriodo(
 }
 
 const PROVEEDOR_COLORS: Record<string, { bg: string; color: string }> = {
-  BITEL:             { bg: '#dbeafe', color: '#1e40af' },
-  CLARO:             { bg: '#fee2e2', color: '#b91c1c' },
-  CONVERGIA:         { bg: '#ede9fe', color: '#7c3aed' },
-  ENTEL:             { bg: '#dcfce7', color: '#15803d' },
-  MOVISTAR:          { bg: '#1e3a8a', color: '#bfdbfe' },
-  GTD:               { bg: '#ffedd5', color: '#c2410c' },
-  'GTD PERU':        { bg: '#ffedd5', color: '#c2410c' },
-  FIBERLUX:          { bg: '#fef9c3', color: '#854d0e' },
-  FIBERTEL:          { bg: '#fef3c7', color: '#713f12' },
-  'FIBRA AMAZÓNICA': { bg: '#d1fae5', color: '#065f46' },
-  DITSAC:            { bg: '#fce7f3', color: '#9d174d' },
-  'DIT SAC':         { bg: '#fce7f3', color: '#9d174d' },
-  TELCONET:          { bg: '#e0f2fe', color: '#075985' },
-  GONET:             { bg: '#d1fae5', color: '#064e3b' },
-  AMERICATEL:        { bg: '#e0e7ff', color: '#3730a3' },
-  WIN:               { bg: '#ecfdf5', color: '#047857' },
+  BITEL:             { bg: 'var(--info-bg)', color: 'var(--info)' },
+  CLARO:             { bg: 'var(--danger-bg)', color: 'var(--danger)' },
+  CONVERGIA:         { bg: 'var(--purple-bg)', color: 'var(--purple)' },
+  ENTEL:             { bg: 'var(--ok-bg)', color: 'var(--ok)' },
+  MOVISTAR:          { bg: 'var(--info-bg)', color: 'var(--info)' },
+  GTD:               { bg: 'var(--warn-bg)', color: 'var(--warn)' },
+  'GTD PERU':        { bg: 'var(--warn-bg)', color: 'var(--warn)' },
+  FIBERLUX:          { bg: 'var(--warn-bg)', color: 'var(--warn)' },
+  FIBERTEL:          { bg: 'var(--warn-bg)', color: 'var(--warn)' },
+  'FIBRA AMAZÓNICA': { bg: 'var(--ok-bg)', color: 'var(--ok)' },
+  DITSAC:            { bg: 'var(--danger-bg)', color: 'var(--danger)' },
+  'DIT SAC':         { bg: 'var(--danger-bg)', color: 'var(--danger)' },
+  TELCONET:          { bg: 'var(--info-bg)', color: 'var(--info)' },
+  GONET:             { bg: 'var(--ok-bg)', color: 'var(--ok)' },
+  AMERICATEL:        { bg: 'var(--info-bg)', color: 'var(--purple)' },
+  WIN:               { bg: 'var(--ok-bg)', color: 'var(--ok)' },
 }
 
 function provColor(nombre: string | null) {
-  if (!nombre) return { bg: '#f3f4f6', color: '#6b7280' }
+  if (!nombre) return { bg: 'var(--muted-foreground)', color: 'var(--muted-foreground)' }
   const key = nombre.toUpperCase()
-  return PROVEEDOR_COLORS[key] ?? { bg: '#f3f4f6', color: '#6b7280' }
+  return PROVEEDOR_COLORS[key] ?? { bg: 'var(--surface-2)', color: 'var(--muted-foreground)' }
 }
 
 
@@ -107,7 +107,7 @@ const BLANK = {
 function inp(): React.CSSProperties {
   return {
     width: '100%', padding: '6px 9px', fontSize: '12px',
-    border: '0.5px solid var(--border)', borderRadius: '7px',
+    border: '1px solid var(--border)', borderRadius: '7px',
     background: 'var(--card)', color: 'var(--foreground)', outline: 'none', boxSizing: 'border-box',
   }
 }
@@ -325,7 +325,7 @@ export default function TiendasPage() {
     padding: '9px 12px', fontSize: '10px', fontWeight: 700,
     color: 'var(--muted-foreground)', textTransform: 'uppercase',
     letterSpacing: '0.06em', textAlign: 'left',
-    borderBottom: '0.5px solid var(--border)', whiteSpace: 'nowrap',
+    borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap',
     background: 'var(--muted)',
   }
 
@@ -337,7 +337,7 @@ export default function TiendasPage() {
           <div style={{ display: 'flex', gap: '4px', background: 'var(--muted)', borderRadius: '10px', padding: '4px', width: 'fit-content' }}>
             {(['tiendas', 'routers'] as const).map(t => (
               <button key={t} onClick={() => setTab(t)}
-                style={{ padding: '6px 16px', fontSize: '12px', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: tab === t ? 600 : 400, background: tab === t ? 'hsl(221,83%,23%)' : 'transparent', color: tab === t ? 'white' : 'var(--foreground)', whiteSpace: 'nowrap' }}>
+                style={{ padding: '6px 16px', fontSize: '12px', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: tab === t ? 600 : 400, background: tab === t ? 'var(--gradient-primary)' : 'transparent', color: tab === t ? 'white' : 'var(--foreground)', whiteSpace: 'nowrap' }}>
                 {t === 'tiendas' ? 'Tiendas' : 'Routers Contingencia TI'}
               </button>
             ))}
@@ -350,21 +350,21 @@ export default function TiendasPage() {
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <button onClick={downloadMaestro} disabled={exportingMaestro}
-            style={{ padding: '7px 12px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: exportingMaestro ? 'not-allowed' : 'pointer', color: exportingMaestro ? 'var(--muted-foreground)' : 'var(--foreground)' }}>
+            style={{ padding: '7px 12px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: exportingMaestro ? 'not-allowed' : 'pointer', color: exportingMaestro ? 'var(--muted-foreground)' : 'var(--foreground)' }}>
             {exportingMaestro ? 'Generando...' : '↓ Exportar CSV'}
           </button>
           <button onClick={openHistorial}
-            style={{ padding: '7px 12px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: 'var(--foreground)' }}>
+            style={{ padding: '7px 12px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: 'var(--foreground)' }}>
             Historial
           </button>
           <button onClick={() => { setVerArchivadas(v => !v); setPage(1) }}
             title="Las tiendas dadas de baja no se borran, quedan archivadas"
-            style={{ padding: '7px 12px', background: verArchivadas ? '#f3f4f6' : 'var(--muted)', border: verArchivadas ? '0.5px solid #9ca3af' : '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: verArchivadas ? '#374151' : 'var(--foreground)', fontWeight: verArchivadas ? 600 : 400 }}>
+            style={{ padding: '7px 12px', background: verArchivadas ? 'var(--surface-2)' : 'var(--muted)', border: verArchivadas ? '1px solid var(--border)' : '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: verArchivadas ? 'var(--muted-foreground)' : 'var(--foreground)', fontWeight: verArchivadas ? 600 : 400 }}>
             {verArchivadas ? '✓ Viendo archivadas' : 'Ver archivadas'}
           </button>
           {canEdit && (
             <button onClick={() => setModal({ open: true, data: { ...BLANK } })}
-              style={{ padding: '7px 14px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>
+              style={{ padding: '7px 14px', background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>
               + Nueva tienda
             </button>
           )}
@@ -376,39 +376,39 @@ export default function TiendasPage() {
       {tab === 'tiendas' && <>
       {/* Metric cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '10px', marginBottom: '16px' }}>
-        <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
           <div style={{ fontSize: '20px', fontWeight: 700, color: '#3b82f6' }}>{tiendas.length}</div>
           <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Total tiendas</div>
         </div>
         <div
           onClick={() => { setFiltros(f => ({ ...f, estado: f.estado === 'ACTIVO' ? '' : 'ACTIVO' })); setPage(1) }}
-          style={{ background: filtros.estado === 'ACTIVO' ? '#f0fdf4' : 'var(--card)', border: filtros.estado === 'ACTIVO' ? '0.5px solid #22c55e' : '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px', cursor: 'pointer' }}>
-          <div style={{ fontSize: '20px', fontWeight: 700, color: '#22c55e' }}>{totalActivo}</div>
+          style={{ background: filtros.estado === 'ACTIVO' ? 'var(--ok-bg)' : 'var(--card)', border: filtros.estado === 'ACTIVO' ? '1px solid var(--ok-border)' : '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px', cursor: 'pointer' }}>
+          <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--ok)' }}>{totalActivo}</div>
           <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Activas</div>
         </div>
         <div
           onClick={() => { setFiltros(f => ({ ...f, estado: f.estado === 'INACTIVO' ? '' : 'INACTIVO' })); setPage(1) }}
-          style={{ background: filtros.estado === 'INACTIVO' ? '#f9fafb' : 'var(--card)', border: filtros.estado === 'INACTIVO' ? '0.5px solid #9ca3af' : '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px', cursor: 'pointer' }}>
-          <div style={{ fontSize: '20px', fontWeight: 700, color: '#9ca3af' }}>{totalInactivo}</div>
+          style={{ background: filtros.estado === 'INACTIVO' ? 'var(--surface-2)' : 'var(--card)', border: filtros.estado === 'INACTIVO' ? '1px solid var(--border)' : '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px', cursor: 'pointer' }}>
+          <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--muted-foreground)' }}>{totalInactivo}</div>
           <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Inactivas</div>
         </div>
-        <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
-          <div style={{ fontSize: '20px', fontWeight: 700, color: '#f59e0b' }}>{totalContingencia}</div>
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+          <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--warn)' }}>{totalContingencia}</div>
           <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Contingencia activa</div>
         </div>
         <div
           onClick={() => sinProveedor.length > 0 && setSinProveedorPanel(v => !v)}
-          style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 14px', cursor: sinProveedor.length > 0 ? 'pointer' : 'default' }}>
-          <div style={{ fontSize: '20px', fontWeight: 700, color: sinProveedor.length > 0 ? '#8b5cf6' : 'var(--muted-foreground)' }}>{sinProveedor.length}</div>
+          style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px', cursor: sinProveedor.length > 0 ? 'pointer' : 'default' }}>
+          <div style={{ fontSize: '20px', fontWeight: 700, color: sinProveedor.length > 0 ? 'var(--purple)' : 'var(--muted-foreground)' }}>{sinProveedor.length}</div>
           <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Sin proveedor</div>
         </div>
       </div>
 
       {/* Sin proveedor panel */}
       {sinProveedorPanel && (
-        <div style={{ background: 'var(--card)', border: '0.5px solid #8b5cf6', borderRadius: '10px', padding: '12px 14px', marginBottom: '14px' }}>
+        <div style={{ background: 'var(--card)', border: '1px solid var(--purple-border)', borderRadius: '10px', padding: '12px 14px', marginBottom: '14px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <div style={{ fontSize: '11px', fontWeight: 600, color: '#7c3aed' }}>Sin proveedor asignado ({sinProveedor.length})</div>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--purple)' }}>Sin proveedor asignado ({sinProveedor.length})</div>
             <button onClick={() => setSinProveedorPanel(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: 'var(--muted-foreground)' }}>✕</button>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -428,24 +428,24 @@ export default function TiendasPage() {
         <div style={{ display: 'flex', gap: '4px', background: 'var(--muted)', borderRadius: '9px', padding: '3px' }}>
           {PERIODO_OPCIONES.map(p => (
             <button key={p.key} onClick={() => { setPeriodo(p.key); setPage(1) }}
-              style={{ padding: '5px 12px', fontSize: '11px', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: periodo === p.key ? 600 : 400, background: periodo === p.key ? 'hsl(221,83%,23%)' : 'transparent', color: periodo === p.key ? 'white' : 'var(--foreground)', whiteSpace: 'nowrap' }}>
+              style={{ padding: '5px 12px', fontSize: '11px', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: periodo === p.key ? 600 : 400, background: periodo === p.key ? 'var(--gradient-primary)' : 'transparent', color: periodo === p.key ? 'white' : 'var(--foreground)', whiteSpace: 'nowrap' }}>
               {p.label}
             </button>
           ))}
           <button onClick={() => { setPeriodo('custom'); setPage(1) }}
-            style={{ padding: '5px 12px', fontSize: '11px', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: periodo === 'custom' ? 600 : 400, background: periodo === 'custom' ? 'hsl(221,83%,23%)' : 'transparent', color: periodo === 'custom' ? 'white' : 'var(--foreground)', whiteSpace: 'nowrap' }}>
+            style={{ padding: '5px 12px', fontSize: '11px', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: periodo === 'custom' ? 600 : 400, background: periodo === 'custom' ? 'var(--gradient-primary)' : 'transparent', color: periodo === 'custom' ? 'white' : 'var(--foreground)', whiteSpace: 'nowrap' }}>
             Personalizado ▾
           </button>
         </div>
         {periodo === 'custom' && (
           <>
             <input type="date" value={periodoDesde} onChange={e => { setPeriodoDesde(e.target.value); setPage(1) }}
-              style={{ padding: '6px 8px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)' }} />
+              style={{ padding: '6px 8px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)' }} />
             <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>a</span>
             <input type="date" value={periodoHasta} onChange={e => { setPeriodoHasta(e.target.value); setPage(1) }}
-              style={{ padding: '6px 8px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)' }} />
+              style={{ padding: '6px 8px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)' }} />
             {!(periodoDesde && periodoHasta) && (
-              <span style={{ fontSize: '11px', color: '#b45309' }}>Elegí ambas fechas — mientras tanto se muestran los últimos 30 días</span>
+              <span style={{ fontSize: '11px', color: 'var(--warn)' }}>Elegí ambas fechas — mientras tanto se muestran los últimos 30 días</span>
             )}
           </>
         )}
@@ -457,10 +457,10 @@ export default function TiendasPage() {
           placeholder="Buscar código, nombre, distrito, supervisor..."
           value={filtros.q}
           onChange={e => { setFiltros(f => ({ ...f, q: e.target.value })); setPage(1) }}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', minWidth: '240px' }}
+          style={{ padding: '6px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none', minWidth: '240px' }}
         />
         <select value={filtros.proveedor} onChange={e => { setFiltros(f => ({ ...f, proveedor: e.target.value })); setPage(1) }}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
+          style={{ padding: '6px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
           <option value="">Todos los proveedores</option>
           {/* Sale del padrón completo de proveedores, no de las tiendas ya
               filtradas: derivarlo de la lista visible dejaba una sola opción
@@ -469,23 +469,23 @@ export default function TiendasPage() {
           {allProveedores.map(p => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
         </select>
         <select value={filtros.cluster} onChange={e => { setFiltros(f => ({ ...f, cluster: e.target.value })); setPage(1) }}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
+          style={{ padding: '6px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
           <option value="">Todos los clusters</option>
           {['A', 'B', 'C', 'D'].map(c => <option key={c} value={c}>Cluster {c}</option>)}
         </select>
         <select value={filtros.supervisor} onChange={e => { setFiltros(f => ({ ...f, supervisor: e.target.value })); setPage(1) }}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
+          style={{ padding: '6px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
           <option value="">Todos los supervisores</option>
           {supervisores.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         <select value={filtros.estado} onChange={e => { setFiltros(f => ({ ...f, estado: e.target.value })); setPage(1) }}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
+          style={{ padding: '6px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
           <option value="">Todos los estados</option>
           <option value="ACTIVO">Activo</option>
           <option value="INACTIVO">Inactivo</option>
         </select>
         <select value={filtros.sort} onChange={e => { setFiltros(f => ({ ...f, sort: e.target.value })); setPage(1) }}
-          style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
+          style={{ padding: '6px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}>
           <option value="">Ordenar: Código</option>
           <option value="incidentes">Ordenar: Mayor incidentes</option>
           <option value="iei">Ordenar: Mayor IEI</option>
@@ -495,19 +495,19 @@ export default function TiendasPage() {
             <label style={{ fontSize: '11px', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '4px' }}>
               Baja desde
               <input type="date" value={archivadaDesde} onChange={e => { setArchivadaDesde(e.target.value); setPage(1) }}
-                style={{ padding: '6px 8px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)' }} />
+                style={{ padding: '6px 8px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)' }} />
             </label>
             <label style={{ fontSize: '11px', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '4px' }}>
               hasta
               <input type="date" value={archivadaHasta} onChange={e => { setArchivadaHasta(e.target.value); setPage(1) }}
-                style={{ padding: '6px 8px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)' }} />
+                style={{ padding: '6px 8px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)' }} />
             </label>
           </>
         )}
       </div>
 
       {/* Table */}
-      <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', overflow: 'hidden' }}>
+      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
@@ -543,10 +543,10 @@ export default function TiendasPage() {
                       : t.contingenciaActiva
                       ? 'rgba(245,158,11,0.05)'
                       : 'transparent',
-                    borderBottom: '0.5px solid var(--border)',
+                    borderBottom: '1px solid var(--border)',
                     opacity: isArchived ? 0.5 : isInactive ? 0.55 : 1,
                     filter: isArchived ? 'grayscale(1)' : undefined,
-                    borderLeft: t.contingenciaActiva ? '3px solid #f59e0b' : '3px solid transparent',
+                    borderLeft: t.contingenciaActiva ? '3px solid var(--warn-border)' : '3px solid transparent',
                   }}>
                   <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontSize: '12px', fontWeight: 700, color: 'var(--foreground)', whiteSpace: 'nowrap' }}>
                     {t.codigo}
@@ -577,14 +577,14 @@ export default function TiendasPage() {
                   </td>
                   <td style={{ padding: '10px 12px' }}>
                     {isArchived ? (
-                      <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: '#e5e7eb', color: '#4b5563', fontWeight: 600 }}>ARCHIVADA</span>
+                      <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: 'var(--surface-2)', color: 'var(--muted-foreground)', fontWeight: 600 }}>ARCHIVADA</span>
                     ) : isInactive ? (
-                      <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: '#f3f4f6', color: '#6b7280', fontWeight: 600 }}>INACTIVO</span>
+                      <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: 'var(--surface-2)', color: 'var(--muted-foreground)', fontWeight: 600 }}>INACTIVO</span>
                     ) : (
-                      <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: '#dcfce7', color: '#15803d', fontWeight: 600 }}>ACTIVO</span>
+                      <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: 'var(--ok-bg)', color: 'var(--ok)', fontWeight: 600 }}>ACTIVO</span>
                     )}
                   </td>
-                  <td style={{ padding: '10px 12px', fontSize: '12px', textAlign: 'center', color: Number(t.incidentCount) > 0 ? '#dc2626' : 'var(--muted-foreground)', fontWeight: Number(t.incidentCount) > 0 ? 600 : 400 }}>
+                  <td style={{ padding: '10px 12px', fontSize: '12px', textAlign: 'center', color: Number(t.incidentCount) > 0 ? 'var(--danger)' : 'var(--muted-foreground)', fontWeight: Number(t.incidentCount) > 0 ? 600 : 400 }}>
                     {Number(t.incidentCount) || 0}
                   </td>
                   <td style={{ padding: '10px 12px', fontSize: '12px', textAlign: 'right', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
@@ -592,7 +592,7 @@ export default function TiendasPage() {
                       // Mismo aviso que la ficha: sin venta configurada el IEI no
                       // se puede calcular — no es "costó S/ 0".
                       <span title="Sin venta configurada — el IEI no se puede calcular para esta tienda"
-                        style={{ color: '#b45309', fontSize: '10px', background: '#fef3c7', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                        style={{ color: 'var(--warn)', fontSize: '10px', background: 'var(--warn-bg)', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
                         sin venta
                       </span>
                     ) : (
@@ -609,15 +609,15 @@ export default function TiendasPage() {
                     ) : (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end' }}>
                         {t.contingenciaActiva && (
-                          <span style={{ fontSize: '10px', background: '#fef3c7', color: '#92400e', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>⚠</span>
+                          <span style={{ fontSize: '10px', background: 'var(--warn-bg)', color: 'var(--warn)', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>⚠</span>
                         )}
                         {canBaja && (
                           <button
                             onClick={e => { e.stopPropagation(); setBajaModal({ id: t.id, codigo: t.codigo, motivo: '', error: '' }) }}
                             title="Dar de baja"
-                            style={{ background: 'none', border: '0.5px solid transparent', borderRadius: '5px', padding: '2px 5px', cursor: 'pointer', fontSize: '12px', color: '#9ca3af', lineHeight: 1, transition: 'color 0.1s, border-color 0.1s' }}
-                            onMouseEnter={e => { const b = e.currentTarget; b.style.color = '#ef4444'; b.style.borderColor = '#fecaca' }}
-                            onMouseLeave={e => { const b = e.currentTarget; b.style.color = '#9ca3af'; b.style.borderColor = 'transparent' }}
+                            style={{ background: 'none', border: '1px solid transparent', borderRadius: '5px', padding: '2px 5px', cursor: 'pointer', fontSize: '12px', color: 'var(--muted-foreground)', lineHeight: 1, transition: 'color 0.1s, border-color 0.1s' }}
+                            onMouseEnter={e => { const b = e.currentTarget; b.style.color = 'var(--danger)'; b.style.borderColor = 'var(--danger)' }}
+                            onMouseLeave={e => { const b = e.currentTarget; b.style.color = 'var(--muted-foreground)'; b.style.borderColor = 'transparent' }}
                           >
                             ×
                           </button>
@@ -648,14 +648,14 @@ export default function TiendasPage() {
         {totalPages > 1 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-              style={{ padding: '5px 12px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', cursor: page === 1 ? 'default' : 'pointer', opacity: page === 1 ? 0.4 : 1 }}>
+              style={{ padding: '5px 12px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', cursor: page === 1 ? 'default' : 'pointer', opacity: page === 1 ? 0.4 : 1 }}>
               ← Anterior
             </button>
             <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
               {page} / {totalPages} · {filtered.length} tiendas
             </span>
             <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-              style={{ padding: '5px 12px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', cursor: page === totalPages ? 'default' : 'pointer', opacity: page === totalPages ? 0.4 : 1 }}>
+              style={{ padding: '5px 12px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--foreground)', cursor: page === totalPages ? 'default' : 'pointer', opacity: page === totalPages ? 0.4 : 1 }}>
               Siguiente →
             </button>
           </div>
@@ -666,9 +666,9 @@ export default function TiendasPage() {
       {showHistorial && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 200 }} onClick={() => setShowHistorial(false)}>
           <div
-            style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '380px', background: 'var(--card)', borderLeft: '0.5px solid var(--border)', boxShadow: '-4px 0 24px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column' }}
+            style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '380px', background: 'var(--card)', borderLeft: '1px solid var(--border)', boxShadow: '-4px 0 24px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column' }}
             onClick={e => e.stopPropagation()}>
-            <div style={{ padding: '16px', borderBottom: '0.5px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ padding: '16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontSize: '13px', fontWeight: 600 }}>Historial de cambios</div>
               <button onClick={() => setShowHistorial(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--muted-foreground)' }}>✕</button>
             </div>
@@ -701,8 +701,8 @@ export default function TiendasPage() {
 
       {/* Delete confirmation modal */}
       {deleteConfirm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', width: '100%', maxWidth: '400px', padding: '22px 24px' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', width: '100%', maxWidth: '400px', padding: '22px 24px' }}>
             {deleteConfirm.step === 1 ? (
               <>
                 <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Eliminar tienda (solo errores de carga)</div>
@@ -711,28 +711,28 @@ export default function TiendasPage() {
                 </div>
                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                   <button onClick={() => setDeleteConfirm(null)}
-                    style={{ padding: '8px 16px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: 'var(--foreground)' }}>
+                    style={{ padding: '8px 16px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: 'var(--foreground)' }}>
                     Cancelar
                   </button>
                   <button onClick={() => setDeleteConfirm(c => c ? { ...c, step: 2 } : c)}
-                    style={{ padding: '8px 16px', background: '#fee2e2', color: '#b91c1c', border: '0.5px solid #fecaca', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>
+                    style={{ padding: '8px 16px', background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>
                     Continuar
                   </button>
                 </div>
               </>
             ) : (
               <>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: '#b91c1c', marginBottom: '6px' }}>Confirmar eliminación</div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--danger)', marginBottom: '6px' }}>Confirmar eliminación</div>
                 <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '22px' }}>
                   Esta acción es <strong>permanente</strong> y no queda registro. La tienda <strong style={{ color: 'var(--foreground)' }}>{deleteConfirm.codigo}</strong> y toda su configuración serán eliminadas. Si tiene alguna ficha o incidente, esto va a fallar — usa "Dar de baja" en su lugar.
                 </div>
                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                   <button onClick={() => setDeleteConfirm(null)}
-                    style={{ padding: '8px 16px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: 'var(--foreground)' }}>
+                    style={{ padding: '8px 16px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: 'var(--foreground)' }}>
                     Cancelar
                   </button>
                   <button onClick={() => handleDelete(deleteConfirm.id)} disabled={deleting}
-                    style={{ padding: '8px 16px', background: '#b91c1c', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: deleting ? 'not-allowed' : 'pointer', opacity: deleting ? 0.6 : 1 }}>
+                    style={{ padding: '8px 16px', background: 'var(--danger-bg)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: deleting ? 'not-allowed' : 'pointer', opacity: deleting ? 0.6 : 1 }}>
                     {deleting ? 'Eliminando...' : 'Eliminar definitivamente'}
                   </button>
                 </div>
@@ -744,8 +744,8 @@ export default function TiendasPage() {
 
       {/* Dar de baja modal */}
       {bajaModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', width: '100%', maxWidth: '420px', padding: '22px 24px' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', width: '100%', maxWidth: '420px', padding: '22px 24px' }}>
             <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Dar de baja</div>
             <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '14px' }}>
               La tienda <strong style={{ color: 'var(--foreground)' }}>{bajaModal.codigo}</strong> quedará archivada, no se borra — sigue disponible en "Ver archivadas" con su historial. Se bloquea si tiene ficha de contrato activa (dar de baja el contrato primero en Gestión de Cambios), un router externo asignado, o incidentes abiertos.
@@ -758,10 +758,10 @@ export default function TiendasPage() {
               onChange={e => setBajaModal(m => m ? { ...m, motivo: e.target.value, error: '' } : m)}
               placeholder="Ej: local cerrado definitivamente, cierre de operaciones en la zona…"
               rows={3}
-              style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit', marginBottom: '10px' }}
+              style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit', marginBottom: '10px' }}
             />
             {bajaModal.error && (
-              <div style={{ background: '#FEE2E2', border: '1px solid #FCA5A5', borderRadius: '7px', padding: '8px 12px', fontSize: '12px', color: '#991B1B', marginBottom: '14px' }}>
+              <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: '7px', padding: '8px 12px', fontSize: '12px', color: 'var(--danger)', marginBottom: '14px' }}>
                 {bajaModal.error}
               </div>
             )}
@@ -773,11 +773,11 @@ export default function TiendasPage() {
               </button>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={() => setBajaModal(null)}
-                  style={{ padding: '8px 16px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: 'var(--foreground)' }}>
+                  style={{ padding: '8px 16px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: 'var(--foreground)' }}>
                   Cancelar
                 </button>
                 <button onClick={handleBaja} disabled={bajaSaving}
-                  style={{ padding: '8px 16px', background: '#b91c1c', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: bajaSaving ? 'not-allowed' : 'pointer', opacity: bajaSaving ? 0.6 : 1 }}>
+                  style={{ padding: '8px 16px', background: 'var(--danger-bg)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: bajaSaving ? 'not-allowed' : 'pointer', opacity: bajaSaving ? 0.6 : 1 }}>
                   {bajaSaving ? 'Guardando...' : 'Dar de baja'}
                 </button>
               </div>
@@ -788,9 +788,9 @@ export default function TiendasPage() {
 
       {/* Nueva tienda modal */}
       {modal.open && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', width: '100%', maxWidth: '560px', maxHeight: '90vh', overflow: 'auto' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '0.5px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', width: '100%', maxWidth: '560px', maxHeight: '90vh', overflow: 'auto' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontSize: '13px', fontWeight: 600 }}>Nueva tienda</div>
               <button onClick={() => setModal(m => ({ ...m, open: false }))} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--muted-foreground)' }}>✕</button>
             </div>
@@ -834,11 +834,11 @@ export default function TiendasPage() {
 
               <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
                 <button onClick={() => setModal(m => ({ ...m, open: false }))}
-                  style={{ padding: '8px 16px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: 'var(--foreground)' }}>
+                  style={{ padding: '8px 16px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: 'var(--foreground)' }}>
                   Cancelar
                 </button>
                 <button onClick={handleSave} disabled={saving || !modal.data.codigo}
-                  style={{ padding: '8px 16px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', opacity: saving || !modal.data.codigo ? 0.6 : 1 }}>
+                  style={{ padding: '8px 16px', background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', opacity: saving || !modal.data.codigo ? 0.6 : 1 }}>
                   {saving ? 'Guardando...' : 'Guardar'}
                 </button>
               </div>

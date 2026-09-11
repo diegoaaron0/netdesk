@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 
 const INP: React.CSSProperties = {
   width: '100%', padding: '8px 10px', fontSize: '13px',
-  border: '0.5px solid var(--border)', borderRadius: '8px',
+  border: '1px solid var(--border)', borderRadius: '8px',
   background: 'var(--card)', color: 'var(--foreground)', outline: 'none', boxSizing: 'border-box',
 }
 
@@ -37,14 +37,14 @@ export default function PerfilPage() {
     <div style={{ maxWidth: '420px', margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
         <button onClick={() => router.back()}
-          style={{ padding: '6px 12px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', cursor: 'pointer' }}>
+          style={{ padding: '6px 12px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', cursor: 'pointer' }}>
           ← Volver
         </button>
         <h1 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Mi perfil</h1>
       </div>
 
-      <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
-        <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '16px', paddingBottom: '8px', borderBottom: '0.5px solid var(--border)' }}>
+      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
+        <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '16px', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>
           Cambiar contraseña
         </div>
 
@@ -72,18 +72,18 @@ export default function PerfilPage() {
           </div>
 
           {error && (
-            <div style={{ fontSize: '12px', color: '#b91c1c', background: '#fef2f2', border: '0.5px solid #fecaca', borderRadius: '7px', padding: '8px 12px' }}>
+            <div style={{ fontSize: '12px', color: 'var(--danger)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: '7px', padding: '8px 12px' }}>
               {error}
             </div>
           )}
           {ok && (
-            <div style={{ fontSize: '12px', color: '#166534', background: '#f0fdf4', border: '0.5px solid #86efac', borderRadius: '7px', padding: '8px 12px' }}>
+            <div style={{ fontSize: '12px', color: 'var(--ok)', background: 'var(--ok-bg)', border: '1px solid var(--ok-border)', borderRadius: '7px', padding: '8px 12px' }}>
               Contraseña actualizada correctamente.
             </div>
           )}
 
           <button type="submit" disabled={saving}
-            style={{ padding: '9px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, marginTop: '4px' }}>
+            style={{ padding: '9px', background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, marginTop: '4px' }}>
             {saving ? 'Guardando...' : 'Cambiar contraseña'}
           </button>
         </form>

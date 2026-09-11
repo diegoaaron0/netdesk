@@ -23,16 +23,16 @@ function AtcLlamadaRow({ atc, isClosed, onFin, onSaveNotas, onDelete }: {
           <span style={{ fontSize: '11px', fontWeight: 600 }}>{inicio}</span>
           {finHora
             ? <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>→ {finHora} · {atc.duracionMin != null ? minToHM(atc.duracionMin) : '—'}</span>
-            : <span style={{ fontSize: '10px', color: '#15803d', fontWeight: 500 }}>● En curso</span>}
+            : <span style={{ fontSize: '10px', color: 'var(--ok)', fontWeight: 500 }}>● En curso</span>}
         </div>
         <div style={{ display: 'flex', gap: '4px' }}>
           {!atc.fin && !isClosed && (
-            <button onClick={onFin} style={{ padding: '2px 8px', fontSize: '10px', background: '#fee2e2', color: '#b91c1c', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '4px', cursor: 'pointer' }}>
+            <button onClick={onFin} style={{ padding: '2px 8px', fontSize: '10px', background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '4px', cursor: 'pointer' }}>
               ■ Finalizar
             </button>
           )}
           {!isClosed && (
-            <button onClick={onDelete} style={{ width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '4px', color: '#dc2626', cursor: 'pointer' }}>
+            <button onClick={onDelete} style={{ width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '4px', color: 'var(--danger)', cursor: 'pointer' }}>
               <IcoTrashEsc />
             </button>
           )}
@@ -200,17 +200,17 @@ export function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
   } : undefined
 
   return (
-    <div style={{ background: 'var(--muted)', borderRadius: '12px', border: `1px solid ${isRespondido ? '#86efac' : isSinRespuesta ? 'rgba(220,38,38,0.3)' : 'var(--border)'}`, overflow: 'hidden' }}>
+    <div style={{ background: 'var(--muted)', borderRadius: '12px', border: `1px solid ${isRespondido ? 'var(--ok-border)' : isSinRespuesta ? 'rgba(220,38,38,0.3)' : 'var(--border)'}`, overflow: 'hidden' }}>
 
       {/* ── Header compacto ── */}
-      <div style={{ padding: '9px 12px', borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.03)' }}>
+      <div style={{ padding: '9px 12px', borderBottom: '1px solid var(--border)', background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
               <span style={{ fontSize: '12px', fontWeight: 700 }}>N{esc.nivel}</span>
               <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--foreground)' }}>{esc.contactoEscalado}</span>
-              {isRespondido  && <span style={{ fontSize: '10px', padding: '1px 7px', background: '#dcfce7', color: '#15803d', borderRadius: '20px', fontWeight: 600 }}>Respondido</span>}
-              {isSinRespuesta && <span style={{ fontSize: '10px', padding: '1px 7px', background: '#fee2e2', color: '#b91c1c', borderRadius: '20px', fontWeight: 600 }}>Sin respuesta</span>}
+              {isRespondido  && <span style={{ fontSize: '10px', padding: '1px 7px', background: 'var(--ok-bg)', color: 'var(--ok)', borderRadius: '20px', fontWeight: 600 }}>Respondido</span>}
+              {isSinRespuesta && <span style={{ fontSize: '10px', padding: '1px 7px', background: 'var(--danger-bg)', color: 'var(--danger)', borderRadius: '20px', fontWeight: 600 }}>Sin respuesta</span>}
             </div>
             <div style={{ display: 'flex', gap: '10px', marginTop: '2px', flexWrap: 'wrap' }}>
               {esc.emailContacto    && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>✉ {esc.emailContacto}</span>}
@@ -221,11 +221,11 @@ export function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
             <span style={{ fontSize: '9px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>{horaCreado}</span>
             {!isClosed && isRespondido && (
               <button onClick={() => setEditTiempos(v => !v)} title="Editar tiempos"
-                style={{ width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: editTiempos ? '#dbeafe' : 'rgba(0,0,0,0.06)', border: `1px solid ${editTiempos ? '#93c5fd' : 'var(--border)'}`, borderRadius: '4px', color: editTiempos ? '#1d4ed8' : 'var(--muted-foreground)', cursor: 'pointer', fontSize: '11px' }}>✎</button>
+                style={{ width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: editTiempos ? 'var(--info-bg)' : 'rgba(0,0,0,0.06)', border: `1px solid ${editTiempos ? 'var(--info-border)' : 'var(--border)'}`, borderRadius: '4px', color: editTiempos ? 'var(--info-bg)' : 'var(--muted-foreground)', cursor: 'pointer', fontSize: '11px' }}>✎</button>
             )}
             {!isClosed && (
               <button onClick={handleDelete} title="Eliminar"
-                style={{ width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '4px', color: '#dc2626', cursor: 'pointer' }}>
+                style={{ width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '4px', color: 'var(--danger)', cursor: 'pointer' }}>
                 <IcoTrashEsc />
               </button>
             )}
@@ -244,14 +244,14 @@ export function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
             </button>
             <div style={{ display: 'flex', gap: '4px' }}>
               <button onClick={copyTemplate}
-                style={{ fontSize: '10px', padding: '2px 8px', background: copied ? '#14532d' : 'transparent', color: copied ? '#86efac' : 'var(--muted-foreground)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer' }}>
+                style={{ fontSize: '10px', padding: '2px 8px', background: copied ? 'var(--ok-bg)' : 'transparent', color: copied ? 'var(--ok-bg)' : 'var(--muted-foreground)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer' }}>
                 {copied ? '✓ Copiado' : '📋 Copiar'}
               </button>
               {!isClosed && <button onClick={() => setTemplateBody(buildCorreo(inc, nivelData, esc.nivel, prevEscs))}
                 style={{ fontSize: '10px', padding: '2px 8px', background: 'transparent', color: 'var(--muted-foreground)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer' }}>🔄 Actualizar</button>}
               {showTemplate && !isClosed && (
                 <button onClick={saveTemplate} disabled={savingTemplate}
-                  style={{ fontSize: '10px', padding: '2px 8px', background: savingTemplate ? 'var(--muted)' : 'hsl(221,83%,45%)', color: savingTemplate ? 'var(--muted-foreground)' : 'white', border: 'none', borderRadius: '4px', cursor: savingTemplate ? 'wait' : 'pointer' }}>
+                  style={{ fontSize: '10px', padding: '2px 8px', background: savingTemplate ? 'var(--muted)' : 'var(--gradient-primary)', color: savingTemplate ? 'var(--muted-foreground)' : 'white', border: 'none', borderRadius: '4px', cursor: savingTemplate ? 'wait' : 'pointer' }}>
                   {savingTemplate ? '...' : '💾 Guardar'}
                 </button>
               )}
@@ -271,7 +271,7 @@ export function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
         {/* Botón correo enviado */}
         {!esc.horaEnvioCorreo && !isClosed && !isSinRespuesta && (
           <button onClick={handleEnvio}
-            style={{ width: '100%', padding: '9px', background: 'hsl(221,83%,45%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', marginBottom: '6px' }}>
+            style={{ width: '100%', padding: '9px', background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', marginBottom: '6px' }}>
             ✉ Correo enviado → Iniciar cronómetro
           </button>
         )}
@@ -329,7 +329,7 @@ export function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
             {!isClosed && (
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={handleRespuesta} disabled={saving}
-                  style={{ flex: 1, padding: '8px', background: '#14532d', color: '#86efac', border: 'none', borderRadius: '8px', fontSize: '11px', fontWeight: 600, cursor: saving ? 'wait' : 'pointer' }}>
+                  style={{ flex: 1, padding: '8px', background: 'var(--ok-bg)', color: 'var(--ok)', border: 'none', borderRadius: '8px', fontSize: '11px', fontWeight: 600, cursor: saving ? 'wait' : 'pointer' }}>
                   {saving ? 'Guardando...' : '✓ Registrar respuesta'}
                 </button>
                 <button onClick={handleSinRespuesta}
@@ -344,8 +344,8 @@ export function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
         {/* Respondido */}
         {isRespondido && (
           <div style={{ margin: '0 12px 10px' }}>
-            <div style={{ padding: '8px 12px', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #86efac' }}>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: '#15803d' }}>
+            <div style={{ padding: '8px 12px', background: 'var(--ok-bg)', borderRadius: '8px', border: '1px solid var(--ok-border)' }}>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--ok)' }}>
                 ✓ {minToHM(esc.tiempoRespuestaMin)} · {new Date(esc.horaRespuesta).toLocaleString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit' })}
                 {esc.tiempoEstimadoSolucion && (() => {
                   const m = parseEtaMin(esc.tiempoEstimadoSolucion)
@@ -355,7 +355,7 @@ export function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
               {esc.respuestaTexto && (
                 <div style={{ marginTop: '4px' }}>
                   <button type="button" onClick={() => setShowRespText(v => !v)}
-                    style={{ fontSize: '10px', color: '#15803d', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}>
+                    style={{ fontSize: '10px', color: 'var(--ok)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}>
                     {showRespText ? '▲ Ocultar' : '▼ Ver respuesta'}
                   </button>
                   {showRespText && <div style={{ fontSize: '11px', color: 'var(--foreground)', marginTop: '4px', whiteSpace: 'pre-wrap' }}>{esc.respuestaTexto}</div>}
@@ -363,22 +363,22 @@ export function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
               )}
             </div>
             {editTiempos && (
-              <div style={{ marginTop: '6px', padding: '8px 12px', background: '#eff6ff', borderRadius: '8px', border: '1px solid #93c5fd', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div style={{ fontSize: '10px', fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Corregir tiempos</div>
+              <div style={{ marginTop: '6px', padding: '8px 12px', background: 'var(--info-bg)', borderRadius: '8px', border: '1px solid var(--info-border)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--info)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Corregir tiempos</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                   <div>
-                    <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '3px' }}>Envío N{esc.nivel}</div>
+                    <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '3px' }}>Envío N{esc.nivel}</div>
                     <input type="datetime-local" value={horaEnvioEdit} onChange={e => setHoraEnvioEdit(e.target.value)}
-                      style={{ width: '100%', padding: '4px 6px', fontSize: '11px', border: '1px solid #93c5fd', borderRadius: '6px', background: 'white', outline: 'none', boxSizing: 'border-box' }} />
+                      style={{ width: '100%', padding: '4px 6px', fontSize: '11px', border: '1px solid var(--info-border)', borderRadius: '6px', background: 'var(--card)', outline: 'none', boxSizing: 'border-box' }} />
                   </div>
                   <div>
-                    <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '3px' }}>Respuesta</div>
+                    <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '3px' }}>Respuesta</div>
                     <input type="datetime-local" value={horaRespEdit} onChange={e => setHoraRespEdit(e.target.value)}
-                      style={{ width: '100%', padding: '4px 6px', fontSize: '11px', border: '1px solid #93c5fd', borderRadius: '6px', background: 'white', outline: 'none', boxSizing: 'border-box' }} />
+                      style={{ width: '100%', padding: '4px 6px', fontSize: '11px', border: '1px solid var(--info-border)', borderRadius: '6px', background: 'var(--card)', outline: 'none', boxSizing: 'border-box' }} />
                   </div>
                 </div>
                 <button onClick={handleGuardarTiempos} disabled={savingTiempos}
-                  style={{ padding: '5px', background: '#1d4ed8', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: savingTiempos ? 'wait' : 'pointer' }}>
+                  style={{ padding: '5px', background: 'var(--info-bg)', color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: savingTiempos ? 'wait' : 'pointer' }}>
                   {savingTiempos ? 'Guardando...' : 'Guardar tiempos'}
                 </button>
               </div>
@@ -388,8 +388,8 @@ export function EscalamientoCard({ esc, allEscs, inc, isClosed, onRefresh }: {
 
         {/* Sin respuesta */}
         {isSinRespuesta && !isRespondido && (
-          <div style={{ margin: '0 12px 10px', padding: '7px 12px', background: '#fef2f2', borderRadius: '8px', border: '1px solid rgba(220,38,38,0.3)' }}>
-            <div style={{ fontSize: '11px', fontWeight: 600, color: '#b91c1c' }}>✗ No hubo respuesta del proveedor</div>
+          <div style={{ margin: '0 12px 10px', padding: '7px 12px', background: 'var(--danger-bg)', borderRadius: '8px', border: '1px solid rgba(220,38,38,0.3)' }}>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--danger)' }}>✗ No hubo respuesta del proveedor</div>
           </div>
         )}
       </div>

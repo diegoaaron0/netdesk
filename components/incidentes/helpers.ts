@@ -2,8 +2,21 @@
 // sub-paneles (GrupoMasivoPanel, EscalamientoCard, InfraEscalamientoPanel).
 import type { CSSProperties } from 'react'
 
+/** Campo de formulario.
+ *  En oscuro el input NO puede compartir color con la tarjeta que lo contiene
+ *  (antes usaba var(--card), el mismo del panel, y desaparecía). Se usa un velo
+ *  blanco translúcido: se lee como hundido sobre cualquier superficie y no
+ *  depende de cuál sea el panel de fondo. */
 export function iStyle(dis?: boolean): CSSProperties {
-  return { width: '100%', padding: '7px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: dis ? 'var(--muted)' : 'var(--card)', color: dis ? 'var(--muted-foreground)' : 'var(--foreground)', outline: 'none' }
+  return {
+    width: '100%', padding: '8px 11px', fontSize: '12px',
+    border: `1px solid ${dis ? 'var(--border)' : 'var(--input)'}`,
+    borderRadius: 'var(--radius)',
+    background: dis ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.045)',
+    color: dis ? 'var(--faint-foreground)' : 'var(--foreground)',
+    outline: 'none',
+    transition: 'border-color var(--t) var(--ease), background var(--t) var(--ease)',
+  }
 }
 export function taStyle(dis?: boolean): CSSProperties {
   return { ...iStyle(dis), minHeight: '72px', resize: 'vertical' as const, fontFamily: 'inherit' }

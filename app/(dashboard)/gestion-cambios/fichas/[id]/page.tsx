@@ -5,10 +5,10 @@ import { apiMutate } from '@/lib/api-mutate'
 import { SLA_RESPUESTA_MIN, SLA_RESOLUCION_DEFAULT_MIN } from '@/lib/sla-core'
 
 const ESTADO_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
-  BORRADOR:     { label: 'Borrador',     bg: '#F1F5F9', color: '#475569' },
-  ACTIVA:       { label: 'Activa',       bg: '#ECFDF5', color: '#065F46' },
-  HISTORICA:    { label: 'Desactivada',  bg: '#F8FAFC', color: '#94A3B8' },
-  DADA_DE_BAJA: { label: 'Dada de Baja', bg: '#FEF2F2', color: '#B91C1C' },
+  BORRADOR:     { label: 'Borrador',     bg: 'var(--info-bg)', color: 'var(--muted-foreground)' },
+  ACTIVA:       { label: 'Activa',       bg: 'var(--ok-bg)', color: 'var(--ok)' },
+  HISTORICA:    { label: 'Desactivada',  bg: 'var(--surface-2)', color: 'var(--muted-foreground)' },
+  DADA_DE_BAJA: { label: 'Dada de Baja', bg: 'var(--danger-bg)', color: 'var(--danger)' },
 }
 
 function Field({ label, value, editing, name, onChange, type = 'text', textarea = false, defaultValue }: {
@@ -37,14 +37,14 @@ function Field({ label, value, editing, name, onChange, type = 'text', textarea 
     <div style={{ marginBottom: '12px' }}>
       <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>{label}</label>
       <textarea value={value ?? ''} onChange={e => onChange(name, e.target.value)} rows={3}
-        style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--background)', resize: 'vertical', boxSizing: 'border-box' }} />
+        style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--background)', resize: 'vertical', boxSizing: 'border-box' }} />
     </div>
   )
   return (
     <div style={{ marginBottom: '12px' }}>
       <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>{label}</label>
       <input type={type} value={value ?? ''} onChange={e => onChange(name, e.target.value)}
-        style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--background)', boxSizing: 'border-box' }} />
+        style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--background)', boxSizing: 'border-box' }} />
     </div>
   )
 }
@@ -137,7 +137,7 @@ export default function FichaDetallePage() {
   }
 
   if (loading) return <div style={{ padding: '40px', textAlign: 'center', fontSize: '12px', color: 'var(--muted-foreground)' }}>Cargando...</div>
-  if (!data)   return <div style={{ padding: '40px', textAlign: 'center', fontSize: '12px', color: '#DC2626' }}>Ficha no encontrada.</div>
+  if (!data)   return <div style={{ padding: '40px', textAlign: 'center', fontSize: '12px', color: 'var(--danger)' }}>Ficha no encontrada.</div>
 
   const est = ESTADO_CONFIG[data.estado] ?? ESTADO_CONFIG.BORRADOR
   const src = editing ? draft : data
@@ -146,13 +146,13 @@ export default function FichaDetallePage() {
     <div>
       {/* Volver */}
       <button onClick={() => router.push('/gestion-cambios/fichas')}
-        style={{ marginBottom: '12px', padding: '5px 12px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--muted-foreground)', cursor: 'pointer' }}>
+        style={{ marginBottom: '12px', padding: '5px 12px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--card)', color: 'var(--muted-foreground)', cursor: 'pointer' }}>
         ← Volver
       </button>
 
       {/* Breadcrumb */}
       <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '12px', display: 'flex', gap: '6px', alignItems: 'center' }}>
-        <span style={{ cursor: 'pointer', color: 'hsl(221,83%,23%)' }} onClick={() => router.push('/gestion-cambios/fichas')}>Fichas</span>
+        <span style={{ cursor: 'pointer', color: 'var(--primary)' }} onClick={() => router.push('/gestion-cambios/fichas')}>Fichas</span>
         <span>/</span>
         <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{data.codigo}</span>
       </div>
@@ -177,12 +177,12 @@ export default function FichaDetallePage() {
           {data.estado === 'BORRADOR' && (
             !data.tiendaFichaActivaId ? (
               <button onClick={() => cambiarEstado('ACTIVA')} title="Alta inicial: la tienda aún no tiene ficha activa"
-                style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 600, background: '#059669', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+                style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 600, background: 'var(--ok-bg)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
                 Activar ficha
               </button>
             ) : (
               <span title="El reemplazo de la ficha activa se realiza por Gestión de Cambios"
-                style={{ alignSelf: 'center', padding: '7px 12px', fontSize: '11px', color: 'var(--muted-foreground)', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '8px' }}>
+                style={{ alignSelf: 'center', padding: '7px 12px', fontSize: '11px', color: 'var(--muted-foreground)', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '8px' }}>
                 Se activa vía Gestión de Cambios
               </span>
             )
@@ -190,17 +190,17 @@ export default function FichaDetallePage() {
           {!editing ? (
             <button onClick={startEdit}
               title={data.estado === 'ACTIVA' ? 'edición activa por ahora' : 'Editar ficha'}
-              style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 14px', fontSize: '12px', fontWeight: 600, background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 14px', fontSize: '12px', fontWeight: 600, background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
               <span aria-hidden>✎</span> Editar
             </button>
           ) : (
             <>
               <button onClick={cancelEdit} disabled={saving}
-                style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 600, background: 'var(--muted)', color: 'var(--muted-foreground)', border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'pointer' }}>
+                style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 600, background: 'var(--muted)', color: 'var(--muted-foreground)', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer' }}>
                 Cancelar
               </button>
               <button onClick={saveEdit} disabled={saving}
-                style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 600, background: '#059669', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+                style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 600, background: 'var(--ok-bg)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
                 {saving ? 'Guardando...' : 'Guardar cambios'}
               </button>
             </>
@@ -209,10 +209,10 @@ export default function FichaDetallePage() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '2px', borderBottom: '0.5px solid var(--border)', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', gap: '2px', borderBottom: '1px solid var(--border)', marginBottom: '20px' }}>
         {(['contrato', 'conectividad', 'niveles'] as const).map(t => (
           <button key={t} onClick={() => { setTab(t); if (t !== tab) { setEditing(false); setDraft(null) } }}
-            style={{ padding: '8px 16px', fontSize: '12px', fontWeight: tab === t ? 700 : 400, background: 'none', border: 'none', cursor: 'pointer', color: tab === t ? 'var(--foreground)' : 'var(--muted-foreground)', borderBottom: tab === t ? '2px solid hsl(221,83%,23%)' : '2px solid transparent', transition: 'color 0.15s', textTransform: 'capitalize' }}>
+            style={{ padding: '8px 16px', fontSize: '12px', fontWeight: tab === t ? 700 : 400, background: 'none', border: 'none', cursor: 'pointer', color: tab === t ? 'var(--foreground)' : 'var(--muted-foreground)', borderBottom: tab === t ? '2px solid var(--primary)' : '2px solid transparent', transition: 'color 0.15s', textTransform: 'capitalize' }}>
             {t === 'contrato' ? 'Contrato' : t === 'conectividad' ? 'Conectividad' : `Escalamiento (${data.niveles?.length ?? 0})`}
           </button>
         ))}
@@ -235,18 +235,18 @@ export default function FichaDetallePage() {
                   label: 'SLA Respuesta',
                   value: src.tiempoRespuestaSla ?? SLA_RESPUESTA_MIN,
                   suffix: 'min',
-                  color: 'hsl(221,83%,23%)',
+                  color: 'var(--primary)',
                   note: !src.tiempoRespuestaSla ? 'por defecto' : undefined,
                 },
                 {
                   label: 'SLA Resolución',
                   value: src.tiempoResolucionSla ?? SLA_RESOLUCION_DEFAULT_MIN,
                   suffix: 'min',
-                  color: 'hsl(221,83%,23%)',
+                  color: 'var(--primary)',
                   note: !src.tiempoResolucionSla ? 'por defecto' : undefined,
                 },
               ].map(k => (
-                <div key={k.label} style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '14px 16px' }}>
+                <div key={k.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px 16px' }}>
                   <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>{k.label}</div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
                     <span style={{ fontSize: '22px', fontWeight: 700, color: k.color, lineHeight: 1 }}>{k.value}</span>
@@ -260,16 +260,16 @@ export default function FichaDetallePage() {
 
           {/* Fila principal: Información + Vigencia */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px' }}>
-              <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', paddingBottom: '8px', borderBottom: '0.5px solid var(--border)' }}>Información del contrato</div>
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '16px' }}>
+              <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>Información del contrato</div>
               <Field label="Código de contrato"   value={src.codigoContrato}     editing={editing} name="codigoContrato"     onChange={fieldChange} />
               <Field label="Plan"                 value={src.plan}               editing={editing} name="plan"               onChange={fieldChange} />
               <Field label="Tipo de servicio"     value={src.tipoServicio}       editing={editing} name="tipoServicio"       onChange={fieldChange} />
               <Field label="Velocidad / Capacidad" value={src.velocidadCapacidad} editing={editing} name="velocidadCapacidad" onChange={fieldChange} />
               <Field label="Costo mensual (S/)"   value={src.costoMensual}       editing={editing} name="costoMensual"       onChange={fieldChange} type="number" />
             </div>
-            <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px' }}>
-              <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', paddingBottom: '8px', borderBottom: '0.5px solid var(--border)' }}>Vigencia</div>
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '16px' }}>
+              <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>Vigencia</div>
               <Field label="Fecha inicio"          value={src.fechaInicio}          editing={editing} name="fechaInicio"          onChange={fieldChange} type="date" />
               <Field label="Fecha fin"             value={src.fechaFin}             editing={editing} name="fechaFin"             onChange={fieldChange} type="date" />
               <Field label="Renovación automática" value={src.renovacionAutomatica} editing={editing} name="renovacionAutomatica" onChange={fieldChange} type="checkbox" />
@@ -277,8 +277,8 @@ export default function FichaDetallePage() {
           </div>
 
           {/* SLA */}
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px' }}>
-            <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', paddingBottom: '8px', borderBottom: '0.5px solid var(--border)' }}>SLA</div>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '16px' }}>
+            <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>SLA</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
               <Field label="SLA comprometido"           value={src.slaComprometido}    editing={editing} name="slaComprometido"    onChange={fieldChange} />
               <Field label="Tiempo respuesta SLA (min)" value={src.tiempoRespuestaSla} editing={editing} name="tiempoRespuestaSla" onChange={fieldChange} type="number" defaultValue={60} />
@@ -288,8 +288,8 @@ export default function FichaDetallePage() {
           </div>
 
           {/* Documentos */}
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px' }}>
-            <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', paddingBottom: '8px', borderBottom: '0.5px solid var(--border)' }}>Documentos y penalidades</div>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '16px' }}>
+            <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>Documentos y penalidades</div>
             <Field label="URL documento" value={src.documentoUrl} editing={editing} name="documentoUrl" onChange={fieldChange} />
             <Field label="Penalidad"     value={src.penalidad}    editing={editing} name="penalidad"    onChange={fieldChange} textarea />
           </div>
@@ -302,15 +302,15 @@ export default function FichaDetallePage() {
 
           {/* Fila: Datos técnicos + Estado */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px' }}>
-              <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', paddingBottom: '8px', borderBottom: '0.5px solid var(--border)' }}>Datos técnicos</div>
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '16px' }}>
+              <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>Datos técnicos</div>
               <Field label="Tipo de conexión"      value={src.tipoConexion}  editing={editing} name="tipoConexion"  onChange={fieldChange} />
               <Field label="CID / Nro. de servicio" value={src.cidServicio}  editing={editing} name="cidServicio"   onChange={fieldChange} />
               <Field label="Velocidad"             value={src.velocidad}     editing={editing} name="velocidad"     onChange={fieldChange} />
               <Field label="Plan aplicado"         value={src.planAplicado}  editing={editing} name="planAplicado"  onChange={fieldChange} />
             </div>
-            <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px' }}>
-              <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', paddingBottom: '8px', borderBottom: '0.5px solid var(--border)' }}>Estado del servicio</div>
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '16px' }}>
+              <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>Estado del servicio</div>
               <Field label="Estado del servicio"   value={src.estadoServicio}    editing={editing} name="estadoServicio"    onChange={fieldChange} />
               <Field label="Fecha alta servicio"   value={src.fechaAltaServicio} editing={editing} name="fechaAltaServicio" onChange={fieldChange} type="date" />
               <Field label="Vigencia del contrato" value={src.vigenciaContrato}  editing={editing} name="vigenciaContrato"  onChange={fieldChange} />
@@ -318,8 +318,8 @@ export default function FichaDetallePage() {
           </div>
 
           {/* Notas */}
-          <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '16px' }}>
-            <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', paddingBottom: '8px', borderBottom: '0.5px solid var(--border)' }}>Notas</div>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '16px' }}>
+            <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>Notas</div>
             <Field label="Descripción del servicio" value={src.descripcionServicio} editing={editing} name="descripcionServicio" onChange={fieldChange} textarea />
             <Field label="Observación"              value={src.observacion}         editing={editing} name="observacion"         onChange={fieldChange} textarea />
           </div>
@@ -331,14 +331,14 @@ export default function FichaDetallePage() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
             <button onClick={() => setNivelForm({ nivel: (data.niveles?.length ?? 0) + 1, nombreContacto: '', canal: 'correo', activo: true })}
-              style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 600, background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+              style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 600, background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
               + Agregar nivel
             </button>
           </div>
 
           {/* Modal formulario nivel */}
           {nivelForm && (
-            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               onClick={e => { if (e.target === e.currentTarget) setNivelForm(null) }}>
               <form onSubmit={saveNivel}
                 style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', width: '480px', maxWidth: '95vw', maxHeight: '80vh', overflowY: 'auto' }}>
@@ -347,12 +347,12 @@ export default function FichaDetallePage() {
                   <div style={{ marginBottom: '10px' }}>
                     <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '3px' }}>Nivel *</label>
                     <input type="number" required min={1} max={5} value={nivelForm.nivel ?? ''} onChange={e => setNivelForm((p: any) => ({ ...p, nivel: Number(e.target.value) }))}
-                      style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--background)', boxSizing: 'border-box' }} />
+                      style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--background)', boxSizing: 'border-box' }} />
                   </div>
                   <div style={{ marginBottom: '10px' }}>
                     <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '3px' }}>Canal</label>
                     <select value={nivelForm.canal ?? 'correo'} onChange={e => setNivelForm((p: any) => ({ ...p, canal: e.target.value }))}
-                      style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--background)' }}>
+                      style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--background)' }}>
                       <option value="correo">Correo</option>
                       <option value="whatsapp">WhatsApp</option>
                       <option value="telefono">Teléfono</option>
@@ -371,21 +371,21 @@ export default function FichaDetallePage() {
                   <div key={f.key} style={{ marginBottom: '10px' }}>
                     <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '3px' }}>{f.label}</label>
                     <input type="text" required={f.required} value={(nivelForm[f.key] ?? '')} onChange={e => setNivelForm((p: any) => ({ ...p, [f.key]: e.target.value }))}
-                      style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--background)', boxSizing: 'border-box' }} />
+                      style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--background)', boxSizing: 'border-box' }} />
                   </div>
                 ))}
                 <div style={{ marginBottom: '10px' }}>
                   <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '3px' }}>Instrucción</label>
                   <textarea rows={3} value={nivelForm.instruccion ?? ''} onChange={e => setNivelForm((p: any) => ({ ...p, instruccion: e.target.value }))}
-                    style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--background)', resize: 'vertical', boxSizing: 'border-box' }} />
+                    style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--background)', resize: 'vertical', boxSizing: 'border-box' }} />
                 </div>
                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px' }}>
                   <button type="button" onClick={() => setNivelForm(null)}
-                    style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 600, background: 'var(--muted)', color: 'var(--muted-foreground)', border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'pointer' }}>
+                    style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 600, background: 'var(--muted)', color: 'var(--muted-foreground)', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer' }}>
                     Cancelar
                   </button>
                   <button type="submit" disabled={savingNivel}
-                    style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 600, background: '#059669', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+                    style={{ padding: '7px 14px', fontSize: '12px', fontWeight: 600, background: 'var(--ok-bg)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
                     {savingNivel ? 'Guardando...' : nivelForm.id ? 'Guardar' : 'Agregar'}
                   </button>
                 </div>
@@ -404,7 +404,7 @@ export default function FichaDetallePage() {
                 <div key={n.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px 16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ background: 'hsl(221,83%,23%)', color: 'white', borderRadius: '50%', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>
+                      <span style={{ background: 'var(--gradient-primary)', color: 'white', borderRadius: '50%', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>
                         N{n.nivel}
                       </span>
                       <div>
@@ -412,7 +412,7 @@ export default function FichaDetallePage() {
                           <span style={{ fontWeight: 700, fontSize: '13px' }}>{n.nombreContacto}</span>
                           {n.personalizado && (
                             <span title="No recibe cambios automáticos del molde del proveedor"
-                              style={{ fontSize: '9px', fontWeight: 700, padding: '1px 6px', borderRadius: '99px', background: '#FEF3C7', color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                              style={{ fontSize: '9px', fontWeight: 700, padding: '1px 6px', borderRadius: '99px', background: 'var(--warn-bg)', color: 'var(--warn)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                               Personalizado
                             </span>
                           )}
@@ -426,16 +426,16 @@ export default function FichaDetallePage() {
                       {n.personalizado && (
                         <button onClick={() => resincronizarNivel(n.id)} disabled={resincronizandoId === n.id}
                           title="Sobreescribe este nivel con los valores actuales del molde del proveedor y lo vuelve a marcar como sincronizado"
-                          style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 500, background: '#EFF6FF', color: '#1D4ED8', border: '0.5px solid #BFDBFE', borderRadius: '6px', cursor: resincronizandoId === n.id ? 'wait' : 'pointer' }}>
+                          style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 500, background: 'var(--info-bg)', color: 'var(--info)', border: '1px solid var(--info-border)', borderRadius: '6px', cursor: resincronizandoId === n.id ? 'wait' : 'pointer' }}>
                           {resincronizandoId === n.id ? 'Resincronizando...' : 'Volver a seguir la plantilla'}
                         </button>
                       )}
                       <button onClick={() => setNivelForm({ ...n })}
-                        style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 500, background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '6px', cursor: 'pointer' }}>
+                        style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 500, background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer' }}>
                         Editar
                       </button>
                       <button onClick={() => deleteNivel(n.id)}
-                        style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 500, background: '#FEF2F2', color: '#991B1B', border: '0.5px solid #FCA5A5', borderRadius: '6px', cursor: 'pointer' }}>
+                        style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 500, background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)', borderRadius: '6px', cursor: 'pointer' }}>
                         Eliminar
                       </button>
                     </div>
@@ -448,7 +448,7 @@ export default function FichaDetallePage() {
                     </div>
                   )}
                   {n.instruccion && (
-                    <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--muted-foreground)', fontStyle: 'italic', borderTop: '0.5px solid var(--border)', paddingTop: '8px' }}>
+                    <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--muted-foreground)', fontStyle: 'italic', borderTop: '1px solid var(--border)', paddingTop: '8px' }}>
                       {n.instruccion}
                     </div>
                   )}

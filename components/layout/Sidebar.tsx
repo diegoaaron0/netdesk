@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { getPermisos } from '@/lib/permisos'
+import MapaPeruRed from '@/components/brand/MapaPeruRed'
+import { IsotipoNetDesk } from '@/components/brand/LogoNetDesk'
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 const IcoIncidentes = () => (
@@ -70,23 +72,23 @@ const NAV = [
   {
     section: 'Operación',
     items: [
-      { href: '/incidentes', label: 'Incidentes', icon: <IcoIncidentes />, color: '#378ADD', permiso: 'incidentes.ver' },
+      { href: '/incidentes', label: 'Incidentes', icon: <IcoIncidentes />, color: '#60a5fa', permiso: 'incidentes.ver' },
     ],
   },
   {
     section: 'Análisis',
     items: [
-      { href: '/dashboard',  label: 'Dashboard',  icon: <IcoDashboard />,    color: '#1D9E75', permiso: 'dashboard.ver' },
-      { href: '/reportes',   label: 'Reportes',   icon: <IcoReportes />,     color: '#7F77DD', permiso: 'reportes.ver' },
-      { href: '/gestion-cambios', label: 'Gestión de Cambios', icon: <IcoDecisiones />, color: '#F59E0B', permiso: 'gestion-cambios.ver' },
+      { href: '/dashboard',  label: 'Dashboard',  icon: <IcoDashboard />,    color: '#34d399', permiso: 'dashboard.ver' },
+      { href: '/reportes',   label: 'Reportes',   icon: <IcoReportes />,     color: '#a78bfa', permiso: 'reportes.ver' },
+      { href: '/gestion-cambios', label: 'Gestión de Cambios', icon: <IcoDecisiones />, color: '#fbbf24', permiso: 'gestion-cambios.ver' },
     ],
   },
   {
     section: 'Configuración',
     items: [
-      { href: '/tiendas',      label: 'Tiendas',      icon: <IcoMantenimiento />, color: '#F59E0B', permiso: 'mantenimiento.ver' },
-      { href: '/proveedores',  label: 'Proveedores',  icon: <IcoProveedores />,   color: '#06B6D4', permiso: 'proveedores.ver' },
-      { href: '/usuarios',     label: 'Usuarios',     icon: <IcoUsuarios />,      color: '#A78BFA', permiso: 'usuarios.ver' },
+      { href: '/tiendas',      label: 'Tiendas',      icon: <IcoMantenimiento />, color: '#fb923c', permiso: 'mantenimiento.ver' },
+      { href: '/proveedores',  label: 'Proveedores',  icon: <IcoProveedores />,   color: '#22d3ee', permiso: 'proveedores.ver' },
+      { href: '/usuarios',     label: 'Usuarios',     icon: <IcoUsuarios />,      color: '#c084fc', permiso: 'usuarios.ver' },
     ],
   },
 ]
@@ -95,28 +97,21 @@ function initials(name: string) {
   return name.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
 }
 
-// Mini bar-chart logo
-function LogoIcon() {
-  return (
-    <svg width="22" height="20" viewBox="0 0 55 50" fill="none">
-      <defs>
-        <linearGradient id="sidebarGrad" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#1e6fb5"/>
-          <stop offset="100%" stopColor="#38bdf8"/>
-        </linearGradient>
-      </defs>
-      {[
-        { x: 0,  h: 22 },
-        { x: 11, h: 34 },
-        { x: 22, h: 50 },
-        { x: 33, h: 38 },
-        { x: 44, h: 19 },
-      ].map((b, i) => (
-        <rect key={i} x={b.x} y={50 - b.h} width={9} height={b.h} rx="2" fill="url(#sidebarGrad)" opacity="0.9" />
-      ))}
-    </svg>
-  )
+const pieBoton: React.CSSProperties = {
+  flex: 1, padding: '7px 0', fontSize: '11px',
+  color: 'var(--muted-foreground)', background: 'var(--surface-2)',
+  border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
+  cursor: 'pointer', textAlign: 'center', textDecoration: 'none',
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  transition: 'color var(--t) var(--ease), border-color var(--t) var(--ease), background var(--t) var(--ease)',
 }
+
+function aplicarHoverPie(el: HTMLElement, dentro: boolean) {
+  el.style.color = dentro ? 'var(--foreground)' : 'var(--muted-foreground)'
+  el.style.borderColor = dentro ? 'var(--border-strong)' : 'var(--border)'
+  el.style.background = dentro ? 'var(--surface-3)' : 'var(--surface-2)'
+}
+
 
 export default function Sidebar({ serverRol, serverName }: { serverRol?: string; serverName?: string }) {
   const pathname = usePathname()
@@ -132,35 +127,65 @@ export default function Sidebar({ serverRol, serverName }: { serverRol?: string;
   }
 
   return (
-    <aside style={{ width: '192px', height: '100vh', background: '#0d1117', display: 'flex', flexDirection: 'column', flexShrink: 0, position: 'fixed', top: 0, left: 0, zIndex: 50, overflowY: 'auto' }}>
+    <aside style={{
+      width: '208px', height: '100vh', background: 'var(--sidebar)',
+      borderRight: '1px solid var(--border)',
+      display: 'flex', flexDirection: 'column', flexShrink: 0,
+      position: 'fixed', top: 0, left: 0, zIndex: 50, overflowY: 'auto',
+    }}>
+      {/* Mapa como marca de agua al pie — da profundidad sin competir con el menú */}
+      <div aria-hidden style={{
+        position: 'absolute', bottom: '104px', left: '50%', transform: 'translateX(-50%)',
+        opacity: 0.20, pointerEvents: 'none', zIndex: 0,
+      }}>
+        <MapaPeruRed ancho={150} intensidad="fondo" />
+      </div>
+
       {/* Logo */}
-      <div style={{ padding: '14px 16px 12px', borderBottom: '0.5px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: '9px' }}>
-        <LogoIcon />
+      <div style={{ padding: '18px 16px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '10px', position: 'relative', zIndex: 1 }}>
+        <IsotipoNetDesk size={26} id="sb" />
         <div>
-          <div style={{ fontSize: '15px', fontWeight: 600, color: 'white', letterSpacing: '-0.02em', lineHeight: 1 }}>NetDesk</div>
-          <div style={{ fontSize: '8px', color: 'rgba(255,255,255,0.22)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: '2px' }}>Footloose Perú</div>
+          <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--foreground)', letterSpacing: '-0.02em', lineHeight: 1 }}>
+            Net<span className="nd-gradient-text">Desk</span>
+          </div>
+          <div style={{ fontSize: '8px', color: 'var(--faint-foreground)', letterSpacing: '0.14em', textTransform: 'uppercase', marginTop: '3px' }}>Footloose Perú</div>
         </div>
       </div>
 
-      <nav style={{ padding: '8px 0', flex: 1 }}>
+      <nav style={{ padding: '8px 0', flex: 1, position: 'relative', zIndex: 1 }}>
         {NAV.map(group => (
           <div key={group.section}>
-            <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.22)', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '10px 16px 3px' }}>
+            <div style={{ fontSize: '9px', color: 'var(--faint-foreground)', letterSpacing: '0.14em', textTransform: 'uppercase', padding: '12px 18px 4px' }}>
               {group.section}
             </div>
             {group.items.filter(item => permisos.includes(item.permiso)).map(item => {
               const active = isActive(item.href)
               return (
-                <Link key={item.href} href={item.href} style={{
-                  display: 'flex', alignItems: 'center', gap: '9px',
-                  margin: '1px 8px', padding: '7px 10px',
-                  fontSize: '12px',
-                  color: active ? 'white' : 'rgba(255,255,255,0.42)',
-                  background: active ? 'rgba(255,255,255,0.10)' : 'transparent',
-                  borderRadius: '7px', textDecoration: 'none',
-                  borderLeft: active ? `2px solid ${item.color}` : '2px solid transparent',
-                }}>
-                  <span style={{ color: active ? item.color : 'rgba(255,255,255,0.35)', flexShrink: 0, display: 'flex' }}>
+                <Link key={item.href} href={item.href}
+                  style={{
+                    position: 'relative',
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    margin: '2px 10px', padding: '9px 12px',
+                    fontSize: '12.5px', fontWeight: active ? 600 : 400,
+                    color: active ? 'var(--foreground)' : 'var(--muted-foreground)',
+                    background: active
+                      ? `linear-gradient(90deg, ${item.color}22 0%, transparent 92%)`
+                      : 'transparent',
+                    borderRadius: 'var(--radius)', textDecoration: 'none',
+                    transition: 'background var(--t) var(--ease), color var(--t) var(--ease)',
+                  }}
+                  onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'var(--surface-2)'; e.currentTarget.style.color = 'var(--foreground)' } }}
+                  onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--muted-foreground)' } }}
+                >
+                  {/* Barrita de acento del ítem activo */}
+                  {active && (
+                    <span style={{
+                      position: 'absolute', left: '-10px', top: '50%', transform: 'translateY(-50%)',
+                      width: '3px', height: '20px', borderRadius: '0 3px 3px 0',
+                      background: item.color, boxShadow: `0 0 10px ${item.color}`,
+                    }} />
+                  )}
+                  <span style={{ color: active ? item.color : 'var(--faint-foreground)', flexShrink: 0, display: 'flex' }}>
                     {item.icon}
                   </span>
                   {item.label}
@@ -171,33 +196,39 @@ export default function Sidebar({ serverRol, serverName }: { serverRol?: string;
         ))}
       </nav>
 
-      {/* User footer */}
-      <div style={{ padding: '10px 14px', borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '8px' }}>
-          <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(56,189,248,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 500, color: 'rgba(147,197,253,0.9)', flexShrink: 0 }}>
+      {/* Pie: usuario */}
+      <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border)', background: 'var(--sidebar)', position: 'relative', zIndex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+          <div style={{
+            width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0,
+            background: 'var(--gradient-primary)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '11px', fontWeight: 700, color: '#fff',
+          }}>
             {initials(userName)}
           </div>
-          <div>
-            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.65)', fontWeight: 500 }}>{userName}</div>
-            <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)' }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: '11.5px', color: 'var(--foreground)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userName}</div>
+            <div style={{ fontSize: '9.5px', color: 'var(--faint-foreground)' }}>
               {userRol === 'SUPERVISOR' ? 'Supervisor' : userRol === 'GERENCIA' ? 'Gerencia' : userRol === 'INFRAESTRUCTURA' ? 'Infraestructura' : 'Agente TTI'}
             </div>
           </div>
         </div>
-        <Link href="/perfil"
-          style={{ display: 'block', width: '100%', padding: '5px 0', fontSize: '11px', color: 'rgba(255,255,255,0.3)', background: 'transparent', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '6px', cursor: 'pointer', textAlign: 'center', textDecoration: 'none', marginBottom: '6px' }}
-          onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.7)'; (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(255,255,255,0.2)' }}
-          onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.3)'; (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(255,255,255,0.08)' }}>
-          Mi perfil
-        </Link>
-        <button
-          onClick={() => signOut({ callbackUrl: '/login' })}
-          style={{ width: '100%', padding: '6px 0', fontSize: '11px', color: 'rgba(255,255,255,0.3)', background: 'transparent', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '6px', cursor: 'pointer', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.7)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.2)' }}
-          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.3)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.08)' }}
-        >
-          <IcoSalir /> Salir
-        </button>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <Link href="/perfil" style={pieBoton}
+            onMouseEnter={e => aplicarHoverPie(e.currentTarget, true)}
+            onMouseLeave={e => aplicarHoverPie(e.currentTarget, false)}>
+            Mi perfil
+          </Link>
+          <button
+            onClick={() => signOut({ callbackUrl: '/login' })}
+            style={{ ...pieBoton, gap: '5px' }}
+            onMouseEnter={e => aplicarHoverPie(e.currentTarget, true)}
+            onMouseLeave={e => aplicarHoverPie(e.currentTarget, false)}
+          >
+            <IcoSalir /> Salir
+          </button>
+        </div>
       </div>
     </aside>
   )

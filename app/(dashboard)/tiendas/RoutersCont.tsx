@@ -28,9 +28,9 @@ function fmtFecha(d: string | null): string {
 }
 
 const ESTADO_BADGE: Record<string, { label: string; bg: string; color: string }> = {
-  DISPONIBLE:         { label: 'Disponible',  bg: '#DCFCE7', color: '#166534' },
-  EN_TIENDA_ACTIVO:   { label: 'Activo',      bg: '#FEF3C7', color: '#92400E' },
-  EN_TIENDA_INACTIVO: { label: 'En tienda',   bg: '#E0E7FF', color: '#3730A3' },
+  DISPONIBLE:         { label: 'Disponible',  bg: 'var(--ok-bg)', color: 'var(--ok)' },
+  EN_TIENDA_ACTIVO:   { label: 'Activo',      bg: 'var(--warn-bg)', color: 'var(--warn)' },
+  EN_TIENDA_INACTIVO: { label: 'En tienda',   bg: 'var(--info-bg)', color: 'var(--purple)' },
 }
 
 // ── Combobox con búsqueda para tiendas ────────────────────────────────────────
@@ -57,10 +57,10 @@ function TiendaCombobox({ tiendas, value, onChange, placeholder }: { tiendas: an
         onChange={e => { setQuery(e.target.value); setOpen(true); if (!e.target.value) onChange('') }}
         onFocus={() => { setOpen(true); setQuery('') }}
         placeholder={placeholder ?? '— Buscar tienda —'}
-        style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: `0.5px solid ${value ? 'hsl(221,83%,23%)' : 'var(--border)'}`, borderRadius: '7px', background: 'var(--background)', boxSizing: 'border-box', fontFamily: value && !open ? 'monospace' : 'inherit', fontWeight: value && !open ? 600 : 400 }}
+        style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: `1px solid ${value ? 'var(--primary)' : 'var(--border)'}`, borderRadius: '7px', background: 'var(--background)', boxSizing: 'border-box', fontFamily: value && !open ? 'monospace' : 'inherit', fontWeight: value && !open ? 600 : 400 }}
       />
       {open && (
-        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '7px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', maxHeight: '220px', overflowY: 'auto', marginTop: '2px' }}>
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '7px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', maxHeight: '220px', overflowY: 'auto', marginTop: '2px' }}>
           {filtered.length === 0 ? (
             <div style={{ padding: '8px 12px', fontSize: '11px', color: 'var(--muted-foreground)' }}>Sin resultados</div>
           ) : filtered.map(t => (
@@ -80,10 +80,10 @@ function TiendaCombobox({ tiendas, value, onChange, placeholder }: { tiendas: an
 }
 
 const ACCION_BADGE: Record<string, { bg: string; color: string }> = {
-  'DESPLIEGUE': { bg: '#E0E7FF', color: '#3730A3' },
-  'ACTIVACIÓN': { bg: '#FEF3C7', color: '#92400E' },
-  'TRASLADO':   { bg: '#F3E8FF', color: '#6B21A8' },
-  'RETORNO':    { bg: '#DCFCE7', color: '#166534' },
+  'DESPLIEGUE': { bg: 'var(--info-bg)', color: 'var(--purple)' },
+  'ACTIVACIÓN': { bg: 'var(--warn-bg)', color: 'var(--warn)' },
+  'TRASLADO':   { bg: 'var(--purple-bg)', color: 'var(--purple)' },
+  'RETORNO':    { bg: 'var(--ok-bg)', color: 'var(--ok)' },
 }
 
 // ── Modal: historial + edición de un router ───────────────────────────────────
@@ -142,20 +142,20 @@ function HistorialModal({ router, onClose, onSaved }: { router: any; onClose: ()
     fetchDetail()
   }
 
-  const inp: React.CSSProperties = { width: '100%', padding: '6px 8px', fontSize: '11px', border: '0.5px solid var(--border)', borderRadius: '6px', background: 'var(--background)', fontFamily: 'monospace', boxSizing: 'border-box' }
+  const inp: React.CSSProperties = { width: '100%', padding: '6px 8px', fontSize: '11px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--background)', fontFamily: 'monospace', boxSizing: 'border-box' }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.45)' }} onClick={onClose}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)' }} onClick={onClose}>
       <div style={{ background: 'var(--card)', borderRadius: '14px', padding: '24px', width: '680px', maxHeight: '85vh', overflow: 'auto', boxShadow: '0 8px 40px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <div style={{ fontSize: '14px', fontWeight: 700 }}>{router.codigo}</div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            {saved && <span style={{ fontSize: '11px', color: '#166534', fontWeight: 600 }}>✓ Guardado</span>}
+            {saved && <span style={{ fontSize: '11px', color: 'var(--ok)', fontWeight: 600 }}>✓ Guardado</span>}
             {!editing
-              ? <button onClick={() => setEditing(true)} style={{ padding: '4px 12px', fontSize: '11px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>Editar</button>
+              ? <button onClick={() => setEditing(true)} style={{ padding: '4px 12px', fontSize: '11px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>Editar</button>
               : <>
-                  <button onClick={() => setEditing(false)} style={{ padding: '4px 12px', fontSize: '11px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '6px', cursor: 'pointer' }}>Cancelar</button>
-                  <button onClick={guardar} disabled={saving} style={{ padding: '4px 12px', fontSize: '11px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, opacity: saving ? 0.6 : 1 }}>{saving ? 'Guardando…' : 'Guardar'}</button>
+                  <button onClick={() => setEditing(false)} style={{ padding: '4px 12px', fontSize: '11px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer' }}>Cancelar</button>
+                  <button onClick={guardar} disabled={saving} style={{ padding: '4px 12px', fontSize: '11px', background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, opacity: saving ? 0.6 : 1 }}>{saving ? 'Guardando…' : 'Guardar'}</button>
                 </>
             }
             <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--muted-foreground)' }}>✕</button>
@@ -214,7 +214,7 @@ function HistorialModal({ router, onClose, onSaved }: { router: any; onClose: ()
             <div style={{ marginBottom: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Fotos del equipo</div>
-                <label style={{ padding: '3px 10px', fontSize: '10px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '5px', cursor: 'pointer', fontWeight: 500 }}>
+                <label style={{ padding: '3px 10px', fontSize: '10px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '5px', cursor: 'pointer', fontWeight: 500 }}>
                   + Agregar foto
                   <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => {
                     const file = e.target.files?.[0]
@@ -229,9 +229,9 @@ function HistorialModal({ router, onClose, onSaved }: { router: any; onClose: ()
 
               {nuevaFoto && (
                 <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', alignItems: 'flex-end' }}>
-                  <img src={nuevaFoto} alt="preview" style={{ width: '60px', height: '46px', objectFit: 'cover', borderRadius: '5px', border: '0.5px solid var(--border)' }} />
-                  <button onClick={agregarFoto} style={{ padding: '6px 12px', fontSize: '11px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>Guardar</button>
-                  <button onClick={() => setNuevaFoto('')} style={{ padding: '6px 10px', fontSize: '11px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '6px', cursor: 'pointer' }}>✕</button>
+                  <img src={nuevaFoto} alt="preview" style={{ width: '60px', height: '46px', objectFit: 'cover', borderRadius: '5px', border: '1px solid var(--border)' }} />
+                  <button onClick={agregarFoto} style={{ padding: '6px 12px', fontSize: '11px', background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>Guardar</button>
+                  <button onClick={() => setNuevaFoto('')} style={{ padding: '6px 10px', fontSize: '11px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer' }}>✕</button>
                 </div>
               )}
 
@@ -240,12 +240,12 @@ function HistorialModal({ router, onClose, onSaved }: { router: any; onClose: ()
                   {detail.fotos.map((url: string, i: number) => (
                     <div key={i} style={{ position: 'relative' }}>
                       <a href={url} target="_blank" rel="noopener noreferrer">
-                        <img src={url} alt={`Foto ${i + 1}`} style={{ width: '80px', height: '60px', objectFit: 'cover', borderRadius: '6px', border: '0.5px solid var(--border)', display: 'block' }}
+                        <img src={url} alt={`Foto ${i + 1}`} style={{ width: '80px', height: '60px', objectFit: 'cover', borderRadius: '6px', border: '1px solid var(--border)', display: 'block' }}
                           onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
                       </a>
                       <button
                         onClick={() => eliminarFoto(url)}
-                        style={{ position: 'absolute', top: '-4px', right: '-4px', width: '16px', height: '16px', borderRadius: '50%', background: '#B91C1C', color: 'white', border: 'none', fontSize: '9px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
+                        style={{ position: 'absolute', top: '-4px', right: '-4px', width: '16px', height: '16px', borderRadius: '50%', background: 'var(--danger-bg)', color: 'white', border: 'none', fontSize: '9px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
                         ✕
                       </button>
                     </div>
@@ -261,10 +261,10 @@ function HistorialModal({ router, onClose, onSaved }: { router: any; onClose: ()
             {!detail.historial?.length ? (
               <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Sin historial registrado</div>
             ) : (
-              <div style={{ maxHeight: '220px', overflowY: 'auto', border: '0.5px solid var(--border)', borderRadius: '7px' }}>
+              <div style={{ maxHeight: '220px', overflowY: 'auto', border: '1px solid var(--border)', borderRadius: '7px' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
                   <thead style={{ position: 'sticky', top: 0, background: 'var(--card)', zIndex: 1 }}>
-                    <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
+                    <tr style={{ borderBottom: '1px solid var(--border)' }}>
                       {['Evento', 'Tienda', 'Ingreso', 'Activación', 'Desactivación', 'Duración'].map(h => (
                         <th key={h} style={{ padding: '5px 6px', textAlign: 'left', fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>{h}</th>
                       ))}
@@ -272,9 +272,9 @@ function HistorialModal({ router, onClose, onSaved }: { router: any; onClose: ()
                   </thead>
                   <tbody>
                     {detail.historial.map((h: any, i: number) => {
-                      const badgeStyle = ACCION_BADGE[h.accion] ?? { bg: '#F3F4F6', color: '#374151' }
+                      const badgeStyle = ACCION_BADGE[h.accion] ?? { bg: 'var(--muted-foreground)', color: 'var(--muted-foreground)' }
                       return (
-                        <tr key={i} style={{ borderTop: i > 0 ? '0.5px solid var(--border)' : 'none' }}>
+                        <tr key={i} style={{ borderTop: i > 0 ? '1px solid var(--border)' : 'none' }}>
                           <td style={{ padding: '5px 6px' }}>
                             <span style={{ padding: '1px 6px', borderRadius: '999px', fontSize: '9px', fontWeight: 600, background: badgeStyle.bg, color: badgeStyle.color }}>
                               {h.accion}
@@ -331,11 +331,11 @@ function DespliegueModal({ router, onClose, onDone }: { router: any; onClose: ()
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.45)' }} onClick={onClose}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)' }} onClick={onClose}>
       <div style={{ background: 'var(--card)', borderRadius: '14px', padding: '24px', width: '400px' }} onClick={e => e.stopPropagation()}>
         <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>Desplegar {router.codigo} a tienda</div>
         {ok ? (
-          <div style={{ textAlign: 'center', color: '#3730A3', fontWeight: 600, padding: '16px 0' }}>✓ Router desplegado en tienda</div>
+          <div style={{ textAlign: 'center', color: 'var(--purple)', fontWeight: 600, padding: '16px 0' }}>✓ Router desplegado en tienda</div>
         ) : (
           <>
             <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '12px' }}>
@@ -345,12 +345,12 @@ function DespliegueModal({ router, onClose, onDone }: { router: any; onClose: ()
             <TiendaCombobox tiendas={tiendas} value={tiendaId} onChange={setTiendaId} placeholder="— Buscar tienda —" />
             <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '4px' }}>Nota (opcional)</label>
             <input value={nota} onChange={e => setNota(e.target.value)} placeholder="Motivo del despliegue"
-              style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--background)', boxSizing: 'border-box', marginBottom: '16px' }} />
-            {error && <div style={{ fontSize: '11px', color: '#b91c1c', background: '#fee2e2', borderRadius: '6px', padding: '6px 10px', marginBottom: '12px' }}>{error}</div>}
+              style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--background)', boxSizing: 'border-box', marginBottom: '16px' }} />
+            {error && <div style={{ fontSize: '11px', color: 'var(--danger)', background: 'var(--danger-bg)', borderRadius: '6px', padding: '6px 10px', marginBottom: '12px' }}>{error}</div>}
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button onClick={onClose} style={{ padding: '7px 16px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={onClose} style={{ padding: '7px 16px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', cursor: 'pointer' }}>Cancelar</button>
               <button onClick={confirmar} disabled={saving || !tiendaId}
-                style={{ padding: '7px 16px', fontSize: '12px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: 600, opacity: saving || !tiendaId ? 0.6 : 1 }}>
+                style={{ padding: '7px 16px', fontSize: '12px', background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: 600, opacity: saving || !tiendaId ? 0.6 : 1 }}>
                 {saving ? 'Desplegando...' : 'Confirmar despliegue'}
               </button>
             </div>
@@ -380,11 +380,11 @@ function RetornoModal({ router, onClose, onDone }: { router: any; onClose: () =>
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.45)' }} onClick={onClose}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)' }} onClick={onClose}>
       <div style={{ background: 'var(--card)', borderRadius: '14px', padding: '24px', width: '380px' }} onClick={e => e.stopPropagation()}>
         <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>Marcar retorno — {router.codigo}</div>
         {ok ? (
-          <div style={{ textAlign: 'center', color: '#166534', fontWeight: 600, padding: '16px 0' }}>✓ Router marcado como disponible en {almacen}</div>
+          <div style={{ textAlign: 'center', color: 'var(--ok)', fontWeight: 600, padding: '16px 0' }}>✓ Router marcado como disponible en {almacen}</div>
         ) : (
           <>
             <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '12px' }}>
@@ -394,18 +394,18 @@ function RetornoModal({ router, onClose, onDone }: { router: any; onClose: () =>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
               {ALMACENES.map(a => (
                 <button key={a} onClick={() => setAlmacen(a)}
-                  style={{ padding: '9px 14px', fontSize: '12px', textAlign: 'left', border: almacen === a ? '2px solid hsl(221,83%,23%)' : '0.5px solid var(--border)', borderRadius: '8px', background: almacen === a ? 'hsl(221,83%,95%)' : 'var(--muted)', cursor: 'pointer', fontWeight: almacen === a ? 700 : 400, color: almacen === a ? 'hsl(221,83%,23%)' : 'var(--foreground)' }}>
+                  style={{ padding: '9px 14px', fontSize: '12px', textAlign: 'left', border: almacen === a ? '2px solid var(--primary)' : '1px solid var(--border)', borderRadius: '8px', background: almacen === a ? 'var(--info-bg)' : 'var(--muted)', cursor: 'pointer', fontWeight: almacen === a ? 700 : 400, color: almacen === a ? 'var(--primary)' : 'var(--foreground)' }}>
                   {a}
                 </button>
               ))}
             </div>
             <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '4px' }}>Nota (opcional)</label>
             <input value={nota} onChange={e => setNota(e.target.value)} placeholder="Ej: Proveedor restableció fibra, se retiró equipo"
-              style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--background)', boxSizing: 'border-box', marginBottom: '16px' }} />
+              style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--background)', boxSizing: 'border-box', marginBottom: '16px' }} />
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button onClick={onClose} style={{ padding: '7px 16px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={onClose} style={{ padding: '7px 16px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', cursor: 'pointer' }}>Cancelar</button>
               <button onClick={confirmar} disabled={saving || !almacen}
-                style={{ padding: '7px 16px', fontSize: '12px', background: '#166534', color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: 600, opacity: saving || !almacen ? 0.6 : 1 }}>
+                style={{ padding: '7px 16px', fontSize: '12px', background: 'var(--ok-bg)', color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: 600, opacity: saving || !almacen ? 0.6 : 1 }}>
                 {saving ? 'Guardando...' : 'Confirmar retorno'}
               </button>
             </div>
@@ -448,11 +448,11 @@ function TrasladoModal({ router, onClose, onDone }: { router: any; onClose: () =
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.45)' }} onClick={onClose}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)' }} onClick={onClose}>
       <div style={{ background: 'var(--card)', borderRadius: '14px', padding: '24px', width: '400px' }} onClick={e => e.stopPropagation()}>
         <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>Trasladar {router.codigo}</div>
         {ok ? (
-          <div style={{ textAlign: 'center', color: '#3730A3', fontWeight: 600, padding: '16px 0' }}>✓ Router trasladado</div>
+          <div style={{ textAlign: 'center', color: 'var(--purple)', fontWeight: 600, padding: '16px 0' }}>✓ Router trasladado</div>
         ) : (
           <>
             <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '12px' }}>
@@ -462,12 +462,12 @@ function TrasladoModal({ router, onClose, onDone }: { router: any; onClose: () =
             <TiendaCombobox tiendas={tiendas} value={tiendaId} onChange={setTiendaId} placeholder="— Buscar tienda —" />
             <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '4px' }}>Justificación</label>
             <input value={justificacion} onChange={e => setJustificacion(e.target.value)} placeholder="Motivo del traslado"
-              style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--background)', boxSizing: 'border-box', marginBottom: '16px' }} />
-            {error && <div style={{ fontSize: '11px', color: '#b91c1c', background: '#fee2e2', borderRadius: '6px', padding: '6px 10px', marginBottom: '12px' }}>{error}</div>}
+              style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--background)', boxSizing: 'border-box', marginBottom: '16px' }} />
+            {error && <div style={{ fontSize: '11px', color: 'var(--danger)', background: 'var(--danger-bg)', borderRadius: '6px', padding: '6px 10px', marginBottom: '12px' }}>{error}</div>}
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button onClick={onClose} style={{ padding: '7px 16px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={onClose} style={{ padding: '7px 16px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', cursor: 'pointer' }}>Cancelar</button>
               <button onClick={confirmar} disabled={saving || !tiendaId}
-                style={{ padding: '7px 16px', fontSize: '12px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: 600, opacity: saving || !tiendaId ? 0.6 : 1 }}>
+                style={{ padding: '7px 16px', fontSize: '12px', background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: 600, opacity: saving || !tiendaId ? 0.6 : 1 }}>
                 {saving ? 'Guardando...' : 'Confirmar traslado'}
               </button>
             </div>
@@ -536,7 +536,7 @@ export default function RoutersContingenciaTI() {
           </div>
         </div>
         <button onClick={() => setAddOpen(true)}
-          style={{ padding: '7px 14px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>
+          style={{ padding: '7px 14px', background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>
           + Agregar router
         </button>
       </div>
@@ -553,13 +553,13 @@ export default function RoutersContingenciaTI() {
             const tiempoTotal = Number(r.tiempo_total_min ?? 0)
             const fotoUrl    = r.fotos?.[0] ?? null
             return (
-              <div key={r.id} style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div key={r.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 {/* Foto miniatura */}
                 {fotoUrl ? (
-                  <img src={fotoUrl} alt={r.codigo} style={{ width: '44px', height: '34px', objectFit: 'cover', borderRadius: '5px', border: '0.5px solid var(--border)', flexShrink: 0 }}
+                  <img src={fotoUrl} alt={r.codigo} style={{ width: '44px', height: '34px', objectFit: 'cover', borderRadius: '5px', border: '1px solid var(--border)', flexShrink: 0 }}
                     onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
                 ) : (
-                  <div style={{ width: '44px', height: '34px', borderRadius: '5px', border: '0.5px solid var(--border)', background: 'var(--muted)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', color: 'var(--muted-foreground)' }}>
+                  <div style={{ width: '44px', height: '34px', borderRadius: '5px', border: '1px solid var(--border)', background: 'var(--muted)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', color: 'var(--muted-foreground)' }}>
                     📷
                   </div>
                 )}
@@ -599,17 +599,17 @@ export default function RoutersContingenciaTI() {
                 {/* Acciones */}
                 <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
                   <button onClick={() => setHistorialRouter(r)}
-                    style={{ padding: '4px 10px', fontSize: '10px', background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: '5px', cursor: 'pointer', fontWeight: 500 }}>
+                    style={{ padding: '4px 10px', fontSize: '10px', background: 'var(--muted)', border: '1px solid var(--border)', borderRadius: '5px', cursor: 'pointer', fontWeight: 500 }}>
                     Historial
                   </button>
                   {r.estado === 'DISPONIBLE' && (
                     <>
                       <button onClick={() => setDespliegueRouter(r)}
-                        style={{ padding: '4px 10px', fontSize: '10px', background: '#E0E7FF', border: '0.5px solid #A5B4FC', borderRadius: '5px', cursor: 'pointer', fontWeight: 600, color: '#3730A3' }}>
+                        style={{ padding: '4px 10px', fontSize: '10px', background: 'var(--info-bg)', border: '1px solid var(--info-border)', borderRadius: '5px', cursor: 'pointer', fontWeight: 600, color: 'var(--purple)' }}>
                         Desplegar
                       </button>
                       <button onClick={() => setDeleteConfirm(r)}
-                        style={{ padding: '4px 10px', fontSize: '10px', background: '#FEE2E2', border: '0.5px solid #FCA5A5', borderRadius: '5px', cursor: 'pointer', fontWeight: 500, color: '#B91C1C' }}>
+                        style={{ padding: '4px 10px', fontSize: '10px', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: '5px', cursor: 'pointer', fontWeight: 500, color: 'var(--danger)' }}>
                         Eliminar
                       </button>
                     </>
@@ -617,11 +617,11 @@ export default function RoutersContingenciaTI() {
                   {r.estado === 'EN_TIENDA_INACTIVO' && (
                     <>
                       <button onClick={() => setRetornoRouter(r)}
-                        style={{ padding: '4px 10px', fontSize: '10px', background: '#DCFCE7', border: '0.5px solid #86EFAC', borderRadius: '5px', cursor: 'pointer', fontWeight: 600, color: '#166534' }}>
+                        style={{ padding: '4px 10px', fontSize: '10px', background: 'var(--ok-bg)', border: '1px solid var(--ok-border)', borderRadius: '5px', cursor: 'pointer', fontWeight: 600, color: 'var(--ok)' }}>
                         Retorno
                       </button>
                       <button onClick={() => setTrasladoRouter(r)}
-                        style={{ padding: '4px 10px', fontSize: '10px', background: '#F3E8FF', border: '0.5px solid #D8B4FE', borderRadius: '5px', cursor: 'pointer', fontWeight: 600, color: '#6B21A8' }}>
+                        style={{ padding: '4px 10px', fontSize: '10px', background: 'var(--purple-bg)', border: '1px solid var(--purple-border)', borderRadius: '5px', cursor: 'pointer', fontWeight: 600, color: 'var(--purple)' }}>
                         Traslado
                       </button>
                     </>
@@ -635,20 +635,20 @@ export default function RoutersContingenciaTI() {
 
       {/* Modal agregar */}
       {addOpen && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)' }} onClick={() => setAddOpen(false)}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)' }} onClick={() => setAddOpen(false)}>
           <div style={{ background: 'var(--card)', borderRadius: '14px', padding: '24px', width: '340px' }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '14px' }}>Agregar router externo</div>
             <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '4px' }}>Código *</label>
             <input value={newCodigo} onChange={e => setNewCodigo(e.target.value.toUpperCase())}
               placeholder="RE-003" autoFocus
-              style={{ width: '100%', padding: '8px 10px', fontSize: '13px', fontFamily: 'monospace', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--background)', boxSizing: 'border-box', marginBottom: '6px' }} />
+              style={{ width: '100%', padding: '8px 10px', fontSize: '13px', fontFamily: 'monospace', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--background)', boxSizing: 'border-box', marginBottom: '6px' }} />
             <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '16px' }}>
               Los demás campos (IP, chip, plan, fotos, etc.) se pueden completar después desde el historial.
             </div>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button onClick={() => setAddOpen(false)} style={{ padding: '7px 16px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={() => setAddOpen(false)} style={{ padding: '7px 16px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', cursor: 'pointer' }}>Cancelar</button>
               <button onClick={crearRouter} disabled={saving || !newCodigo.trim()}
-                style={{ padding: '7px 16px', fontSize: '12px', background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: 600, opacity: saving || !newCodigo.trim() ? 0.6 : 1 }}>
+                style={{ padding: '7px 16px', fontSize: '12px', background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: 600, opacity: saving || !newCodigo.trim() ? 0.6 : 1 }}>
                 {saving ? 'Creando...' : 'Crear router'}
               </button>
             </div>
@@ -658,14 +658,14 @@ export default function RoutersContingenciaTI() {
 
       {/* Modal confirmar eliminación */}
       {deleteConfirm && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)' }} onClick={() => setDeleteConfirm(null)}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)' }} onClick={() => setDeleteConfirm(null)}>
           <div style={{ background: 'var(--card)', borderRadius: '14px', padding: '24px', width: '340px' }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '10px' }}>Eliminar {deleteConfirm.codigo}</div>
             <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '16px' }}>¿Confirmas que deseas eliminar este router? Esta acción no se puede deshacer.</div>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button onClick={() => setDeleteConfirm(null)} style={{ padding: '7px 16px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={() => setDeleteConfirm(null)} style={{ padding: '7px 16px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', cursor: 'pointer' }}>Cancelar</button>
               <button onClick={() => eliminarRouter(deleteConfirm.id)}
-                style={{ padding: '7px 16px', fontSize: '12px', background: '#B91C1C', color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: 600 }}>
+                style={{ padding: '7px 16px', fontSize: '12px', background: 'var(--danger-bg)', color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: 600 }}>
                 Eliminar
               </button>
             </div>

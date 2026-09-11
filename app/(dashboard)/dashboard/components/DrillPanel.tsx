@@ -70,15 +70,15 @@ const TIPO_LABELS: Record<string, string> = {
 
 function slaColor(pct: number | null) {
   if (pct == null) return 'var(--muted-foreground)'
-  if (pct >= 90) return '#3B6D11'
-  if (pct >= 70) return '#854F0B'
-  return '#A32D2D'
+  if (pct >= 90) return 'var(--ok)'
+  if (pct >= 70) return 'var(--warn)'
+  return 'var(--danger)'
 }
 function mttrClr(min: number | null) {
   if (min == null) return 'var(--muted-foreground)'
-  if (min < 120) return '#3B6D11'
-  if (min < 240) return '#854F0B'
-  return '#A32D2D'
+  if (min < 120) return 'var(--ok)'
+  if (min < 240) return 'var(--warn)'
+  return 'var(--danger)'
 }
 
 // ─── Timeline row ─────────────────────────────────────────────────────────────
@@ -91,20 +91,20 @@ export function TimelineRow({ dot, label, hora, delta, isAlert = false, isLast =
   isAlert?: boolean
   isLast?: boolean
 }) {
-  const colors = { blue: '#3B82F6', orange: '#F59E0B', green: '#10B981', red: '#EF4444', purple: '#8B5CF6', gray: '#9CA3AF' }
+  const colors = { blue: '#3B82F6', orange: 'var(--warn)', green: 'var(--ok)', red: 'var(--danger)', purple: 'var(--purple)', gray: 'var(--muted-foreground)' }
   const c = colors[dot]
   return (
     <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', position: 'relative' }}>
       {!isLast && (
-        <div style={{ position: 'absolute', left: '5px', top: '14px', bottom: '-2px', width: '1px', background: '#e5e7eb' }} />
+        <div style={{ position: 'absolute', left: '5px', top: '14px', bottom: '-2px', width: '1px', background: 'var(--surface-2)' }} />
       )}
-      <div style={{ width: 11, height: 11, borderRadius: '50%', background: isAlert ? '#FEE2E2' : c, border: isAlert ? `2px solid ${c}` : 'none', flexShrink: 0, marginTop: 3, zIndex: 1 }} />
+      <div style={{ width: 11, height: 11, borderRadius: '50%', background: isAlert ? 'var(--danger-bg)' : c, border: isAlert ? `2px solid ${c}` : 'none', flexShrink: 0, marginTop: 3, zIndex: 1 }} />
       <div style={{ flex: 1, paddingBottom: isLast ? 0 : 8 }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 11, fontWeight: isAlert ? 600 : 500, color: isAlert ? '#A32D2D' : '#374151' }}>{label}</span>
-          {hora && <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#6B7280' }}>{hora}</span>}
+          <span style={{ fontSize: 11, fontWeight: isAlert ? 600 : 500, color: isAlert ? 'var(--danger)' : 'var(--muted-foreground)' }}>{label}</span>
+          {hora && <span style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--muted-foreground)' }}>{hora}</span>}
         </div>
-        {delta && <span style={{ fontSize: 10, color: '#9CA3AF', display: 'block', marginTop: 1 }}>{delta}</span>}
+        {delta && <span style={{ fontSize: 10, color: 'var(--muted-foreground)', display: 'block', marginTop: 1 }}>{delta}</span>}
       </div>
     </div>
   )
@@ -123,33 +123,33 @@ export function IncidentTimeline({ inc, onNavigate }: { inc: DrillIncidente; onN
     : null
 
   const borderColor = isAbierto
-    ? '#FCA5A5'
-    : isAgente ? '#e5e7eb'
-    : status === 'fail' ? '#fca5a5' : status === 'ok' ? '#bbf7d0' : 'var(--border)'
+    ? 'var(--danger)'
+    : isAgente ? 'var(--muted-foreground)'
+    : status === 'fail' ? 'var(--danger)' : status === 'ok' ? 'var(--ok)' : 'var(--border)'
 
   return (
     <div style={{
-      background: isAbierto ? '#FFF8F8' : 'var(--background)',
-      border: `0.5px solid ${borderColor}`,
+      background: isAbierto ? 'var(--danger-bg)' : 'var(--background)',
+      border: `1px solid ${borderColor}`,
       borderRadius: 8, padding: '10px 12px', fontSize: 11,
       opacity: isAgente && !isAbierto ? 0.82 : 1,
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <button onClick={onNavigate} style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 600, color: '#185FA5', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+          <button onClick={onNavigate} style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 600, color: 'var(--info)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
             {inc.codigo}
           </button>
           <span style={{ color: 'var(--muted-foreground)' }}>·</span>
           <span style={{ color: 'var(--muted-foreground)' }}>{TIPO_LABELS[inc.tipo] ?? inc.tipo}</span>
           {isAgente && !isAbierto && (
-            <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 999, background: '#F3F4F6', color: '#6B7280', fontWeight: 500 }}>
+            <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 999, background: 'var(--surface-2)', color: 'var(--muted-foreground)', fontWeight: 500 }}>
               agente · no evaluable
             </span>
           )}
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           {isAbierto && elapsedMin != null && (
-            <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, fontWeight: 700, background: '#FECACA', color: '#B91C1C', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, fontWeight: 700, background: 'var(--danger-bg)', color: 'var(--danger)', whiteSpace: 'nowrap' }}>
               ABIERTO · {fmtMin(elapsedMin)}
             </span>
           )}
@@ -157,7 +157,7 @@ export function IncidentTimeline({ inc, onNavigate }: { inc: DrillIncidente; onN
             <span style={{ fontFamily: 'monospace', fontSize: 10, color: 'var(--muted-foreground)' }}>{fmtMin(inc.mttrMin)}</span>
           )}
           {!isAgente && !isAbierto && status !== 'na' && (
-            <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 999, fontWeight: 600, background: status === 'ok' ? '#EAF3DE' : '#FCEBEB', color: status === 'ok' ? '#3B6D11' : '#A32D2D' }}>
+            <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 999, fontWeight: 600, background: status === 'ok' ? 'var(--ok-bg)' : 'var(--danger-bg)', color: status === 'ok' ? 'var(--ok-bg)' : 'var(--danger-bg)' }}>
               {status === 'ok' ? '✓ SLA' : '✗ SLA'}
             </span>
           )}
@@ -246,7 +246,7 @@ export default function DrillPanel({ open, onClose, metrica, desde, hasta }: Dri
   return (
     <>
       {open && (
-        <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.22)' }} />
+        <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)' }} />
       )}
       <div style={{
         position: 'fixed', top: 0, right: 0, bottom: 0, width: 520, maxWidth: '95vw',
@@ -258,21 +258,21 @@ export default function DrillPanel({ open, onClose, metrica, desde, hasta }: Dri
         overflow: 'hidden',
       }}>
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '13px 16px', borderBottom: '0.5px solid var(--border)', background: 'var(--muted)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '13px 16px', borderBottom: '1px solid var(--border)', background: 'var(--muted)', flexShrink: 0 }}>
           {selectedProv && (
             <button onClick={() => { setSelectedProv(null); setExpandedTienda(null) }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#185FA5', fontSize: 13, padding: '2px 4px', display: 'flex', alignItems: 'center', gap: 3, whiteSpace: 'nowrap' }}>
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--info)', fontSize: 13, padding: '2px 4px', display: 'flex', alignItems: 'center', gap: 3, whiteSpace: 'nowrap' }}>
               ← Volver
             </button>
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--muted-foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {selectedProv ?? PANEL_TITLE}
             </div>
             {selData && (
               <div style={{ display: 'flex', gap: 10, marginTop: 2, flexWrap: 'wrap' }}>
                 {metrica === 'reincidencia' && (
-                  <span style={{ fontSize: 11, fontWeight: 600, color: sortedTiendas.length > 0 ? '#A32D2D' : '#3B6D11' }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: sortedTiendas.length > 0 ? 'var(--danger)' : 'var(--ok)' }}>
                     {sortedTiendas.length} tienda{sortedTiendas.length !== 1 ? 's' : ''} reincidente{sortedTiendas.length !== 1 ? 's' : ''}
                   </span>
                 )}
@@ -303,11 +303,11 @@ export default function DrillPanel({ open, onClose, metrica, desde, hasta }: Dri
                   <div
                     key={prov.nombre}
                     onClick={() => setSelectedProv(prov.nombre)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '0.5px solid var(--border)', cursor: 'pointer' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
                     onMouseLeave={e => (e.currentTarget.style.background = '')}
                   >
-                    <div style={{ fontSize: 20, fontWeight: 800, color: '#e5e7eb', minWidth: 22, textAlign: 'center', lineHeight: 1 }}>{i + 1}</div>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--muted-foreground)', minWidth: 22, textAlign: 'center', lineHeight: 1 }}>{i + 1}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 600 }}>{prov.nombre}</div>
                       <div style={{ fontSize: 11, color: 'var(--muted-foreground)', marginTop: 2 }}>
@@ -321,7 +321,7 @@ export default function DrillPanel({ open, onClose, metrica, desde, hasta }: Dri
                       {metrica === 'reincidencia' ? (
                         <div style={{ textAlign: 'right' }}>
                           <div style={{ fontSize: 10, color: 'var(--muted-foreground)' }}>Reinc.</div>
-                          <div style={{ fontSize: 16, fontWeight: 700, color: reincCount > 0 ? '#A32D2D' : '#3B6D11' }}>{reincCount}</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: reincCount > 0 ? 'var(--danger)' : 'var(--ok)' }}>{reincCount}</div>
                         </div>
                       ) : (
                         <div style={{ textAlign: 'right' }}>
@@ -350,7 +350,7 @@ export default function DrillPanel({ open, onClose, metrica, desde, hasta }: Dri
                 const agenteCount = tienda.incidentes.filter(i => !i.horaEnvioN1).length
                 const abiertoCount = tienda.incidentes.filter(i => !i.horaFin && i.horaEnvioN1).length
                 return (
-                  <div key={tienda.codigo} style={{ borderBottom: '0.5px solid var(--border)' }}>
+                  <div key={tienda.codigo} style={{ borderBottom: '1px solid var(--border)' }}>
                     {/* Store row */}
                     <div
                       onClick={() => setExpandedTienda(isExpanded ? null : tienda.codigo)}
@@ -373,17 +373,17 @@ export default function DrillPanel({ open, onClose, metrica, desde, hasta }: Dri
                           <span style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 600, color: mttrClr(tienda.mttrAvg) }}>{fmtMin(tienda.mttrAvg)}</span>
                         )}
                         {abiertoCount > 0 && (
-                          <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, fontWeight: 700, background: '#FECACA', color: '#B91C1C', whiteSpace: 'nowrap' }}>
+                          <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, fontWeight: 700, background: 'var(--danger-bg)', color: 'var(--danger)', whiteSpace: 'nowrap' }}>
                             {abiertoCount} abierto{abiertoCount > 1 ? 's' : ''}
                           </span>
                         )}
                         {(tienda.slaOk + tienda.slaFail) > 0 && (
-                          <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, fontWeight: 600, whiteSpace: 'nowrap', background: hasFailSLA ? '#FCEBEB' : '#EAF3DE', color: hasFailSLA ? '#A32D2D' : '#3B6D11' }}>
+                          <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, fontWeight: 600, whiteSpace: 'nowrap', background: hasFailSLA ? 'var(--danger-bg)' : 'var(--ok-bg)', color: hasFailSLA ? 'var(--danger-bg)' : 'var(--ok-bg)' }}>
                             {hasFailSLA ? `✗ ${tienda.slaFail} fuera` : '✓ SLA OK'}
                           </span>
                         )}
                         {agenteCount > 0 && (
-                          <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, background: '#F3F4F6', color: '#6B7280', whiteSpace: 'nowrap' }}>
+                          <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, background: 'var(--surface-2)', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>
                             {agenteCount} agente
                           </span>
                         )}

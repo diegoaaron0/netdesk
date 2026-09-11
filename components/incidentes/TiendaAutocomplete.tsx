@@ -67,13 +67,13 @@ export function TiendaAutocomplete({ onSelect }: { onSelect: (tienda: Tienda, hi
     <div ref={ref} style={{ position: 'relative' }}>
       <input type="text" value={query} onChange={e => setQuery(e.target.value)}
         placeholder="Buscar por código o nombre de tienda..."
-        style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}
+        style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}
       />
       {open && results.length > 0 && (
-        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '8px', marginTop: '2px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', marginTop: '2px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
           {results.map(t => (
             <button key={t.id} type="button" onClick={() => handleSelect(t)}
-              style={{ display: 'block', width: '100%', padding: '8px 12px', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '0.5px solid var(--border)', cursor: 'pointer', fontSize: '12px' }}
+              style={{ display: 'block', width: '100%', padding: '8px 12px', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer', fontSize: '12px' }}
               onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >

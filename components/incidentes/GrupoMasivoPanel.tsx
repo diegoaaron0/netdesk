@@ -75,11 +75,11 @@ export function GrupoMasivoPanel({ inc, onRefresh }: { inc: any; onRefresh: () =
         style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 16px', background: gm ? 'rgba(245,158,11,0.07)' : 'var(--muted)', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
           <IcoLink />
-          <span style={{ fontSize: '12px', fontWeight: 600, color: gm ? '#92400e' : 'var(--foreground)' }}>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: gm ? 'var(--warn)' : 'var(--foreground)' }}>
             {gm ? `Incidente masivo · ${gm.codigo}` : 'Vincular incidente masivo'}
           </span>
           {gm && (
-            <span style={{ fontSize: '10px', background: 'rgba(245,158,11,0.2)', color: '#92400e', borderRadius: '10px', padding: '1px 7px', fontWeight: 700 }}>
+            <span style={{ fontSize: '10px', background: 'rgba(245,158,11,0.2)', color: 'var(--warn)', borderRadius: '10px', padding: '1px 7px', fontWeight: 700 }}>
               {gm.incidentes?.length ?? 0} tiendas
             </span>
           )}
@@ -95,7 +95,7 @@ export function GrupoMasivoPanel({ inc, onRefresh }: { inc: any; onRefresh: () =
                 Vincula este incidente a un grupo masivo para relacionarlo con otras tiendas afectadas por la misma falla.
               </p>
               <button onClick={() => setMode('create')}
-                style={{ padding: '8px 14px', background: '#92400e', color: '#fef3c7', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+                style={{ padding: '8px 14px', background: 'var(--warn-bg)', color: 'var(--warn)', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
                 + Crear nuevo grupo masivo
               </button>
             </div>
@@ -115,10 +115,10 @@ export function GrupoMasivoPanel({ inc, onRefresh }: { inc: any; onRefresh: () =
                   placeholder="Ej: Corte de cableado en cámara subterránea"
                   style={iStyle()} />
               </div>
-              {error && <div style={{ fontSize: '11px', color: '#dc2626' }}>{error}</div>}
+              {error && <div style={{ fontSize: '11px', color: 'var(--danger)' }}>{error}</div>}
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={handleCreate} disabled={saving}
-                  style={{ flex: 1, padding: '8px', background: '#92400e', color: '#fef3c7', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: saving ? 'wait' : 'pointer' }}>
+                  style={{ flex: 1, padding: '8px', background: 'var(--warn-bg)', color: 'var(--warn)', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: saving ? 'wait' : 'pointer' }}>
                   {saving ? 'Creando...' : 'Crear grupo'}
                 </button>
                 <button onClick={() => { setMode('view'); setError('') }}
@@ -134,20 +134,20 @@ export function GrupoMasivoPanel({ inc, onRefresh }: { inc: any; onRefresh: () =
               {mode === 'view' && (
                 <>
                   <div style={{ marginBottom: '12px' }}>
-                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#92400e', marginBottom: '2px' }}>{gm.razon}</div>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--warn)', marginBottom: '2px' }}>{gm.razon}</div>
                     {gm.motivo && <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{gm.motivo}</div>}
                   </div>
 
                   {/* Lista de incidentes vinculados */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
                     {(gm.incidentes ?? []).map((linked: any) => (
-                      <div key={linked.id} style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '6px 9px', background: 'var(--muted)', borderRadius: '7px', borderLeft: linked.id === inc.id ? '3px solid #f59e0b' : '3px solid var(--border)' }}>
-                        <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 700, color: linked.id === inc.id ? '#92400e' : 'var(--foreground)' }}>{linked.tiendaCodigo}</span>
+                      <div key={linked.id} style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '6px 9px', background: 'var(--muted)', borderRadius: '7px', borderLeft: linked.id === inc.id ? '3px solid var(--warn-border)' : '3px solid var(--border)' }}>
+                        <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 700, color: linked.id === inc.id ? 'var(--warn)' : 'var(--foreground)' }}>{linked.tiendaCodigo}</span>
                         <span style={{ fontSize: '11px', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{linked.tiendaNombre}</span>
                         <Badge variant={estadoToVariant(linked.estado)} />
                         {linked.id !== inc.id && (
                           <button type="button" onClick={() => router.push(`/incidentes/${linked.id}`)}
-                            style={{ fontSize: '10px', color: 'hsl(221,83%,50%)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', flexShrink: 0 }}>
+                            style={{ fontSize: '10px', color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', flexShrink: 0 }}>
                             <IcoExt />
                           </button>
                         )}
@@ -169,11 +169,11 @@ export function GrupoMasivoPanel({ inc, onRefresh }: { inc: any; onRefresh: () =
                       placeholder="Código de incidente (ej: 00099K)"
                       style={{ ...iStyle(), flex: 1, fontSize: '11px' }} />
                     <button onClick={handleAddTienda} disabled={saving || !tiendaQ.trim()}
-                      style={{ padding: '6px 12px', background: 'hsl(221,83%,45%)', color: 'white', border: 'none', borderRadius: '7px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      style={{ padding: '6px 12px', background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '7px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                       + Añadir
                     </button>
                   </div>
-                  {error && <div style={{ fontSize: '11px', color: '#dc2626', marginBottom: '6px' }}>{error}</div>}
+                  {error && <div style={{ fontSize: '11px', color: 'var(--danger)', marginBottom: '6px' }}>{error}</div>}
 
                   <div style={{ display: 'flex', gap: '6px' }}>
                     <button onClick={() => { setMode('create'); setRazon(gm.razon ?? ''); setMotivo(gm.motivo ?? '') }}
@@ -181,7 +181,7 @@ export function GrupoMasivoPanel({ inc, onRefresh }: { inc: any; onRefresh: () =
                       ✎ Editar
                     </button>
                     <button onClick={() => handleDesvincular(inc.id)}
-                      style={{ fontSize: '10px', color: '#b91c1c', background: 'none', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer' }}>
+                      style={{ fontSize: '10px', color: 'var(--danger)', background: 'none', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer' }}>
                       Salir del grupo
                     </button>
                   </div>
@@ -198,10 +198,10 @@ export function GrupoMasivoPanel({ inc, onRefresh }: { inc: any; onRefresh: () =
                     <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Motivo</label>
                     <input value={motivo} onChange={e => setMotivo(e.target.value)} style={iStyle()} />
                   </div>
-                  {error && <div style={{ fontSize: '11px', color: '#dc2626' }}>{error}</div>}
+                  {error && <div style={{ fontSize: '11px', color: 'var(--danger)' }}>{error}</div>}
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button onClick={handleUpdateGrupo} disabled={saving}
-                      style={{ flex: 1, padding: '8px', background: '#92400e', color: '#fef3c7', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: saving ? 'wait' : 'pointer' }}>
+                      style={{ flex: 1, padding: '8px', background: 'var(--warn-bg)', color: 'var(--warn)', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: saving ? 'wait' : 'pointer' }}>
                       {saving ? 'Guardando...' : 'Guardar cambios'}
                     </button>
                     <button onClick={() => { setMode('view'); setError('') }}

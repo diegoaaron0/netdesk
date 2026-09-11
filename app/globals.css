@@ -26,38 +26,230 @@
   --color-card: var(--card);
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   DESIGN TOKENS — NetDesk
+   Único lugar donde se define el tema. La app usa estas variables en ~1800
+   lugares (var(--card), var(--border), var(--foreground), var(--muted),
+   var(--muted-foreground)), así que cambiar acá cambia toda la interfaz.
+   ═══════════════════════════════════════════════════════════════════════════ */
 :root {
-  --background: hsl(0, 0%, 98%);
-  --foreground: hsl(0, 0%, 8%);
-  --card: hsl(0, 0%, 100%);
-  --card-foreground: hsl(0, 0%, 8%);
-  --popover: hsl(0, 0%, 100%);
-  --popover-foreground: hsl(0, 0%, 8%);
-  --primary: hsl(221, 83%, 23%);
-  --primary-foreground: hsl(210, 40%, 95%);
-  --secondary: hsl(0, 0%, 94%);
-  --secondary-foreground: hsl(0, 0%, 20%);
-  --muted: hsl(0, 0%, 94%);
-  --muted-foreground: hsl(0, 0%, 40%);
-  --accent: hsl(0, 0%, 94%);
-  --accent-foreground: hsl(0, 0%, 8%);
-  --destructive: hsl(0, 72%, 51%);
-  --destructive-foreground: hsl(0, 0%, 98%);
-  --border: hsl(0, 0%, 88%);
-  --input: hsl(0, 0%, 88%);
-  --ring: hsl(221, 83%, 23%);
-  --radius: 0.5rem;
+  /* ── Superficies ──────────────────────────────────────────────────────────
+     De más profunda a más elevada. --muted es el lienzo detrás de las cards
+     (lo usa <main>), --card son los paneles, --surface-2 los bloques dentro
+     de una card. */
+  --bg-deep:      #05081a;   /* el fondo más oscuro: login, bordes de pantalla */
+  --background:   #070b20;
+  --muted:        #080d24;   /* lienzo del área de contenido */
+  --card:         #0d1430;   /* paneles y tarjetas */
+  --surface-2:    #121a3a;   /* bloques anidados, filas alternas */
+  --surface-3:    #18224a;   /* hover de filas, chips */
+  --sidebar:      #070c1f;
+
+  --popover:      #0f1734;
+  --popover-foreground: #e9edfb;
+  --card-foreground:    #e9edfb;
+
+  /* ── Texto ─────────────────────────────────────────────────────────────── */
+  --foreground:        #e9edfb;   /* principal */
+  --muted-foreground:  #8792bd;   /* secundario, gris azulado */
+  --faint-foreground:  #5b6796;   /* terciario: labels, metadatos */
+
+  /* ── Bordes ────────────────────────────────────────────────────────────── */
+  --border:        rgba(255, 255, 255, 0.075);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --input:         rgba(255, 255, 255, 0.10);
+  --ring:          #3b82f6;
+
+  /* ── Acento: teal → azul → púrpura ─────────────────────────────────────── */
+  --accent-teal:   #00b4d8;
+  --accent-blue:   #3b82f6;
+  --accent-purple: #7c5cf5;
+
+  --primary:            var(--accent-blue);
+  --primary-foreground: #ffffff;
+  --secondary:            var(--surface-2);
+  --secondary-foreground: var(--foreground);
+  --accent:               var(--surface-3);
+  --accent-foreground:    var(--foreground);
+
+  --gradient-primary: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-blue) 55%, var(--accent-teal) 100%);
+  --gradient-brand:   linear-gradient(120deg, #8b5cf6 0%, #4f7dfb 50%, #22d3ee 100%);
+  --gradient-subtle:  linear-gradient(180deg, rgba(124, 92, 245, 0.10) 0%, rgba(59, 130, 246, 0.03) 100%);
+
+  /* ── Semánticos: vivos sobre oscuro, sin agredir ───────────────────────── */
+  --ok:        #34d399;
+  --ok-bg:     rgba(52, 211, 153, 0.13);
+  --ok-border: rgba(52, 211, 153, 0.30);
+
+  --warn:        #fbbf24;
+  --warn-bg:     rgba(251, 191, 36, 0.13);
+  --warn-border: rgba(251, 191, 36, 0.30);
+
+  --danger:        #f87171;
+  --danger-bg:     rgba(248, 113, 113, 0.13);
+  --danger-border: rgba(248, 113, 113, 0.32);
+  --destructive:            var(--danger);
+  --destructive-foreground: #ffffff;
+
+  --info:        #60a5fa;
+  --info-bg:     rgba(96, 165, 250, 0.13);
+  --info-border: rgba(96, 165, 250, 0.30);
+
+  --purple:        #a78bfa;
+  --purple-bg:     rgba(167, 139, 250, 0.13);
+  --purple-border: rgba(167, 139, 250, 0.30);
+
+  --teal:        #22d3ee;
+  --teal-bg:     rgba(34, 211, 238, 0.13);
+  --teal-border: rgba(34, 211, 238, 0.30);
+
+  /* ── Radios ────────────────────────────────────────────────────────────── */
+  --radius-sm: 6px;
+  --radius:    10px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+
+  /* ── Sombras y glows ───────────────────────────────────────────────────── */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow:    0 4px 16px rgba(0, 0, 0, 0.40);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.55);
+  --glow-blue:   0 0 24px rgba(59, 130, 246, 0.35);
+  --glow-purple: 0 0 24px rgba(124, 92, 245, 0.35);
+  --glow-teal:   0 0 24px rgba(34, 211, 238, 0.30);
+
+  /* ── Espaciado ─────────────────────────────────────────────────────────── */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px;
+  --space-4: 16px; --space-5: 24px; --space-6: 32px;
+
+  /* ── Movimiento ────────────────────────────────────────────────────────── */
+  --ease: cubic-bezier(0.22, 0.68, 0, 1);
+  --t-fast: 120ms; --t: 200ms; --t-slow: 380ms;
 }
 
 @layer base {
   * { box-sizing: border-box; }
+
   body {
     background: var(--muted);
     color: var(--foreground);
     font-size: 13px;
     line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Los controles nativos heredan el color del sistema y quedan blancos sobre
+     el navy. color-scheme le dice al navegador que pinte scrollbars, date
+     pickers y autofill en oscuro. */
+  html { color-scheme: dark; }
+
+  input, select, textarea, button { font-family: inherit; }
+
+  input::placeholder, textarea::placeholder { color: var(--faint-foreground); }
+
+  /* El autofill de Chrome pinta un amarillo sólido que rompe el tema. */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--foreground);
+    -webkit-box-shadow: 0 0 0 1000px var(--surface-2) inset;
+    caret-color: var(--foreground);
+    transition: background-color 9999s ease-in-out 0s;
+  }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--surface-3);
+    border-radius: 99px;
+    border: 2px solid var(--muted);
+  }
+  ::-webkit-scrollbar-thumb:hover { background: #253266; }
+
+  ::selection { background: rgba(59, 130, 246, 0.35); color: #fff; }
+
+  a { color: inherit; }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
 }
+
+/* ═══ Utilidades compartidas ══════════════════════════════════════════════ */
+
+
+.nd-gradient-text {
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.nd-btn-primary {
+  background: var(--gradient-primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter var(--t) var(--ease), transform var(--t) var(--ease), box-shadow var(--t) var(--ease);
+}
+.nd-btn-primary:hover:not(:disabled) {
+  filter: brightness(1.12);
+  box-shadow: var(--glow-blue);
+}
+.nd-btn-primary:active:not(:disabled) { transform: translateY(1px); }
+.nd-btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+
+/* ── Campos de formulario ──────────────────────────────────────────────────
+   Piso común para los ~73 inputs repartidos por las pantallas de detalle y
+   los formularios. Muchos traen su propio `style` inline (que gana por
+   especificidad), así que esto cubre a los que no lo tienen y unifica el
+   foco, que ninguno definía.                                               */
+input:not([type='checkbox']):not([type='radio']),
+select,
+textarea {
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--foreground);
+  border: 1px solid var(--input);
+  border-radius: var(--radius);
+  transition: border-color var(--t) var(--ease), box-shadow var(--t) var(--ease);
+}
+
+input:not([type='checkbox']):not([type='radio']):focus,
+select:focus,
+textarea:focus {
+  border-color: rgba(79, 125, 251, 0.55);
+  box-shadow: 0 0 0 3px rgba(79, 125, 251, 0.12);
+  outline: none;
+}
+
+input:disabled, select:disabled, textarea:disabled {
+  color: var(--faint-foreground);
+  cursor: not-allowed;
+}
+
+/* El desplegable nativo hereda el fondo del sistema: sin esto las opciones
+   salen en blanco sobre el navy. */
+select option { background: var(--popover); color: var(--foreground); }
+
+/* Checkbox y radio nativos se pintan claros; el acento los alinea al tema. */
+input[type='checkbox'], input[type='radio'] { accent-color: var(--accent-blue); }
+
+/* El icono del date/time picker es negro por defecto: invisible sobre navy. */
+input[type='date']::-webkit-calendar-picker-indicator,
+input[type='datetime-local']::-webkit-calendar-picker-indicator,
+input[type='time']::-webkit-calendar-picker-indicator,
+input[type='month']::-webkit-calendar-picker-indicator {
+  filter: invert(0.75);
+  cursor: pointer;
+}
+
+
+/* ═══ Animaciones ═════════════════════════════════════════════════════════ */
 
 @keyframes nd-blink {
   0%, 100% { opacity: 1; }
@@ -70,3 +262,32 @@
   50% { transform: scale(1.8); opacity: 0.5; }
 }
 .nd-pulse { animation: nd-pulse 1.4s ease-in-out infinite; }
+
+@keyframes nd-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.nd-fade-up { animation: nd-fade-up var(--t-slow) var(--ease) both; }
+
+@keyframes nd-float {
+  from { transform: translateY(0) scale(1); }
+  to   { transform: translateY(-10px) scale(1.12); }
+}
+
+/* Recorrido de luz sobre las líneas del mapa de red. */
+@keyframes nd-dash {
+  to { stroke-dashoffset: -220; }
+}
+
+@keyframes nd-node-glow {
+  0%, 100% { opacity: 0.55; r: 2.6; }
+  50%      { opacity: 1;    r: 3.6; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

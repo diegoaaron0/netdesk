@@ -20,16 +20,16 @@ function fmtTs(d: string | null | undefined) {
 
 function estadoBadge(est: string | null | undefined) {
   const m: Record<string, { bg: string; color: string }> = {
-    ACTIVO:         { bg: '#d1fae5', color: '#065f46' },
-    SUSPENDIDO:     { bg: '#fee2e2', color: '#b91c1c' },
-    EN_REVISION:    { bg: '#fef3c7', color: '#92400e' },
-    ABIERTO:        { bg: '#dbeafe', color: '#1e40af' },
-    EN_SEGUIMIENTO: { bg: '#ede9fe', color: '#7c3aed' },
-    RESUELTO:       { bg: '#d1fae5', color: '#065f46' },
-    CERRADO:        { bg: '#f3f4f6', color: '#6b7280' },
-    CANCELADO:      { bg: '#f3f4f6', color: '#9ca3af' },
+    ACTIVO:         { bg: 'var(--ok-bg)', color: 'var(--ok)' },
+    SUSPENDIDO:     { bg: 'var(--danger-bg)', color: 'var(--danger)' },
+    EN_REVISION:    { bg: 'var(--warn-bg)', color: 'var(--warn)' },
+    ABIERTO:        { bg: 'var(--info-bg)', color: 'var(--info)' },
+    EN_SEGUIMIENTO: { bg: 'var(--purple-bg)', color: 'var(--purple)' },
+    RESUELTO:       { bg: 'var(--ok-bg)', color: 'var(--ok)' },
+    CERRADO:        { bg: 'var(--muted-foreground)', color: 'var(--muted-foreground)' },
+    CANCELADO:      { bg: 'var(--muted-foreground)', color: 'var(--muted-foreground)' },
   }
-  return m[est ?? ''] ?? { bg: '#f3f4f6', color: '#6b7280' }
+  return m[est ?? ''] ?? { bg: 'var(--surface-2)', color: 'var(--muted-foreground)' }
 }
 
 function tipoLabel(t: string | null | undefined) {
@@ -47,10 +47,10 @@ function fmtMttr(mins: number | null | undefined) {
 }
 
 function slaColor(v: number | null) {
-  if (v == null) return '#9ca3af'
-  if (v >= 80) return '#16a34a'
-  if (v >= 60) return '#d97706'
-  return '#dc2626'
+  if (v == null) return 'var(--muted-foreground)'
+  if (v >= 80) return 'var(--ok)'
+  if (v >= 60) return 'var(--warn)'
+  return 'var(--danger)'
 }
 
 function Label({ children }: { children: React.ReactNode }) {
@@ -62,7 +62,7 @@ function Val({ v, mono }: { v: string | null | undefined; mono?: boolean }) {
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px', paddingBottom: '6px', borderBottom: '0.5px solid var(--border)' }}>{children}</div>
+  return <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px', paddingBottom: '6px', borderBottom: '1px solid var(--border)' }}>{children}</div>
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────────
@@ -90,9 +90,9 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
   }
 
   const { tienda, contrato, metricas, lastIncidente, historial = [] } = data
-  const reincBadge = metricas?.incidentes30d >= 3 ? { bg: '#fee2e2', color: '#b91c1c' }
-    : metricas?.incidentes30d === 2 ? { bg: '#fef3c7', color: '#92400e' }
-    : { bg: '#d1fae5', color: '#065f46' }
+  const reincBadge = metricas?.incidentes30d >= 3 ? { bg: 'var(--danger-bg)', color: 'var(--danger)' }
+    : metricas?.incidentes30d === 2 ? { bg: 'var(--warn-bg)', color: 'var(--warn)' }
+    : { bg: 'var(--ok-bg)', color: 'var(--ok)' }
 
   return (
     <div>
@@ -108,7 +108,7 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '16px' }}>
         <button onClick={() => router.push(`/proveedores/${id}`)}
-          style={{ padding: '6px 12px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', cursor: 'pointer', whiteSpace: 'nowrap', marginTop: '2px' }}>
+          style={{ padding: '6px 12px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--card)', color: 'var(--foreground)', cursor: 'pointer', whiteSpace: 'nowrap', marginTop: '2px' }}>
           ← Volver
         </button>
         <div style={{ flex: 1 }}>
@@ -123,23 +123,23 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
 
         {/* Left: datos del servicio */}
-        <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
           {/* Header con badge Via Fichas */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', paddingBottom: '6px', borderBottom: '0.5px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', paddingBottom: '6px', borderBottom: '1px solid var(--border)' }}>
             <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
               Datos del servicio
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px', background: '#EDE9FE', color: '#7C3AED' }}>
+              <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px', background: 'var(--purple-bg)', color: 'var(--purple)' }}>
                 Via Fichas
               </span>
               {fichaActiva
                 ? <button onClick={() => router.push(`/gestion-cambios/fichas/${fichaActiva.id}`)}
-                    style={{ padding: '2px 8px', fontSize: '10px', fontWeight: 600, border: '0.5px solid #86efac', borderRadius: '4px', background: '#f0fdf4', color: '#166534', cursor: 'pointer' }}>
+                    style={{ padding: '2px 8px', fontSize: '10px', fontWeight: 600, border: '1px solid var(--ok-border)', borderRadius: '4px', background: 'var(--ok-bg)', color: 'var(--ok)', cursor: 'pointer' }}>
                     {fichaActiva.codigo}
                   </button>
                 : <button onClick={() => router.push(`/gestion-cambios/fichas/nueva?tiendaId=${tiendaId}&proveedorId=${id}`)}
-                    style={{ padding: '2px 8px', fontSize: '10px', border: '0.5px solid var(--border)', borderRadius: '4px', background: 'var(--muted)', color: 'var(--muted-foreground)', cursor: 'pointer' }}>
+                    style={{ padding: '2px 8px', fontSize: '10px', border: '1px solid var(--border)', borderRadius: '4px', background: 'var(--muted)', color: 'var(--muted-foreground)', cursor: 'pointer' }}>
                     + Nueva ficha
                   </button>
               }
@@ -190,7 +190,7 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
             </div>
           )}
           {(tienda.supervisorNombre || tienda.contactoSoporte) && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 20px', borderTop: '0.5px solid var(--border)', paddingTop: '10px', marginTop: '2px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 20px', borderTop: '1px solid var(--border)', paddingTop: '10px', marginTop: '2px' }}>
               {tienda.supervisorNombre && <div><Label>Supervisor</Label><Val v={`${tienda.supervisorNombre}${tienda.supervisorCelular ? ` · ${tienda.supervisorCelular}` : ''}`} /></div>}
               {tienda.contactoSoporte  && <div><Label>Contacto soporte</Label><Val v={tienda.contactoSoporte} /></div>}
             </div>
@@ -198,7 +198,7 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
         </div>
 
         {/* Right: rendimiento */}
-        <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
           <SectionTitle>Rendimiento del proveedor en esta tienda</SectionTitle>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
             {[
@@ -210,12 +210,12 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
               { label: 'Tiempo caido total (hist.)',  value: metricas?.tiempoCaidoFmt ?? '—' },
               { label: 'Impacto estimado',            value: metricas?.impactoEstimado != null ? fmtSoles(metricas.impactoEstimado) : '—' },
             ].map(r => (
-              <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '0.5px solid var(--border)' }}>
+              <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
                 <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{r.label}</span>
                 <span style={{ fontSize: '12px', fontWeight: 600, color: (r as any).color ?? 'var(--foreground)' }}>{r.value}</span>
               </div>
             ))}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '0.5px solid var(--border)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
               <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Reincidencia (30d)</span>
               <span style={{ fontSize: '11px', fontWeight: 700, padding: '1px 7px', borderRadius: '4px', background: reincBadge.bg, color: reincBadge.color }}>
                 {metricas?.incidentes30d ?? 0} incidentes
@@ -237,8 +237,8 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
 
       {/* Comparativa con proveedores anteriores */}
       {(data.proveedoresAnteriores ?? []).length > 0 && (
-        <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', overflow: 'hidden', marginBottom: '14px' }}>
-          <div style={{ padding: '12px 14px', borderBottom: '0.5px solid var(--border)' }}>
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden', marginBottom: '14px' }}>
+          <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)' }}>
             <SectionTitle>Comparativa con proveedores anteriores</SectionTitle>
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
@@ -250,11 +250,11 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
               </tr>
             </thead>
             <tbody>
-              <tr style={{ borderTop: '0.5px solid var(--border)', background: 'color-mix(in srgb, hsl(221,83%,23%) 6%, var(--card))' }}>
+              <tr style={{ borderTop: '1px solid var(--border)', background: 'color-mix(in srgb, var(--primary) 6%, var(--card))' }}>
                 <td style={{ padding: '8px 10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ fontSize: '12px', fontWeight: 600 }}>{tienda.proveedorNombre}</span>
-                    <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', background: 'hsl(221,83%,23%)', color: 'white' }}>Actual</span>
+                    <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', background: 'var(--gradient-primary)', color: 'white' }}>Actual</span>
                   </div>
                 </td>
                 <td style={{ padding: '8px 10px', fontWeight: 600 }}>{metricas?.incidentesHistoricos ?? 0}</td>
@@ -263,7 +263,7 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
                 <td style={{ padding: '8px 10px', color: 'var(--muted-foreground)', fontSize: '11px' }}>{fmtTs(lastIncidente?.horaRegistro)}</td>
               </tr>
               {(data.proveedoresAnteriores ?? []).map((p: any) => (
-                <tr key={p.proveedorId} style={{ borderTop: '0.5px solid var(--border)' }}>
+                <tr key={p.proveedorId} style={{ borderTop: '1px solid var(--border)' }}>
                   <td style={{ padding: '8px 10px', fontWeight: 600 }}>{p.proveedorNombre ?? '—'}</td>
                   <td style={{ padding: '8px 10px' }}>{p.totalIncidentes}</td>
                   <td style={{ padding: '8px 10px' }}>{fmtMttr(p.mttrPromedio)}</td>
@@ -280,27 +280,27 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
       <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '14px', alignItems: 'start' }}>
 
         {/* Acciones */}
-        <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
           <SectionTitle>Acciones</SectionTitle>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <a href={`/incidentes/nuevo?tiendaId=${tienda.id}`}
-              style={{ display: 'block', padding: '9px 12px', background: 'hsl(221,83%,23%)', color: 'white', borderRadius: '8px', fontSize: '12px', fontWeight: 500, textDecoration: 'none', textAlign: 'center' }}>
+              style={{ display: 'block', padding: '9px 12px', background: 'var(--gradient-primary)', color: 'white', borderRadius: '8px', fontSize: '12px', fontWeight: 500, textDecoration: 'none', textAlign: 'center' }}>
               + Crear incidente
             </a>
             <a href={`/incidentes?tiendaId=${tienda.id}&proveedorId=${tienda.proveedorId}`}
-              style={{ display: 'block', padding: '9px 12px', background: 'var(--muted)', border: '0.5px solid var(--border)', color: 'var(--foreground)', borderRadius: '8px', fontSize: '12px', textDecoration: 'none', textAlign: 'center' }}>
+              style={{ display: 'block', padding: '9px 12px', background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)', borderRadius: '8px', fontSize: '12px', textDecoration: 'none', textAlign: 'center' }}>
               Ver incidentes
             </a>
             <button onClick={() => router.push(`/gestion-cambios/fichas?tiendaId=${tienda.id}`)}
-              style={{ padding: '9px 12px', background: 'var(--muted)', border: '0.5px solid var(--border)', color: 'var(--foreground)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', textAlign: 'center' }}>
+              style={{ padding: '9px 12px', background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--foreground)', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', textAlign: 'center' }}>
               Ver fichas
             </button>
           </div>
         </div>
 
         {/* Historial */}
-        <div style={{ background: 'var(--card)', border: '0.5px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
-          <div style={{ padding: '12px 14px', borderBottom: '0.5px solid var(--border)' }}>
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+          <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)' }}>
             <SectionTitle>Ultimos incidentes con este proveedor</SectionTitle>
           </div>
           {historial.length === 0 ? (
@@ -319,7 +319,7 @@ export default function ServicioTiendaPage({ params }: { params: Promise<{ id: s
                   const eb = estadoBadge(inc.estado)
                   return (
                     <tr key={inc.id}
-                      style={{ borderTop: '0.5px solid var(--border)', cursor: 'pointer' }}
+                      style={{ borderTop: '1px solid var(--border)', cursor: 'pointer' }}
                       onClick={() => router.push(`/incidentes/${inc.id}`)}
                       onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>

@@ -17,19 +17,19 @@ const PROVS = ['Todos', 'BITEL', 'CLARO', 'ENTEL', 'CONVERGIA', 'MOVISTAR', 'WIN
 const MAX_ALERTAS_VISIBLES = 8
 
 const BADGE_OP: Record<string, { label: string; bg: string; color: string }> = {
-  SLA_VENCIDO:         { label: 'SLA Vencido',    bg: '#FCEBEB', color: '#A32D2D' },
-  EN_RIESGO_SLA:       { label: 'En riesgo SLA',  bg: '#FFF3E0', color: '#C84B00' },
-  ESCALADO:            { label: 'Escalado',        bg: '#FAEEDA', color: '#633806' },
-  PENDIENTE_PROVEEDOR: { label: 'Pend. proveedor', bg: '#EEE8FF', color: '#5B21B6' },
-  ABIERTO:             { label: 'Abierto',         bg: '#E6F1FB', color: '#185FA5' },
+  SLA_VENCIDO:         { label: 'SLA Vencido',    bg: 'var(--danger-bg)', color: 'var(--danger)' },
+  EN_RIESGO_SLA:       { label: 'En riesgo SLA',  bg: 'var(--warn-bg)', color: 'var(--warn)' },
+  ESCALADO:            { label: 'Escalado',        bg: 'var(--warn-bg)', color: 'var(--warn)' },
+  PENDIENTE_PROVEEDOR: { label: 'Pend. proveedor', bg: 'var(--purple-bg)', color: 'var(--purple)' },
+  ABIERTO:             { label: 'Abierto',         bg: 'var(--info-bg)', color: 'var(--info)' },
 }
 const ORDEN_OP: Record<string, number> = {
   SLA_VENCIDO: 0, EN_RIESGO_SLA: 1, ESCALADO: 2, PENDIENTE_PROVEEDOR: 3, ABIERTO: 4,
 }
 const IMP_BADGE: Record<string, { label: string; bg: string; color: string }> = {
-  ALTO:  { label: 'Alto',  bg: '#FCEBEB', color: '#A32D2D' },
-  MEDIO: { label: 'Medio', bg: '#FFF3E0', color: '#C84B00' },
-  BAJO:  { label: 'Bajo',  bg: '#E6F1FB', color: '#185FA5' },
+  ALTO:  { label: 'Alto',  bg: 'var(--danger-bg)', color: 'var(--danger)' },
+  MEDIO: { label: 'Medio', bg: 'var(--warn-bg)', color: 'var(--warn)' },
+  BAJO:  { label: 'Bajo',  bg: 'var(--info-bg)', color: 'var(--info)' },
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -209,10 +209,10 @@ export function getEstadoOpClient(inc: any, nowMs: number) {
 // La construcción de alertas vive en lib/alertas-dashboard.ts — es lógica pura
 // y testeada aparte. Acá sólo la presentación.
 const SEVERIDAD_CFG: Record<SeveridadAlerta, { icon: string; bg: string; border: string; color: string }> = {
-  ROJO:     { icon: '🔴', bg: '#FCEBEB', border: '#FECACA', color: '#A32D2D' },
-  NARANJA:  { icon: '⚠',  bg: '#FFF3E0', border: '#FDBA74', color: '#C84B00' },
-  AMARILLO: { icon: '●',  bg: '#FAEEDA', border: '#FCD34D', color: '#854F0B' },
-  INFO:     { icon: 'ℹ',  bg: '#E6F1FB', border: '#93C5FD', color: '#185FA5' },
+  ROJO:     { icon: '🔴', bg: 'var(--danger-bg)', border: 'var(--danger-border)', color: 'var(--danger)' },
+  NARANJA:  { icon: '⚠',  bg: 'var(--warn-bg)', border: 'var(--warn-border)', color: 'var(--warn)' },
+  AMARILLO: { icon: '●',  bg: 'var(--warn-bg)', border: 'var(--warn-border)', color: 'var(--warn)' },
+  INFO:     { icon: 'ℹ',  bg: 'var(--info-bg)', border: 'var(--info-border)', color: 'var(--info)' },
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -228,12 +228,12 @@ function SLABadge({ inc, nowMs }: { inc: any; nowMs: number }) {
         {badge.label}
       </span>
       {show && (
-        <div style={{ position: 'absolute', zIndex: 99, bottom: '120%', left: '50%', transform: 'translateX(-50%)', background: '#1e293b', color: 'white', borderRadius: '8px', padding: '8px 12px', fontSize: '11px', lineHeight: 1.7, minWidth: '200px', whiteSpace: 'normal', boxShadow: '0 4px 16px rgba(0,0,0,0.25)', pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', zIndex: 99, bottom: '120%', left: '50%', transform: 'translateX(-50%)', background: 'var(--surface-2)', color: 'white', borderRadius: '8px', padding: '8px 12px', fontSize: '11px', lineHeight: 1.7, minWidth: '200px', whiteSpace: 'normal', boxShadow: '0 4px 16px rgba(0,0,0,0.25)', pointerEvents: 'none' }}>
           <div>Tiempo abierto: <strong>{fmtMin(minutosTranscurridos)}</strong></div>
           <div>SLA permitido: <strong>{fmtMin(slaLimite)}</strong></div>
-          <div>Consumido: <strong style={{ color: pctSla >= 100 ? '#FCA5A5' : pctSla >= 70 ? '#FCD34D' : '#86EFAC' }}>{pctSla}%</strong></div>
+          <div>Consumido: <strong style={{ color: pctSla >= 100 ? 'var(--danger)' : pctSla >= 70 ? 'var(--warn)' : 'var(--ok)' }}>{pctSla}%</strong></div>
           <div>Estado: <strong>{badge.label}</strong></div>
-          <div style={{ position: 'absolute', bottom: '-4px', left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '4px solid #1e293b' }} />
+          <div style={{ position: 'absolute', bottom: '-4px', left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '4px solid var(--border)' }} />
         </div>
       )}
     </div>
@@ -248,7 +248,7 @@ function AvatarCircle({ nombre, color }: { nombre: string; color: string }) {
   )
 }
 
-const AVATAR_COLORS = ['#185FA5','#5B21B6','#A32D2D','#2D7A4A','#854F0B','#0C447C']
+const AVATAR_COLORS = ['var(--info)','var(--purple)','var(--danger)','var(--ok)','var(--warn)','var(--info)']
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
 
@@ -284,17 +284,17 @@ function AsignarModal({ activos, equipo, onClose, onRefresh }: { activos: any[];
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)' }} onClick={onClose}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(4,7,20,0.72)', backdropFilter: 'blur(6px)' }} onClick={onClose}>
       <div style={{ background: 'var(--card)', borderRadius: '14px', padding: '24px', width: '380px', boxShadow: '0 8px 40px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
         <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '16px' }}>Asignar / Reasignar incidente</div>
         {ok ? (
-          <div style={{ textAlign: 'center', padding: '16px 0', color: '#27500A', fontWeight: 600 }}>✓ Reasignación confirmada</div>
+          <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--ok)', fontWeight: 600 }}>✓ Reasignación confirmada</div>
         ) : (
           <>
             <div style={{ marginBottom: '12px' }}>
               <label style={{ fontSize: '11px', color: 'var(--muted-foreground)', display: 'block', marginBottom: '4px' }}>Incidente</label>
               <select value={incId} onChange={e => setIncId(e.target.value)}
-                style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--background)' }}>
+                style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--background)' }}>
                 <option value=''>— Seleccionar —</option>
                 {activos.map((i: any) => (
                   <option key={i.id} value={i.id}>{i.tienda_codigo} — {i.codigo}</option>
@@ -304,7 +304,7 @@ function AsignarModal({ activos, equipo, onClose, onRefresh }: { activos: any[];
             <div style={{ marginBottom: '16px' }}>
               <label style={{ fontSize: '11px', color: 'var(--muted-foreground)', display: 'block', marginBottom: '4px' }}>Agente destino</label>
               <select value={agenteId} onChange={e => setAgenteId(e.target.value)}
-                style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--background)' }}>
+                style={{ width: '100%', padding: '7px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--background)' }}>
                 <option value=''>— Seleccionar —</option>
                 {equipo.map((ag: any) => (
                   <option key={ag.id} value={ag.id}>{ag.nombre} ({ag.casosActivos} activos)</option>
@@ -312,13 +312,13 @@ function AsignarModal({ activos, equipo, onClose, onRefresh }: { activos: any[];
               </select>
             </div>
             {error && (
-              <div style={{ fontSize: '11px', color: '#b91c1c', background: '#fee2e2', borderRadius: '6px', padding: '7px 10px', marginBottom: '12px' }}>
+              <div style={{ fontSize: '11px', color: 'var(--danger)', background: 'var(--danger-bg)', borderRadius: '6px', padding: '7px 10px', marginBottom: '12px' }}>
                 {error}
               </div>
             )}
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button onClick={onClose} disabled={saving} style={{ padding: '7px 16px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', cursor: saving ? 'default' : 'pointer' }}>Cancelar</button>
-              <button onClick={confirmar} disabled={saving || !incId || !agenteId} style={{ padding: '7px 16px', fontSize: '12px', border: 'none', borderRadius: '7px', background: saving ? '#93c5fd' : 'hsl(221,83%,23%)', color: 'white', cursor: saving || !incId || !agenteId ? 'default' : 'pointer', fontWeight: 600, opacity: !incId || !agenteId ? 0.5 : 1 }}>
+              <button onClick={onClose} disabled={saving} style={{ padding: '7px 16px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '7px', background: 'var(--muted)', cursor: saving ? 'default' : 'pointer' }}>Cancelar</button>
+              <button onClick={confirmar} disabled={saving || !incId || !agenteId} style={{ padding: '7px 16px', fontSize: '12px', border: 'none', borderRadius: '7px', background: saving ? 'var(--info-bg)' : 'var(--gradient-primary)', color: 'white', cursor: saving || !incId || !agenteId ? 'default' : 'pointer', fontWeight: 600, opacity: !incId || !agenteId ? 0.5 : 1 }}>
                 {saving ? 'Guardando…' : 'Confirmar asignación'}
               </button>
             </div>
@@ -386,8 +386,8 @@ export default function DashboardPage() {
           <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
             {tab === 'operativo'
               ? isToday
-                ? <><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22C55E', display: 'inline-block' }} />Actualización en tiempo real</>
-                : <span style={{ color: '#C84B00', fontWeight: 600 }}>Vista histórica — {fecha}</span>
+                ? <><span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--ok-bg)', display: 'inline-block' }} />Actualización en tiempo real</>
+                : <span style={{ color: 'var(--warn)', fontWeight: 600 }}>Vista histórica — {fecha}</span>
               : 'Vista analítica'
             }
           </div>
@@ -406,11 +406,11 @@ export default function DashboardPage() {
                 value={fecha}
                 max={todayLima()}
                 onChange={e => setFecha(e.target.value || todayLima())}
-                style={{ padding: '6px 10px', fontSize: '12px', border: '0.5px solid var(--border)', borderRadius: '8px', background: 'var(--background)', color: 'var(--foreground)' }}
+                style={{ padding: '6px 10px', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--background)', color: 'var(--foreground)' }}
               />
               {!isToday && (
                 <button onClick={() => setFecha(todayLima())}
-                  style={{ padding: '6px 12px', fontSize: '12px', fontWeight: 600, background: 'hsl(221,83%,23%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  style={{ padding: '6px 12px', fontSize: '12px', fontWeight: 600, background: 'var(--gradient-primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                   Volver a hoy
                 </button>
               )}
@@ -419,7 +419,7 @@ export default function DashboardPage() {
           <div style={{ display: 'flex', gap: '4px', background: 'var(--muted)', borderRadius: '10px', padding: '4px' }}>
             {(['operativo', 'analitico'] as const).map(t => (
               <button key={t} onClick={() => { setTab(t); router.replace(`?tab=${t}`, { scroll: false }) }}
-                style={{ padding: '7px 18px', fontSize: '13px', border: 'none', borderRadius: '7px', cursor: 'pointer', background: tab === t ? 'hsl(221,83%,23%)' : 'transparent', color: tab === t ? 'white' : 'var(--foreground)', fontWeight: tab === t ? 600 : 400 }}>
+                style={{ padding: '7px 18px', fontSize: '13px', border: 'none', borderRadius: '7px', cursor: 'pointer', background: tab === t ? 'var(--gradient-primary)' : 'transparent', color: tab === t ? 'white' : 'var(--foreground)', fontWeight: tab === t ? 600 : 400 }}>
                 {t === 'operativo' ? 'Operativo' : 'Analítico'}
               </button>
             ))}
@@ -522,42 +522,79 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
 
   // KPI card definitions
   const kpiCards: Array<{ icon: string; label: string; value: any; sub?: string; filterKey: string | null; colorIcon: string; bg: string; link?: string }> = [
-    { icon: '📋', label: 'Incidentes abiertos',  value: kpis.abiertos,            sub: undefined,                                filterKey: null,        colorIcon: '#185FA5', bg: '#E6F1FB' },
-    { icon: '⚠',  label: 'En riesgo SLA',         value: kpis.enRiesgoSla,          sub: kpis.vencidoSla > 0 ? `${kpis.vencidoSla} vencidos` : undefined, filterKey: 'enRiesgo',  colorIcon: '#C84B00', bg: '#FFF3E0' },
-    { icon: '↑',  label: 'Escalados',              value: kpis.escalados,            sub: undefined,                                filterKey: 'escalados', colorIcon: '#A32D2D', bg: '#FCEBEB' },
-    { icon: '🏢', label: 'Pendientes proveedor',   value: kpis.pendientesProveedor,  sub: undefined,                                filterKey: 'pendientes', colorIcon: '#5B21B6', bg: '#EEE8FF' },
-    { icon: '✓',  label: 'Resueltos hoy',          value: kpis.resueltoHoy,          sub: `Agente ${kpis.resueltoHoyAgente} · Proveedor ${kpis.resueltoHoyProveedor}`, filterKey: null, colorIcon: '#27500A', bg: '#EAF3DE' },
-    { icon: '👤', label: 'Agentes en gestión',     value: `${kpis.agentesEnGestion}/${kpis.totalAgentes}`, sub: undefined, filterKey: null, colorIcon: '#185FA5', bg: '#E6F1FB' },
-    ...(kpis.gruposMasivosActivos > 0 ? [{ icon: '⚡', label: 'Grupos masivos', value: kpis.gruposMasivosActivos, sub: `${kpis.masivosActivos} incidente${kpis.masivosActivos !== 1 ? 's' : ''}`, filterKey: 'masivos', colorIcon: '#92400E', bg: '#FEF3C7' }] : []),
-    ...(decPendientes != null ? [{ icon: '📊', label: 'Cambios propuestos', value: decPendientes, sub: 'Esperan aprobación', filterKey: null, colorIcon: '#7C3AED', bg: '#EDE9FE', link: '/gestion-cambios' }] : []),
+    { icon: '📋', label: 'Incidentes abiertos',  value: kpis.abiertos,            sub: undefined,                                filterKey: null,        colorIcon: 'var(--info-bg)', bg: 'var(--info-bg)' },
+    { icon: '⚠',  label: 'En riesgo SLA',         value: kpis.enRiesgoSla,          sub: kpis.vencidoSla > 0 ? `${kpis.vencidoSla} vencidos` : undefined, filterKey: 'enRiesgo',  colorIcon: 'var(--warn-bg)', bg: 'var(--warn-bg)' },
+    { icon: '↑',  label: 'Escalados',              value: kpis.escalados,            sub: undefined,                                filterKey: 'escalados', colorIcon: 'var(--danger-bg)', bg: 'var(--danger-bg)' },
+    { icon: '🏢', label: 'Pendientes proveedor',   value: kpis.pendientesProveedor,  sub: undefined,                                filterKey: 'pendientes', colorIcon: 'var(--purple-bg)', bg: 'var(--purple-bg)' },
+    { icon: '✓',  label: 'Resueltos hoy',          value: kpis.resueltoHoy,          sub: `Agente ${kpis.resueltoHoyAgente} · Proveedor ${kpis.resueltoHoyProveedor}`, filterKey: null, colorIcon: 'var(--ok-bg)', bg: 'var(--ok-bg)' },
+    { icon: '👤', label: 'Agentes en gestión',     value: `${kpis.agentesEnGestion}/${kpis.totalAgentes}`, sub: undefined, filterKey: null, colorIcon: 'var(--info-bg)', bg: 'var(--info-bg)' },
+    ...(kpis.gruposMasivosActivos > 0 ? [{ icon: '⚡', label: 'Grupos masivos', value: kpis.gruposMasivosActivos, sub: `${kpis.masivosActivos} incidente${kpis.masivosActivos !== 1 ? 's' : ''}`, filterKey: 'masivos', colorIcon: 'var(--warn-bg)', bg: 'var(--warn-bg)' }] : []),
+    ...(decPendientes != null ? [{ icon: '📊', label: 'Cambios propuestos', value: decPendientes, sub: 'Esperan aprobación', filterKey: null, colorIcon: 'var(--purple-bg)', bg: 'var(--purple-bg)', link: '/gestion-cambios' }] : []),
   ]
 
   return (
     <>
       {/* KPI Cards row — compact */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '6px', marginBottom: '10px' }}>
-        {kpiCards.map((card) => (
-          <div key={card.label}
-            onClick={() => { if (card.link) router.push(card.link); else if (card.filterKey) handleCardClick(card.filterKey) }}
-            style={{ background: 'var(--card)', border: `0.5px solid ${cardFiltro === card.filterKey && card.filterKey ? '#185FA5' : 'var(--border)'}`, borderRadius: '10px', padding: '9px 11px', cursor: card.filterKey || card.link ? 'pointer' : 'default', boxShadow: cardFiltro === card.filterKey && card.filterKey ? '0 0 0 2px rgba(24,95,165,0.15)' : 'none', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <div style={{ width: 24, height: 24, borderRadius: '5px', background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', flexShrink: 0 }}>
-                {card.icon}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(148px, 1fr))', gap: '10px', marginBottom: '14px' }}>
+        {kpiCards.map((card, i) => {
+          const activa = !!card.filterKey && cardFiltro === card.filterKey
+          const clicable = !!(card.filterKey || card.link)
+          return (
+            <div key={card.label}
+              className="nd-fade-up"
+              onClick={() => { if (card.link) router.push(card.link); else if (card.filterKey) handleCardClick(card.filterKey) }}
+              onMouseEnter={e => { if (clicable) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = 'var(--border-strong)' } }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.borderColor = activa ? card.colorIcon : 'var(--border)' }}
+              style={{
+                animationDelay: `${i * 40}ms`,
+                position: 'relative', overflow: 'hidden',
+                background: 'var(--card)',
+                border: `1px solid ${activa ? card.colorIcon : 'var(--border)'}`,
+                borderRadius: 'var(--radius-md)',
+                padding: '13px 14px 14px',
+                cursor: clicable ? 'pointer' : 'default',
+                boxShadow: activa ? `0 0 22px -6px ${card.colorIcon}` : 'var(--shadow-sm)',
+                display: 'flex', flexDirection: 'column', gap: '9px',
+                transition: 'transform var(--t) var(--ease), border-color var(--t) var(--ease), box-shadow var(--t) var(--ease)',
+              }}>
+              {/* Velo del color de la tarjeta, arriba a la derecha */}
+              <div aria-hidden style={{
+                position: 'absolute', top: '-40px', right: '-40px', width: '110px', height: '110px',
+                borderRadius: '50%', background: card.bg, opacity: 0.55, pointerEvents: 'none',
+              }} />
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
+                <div style={{
+                  width: 30, height: 30, borderRadius: 'var(--radius-sm)',
+                  background: card.bg, border: `1px solid ${card.colorIcon}33`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '13px', flexShrink: 0,
+                }}>
+                  {card.icon}
+                </div>
+                <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', lineHeight: 1.25 }}>{card.label}</div>
               </div>
-              <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', lineHeight: 1.2 }}>{card.label}</div>
+
+              <div style={{ position: 'relative' }}>
+                <div style={{ fontSize: '27px', fontWeight: 700, color: 'var(--foreground)', lineHeight: 1, letterSpacing: '-0.02em' }}>
+                  {card.value}
+                </div>
+                {/* Subrayado de acento: da color sin teñir el número */}
+                <div style={{ width: '30px', height: '3px', borderRadius: '99px', background: card.colorIcon, marginTop: '8px', opacity: 0.9 }} />
+              </div>
+
+              {card.sub && <div style={{ fontSize: '9.5px', color: 'var(--faint-foreground)', position: 'relative' }}>{card.sub}</div>}
             </div>
-            <div style={{ fontSize: '20px', fontWeight: 700, color: card.colorIcon, lineHeight: 1 }}>{card.value}</div>
-            {card.sub && <div style={{ fontSize: '9px', color: 'var(--muted-foreground)' }}>{card.sub}</div>}
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Contingencias — tira horizontal */}
       {(contingenciasActivas ?? []).length > 0 && (
-        <div style={{ background: '#fffbeb', border: '1.5px solid #f59e0b', borderRadius: '10px', padding: '7px 10px', marginBottom: '10px' }}>
+        <div style={{ background: 'var(--warn-bg)', border: '1.5px solid var(--warn-border)', borderRadius: '10px', padding: '7px 10px', marginBottom: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '5px' }}>
             <span>⚠</span>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--warn)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               {(contingenciasActivas ?? []).length} alerta{(contingenciasActivas ?? []).length > 1 ? 's' : ''} de contingencia activa
             </span>
           </div>
@@ -567,9 +604,9 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
               const esDatos    = tipo === 'DATOS_MOVILES'
               const esExterno  = tipo === 'ROUTER_EXTERNO'
               const esBoleta   = tipo === 'BOLETA_MANUAL'
-              const borderColor = esBoleta ? '#16a34a' : esDatos ? '#3b82f6' : esExterno ? '#ea580c' : '#f59e0b'
-              const bgColor     = esBoleta ? '#f0fdf4' : esDatos ? '#eff6ff' : esExterno ? '#fff7ed' : 'white'
-              const textColor   = esBoleta ? '#14532d' : esDatos ? '#1e3a8a' : esExterno ? '#7c2d12' : '#78350f'
+              const borderColor = esBoleta ? 'var(--ok)' : esDatos ? '#3b82f6' : esExterno ? 'var(--warn)' : 'var(--warn)'
+              const bgColor     = esBoleta ? 'var(--ok-bg)' : esDatos ? 'var(--info-bg)' : esExterno ? 'var(--warn-bg)' : 'white'
+              const textColor   = esBoleta ? 'var(--ok)' : esDatos ? 'var(--info)' : esExterno ? 'var(--warn)' : 'var(--warn)'
               const tipoLabel   = esBoleta ? '🧾 Boleta manual' : esDatos ? 'Datos móviles' : esExterno ? '📦 Router ext.' : '📶 Router'
               const mins = c.cont_hora_activacion
                 ? Math.round((nowMs - tsMs(c.cont_hora_activacion)) / 60000)
@@ -590,7 +627,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                   <div style={{ fontSize: '9px', fontWeight: 700, color: borderColor, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                     {tipoLabel}
                     {esExterno && c.router_externo_codigo && (
-                      <span style={{ fontFamily: 'monospace', background: '#FED7AA', color: '#7C2D12', padding: '0px 5px', borderRadius: '4px' }}>{c.router_externo_codigo}</span>
+                      <span style={{ fontFamily: 'monospace', background: 'var(--warn-bg)', color: 'var(--warn)', padding: '0px 5px', borderRadius: '4px' }}>{c.router_externo_codigo}</span>
                     )}
                   </div>
                   <div style={{ fontSize: '9px', color: textColor, display: 'flex', gap: '5px', marginTop: '1px', opacity: 0.8 }}>
@@ -633,11 +670,11 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
               .sort((a, b) => (a.estado === 'EN_TIENDA_ACTIVO' ? 0 : 1) - (b.estado === 'EN_TIENDA_ACTIVO' ? 0 : 1))
               .map((r: any) => {
                 const activo  = r.estado === 'EN_TIENDA_ACTIVO'
-                const bg      = activo ? '#FFF7ED' : '#EEF2FF'
+                const bg      = activo ? 'var(--warn-bg)' : 'var(--info-bg)'
                 const border  = activo ? '#F97316' : '#818CF8'
-                const color   = activo ? '#7C2D12' : '#3730A3'
-                const badgeBg = activo ? '#FED7AA' : '#E0E7FF'
-                const badgeC  = activo ? '#C2410C' : '#4338CA'
+                const color   = activo ? 'var(--warn)' : 'var(--purple)'
+                const badgeBg = activo ? 'var(--warn-bg)' : 'var(--info-bg)'
+                const badgeC  = activo ? 'var(--warn)' : 'var(--purple)'
                 return (
                   <div key={r.id} style={{ background: bg, border: `1px solid ${border}`, borderRadius: '7px', padding: '5px 10px', minWidth: '170px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
@@ -677,7 +714,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
             if (n === 0) return null
             const cfg = SEVERIDAD_CFG[s]
             return (
-              <span key={s} style={{ fontSize: '10px', fontWeight: 600, color: cfg.color, background: cfg.bg, border: `0.5px solid ${cfg.border}`, padding: '1px 7px', borderRadius: '99px' }}>
+              <span key={s} style={{ fontSize: '10px', fontWeight: 600, color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}`, padding: '1px 7px', borderRadius: '99px' }}>
                 {cfg.icon} {n}
               </span>
             )
@@ -691,7 +728,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
         </div>
 
         {alertas.length === 0 ? (
-          <div style={{ fontSize: '11px', color: '#27500A' }}>✓ Sin alertas en este momento</div>
+          <div style={{ fontSize: '11px', color: 'var(--ok)' }}>✓ Sin alertas en este momento</div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '5px' }}>
             {(verTodasAlertas ? alertas : alertas.slice(0, MAX_ALERTAS_VISIBLES)).map(a => {
@@ -704,7 +741,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
               }
               return (
                 <div key={a.id} onClick={irA} title={a.accion}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 8px', background: cfg.bg, border: `0.5px solid ${cfg.border}`, borderRadius: '7px', cursor: 'pointer' }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 8px', background: cfg.bg, border: `1px solid ${cfg.border}`, borderRadius: '7px', cursor: 'pointer' }}>
                   <span style={{ fontSize: '11px', flexShrink: 0 }}>{cfg.icon}</span>
                   <span style={{ flex: 1, color: cfg.color, fontSize: '11px', lineHeight: 1.35 }}>{a.texto}</span>
                   <span style={{ fontSize: '10px', fontWeight: 600, color: cfg.color, whiteSpace: 'nowrap', opacity: 0.75 }}>→</span>
@@ -732,9 +769,9 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
           {/* Cola operativa */}
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
             {incidentesHeredados.length > 0 && (
-              <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '7px', padding: '5px 10px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px' }}>
+              <div style={{ background: 'var(--info-bg)', border: '1px solid var(--info-border)', borderRadius: '7px', padding: '5px 10px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px' }}>
                 <span>📋 <strong>{incidentesHeredados.length}</strong> heredado(s) del turno anterior</span>
-                <input type="time" value={turnoInicio} onChange={e => setTurnoInicio(e.target.value)} style={{ fontSize: '11px', border: '1px solid #BFDBFE', borderRadius: '4px', padding: '1px 5px' }} />
+                <input type="time" value={turnoInicio} onChange={e => setTurnoInicio(e.target.value)} style={{ fontSize: '11px', border: '1px solid var(--info-border)', borderRadius: '4px', padding: '1px 5px' }} />
               </div>
             )}
 
@@ -743,12 +780,12 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
               <div style={{ fontSize: '13px', fontWeight: 600 }}>
                 Cola operativa
                 <span style={{ fontSize: '10px', fontWeight: 400, color: 'var(--muted-foreground)', marginLeft: '6px' }}>{colaFiltrada.length} de {totalActivos}</span>
-                {agenteFilter && (() => { const ag = (equipoStats ?? []).find((a: any) => a.id === agenteFilter); return ag ? <span style={{ fontSize: '10px', fontWeight: 500, marginLeft: '8px', padding: '1px 7px', borderRadius: '999px', background: '#E6F1FB', color: '#185FA5' }}>· {ag.nombre.split(' ')[0]}</span> : null })()}
+                {agenteFilter && (() => { const ag = (equipoStats ?? []).find((a: any) => a.id === agenteFilter); return ag ? <span style={{ fontSize: '10px', fontWeight: 500, marginLeft: '8px', padding: '1px 7px', borderRadius: '999px', background: 'var(--info-bg)', color: 'var(--info)' }}>· {ag.nombre.split(' ')[0]}</span> : null })()}
               </div>
               <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                 {(cardFiltro || filtroHeredados || agenteFilter) && (
                   <button onClick={() => { setCardFiltro(null); setFiltroHeredados(false); setAgenteFilter(null) }}
-                    style={{ fontSize: '10px', background: 'none', border: 'none', color: '#185FA5', cursor: 'pointer', textDecoration: 'underline' }}>Limpiar filtros</button>
+                    style={{ fontSize: '10px', background: 'none', border: 'none', color: 'var(--info)', cursor: 'pointer', textDecoration: 'underline' }}>Limpiar filtros</button>
                 )}
               </div>
             </div>
@@ -757,10 +794,10 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
               {([
                 { key: null,            label: 'Todos',                   bg: 'var(--muted)', fg: 'var(--foreground)', border: 'var(--border)' },
-                { key: 'enRiesgo',      label: 'SLA Vencido / En Riesgo', bg: '#FFF3E0',      fg: '#C84B00',           border: '#FDBA74' },
-                { key: 'escalados',     label: 'Escalado',                bg: '#FAEEDA',      fg: '#633806',           border: '#F59E0B' },
-                { key: 'pendientes',    label: 'Pend. proveedor',         bg: '#EEE8FF',      fg: '#5B21B6',           border: '#C4B5FD' },
-                { key: 'masivos',       label: 'Masivos',                 bg: '#FEF3C7',      fg: '#92400E',           border: '#FCD34D' },
+                { key: 'enRiesgo',      label: 'SLA Vencido / En Riesgo', bg: 'var(--warn-bg)',      fg: 'var(--warn-bg)',           border: 'var(--warn-border)' },
+                { key: 'escalados',     label: 'Escalado',                bg: 'var(--warn-bg)',      fg: 'var(--warn-bg)',           border: 'var(--warn-border)' },
+                { key: 'pendientes',    label: 'Pend. proveedor',         bg: 'var(--purple-bg)',      fg: 'var(--purple-bg)',           border: 'var(--purple-border)' },
+                { key: 'masivos',       label: 'Masivos',                 bg: 'var(--warn-bg)',      fg: 'var(--warn-bg)',           border: 'var(--warn-border)' },
               ] as const).map(({ key, label, bg, fg, border }) => {
                 const active = cardFiltro === key
                 return (
@@ -776,7 +813,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '10px' }}>
               {PROVS.map(p => (
                 <button key={p} onClick={() => setProvFiltro(p)}
-                  style={{ padding: '2px 9px', fontSize: '10px', fontWeight: provFiltro === p ? 600 : 400, background: provFiltro === p ? 'hsl(221,83%,23%)' : 'var(--muted)', color: provFiltro === p ? 'white' : 'var(--foreground)', border: 'none', borderRadius: '999px', cursor: 'pointer' }}>
+                  style={{ padding: '2px 9px', fontSize: '10px', fontWeight: provFiltro === p ? 600 : 400, background: provFiltro === p ? 'var(--gradient-primary)' : 'var(--muted)', color: provFiltro === p ? 'white' : 'var(--foreground)', border: 'none', borderRadius: '999px', cursor: 'pointer' }}>
                   {p}
                 </button>
               ))}
@@ -786,7 +823,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
             <div style={{ overflowX: 'auto', maxHeight: '460px', overflowY: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
                 <thead style={{ position: 'sticky', top: 0, background: 'var(--card)', zIndex: 1 }}>
-                  <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
+                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
                     {['ID','Tienda','Proveedor','Tipo','Impacto','Estado op.','Agente','Tiempo','IEI est.','Acción'].map(h => (
                       <th key={h} style={{ padding: '5px 8px', textAlign: 'left', fontSize: '9px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
@@ -811,18 +848,18 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                     const { minutosTranscurridos } = getEstadoOpClient(inc, nowM)
                     const isCritical = inc.estadoOp === 'SLA_VENCIDO'
                     const esInfra = !!inc.escalado_infra_id
-                    const leftBorder = inc.estadoOp === 'SLA_VENCIDO' ? '3px solid #DC2626'
-                      : inc.estadoOp === 'EN_RIESGO_SLA' ? '3px solid #F59E0B'
-                      : esInfra ? '3px solid #7C3AED'
-                      : inc.estadoOp === 'ESCALADO' ? '3px solid #B45309'
-                      : inc.estadoOp === 'PENDIENTE_PROVEEDOR' ? '3px solid #7C3AED'
+                    const leftBorder = inc.estadoOp === 'SLA_VENCIDO' ? '3px solid var(--danger)'
+                      : inc.estadoOp === 'EN_RIESGO_SLA' ? '3px solid var(--warn)'
+                      : esInfra ? '3px solid var(--purple)'
+                      : inc.estadoOp === 'ESCALADO' ? '3px solid var(--warn)'
+                      : inc.estadoOp === 'PENDIENTE_PROVEEDOR' ? '3px solid var(--purple)'
                       : '3px solid transparent'
-                    const rowBg = inc.estadoOp === 'SLA_VENCIDO' ? '#FEF2F2'
-                      : inc.estadoOp === 'EN_RIESGO_SLA' ? '#FFFBEB'
-                      : esInfra ? '#F5F3FF'
+                    const rowBg = inc.estadoOp === 'SLA_VENCIDO' ? 'var(--danger-bg)'
+                      : inc.estadoOp === 'EN_RIESGO_SLA' ? 'var(--warn)'
+                      : esInfra ? 'var(--purple)'
                       : 'transparent'
                     return (
-                      <tr key={inc.id} style={{ borderTop: idx > 0 ? '0.5px solid var(--border)' : 'none', borderLeft: leftBorder, backgroundColor: rowBg }}>
+                      <tr key={inc.id} style={{ borderTop: idx > 0 ? '1px solid var(--border)' : 'none', borderLeft: leftBorder, backgroundColor: rowBg }}>
                         <td style={{ padding: '6px 8px', fontFamily: 'monospace', fontSize: '10px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>{inc.codigo}</td>
                         <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
                           <div style={{ fontWeight: 600, fontSize: '11px' }}>{inc.tienda_codigo}</div>
@@ -831,7 +868,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                         </td>
                         <td style={{ padding: '6px 8px' }}>
                           {inc.proveedor_nombre
-                            ? <span style={{ padding: '1px 7px', borderRadius: '999px', background: '#E6F1FB', color: '#185FA5', fontSize: '10px', fontWeight: 500, whiteSpace: 'nowrap' }}>{inc.proveedor_nombre}</span>
+                            ? <span style={{ padding: '1px 7px', borderRadius: '999px', background: 'var(--info-bg)', color: 'var(--info)', fontSize: '10px', fontWeight: 500, whiteSpace: 'nowrap' }}>{inc.proveedor_nombre}</span>
                             : <span style={{ color: '#888', fontSize: '9px' }}>—</span>}
                         </td>
                         <td style={{ padding: '6px 8px', whiteSpace: 'nowrap', fontSize: '10px' }}>{TIPO_LABELS[inc.tipo] ?? inc.tipo}</td>
@@ -840,36 +877,36 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                         </td>
                         <td style={{ padding: '6px 8px' }}>
                           <SLABadge inc={inc} nowMs={nowM} />
-                          {esInfra && <span style={{ display: 'block', marginTop: '2px', fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: '#EDE9FE', color: '#5B21B6', fontWeight: 600 }}>Infra{inc.infra_nombre ? `: ${inc.infra_nombre.split(' ')[0]}` : ''}</span>}
-                          {inc.grupo_masivo_id && <span title={inc.grupo_masivo_razon ?? ''} style={{ display: 'block', marginTop: '2px', fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: '#FEF3C7', color: '#92400E', fontWeight: 700, cursor: 'help' }}>⚡ Masivo · {inc.grupo_masivo_codigo}</span>}
-                          {inc.router_externo_id && !inc.cont_hora_desactivacion && <span style={{ display: 'block', marginTop: '2px', fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: '#FEF3C7', color: '#92400E', fontWeight: 700, fontFamily: 'monospace' }}>📦 {inc.router_externo_codigo}</span>}
-                          {inc.sinMovimiento && <span style={{ display: 'block', marginTop: '2px', fontSize: '9px', padding: '1px 4px', borderRadius: '999px', background: '#F1F5F9', color: '#475569' }}>⏸ {fmtMin(inc.sinMovimientoMin)}</span>}
+                          {esInfra && <span style={{ display: 'block', marginTop: '2px', fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: 'var(--purple-bg)', color: 'var(--purple)', fontWeight: 600 }}>Infra{inc.infra_nombre ? `: ${inc.infra_nombre.split(' ')[0]}` : ''}</span>}
+                          {inc.grupo_masivo_id && <span title={inc.grupo_masivo_razon ?? ''} style={{ display: 'block', marginTop: '2px', fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: 'var(--warn-bg)', color: 'var(--warn)', fontWeight: 700, cursor: 'help' }}>⚡ Masivo · {inc.grupo_masivo_codigo}</span>}
+                          {inc.router_externo_id && !inc.cont_hora_desactivacion && <span style={{ display: 'block', marginTop: '2px', fontSize: '9px', padding: '1px 5px', borderRadius: '999px', background: 'var(--warn-bg)', color: 'var(--warn)', fontWeight: 700, fontFamily: 'monospace' }}>📦 {inc.router_externo_codigo}</span>}
+                          {inc.sinMovimiento && <span style={{ display: 'block', marginTop: '2px', fontSize: '9px', padding: '1px 4px', borderRadius: '999px', background: 'var(--info-bg)', color: 'var(--muted-foreground)' }}>⏸ {fmtMin(inc.sinMovimientoMin)}</span>}
                           {(inc as any).motivo_reabertura && (
                             <span
                               title={(inc as any).motivo_reabertura === 'TIENDA_SIN_INTERNET' ? 'Reabierto — solución incorrecta del proveedor' : 'Reabierto — error de gestión de agente'}
                               style={{ display: 'block', marginTop: '2px', fontSize: '9px', padding: '1px 5px', borderRadius: '999px', fontWeight: 700,
                                 background: (inc as any).motivo_reabertura === 'TIENDA_SIN_INTERNET' ? 'rgba(185,28,28,0.1)' : 'rgba(146,64,14,0.1)',
-                                color:      (inc as any).motivo_reabertura === 'TIENDA_SIN_INTERNET' ? '#b91c1c' : '#92400e' }}>
+                                color:      (inc as any).motivo_reabertura === 'TIENDA_SIN_INTERNET' ? 'var(--danger)' : 'var(--warn)' }}>
                               ↩ reabierto
                             </span>
                           )}
                         </td>
                         <td style={{ padding: '6px 8px', whiteSpace: 'nowrap', fontSize: '10px' }}>{inc.agente_nombre ?? '—'}</td>
-                        <td style={{ padding: '6px 8px', fontFamily: 'monospace', fontSize: '11px', fontWeight: 600, whiteSpace: 'nowrap', color: minutosTranscurridos >= 240 ? '#A32D2D' : minutosTranscurridos >= 120 ? '#C84B00' : 'var(--foreground)' }}>
+                        <td style={{ padding: '6px 8px', fontFamily: 'monospace', fontSize: '11px', fontWeight: 600, whiteSpace: 'nowrap', color: minutosTranscurridos >= 240 ? 'var(--danger)' : minutosTranscurridos >= 120 ? 'var(--warn)' : 'var(--foreground)' }}>
                           {fmtMin(minutosTranscurridos)}
                         </td>
-                        <td style={{ padding: '6px 8px', fontFamily: 'monospace', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap', color: iei > 0 ? '#b91c1c' : 'var(--muted-foreground)' }}>
+                        <td style={{ padding: '6px 8px', fontFamily: 'monospace', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap', color: iei > 0 ? 'var(--danger)' : 'var(--muted-foreground)' }}>
                           {inc.iei_venta_hora ? (iei > 0 ? `S/ ${iei.toLocaleString('es-PE')}` : 'S/ 0') : '—'}
                         </td>
                         <td style={{ padding: '6px 8px' }}>
                           <div style={{ display: 'flex', gap: '4px' }}>
                             <button onClick={() => router.push(`/incidentes/${inc.id}`)}
-                              style={{ padding: '3px 8px', fontSize: '10px', background: '#E6F1FB', color: '#185FA5', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                              style={{ padding: '3px 8px', fontSize: '10px', background: 'var(--info-bg)', color: 'var(--info)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}>
                               Ver →
                             </button>
                             {isCritical && isToday && (
                               <button onClick={() => router.push(`/incidentes/${inc.id}#escalamiento`)}
-                                style={{ padding: '3px 8px', fontSize: '10px', background: '#FCEBEB', color: '#A32D2D', border: '1px solid #FECACA', borderRadius: '4px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                style={{ padding: '3px 8px', fontSize: '10px', background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)', borderRadius: '4px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}>
                                 ↑ Escalar
                               </button>
                             )}
@@ -889,14 +926,14 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                     return (
                       <>
                         <tr>
-                          <td colSpan={10} style={{ padding: '4px 8px', background: 'var(--muted)', fontSize: '9px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', borderTop: '0.5px solid var(--border)' }}>
+                          <td colSpan={10} style={{ padding: '4px 8px', background: 'var(--muted)', fontSize: '9px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', borderTop: '1px solid var(--border)' }}>
                             Resueltos hoy — {resFiltrados.length}
                           </td>
                         </tr>
                         {resFiltrados.map((r: any) => {
                           const imp = IMP_BADGE[r.nivel_impacto] ?? IMP_BADGE.BAJO
                           return (
-                            <tr key={r.id} style={{ borderTop: '0.5px solid var(--border)', opacity: 0.75 }}>
+                            <tr key={r.id} style={{ borderTop: '1px solid var(--border)', opacity: 0.75 }}>
                               <td style={{ padding: '5px 8px', fontFamily: 'monospace', fontSize: '10px', color: 'var(--muted-foreground)' }}>{r.codigo}</td>
                               <td style={{ padding: '5px 8px', whiteSpace: 'nowrap' }}>
                                 <div style={{ fontWeight: 600, fontSize: '11px' }}>{r.tienda_codigo}</div>
@@ -904,7 +941,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                               </td>
                               <td style={{ padding: '5px 8px' }}>
                                 {r.proveedor_nombre
-                                  ? <span style={{ padding: '1px 7px', borderRadius: '999px', background: '#E6F1FB', color: '#185FA5', fontSize: '10px', fontWeight: 500 }}>{r.proveedor_nombre}</span>
+                                  ? <span style={{ padding: '1px 7px', borderRadius: '999px', background: 'var(--info-bg)', color: 'var(--info)', fontSize: '10px', fontWeight: 500 }}>{r.proveedor_nombre}</span>
                                   : <span style={{ color: '#888', fontSize: '9px' }}>—</span>}
                               </td>
                               <td style={{ padding: '5px 8px', fontSize: '10px' }}>{TIPO_LABELS[r.tipo] ?? r.tipo}</td>
@@ -912,7 +949,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                                 <span style={{ fontSize: '10px', fontWeight: 500, padding: '2px 6px', borderRadius: '4px', background: imp.bg, color: imp.color }}>{imp.label}</span>
                               </td>
                               <td style={{ padding: '5px 8px' }}>
-                                <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: '#DCFCE7', color: '#166534' }}>
+                                <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: 'var(--ok-bg)', color: 'var(--ok)' }}>
                                   Resuelto {r.resuelto_por === 'PROVEEDOR' ? '· Prov.' : r.resuelto_por === 'AGENTE' ? '· Agente' : ''}
                                 </span>
                               </td>
@@ -923,7 +960,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                               <td style={{ padding: '5px 8px', fontSize: '10px', color: 'var(--muted-foreground)' }}>—</td>
                               <td style={{ padding: '5px 8px' }}>
                                 <button onClick={() => router.push(`/incidentes/${r.id}`)}
-                                  style={{ padding: '3px 8px', fontSize: '10px', background: '#E6F1FB', color: '#185FA5', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 500 }}>
+                                  style={{ padding: '3px 8px', fontSize: '10px', background: 'var(--info-bg)', color: 'var(--info)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 500 }}>
                                   Ver →
                                 </button>
                               </td>
@@ -943,11 +980,11 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
               <div style={{ fontSize: '13px', fontWeight: 600 }}>
                 Equipo
-                {agenteFilter && <span style={{ fontSize: '10px', fontWeight: 400, color: '#185FA5', marginLeft: '8px', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setAgenteFilter(null)}>Quitar filtro agente</span>}
+                {agenteFilter && <span style={{ fontSize: '10px', fontWeight: 400, color: 'var(--info)', marginLeft: '8px', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setAgenteFilter(null)}>Quitar filtro agente</span>}
               </div>
               {isToday && (
                 <button onClick={() => setAsignarOpen(true)}
-                  style={{ padding: '4px 12px', fontSize: '11px', background: '#E6F1FB', color: '#185FA5', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>
+                  style={{ padding: '4px 12px', fontSize: '11px', background: 'var(--info-bg)', color: 'var(--info)', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>
                   + Asignar
                 </button>
               )}
@@ -956,17 +993,17 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
               {(equipoStats ?? []).map((ag: any, idx: number) => {
                 const carga = ag.casosActivos === 0 ? 'libre' : ag.casosActivos <= 2 ? 'normal' : ag.casosActivos <= 4 ? 'cargado' : 'saturado'
                 const cargaBadge = {
-                  libre:    { label: 'Libre',    bg: '#F3F4F6', color: '#6B7280' },
-                  normal:   { label: 'Normal',   bg: '#EAF3DE', color: '#27500A' },
-                  cargado:  { label: 'Cargado',  bg: '#FFF3E0', color: '#C84B00' },
-                  saturado: { label: 'Saturado', bg: '#FCEBEB', color: '#A32D2D' },
+                  libre:    { label: 'Libre',    bg: 'var(--surface-2)', color: 'var(--muted-foreground)' },
+                  normal:   { label: 'Normal',   bg: 'var(--ok-bg)', color: 'var(--ok)' },
+                  cargado:  { label: 'Cargado',  bg: 'var(--warn-bg)', color: 'var(--warn)' },
+                  saturado: { label: 'Saturado', bg: 'var(--danger-bg)', color: 'var(--danger)' },
                 }[carga]
-                const borderColor = carga === 'saturado' ? '#FECACA' : carga === 'cargado' ? '#FED7AA' : 'var(--border)'
+                const borderColor = carga === 'saturado' ? 'var(--danger)' : carga === 'cargado' ? 'var(--warn)' : 'var(--border)'
                 const isSelectedAgent = agenteFilter === ag.id
                 return (
                   <div key={ag.id}
                     onClick={() => setAgenteFilter(isSelectedAgent ? null : ag.id)}
-                    style={{ flex: '1 1 160px', padding: '10px 12px', background: isSelectedAgent ? '#EFF6FF' : 'var(--muted)', borderRadius: '10px', border: `1px solid ${isSelectedAgent ? '#185FA5' : borderColor}`, cursor: 'pointer', boxShadow: isSelectedAgent ? '0 0 0 2px rgba(24,95,165,0.15)' : 'none', transition: 'all 0.15s' }}>
+                    style={{ flex: '1 1 160px', padding: '10px 12px', background: isSelectedAgent ? 'var(--info-bg)' : 'var(--muted)', borderRadius: '10px', border: `1px solid ${isSelectedAgent ? 'var(--info-border)' : borderColor}`, cursor: 'pointer', boxShadow: isSelectedAgent ? '0 0 0 2px rgba(24,95,165,0.15)' : 'none', transition: 'all 0.15s' }}>
                     {/* Avatar + nombre + rol */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                       <div style={{ width: 32, height: 32, borderRadius: '50%', background: AVATAR_COLORS[idx % AVATAR_COLORS.length], display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
@@ -980,11 +1017,11 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                     {/* Stats row */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0' }}>
                       {([
-                        { label: 'ACT.', value: ag.casosActivos, color: ag.casosActivos > 4 ? '#A32D2D' : ag.casosActivos > 2 ? '#C84B00' : 'var(--foreground)' },
-                        { label: 'RES.', value: ag.resueltoHoyAgente + ag.resueltoHoyProveedor, color: '#27500A' },
-                        { label: 'ESC.', value: ag.escalados, color: ag.escalados > 0 ? '#C84B00' : 'var(--muted-foreground)' },
+                        { label: 'ACT.', value: ag.casosActivos, color: ag.casosActivos > 4 ? 'var(--danger)' : ag.casosActivos > 2 ? 'var(--warn)' : 'var(--foreground)' },
+                        { label: 'RES.', value: ag.resueltoHoyAgente + ag.resueltoHoyProveedor, color: 'var(--ok)' },
+                        { label: 'ESC.', value: ag.escalados, color: ag.escalados > 0 ? 'var(--warn)' : 'var(--muted-foreground)' },
                       ]).map(({ label, value, color }, i) => (
-                        <div key={label} style={{ flex: 1, textAlign: 'center', borderRight: i < 2 ? '0.5px solid var(--border)' : 'none', paddingRight: i < 2 ? '0' : undefined }}>
+                        <div key={label} style={{ flex: 1, textAlign: 'center', borderRight: i < 2 ? '1px solid var(--border)' : 'none', paddingRight: i < 2 ? '0' : undefined }}>
                           <div style={{ fontSize: '14px', fontWeight: 700, color, lineHeight: 1 }}>{value}</div>
                           <div style={{ fontSize: '8px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{label}</div>
                         </div>
@@ -996,13 +1033,13 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                     </div>
                     {/* MTTR si tiene resueltos */}
                     {ag.mttrPromedioAgente != null && (
-                      <div style={{ marginTop: '6px', paddingTop: '5px', borderTop: '0.5px solid var(--border)', fontSize: '9px', color: 'var(--muted-foreground)' }}>
-                        MTTR: <strong style={{ color: ag.mttrPromedioAgente > 240 ? '#A32D2D' : ag.mttrPromedioAgente > 120 ? '#C84B00' : '#27500A' }}>{fmtMin(ag.mttrPromedioAgente)}</strong>
-                        {ag.pendientesProveedor > 0 && <span style={{ marginLeft: '8px', color: '#5B21B6' }}>⏳ {ag.pendientesProveedor} pend.</span>}
+                      <div style={{ marginTop: '6px', paddingTop: '5px', borderTop: '1px solid var(--border)', fontSize: '9px', color: 'var(--muted-foreground)' }}>
+                        MTTR: <strong style={{ color: ag.mttrPromedioAgente > 240 ? 'var(--danger)' : ag.mttrPromedioAgente > 120 ? 'var(--warn)' : 'var(--ok)' }}>{fmtMin(ag.mttrPromedioAgente)}</strong>
+                        {ag.pendientesProveedor > 0 && <span style={{ marginLeft: '8px', color: 'var(--purple)' }}>⏳ {ag.pendientesProveedor} pend.</span>}
                       </div>
                     )}
                     {ag.mttrPromedioAgente == null && ag.pendientesProveedor > 0 && (
-                      <div style={{ marginTop: '6px', paddingTop: '5px', borderTop: '0.5px solid var(--border)', fontSize: '9px', color: '#5B21B6' }}>
+                      <div style={{ marginTop: '6px', paddingTop: '5px', borderTop: '1px solid var(--border)', fontSize: '9px', color: 'var(--purple)' }}>
                         ⏳ {ag.pendientesProveedor} pend. proveedor
                       </div>
                     )}
@@ -1025,36 +1062,36 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
             if (infraMap.size === 0) return null
             const infraList = [...infraMap.values()]
             return (
-              <div style={{ background: 'var(--card)', border: '1px solid #C4B5FD', borderRadius: '12px', padding: '14px', borderLeft: '4px solid #7C3AED' }}>
-                <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '10px', color: '#5B21B6' }}>Equipo Infraestructura</div>
+              <div style={{ background: 'var(--card)', border: '1px solid var(--purple-border)', borderRadius: '12px', padding: '14px', borderLeft: '4px solid var(--purple-border)' }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '10px', color: 'var(--purple)' }}>Equipo Infraestructura</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                   {infraList.map((inf: any, idx: number) => {
                     const escaladosProv = inf.casos.filter((i: any) => i.pendiente_proveedor).length
                     return (
-                      <div key={inf.id} style={{ flex: '1 1 160px', padding: '10px 12px', background: '#F5F3FF', borderRadius: '10px', border: '1px solid #C4B5FD' }}>
+                      <div key={inf.id} style={{ flex: '1 1 160px', padding: '10px 12px', background: 'var(--purple-bg)', borderRadius: '10px', border: '1px solid var(--purple-border)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                          <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
+                          <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--purple-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
                             {initials(inf.nombre)}
                           </div>
                           <div>
                             <div style={{ fontSize: '12px', fontWeight: 600, lineHeight: 1.2 }}>{inf.nombre.split(' ').slice(0,2).join(' ')}</div>
-                            <div style={{ fontSize: '9px', color: '#7C3AED', marginTop: '1px' }}>INFRAESTRUCTURA</div>
+                            <div style={{ fontSize: '9px', color: 'var(--purple)', marginTop: '1px' }}>INFRAESTRUCTURA</div>
                           </div>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0' }}>
-                          <div style={{ flex: 1, textAlign: 'center', borderRight: '0.5px solid #C4B5FD' }}>
-                            <div style={{ fontSize: '14px', fontWeight: 700, color: '#5B21B6', lineHeight: 1 }}>{inf.casos.length}</div>
+                          <div style={{ flex: 1, textAlign: 'center', borderRight: '1px solid var(--purple-border)' }}>
+                            <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--purple)', lineHeight: 1 }}>{inf.casos.length}</div>
                             <div style={{ fontSize: '8px', color: 'var(--muted-foreground)', marginTop: '2px' }}>ACT.</div>
                           </div>
                           <div style={{ flex: 1, textAlign: 'center' }}>
-                            <div style={{ fontSize: '14px', fontWeight: 700, color: escaladosProv > 0 ? '#C84B00' : 'var(--muted-foreground)', lineHeight: 1 }}>{escaladosProv}</div>
+                            <div style={{ fontSize: '14px', fontWeight: 700, color: escaladosProv > 0 ? 'var(--warn)' : 'var(--muted-foreground)', lineHeight: 1 }}>{escaladosProv}</div>
                             <div style={{ fontSize: '8px', color: 'var(--muted-foreground)', marginTop: '2px' }}>PEND. PROV.</div>
                           </div>
                         </div>
                         <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                           {inf.casos.slice(0,3).map((i: any) => (
                             <div key={i.id} onClick={() => router.push(`/incidentes/${i.id}`)}
-                              style={{ fontSize: '9px', fontFamily: 'monospace', color: '#5B21B6', cursor: 'pointer', textDecoration: 'underline' }}>
+                              style={{ fontSize: '9px', fontFamily: 'monospace', color: 'var(--purple)', cursor: 'pointer', textDecoration: 'underline' }}>
                               {i.codigo} — {i.tienda_codigo}
                             </div>
                           ))}
@@ -1077,10 +1114,10 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
             <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>Resumen del turno</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px' }}>
               {([
-                { label: 'Creados',   value: kpis.creadosHoy ?? 0,  color: '#185FA5', bg: '#E6F1FB' },
-                { label: 'Activos',   value: kpis.abiertos,          color: '#C84B00', bg: '#FFF3E0' },
-                { label: 'Resueltos', value: kpis.resueltoHoy,       color: '#27500A', bg: '#EAF3DE' },
-                { label: 'MTTR',      value: mttrProm != null ? fmtMin(mttrProm) : '—', color: '#5B21B6', bg: '#EEE8FF' },
+                { label: 'Creados',   value: kpis.creadosHoy ?? 0,  color: 'var(--info)', bg: 'var(--info-bg)' },
+                { label: 'Activos',   value: kpis.abiertos,          color: 'var(--warn)', bg: 'var(--warn-bg)' },
+                { label: 'Resueltos', value: kpis.resueltoHoy,       color: 'var(--ok)', bg: 'var(--ok-bg)' },
+                { label: 'MTTR',      value: mttrProm != null ? fmtMin(mttrProm) : '—', color: 'var(--purple)', bg: 'var(--purple-bg)' },
               ] as const).map(({ label, value, color, bg }) => (
                 <div key={label} style={{ background: bg, borderRadius: '7px', padding: '7px 9px' }}>
                   <div style={{ fontSize: '18px', fontWeight: 700, color, lineHeight: 1 }}>{value}</div>
@@ -1088,7 +1125,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                 </div>
               ))}
             </div>
-            <div style={{ marginTop: '7px', paddingTop: '6px', borderTop: '0.5px solid var(--border)', display: 'flex', gap: '10px', fontSize: '9px', color: 'var(--muted-foreground)' }}>
+            <div style={{ marginTop: '7px', paddingTop: '6px', borderTop: '1px solid var(--border)', display: 'flex', gap: '10px', fontSize: '9px', color: 'var(--muted-foreground)' }}>
               <span>Ag. <strong style={{ color: 'var(--foreground)' }}>{kpis.resueltoHoyAgente}</strong></span>
               <span>Prov. <strong style={{ color: 'var(--foreground)' }}>{kpis.resueltoHoyProveedor}</strong></span>
             </div>
@@ -1100,7 +1137,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                   <strong>{Math.round(kpis.resueltoHoy / (kpis.creadosHoy ?? 1) * 100)}%</strong>
                 </div>
                 <div style={{ height: '4px', background: 'var(--muted)', borderRadius: '2px', overflow: 'hidden' }}>
-                  <div style={{ width: `${Math.min(100, Math.round(kpis.resueltoHoy / (kpis.creadosHoy ?? 1) * 100))}%`, height: '100%', background: '#27500A', borderRadius: '2px', transition: 'width 0.4s' }} />
+                  <div style={{ width: `${Math.min(100, Math.round(kpis.resueltoHoy / (kpis.creadosHoy ?? 1) * 100))}%`, height: '100%', background: 'var(--ok-bg)', borderRadius: '2px', transition: 'width 0.4s' }} />
                 </div>
               </div>
             )}
@@ -1114,7 +1151,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
+                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
                     {['Proveedor','Pend.','Espera',''].map(h => (
                       <th key={h} style={{ padding: '3px 4px', textAlign: 'left', fontSize: '8px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>{h}</th>
                     ))}
@@ -1122,13 +1159,13 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                 </thead>
                 <tbody>
                   {(proveedoresPendientes ?? []).map((p: any, i: number) => (
-                    <tr key={p.nombre} style={{ borderTop: i > 0 ? '0.5px solid var(--border)' : 'none' }}>
-                      <td style={{ padding: '5px 4px' }}><span style={{ padding: '1px 6px', borderRadius: '999px', background: '#E6F1FB', color: '#185FA5', fontSize: '9px', fontWeight: 600 }}>{p.nombre}</span></td>
+                    <tr key={p.nombre} style={{ borderTop: i > 0 ? '1px solid var(--border)' : 'none' }}>
+                      <td style={{ padding: '5px 4px' }}><span style={{ padding: '1px 6px', borderRadius: '999px', background: 'var(--info-bg)', color: 'var(--info)', fontSize: '9px', fontWeight: 600 }}>{p.nombre}</span></td>
                       <td style={{ padding: '5px 4px', fontWeight: 700, fontSize: '12px', textAlign: 'center' }}>{p.count}</td>
-                      <td style={{ padding: '5px 4px', fontSize: '9px', color: p.masAntiguoMin > 60 ? '#A32D2D' : p.masAntiguoMin > 30 ? '#C84B00' : 'var(--foreground)', fontWeight: 500 }}>{fmtEspera(p.masAntiguoMin)}</td>
+                      <td style={{ padding: '5px 4px', fontSize: '9px', color: p.masAntiguoMin > 60 ? 'var(--danger)' : p.masAntiguoMin > 30 ? 'var(--warn)' : 'var(--foreground)', fontWeight: 500 }}>{fmtEspera(p.masAntiguoMin)}</td>
                       <td style={{ padding: '5px 4px' }}>
                         <button onClick={() => { setProvFiltro(p.nombre); setCardFiltro('pendientes') }}
-                          style={{ fontSize: '9px', background: 'none', border: 'none', color: '#185FA5', cursor: 'pointer', fontWeight: 500 }}>Ver →</button>
+                          style={{ fontSize: '9px', background: 'none', border: 'none', color: 'var(--info)', cursor: 'pointer', fontWeight: 500 }}>Ver →</button>
                       </td>
                     </tr>
                   ))}
@@ -1141,7 +1178,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <div style={{ fontSize: '12px', fontWeight: 600 }}>Actividad reciente</div>
-              <button onClick={() => router.push('/incidentes')} style={{ fontSize: '9px', color: '#185FA5', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>Ver toda →</button>
+              <button onClick={() => router.push('/incidentes')} style={{ fontSize: '9px', color: 'var(--info)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>Ver toda →</button>
             </div>
             <div style={{ display: 'flex', gap: '3px', marginBottom: '7px', flexWrap: 'wrap' }}>
               {([
@@ -1154,7 +1191,7 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                 { key: 'cerrados',      label: 'Cerrados' },
               ] as const).map(t => (
                 <button key={t.key} onClick={() => setTabActividad(t.key)}
-                  style={{ padding: '2px 8px', fontSize: '9px', fontWeight: tabActividad === t.key ? 600 : 400, background: tabActividad === t.key ? 'hsl(221,83%,23%)' : 'var(--muted)', color: tabActividad === t.key ? 'white' : 'var(--foreground)', border: 'none', borderRadius: '999px', cursor: 'pointer' }}>
+                  style={{ padding: '2px 8px', fontSize: '9px', fontWeight: tabActividad === t.key ? 600 : 400, background: tabActividad === t.key ? 'var(--gradient-primary)' : 'var(--muted)', color: tabActividad === t.key ? 'white' : 'var(--foreground)', border: 'none', borderRadius: '999px', cursor: 'pointer' }}>
                   {t.label}
                 </button>
               ))}
@@ -1175,14 +1212,14 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                     <div style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Sin actividad</div>
                   ) : actFiltrada.map((ev: any, i: number) => {
                     const conf: Record<string, { icon: string; color: string }> = {
-                      CREADO:              { icon: '●', color: '#185FA5' },
-                      ESCALADO:            { icon: '↑', color: '#C84B00' },
-                      RESPUESTA_PROVEEDOR: { icon: '✓', color: '#27500A' },
-                      RESUELTO:            { icon: '✓', color: '#27500A' },
-                      CANCELADO:           { icon: '✗', color: '#6B7280' },
-                      CERRADO:             { icon: '⊘', color: '#6B7280' },
-                      CONTINGENCIA:        { icon: '⚡', color: '#B45309' },
-                      CONTINGENCIA_FIN:    { icon: '○', color: '#6B7280' },
+                      CREADO:              { icon: '●', color: 'var(--info)' },
+                      ESCALADO:            { icon: '↑', color: 'var(--warn)' },
+                      RESPUESTA_PROVEEDOR: { icon: '✓', color: 'var(--ok)' },
+                      RESUELTO:            { icon: '✓', color: 'var(--ok)' },
+                      CANCELADO:           { icon: '✗', color: 'var(--muted-foreground)' },
+                      CERRADO:             { icon: '⊘', color: 'var(--muted-foreground)' },
+                      CONTINGENCIA:        { icon: '⚡', color: 'var(--warn)' },
+                      CONTINGENCIA_FIN:    { icon: '○', color: 'var(--muted-foreground)' },
                     }
                     const c = conf[ev.tipo_evento] ?? { icon: '●', color: '#888' }
                     const tipoContLabel: Record<string, string> = {
@@ -1203,8 +1240,8 @@ function OperativoView({ op, tick, router, decPendientes, onRefresh, isToday, fe
                     else texto = ev.codigo ?? ''
                     const { text: horaText, isOld } = fmtHoraEvento(ev.hora)
                     return (
-                      <div key={i} style={{ display: 'flex', gap: '5px', padding: '5px 0', borderTop: i > 0 ? '0.5px solid var(--border)' : 'none' }}>
-                        <div style={{ fontSize: '9px', color: isOld ? '#B45309' : 'var(--muted-foreground)', whiteSpace: 'nowrap', minWidth: isOld ? '55px' : '32px', paddingTop: '1px', fontWeight: isOld ? 600 : 400 }}>{horaText}</div>
+                      <div key={i} style={{ display: 'flex', gap: '5px', padding: '5px 0', borderTop: i > 0 ? '1px solid var(--border)' : 'none' }}>
+                        <div style={{ fontSize: '9px', color: isOld ? 'var(--warn)' : 'var(--muted-foreground)', whiteSpace: 'nowrap', minWidth: isOld ? '55px' : '32px', paddingTop: '1px', fontWeight: isOld ? 600 : 400 }}>{horaText}</div>
                         <span style={{ color: c.color, fontSize: '10px', paddingTop: '1px', flexShrink: 0 }}>{c.icon}</span>
                         <div style={{ fontSize: '10px', flex: 1, lineHeight: 1.3, color: isOld ? 'var(--muted-foreground)' : 'var(--foreground)' }}>{texto}</div>
                       </div>

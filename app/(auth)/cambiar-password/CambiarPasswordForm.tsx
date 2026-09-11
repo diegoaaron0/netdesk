@@ -1,6 +1,16 @@
 'use client'
 import { useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
+import MapaPeruRed from '@/components/brand/MapaPeruRed'
+import { IsotipoNetDesk } from '@/components/brand/LogoNetDesk'
+
+const inputEstilo = (hayError: boolean): React.CSSProperties => ({
+  width: '100%', padding: '12px 14px', fontSize: '14px',
+  border: `1px solid ${hayError ? 'var(--danger-border)' : 'var(--input)'}`,
+  borderRadius: 'var(--radius-md)',
+  background: 'rgba(255,255,255,0.045)', color: 'var(--foreground)',
+  outline: 'none', marginBottom: '14px', boxSizing: 'border-box',
+})
 
 export default function CambiarPasswordForm() {
   const { data: session } = useSession()
@@ -42,55 +52,68 @@ export default function CambiarPasswordForm() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'radial-gradient(ellipse at 60% 40%, #0d1f3c 0%, #060d1a 60%, #0d1117 100%)',
+      background: 'radial-gradient(ellipse 80% 60% at 50% 34%, #10214d 0%, #0a1130 45%, var(--bg-deep) 100%)',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      padding: '24px',
+      padding: '24px', position: 'relative', overflow: 'hidden',
     }}>
-      <div style={{ width: '100%', maxWidth: '380px' }}>
-        <div style={{ marginBottom: '20px', textAlign: 'center' }}>
-          <div style={{ fontSize: '20px', fontWeight: 700, color: 'white', marginBottom: '6px' }}>Cambia tu contraseña</div>
-          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)', lineHeight: 1.5 }}>
+      <div aria-hidden style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.13, pointerEvents: 'none' }}>
+        <MapaPeruRed ancho={380} intensidad="fondo" />
+      </div>
+
+      <div className="nd-fade-up" style={{ width: '100%', maxWidth: '430px', position: 'relative' }}>
+        <div style={{ marginBottom: '22px', textAlign: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+            <IsotipoNetDesk size={46} id="cp" />
+          </div>
+          <div style={{ fontSize: '23px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '8px', letterSpacing: '-0.01em' }}>Cambia tu contraseña</div>
+          <div style={{ fontSize: '13px', color: 'var(--muted-foreground)', lineHeight: 1.55 }}>
             {session?.user?.name ? `Hola, ${session.user.name}. ` : ''}
             Por seguridad debes elegir una contraseña nueva antes de continuar.
           </div>
         </div>
 
         <form onSubmit={handleSubmit}
-          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '20px' }}>
-          <label style={{ display: 'block', fontSize: '10px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '5px' }}>
+          style={{
+            background: 'rgba(15, 23, 52, 0.62)',
+            backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)',
+            border: '1px solid var(--border-strong)',
+            borderRadius: 'var(--radius-xl)', padding: '30px 28px 24px',
+            boxShadow: 'var(--shadow-lg)',
+          }}>
+          <label style={{ display: 'block', fontSize: '10px', color: 'var(--faint-foreground)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px' }}>
             Contraseña actual
           </label>
           <input
             type="password" autoFocus autoComplete="current-password"
             value={passwordActual}
             onChange={e => { setPasswordActual(e.target.value); setError('') }}
-            style={{ width: '100%', padding: '9px 12px', fontSize: '13px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', color: 'white', outline: 'none', marginBottom: '14px', boxSizing: 'border-box' }}
+            style={inputEstilo(false)}
           />
-          <label style={{ display: 'block', fontSize: '10px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '5px' }}>
+          <label style={{ display: 'block', fontSize: '10px', color: 'var(--faint-foreground)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px' }}>
             Contraseña nueva
           </label>
           <input
             type="password" autoComplete="new-password"
             value={passwordNueva}
             onChange={e => { setPasswordNueva(e.target.value); setError('') }}
-            style={{ width: '100%', padding: '9px 12px', fontSize: '13px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', color: 'white', outline: 'none', marginBottom: '14px', boxSizing: 'border-box' }}
+            style={inputEstilo(false)}
           />
-          <label style={{ display: 'block', fontSize: '10px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '5px' }}>
+          <label style={{ display: 'block', fontSize: '10px', color: 'var(--faint-foreground)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px' }}>
             Confirmar contraseña nueva
           </label>
           <input
             type="password" autoComplete="new-password"
             value={confirmar}
             onChange={e => { setConfirmar(e.target.value); setError('') }}
-            style={{ width: '100%', padding: '9px 12px', fontSize: '13px', border: error ? '1px solid rgba(239,68,68,0.5)' : '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', color: 'white', outline: 'none', marginBottom: '8px', boxSizing: 'border-box' }}
+            style={inputEstilo(!!error)}
           />
-          {error && <div style={{ fontSize: '11px', color: '#f87171', marginBottom: '10px' }}>{error}</div>}
+          {error && <div style={{ fontSize: '12px', color: 'var(--danger)', marginBottom: '10px' }}>{error}</div>}
           <button type="submit" disabled={loading || !passwordActual || !passwordNueva || !confirmar}
-            style={{ width: '100%', marginTop: '8px', padding: '9px', fontSize: '12px', fontWeight: 500, background: loading || !passwordActual || !passwordNueva || !confirmar ? 'rgba(56,189,248,0.2)' : 'hsl(221,83%,45%)', color: 'white', border: 'none', borderRadius: '8px', cursor: loading ? 'default' : 'pointer' }}>
+            className="nd-btn-primary" style={{ width: '100%', marginTop: '10px', padding: '13px', fontSize: '14px' }}>
             {loading ? 'Guardando...' : 'Cambiar contraseña'}
           </button>
           <button type="button" onClick={() => signOut({ callbackUrl: '/login' })}
-            style={{ width: '100%', marginTop: '10px', padding: '7px', fontSize: '11px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}>
+            style={{ width: '100%', marginTop: '14px', padding: '7px', fontSize: '12px', background: 'none', border: 'none', color: 'var(--faint-foreground)', cursor: 'pointer' }}>
             Cerrar sesión
           </button>
         </form>
