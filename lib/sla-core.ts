@@ -211,3 +211,37 @@ export function calcEficienciaSLA(params: {
     scoreSLA,
   }
 }
+
+// ─── % de cumplimiento SLA por promedio ───────────────────────────────────────
+
+/**
+ * SLA% = min(100, límite_promedio / tiempo_real_promedio × 100)
+ *
+ * Reemplaza al conteo binario (incidentes que cumplieron / evaluables), que con
+ * denominadores chicos daba saltos absurdos: un proveedor con 1 solo incidente
+ * evaluable solo podía puntuar 0% o 100%.
+ *
+ * Ahora mide QUÉ TAN LEJOS del límite quedó en promedio. Responder en 120 min
+ * con un límite de 60 da 50%, no 0%. El min() capea en 100: cumplir mejor que
+ * el acuerdo no acumula crédito.
+ *
+ * El límite se pasa sumado y no como constante porque cada incidente puede
+ * traer el suyo, vía el override de la ficha.
+ *
+ * Devuelve null —la UI muestra "—"— cuando no hay incidentes evaluables. Un 0%
+ * ahí sería mentira: no es que el proveedor incumplió, es que no hay con qué
+ * medirlo.
+ */
+export function slaPctPromedio(
+  sumaTiempoRealMin: number,
+  sumaLimiteMin: number,
+  evaluables: number,
+): number | null {
+  if (evaluables <= 0) return null
+  const realProm = sumaTiempoRealMin / evaluables
+  // Tiempo real 0 o negativo (datos backdateados) no puede dividir; se toma
+  // como cumplimiento perfecto en vez de propagar Infinity.
+  if (realProm <= 0) return 100
+  const limiteProm = sumaLimiteMin / evaluables
+  return Math.min(100, Math.round(limiteProm / realProm * 100))
+}

@@ -7,7 +7,7 @@ import {
   getVentaHoraEstimadaOrNull,
   getScoreProveedor,
 } from '@/lib/dashboard-calculations'
-import { calcSLARow, calcEficienciaSLA, SLA_RESPUESTA_MIN, SLA_RESOLUCION_DEFAULT_MIN, parseEtaMin } from '@/lib/sla-core'
+import { calcSLARow, calcEficienciaSLA, SLA_RESPUESTA_MIN, SLA_RESOLUCION_DEFAULT_MIN, parseEtaMin, slaPctPromedio } from '@/lib/sla-core'
 import {
   fetchIncidentesPeriodo,
   fetchVentasDiarias,
@@ -397,6 +397,10 @@ async function buildCards(
     excessRespSum: number; excessRespCount: number
     excessResolSum: number; excessResolCount: number
     scoreSum: number; scoreCount: number
+    // Para el % por promedio: suma de tiempo real y de limite acordado, con su
+    // conteo propio (un incidente sin hora_fin no se puede medir y no entra).
+    realRespSum: number; limRespSum: number; realRespN: number
+    realResolSum: number; limResolSum: number; realResolN: number
     tRespSum: number; tRespCount: number
     tResolSum: number; tResolCount: number
   }
@@ -415,6 +419,8 @@ async function buildCards(
   let slaRespuestaOk = 0
   let slaResolucionOk = 0
   let slaEvaluablesCount = 0
+  let gRealRespSum = 0, gLimRespSum = 0, gRealRespN = 0
+  let gRealResolSum = 0, gLimResolSum = 0, gRealResolN = 0
   const evaluables: import('@/types/dashboard').IncidenteListItem[] = []
   for (const i of incs) {
     if (i.evaluable_proveedor === false) continue
@@ -457,7 +463,7 @@ async function buildCards(
     slaMap.set(i.id, slaSnap)
     evaluables.push(toListItem(i, tiendasDetailMap.get(i.tienda_id)?.count ?? 1, slaSnap, ieiMap.get(i.id) ?? 0))
 
-    if (!slaByProv.has(prov)) slaByProv.set(prov, { ok: 0, total: 0, respOk: 0, resolOk: 0, excessRespSum: 0, excessRespCount: 0, excessResolSum: 0, excessResolCount: 0, scoreSum: 0, scoreCount: 0, tRespSum: 0, tRespCount: 0, tResolSum: 0, tResolCount: 0 })
+    if (!slaByProv.has(prov)) slaByProv.set(prov, { ok: 0, total: 0, respOk: 0, resolOk: 0, excessRespSum: 0, excessRespCount: 0, excessResolSum: 0, excessResolCount: 0, scoreSum: 0, scoreCount: 0, realRespSum: 0, limRespSum: 0, realRespN: 0, realResolSum: 0, limResolSum: 0, realResolN: 0, tRespSum: 0, tRespCount: 0, tResolSum: 0, tResolCount: 0 })
     const s = slaByProv.get(prov)!
     s.total++
     if (slaRes.slaRespuesta) s.respOk++
@@ -465,6 +471,21 @@ async function buildCards(
     if (eficiencia.scoreSLA != null) { s.scoreSum += eficiencia.scoreSLA; s.scoreCount++ }
     if (slaRes.tPrimeraRespuestaMin != null) { s.tRespSum += slaRes.tPrimeraRespuestaMin; s.tRespCount++ }
     if (slaRes.tResolucionMin != null) { s.tResolSum += slaRes.tResolucionMin; s.tResolCount++ }
+
+    // Tiempo real para el % por promedio. Si el proveedor nunca respondio no se
+    // descarta el incidente —eso inflaria su nota—: se le imputa todo lo que
+    // estuvo abierto. Si falta hora_fin no hay nada medible y queda fuera.
+    // Sin respuesta del proveedor el tiempo esta censurado: no se imputa.
+    const realResp  = slaRes.tPrimeraRespuestaMin
+    const realResol = slaRes.tResolucionMin
+    if (realResp != null) {
+      s.realRespSum += Math.max(0, realResp); s.limRespSum += sla.respuestaMin; s.realRespN++
+      gRealRespSum  += Math.max(0, realResp); gLimRespSum  += sla.respuestaMin; gRealRespN++
+    }
+    if (realResol != null) {
+      s.realResolSum += Math.max(0, realResol); s.limResolSum += sla.resolucionMin; s.realResolN++
+      gRealResolSum  += Math.max(0, realResol); gLimResolSum  += sla.resolucionMin; gRealResolN++
+    }
     if (cumplido) {
       s.ok++
     } else {
@@ -495,11 +516,13 @@ async function buildCards(
       cumplido,
     })
   }
-  const slaPct           = slaEvaluablesCount > 0 ? Math.round(slaCumplidos     / slaEvaluablesCount * 100) : 0
-  const slaRespuestaPct  = slaEvaluablesCount > 0 ? Math.round(slaRespuestaOk  / slaEvaluablesCount * 100) : 0
-  const slaResolucionPct = slaEvaluablesCount > 0 ? Math.round(slaResolucionOk / slaEvaluablesCount * 100) : 0
+  const slaPct           = slaEvaluablesCount > 0 ? Math.round(slaCumplidos / slaEvaluablesCount * 100) : 0
+  const slaRespuestaPct  = slaPctPromedio(gRealRespSum,  gLimRespSum,  gRealRespN)
+  const slaResolucionPct = slaPctPromedio(gRealResolSum, gLimResolSum, gRealResolN)
 
   let prevSlaOk = 0, prevSlaRespuestaOk = 0, prevSlaResolucionOk = 0, prevEvaluablesCount = 0
+  let pRealRespSum = 0, pLimRespSum = 0, pRealRespN = 0
+  let pRealResolSum = 0, pLimResolSum = 0, pRealResolN = 0
   for (const i of prevIncs) {
     const sla = getSlaParaIncidente(i.sla_respuesta_override, i.sla_resolucion_override)
     const slaRes = calcSLARow({
@@ -518,20 +541,25 @@ async function buildCards(
     if (slaRes.slaGeneral)   prevSlaOk++
     if (slaRes.slaRespuesta) prevSlaRespuestaOk++
     if (slaRes.slaResolucion) prevSlaResolucionOk++
+
+    const pRealResp  = slaRes.tPrimeraRespuestaMin
+    const pRealResol = slaRes.tResolucionMin
+    if (pRealResp  != null) { pRealRespSum  += Math.max(0, pRealResp);  pLimRespSum  += sla.respuestaMin;  pRealRespN++ }
+    if (pRealResol != null) { pRealResolSum += Math.max(0, pRealResol); pLimResolSum += sla.resolucionMin; pRealResolN++ }
   }
   const prevSlaPct           = prevEvaluablesCount > 0 ? Math.round(prevSlaOk           / prevEvaluablesCount * 100) : null
-  const prevSlaRespuestaPct  = prevEvaluablesCount > 0 ? Math.round(prevSlaRespuestaOk  / prevEvaluablesCount * 100) : null
-  const prevSlaResolucionPct = prevEvaluablesCount > 0 ? Math.round(prevSlaResolucionOk / prevEvaluablesCount * 100) : null
+  const prevSlaRespuestaPct  = slaPctPromedio(pRealRespSum,  pLimRespSum,  pRealRespN)
+  const prevSlaResolucionPct = slaPctPromedio(pRealResolSum, pLimResolSum, pRealResolN)
   const dSla           = prevSlaPct           != null ? slaPct           - prevSlaPct           : null
-  const dSlaRespuesta  = prevSlaRespuestaPct  != null ? slaRespuestaPct  - prevSlaRespuestaPct  : null
-  const dSlaResolucion = prevSlaResolucionPct != null ? slaResolucionPct - prevSlaResolucionPct : null
+  const dSlaRespuesta  = prevSlaRespuestaPct  != null && slaRespuestaPct  != null ? slaRespuestaPct  - prevSlaRespuestaPct  : null
+  const dSlaResolucion = prevSlaResolucionPct != null && slaResolucionPct != null ? slaResolucionPct - prevSlaResolucionPct : null
 
   const slaPorProveedor = [...slaByProv.entries()]
     .map(([nombre, s]) => ({
       nombre,
       slaPct:          s.total > 0 ? Math.round(s.ok      / s.total * 100) : 0,
-      slaRespuestaPct: s.total > 0 ? Math.round(s.respOk  / s.total * 100) : 0,
-      slaResolucionPct:s.total > 0 ? Math.round(s.resolOk / s.total * 100) : 0,
+      slaRespuestaPct: slaPctPromedio(s.realRespSum,  s.limRespSum,  s.realRespN),
+      slaResolucionPct:slaPctPromedio(s.realResolSum, s.limResolSum, s.realResolN),
       evaluables:      s.total,
       scoreEficiencia: s.scoreCount > 0 ? Math.round(s.scoreSum  / s.scoreCount) : null,
       tRespPromMin:    s.tRespCount  > 0 ? Math.round(s.tRespSum  / s.tRespCount)  : null,

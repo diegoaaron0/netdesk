@@ -199,12 +199,16 @@ describe('Paso 3 — el slaPct del Analítico ahora es el promedio de % respuest
 })
 
 describe('Paso 2 — Lista, Detalle y Detalle proveedor↔tienda convergen tras la consolidación', () => {
-  // Con la ficha (90min/120min): A(80,75)=cumple/cumple, B(15,30)=cumple/cumple,
-  // C(135,180)=no/no, D(50,150)=cumple/no → respuesta 3/4=75%, resolución 2/4=50%
-  const ESPERADO_RESPUESTA  = 75
-  const ESPERADO_RESOLUCION = 50
+  // El % ya NO es binario (cumplieron / evaluables): es límite promedio sobre
+  // tiempo real promedio, capeado en 100 — ver slaPctPromedio en lib/sla-core.
+  //   respuesta:  (80+15+135+50)/4  = 70      vs límite 90  → 90/70  = 128% → 100
+  //   resolución: (75+30+180+150)/4 = 108.75  vs límite 120 → 120/109 = 110% → 100
+  // Antes daban 75% y 50% contando incidentes. El promedio deja que los rápidos
+  // compensen a C, que se pasó largo en ambas métricas.
+  const ESPERADO_RESPUESTA  = 100
+  const ESPERADO_RESOLUCION = 100
 
-  it('[Lista] ahora usa la ficha (75% / 50%), no el hardcodeo 60/90 de antes', async () => {
+  it('[Lista] usa la ficha (90/120) y el % por promedio, no el conteo binario', async () => {
     const { GET } = await import('@/app/api/proveedores/route')
     const res = await GET(new NextRequest('http://localhost/api/proveedores'))
     const data = await res.json()

@@ -21,6 +21,9 @@ const TIPO_LABELS: Record<string, string> = {
   LENTITUD: 'Lentitud', OTROS: 'Otros', CORTE_ELECTRICO: '⚡ Corte eléctr.',
 }
 
+/** Sin incidentes evaluables no hay porcentaje que mostrar: va "—", nunca 0%. */
+function pctTxt(v: number | null | undefined) { return v != null ? `${v}%` : '—' }
+
 function slaColor(pct: number | null | undefined) {
   if (pct == null) return 'var(--muted-foreground)'
   if (pct >= 90) return 'var(--ok)'
@@ -203,7 +206,7 @@ function PanelSLARespuesta({ data, expandedId, onExpand }: { data: DashboardAnal
       <div style={{ display: 'flex', gap: '16px', marginBottom: '14px', flexWrap: 'wrap' }}>
         <div style={{ background: slaBg(sla.slaRespuestaPct), borderRadius: '8px', padding: '10px 16px', flex: 1 }}>
           <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '2px' }}>SLA RESPUESTA GLOBAL</div>
-          <div style={{ fontSize: '24px', fontWeight: 700, color: slaColor(sla.slaRespuestaPct) }}>{sla.slaRespuestaPct}%</div>
+          <div style={{ fontSize: '24px', fontWeight: 700, color: slaColor(sla.slaRespuestaPct) }}>{pctTxt(sla.slaRespuestaPct)}</div>
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px' }}>
             <DeltaBadge delta={sla.deltaRespuestaPct} />
             <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Meta: 90%</span>
@@ -247,7 +250,7 @@ function PanelSLAResolucion({ data, expandedId, onExpand }: { data: DashboardAna
       <div style={{ display: 'flex', gap: '16px', marginBottom: '14px', flexWrap: 'wrap' }}>
         <div style={{ background: slaBg(sla.slaResolucionPct), borderRadius: '8px', padding: '10px 16px', flex: 1 }}>
           <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '2px' }}>SLA RESOLUCIÓN GLOBAL</div>
-          <div style={{ fontSize: '24px', fontWeight: 700, color: slaColor(sla.slaResolucionPct) }}>{sla.slaResolucionPct}%</div>
+          <div style={{ fontSize: '24px', fontWeight: 700, color: slaColor(sla.slaResolucionPct) }}>{pctTxt(sla.slaResolucionPct)}</div>
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px' }}>
             <DeltaBadge delta={sla.deltaResolucionPct} />
             <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>Meta: 90%</span>
@@ -524,8 +527,8 @@ function PanelProveedorCritico({ data, expandedId, onExpand }: { data: Dashboard
         <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--danger)', marginBottom: '10px' }}>{prov.nombre}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
           {[
-            { label: 'SLA Respuesta',  value: slaProvData ? `${slaProvData.slaRespuestaPct}%`  : `${prov.metricas.slaPct}%`, bad: (slaProvData?.slaRespuestaPct ?? prov.metricas.slaPct) < 90 },
-            { label: 'SLA Resolución', value: slaProvData ? `${slaProvData.slaResolucionPct}%` : '—',                         bad: (slaProvData?.slaResolucionPct ?? 100) < 90 },
+            { label: 'SLA Respuesta',  value: slaProvData ? pctTxt(slaProvData.slaRespuestaPct) : `${prov.metricas.slaPct}%`, bad: (slaProvData?.slaRespuestaPct ?? prov.metricas.slaPct) < 90 },
+            { label: 'SLA Resolución', value: slaProvData ? pctTxt(slaProvData.slaResolucionPct) : '—',                        bad: (slaProvData?.slaResolucionPct ?? 100) < 90 },
           ].map(({ label, value, bad }) => (
             <div key={label} style={{ background: 'var(--card)', borderRadius: '6px', padding: '8px 10px', border: `1px solid ${bad ? 'var(--danger-border)' : 'var(--border)'}` }}>
               <div style={{ fontSize: '9px', color: 'var(--muted-foreground)', marginBottom: '2px' }}>{label}</div>
@@ -719,7 +722,7 @@ export default function DashboardAnalitico() {
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <KpiCard
               id="slaResp" label="SLA Respuesta"
-              value={`${sla!.slaRespuestaPct}%`}
+              value={pctTxt(sla!.slaRespuestaPct)}
               sub={`${sla!.evaluables.length} evaluables`}
               delta={sla!.deltaRespuestaPct}
               acento={slaColor(sla!.slaRespuestaPct)} icono="⚡"
@@ -727,7 +730,7 @@ export default function DashboardAnalitico() {
             />
             <KpiCard
               id="slaResol" label="SLA Resolución"
-              value={`${sla!.slaResolucionPct}%`}
+              value={pctTxt(sla!.slaResolucionPct)}
               sub={`${sla!.evaluables.filter(e => e.slaResolOk).length} cumplieron`}
               delta={sla!.deltaResolucionPct}
               acento={slaColor(sla!.slaResolucionPct)} icono="✓"

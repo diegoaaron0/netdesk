@@ -55,8 +55,8 @@ export interface MttrProveedor {
 export interface SlaProveedor {
   nombre: string
   slaPct: number
-  slaRespuestaPct: number
-  slaResolucionPct: number
+  slaRespuestaPct: number | null   // null = sin incidentes evaluables → la UI muestra "—"
+  slaResolucionPct: number | null
   scoreEficiencia: number | null
   tRespPromMin: number | null
   tResolPromMin: number | null
@@ -134,8 +134,8 @@ export interface MttrPromedioCard {
 
 export interface CumplimientoSLACard {
   porcentaje: number
-  slaRespuestaPct: number
-  slaResolucionPct: number
+  slaRespuestaPct: number | null   // null = sin incidentes evaluables → la UI muestra "—"
+  slaResolucionPct: number | null
   deltaRespuestaPct: number | null
   deltaResolucionPct: number | null
   scoreEficiencia: number | null

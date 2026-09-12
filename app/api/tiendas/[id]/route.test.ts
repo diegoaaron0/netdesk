@@ -111,13 +111,15 @@ async function sembrarFixture(): Promise<string> {
 beforeAll(async () => { tiendaId = await sembrarFixture() })
 
 describe('GET /api/tiendas/[id] — SLA de tienda usa % real de cumplimiento, no score de proximidad', () => {
-  it('slaTienda expone slaRespuestaPct/slaResolucionPct (75% / 50%), no scoreRespuestaPromedio/scoreResolucionPromedio', async () => {
+  it('slaTienda expone slaRespuestaPct/slaResolucionPct por promedio (100% / 100%), no score de proximidad', async () => {
     const { GET } = await import('./route')
     const res = await GET({} as any, { params: Promise.resolve({ id: tiendaId }) })
     const data = await res.json()
 
-    expect(data.slaTienda.slaRespuestaPct).toBe(75)
-    expect(data.slaTienda.slaResolucionPct).toBe(50)
+    // Promedio, no conteo: respuesta 70min vs límite 90, resolución 109min vs
+    // límite 120 — ambos por debajo, así que el min() capea en 100.
+    expect(data.slaTienda.slaRespuestaPct).toBe(100)
+    expect(data.slaTienda.slaResolucionPct).toBe(100)
     expect(data.slaTienda.scoreRespuestaPromedio).toBeUndefined()
     expect(data.slaTienda.scoreResolucionPromedio).toBeUndefined()
   })

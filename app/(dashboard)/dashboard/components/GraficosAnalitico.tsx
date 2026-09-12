@@ -44,12 +44,14 @@ const TOOLTIP = {
   cursor: { fill: 'rgba(255,255,255,0.04)' },
 }
 
-function slaFill(pct: number) {
+function slaFill(pct: number | null) {
+  if (pct == null) return '#8792bd'
   if (pct >= 90) return '#34d399'
   if (pct >= 70) return '#fbbf24'
   return '#f87171'
 }
-function slaBg(pct: number) {
+function slaBg(pct: number | null) {
+  if (pct == null) return 'var(--surface-2)'
   if (pct >= 90) return 'var(--ok-bg)'
   if (pct >= 70) return 'var(--warn-bg)'
   return 'var(--danger-bg)'
@@ -282,7 +284,7 @@ function ChartSLARespuesta({ data }: { data: DashboardAnaliticoResponse }) {
   const provs = sla.porProveedor
   if (!provs.length) return null
 
-  const chartData = provs.map(p => ({ nombre: p.nombre, pct: p.slaRespuestaPct }))
+  const chartData = provs.filter(p => p.slaRespuestaPct != null).map(p => ({ nombre: p.nombre, pct: p.slaRespuestaPct as number }))
   const cumplieron = sla.evaluables.filter(i => i.slaRespOk === true).length
   const incumplidos = sla.evaluables.length - cumplieron
   const total = sla.evaluables.length
@@ -316,7 +318,7 @@ function ChartSLARespuesta({ data }: { data: DashboardAnaliticoResponse }) {
       {/* Tabla de proveedores: SLA% + evaluables + T.prom + exceso */}
       <DLabel>Desglose por proveedor</DLabel>
       <div style={{ border: '1px solid var(--border)', borderRadius: '7px', overflow: 'hidden', marginBottom: '10px' }}>
-        {[...provs].sort((a, b) => a.slaRespuestaPct - b.slaRespuestaPct).map((p, idx, arr) => (
+        {[...provs].sort((a, b) => (a.slaRespuestaPct ?? 999) - (b.slaRespuestaPct ?? 999)).map((p, idx, arr) => (
           <div key={p.nombre} style={{
             display: 'grid', gridTemplateColumns: '1fr auto auto auto auto',
             gap: '8px', alignItems: 'center', padding: '6px 10px', fontSize: '10px',
@@ -326,7 +328,7 @@ function ChartSLARespuesta({ data }: { data: DashboardAnaliticoResponse }) {
             <span style={{
               padding: '1px 7px', borderRadius: '999px', fontWeight: 700,
               background: slaBg(p.slaRespuestaPct), color: slaFill(p.slaRespuestaPct),
-            }}>{p.slaRespuestaPct}%</span>
+            }}>{p.slaRespuestaPct != null ? `${p.slaRespuestaPct}%` : '—'}</span>
             <span style={{ color: 'var(--muted-foreground)', textAlign: 'right' }}>{p.evaluables} eval</span>
             <span style={{ fontFamily: 'monospace', color: 'var(--muted-foreground)', textAlign: 'right' }}>
               {p.tRespPromMin != null ? fmtMin(p.tRespPromMin) : '—'}
@@ -391,7 +393,7 @@ function ChartSLAResolucion({ data }: { data: DashboardAnaliticoResponse }) {
   const provs = sla.porProveedor
   if (!provs.length) return null
 
-  const chartData = provs.map(p => ({ nombre: p.nombre, pct: p.slaResolucionPct }))
+  const chartData = provs.filter(p => p.slaResolucionPct != null).map(p => ({ nombre: p.nombre, pct: p.slaResolucionPct as number }))
   const cumplieron = sla.evaluables.filter(i => i.slaResolOk === true).length
   const incumplidos = sla.evaluables.length - cumplieron
   const total = sla.evaluables.length
@@ -425,7 +427,7 @@ function ChartSLAResolucion({ data }: { data: DashboardAnaliticoResponse }) {
       {/* Tabla de proveedores */}
       <DLabel>Desglose por proveedor</DLabel>
       <div style={{ border: '1px solid var(--border)', borderRadius: '7px', overflow: 'hidden', marginBottom: '10px' }}>
-        {[...provs].sort((a, b) => a.slaResolucionPct - b.slaResolucionPct).map((p, idx, arr) => (
+        {[...provs].sort((a, b) => (a.slaResolucionPct ?? 999) - (b.slaResolucionPct ?? 999)).map((p, idx, arr) => (
           <div key={p.nombre} style={{
             display: 'grid', gridTemplateColumns: '1fr auto auto auto auto',
             gap: '8px', alignItems: 'center', padding: '6px 10px', fontSize: '10px',
@@ -435,7 +437,7 @@ function ChartSLAResolucion({ data }: { data: DashboardAnaliticoResponse }) {
             <span style={{
               padding: '1px 7px', borderRadius: '999px', fontWeight: 700,
               background: slaBg(p.slaResolucionPct), color: slaFill(p.slaResolucionPct),
-            }}>{p.slaResolucionPct}%</span>
+            }}>{p.slaResolucionPct != null ? `${p.slaResolucionPct}%` : '—'}</span>
             <span style={{ color: 'var(--muted-foreground)', textAlign: 'right' }}>{p.evaluables} eval</span>
             <span style={{ fontFamily: 'monospace', color: 'var(--muted-foreground)', textAlign: 'right' }}>
               {p.tResolPromMin != null ? fmtMin(p.tResolPromMin) : '—'}
