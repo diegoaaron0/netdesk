@@ -1,7 +1,7 @@
 'use client'
 import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import type { DashboardAnaliticoResponse, IncidenteListItem, SlaProveedor, MttrProveedor } from '@/types/dashboard'
+import type { DashboardAnaliticoResponse, IncidenteListItem } from '@/types/dashboard'
 import { IncidentTimeline, fmtMin, type DrillIncidente } from './DrillPanel'
 import GraficosAnalitico from './GraficosAnalitico'
 import { fechaLimaStr } from '@/lib/impacto-calc'

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { tiendas, tiendasHistorial, incidentes, routersExternos, contingencias } from '@/drizzle/schema'
+import { tiendas, tiendasHistorial, routersExternos, contingencias } from '@/drizzle/schema'
 import { eq, and, count, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'

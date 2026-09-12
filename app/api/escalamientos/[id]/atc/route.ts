@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { atcLlamadas, escalamientos } from '@/drizzle/schema'
-import { eq } from 'drizzle-orm'
+import { atcLlamadas } from '@/drizzle/schema'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 

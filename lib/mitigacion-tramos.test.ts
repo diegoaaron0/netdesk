@@ -13,7 +13,6 @@ import {
   normalizarMitigaciones,
   calcIeiIncidente,
   getTramosPorIncidentes,
-  type SegmentoMitigacion,
 } from './mitigacion-tramos'
 import { calcImpactoRow, calcImpactoEnCurso } from './impacto-calc'
 // calcIeiEnCurso vive en un componente cliente ('use client') — se importa dinámico

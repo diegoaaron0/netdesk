@@ -20,7 +20,7 @@ en sus 184 tiendas a nivel nacional.
 - Angela Chamaya (Coordinadora Mesa de Servicios TI): supervisión general
 
 ## Tech stack
-- Framework: Next.js 14 App Router (con Turbopack)
+- Framework: Next.js 16 App Router (con Turbopack)
 - ORM: Drizzle ORM
 - Base de datos: PostgreSQL (Railway en dev, servidor Footloose en producción)
 - Auth: NextAuth v5
@@ -57,7 +57,8 @@ en sus 184 tiendas a nivel nacional.
 - `/api/escalamientos/[id]/envio` — PUT: sello manual ("ya lo mandé por fuera"), sin enviar nada
 - `/api/incidentes/[id]/resolver` — cierra incidente, calcula MTTR
 - `/api/incidentes/[id]/cancelar` — cancela incidente
-- `/api/contingencias` — POST crea contingencia standalone; PATCH desactiva
+- `/api/contingencias/[id]` — PATCH desactiva contingencias standalone históricas.
+  No hay POST: ya no se crean (ver "Sistema de contingencias" abajo)
 - `/api/tiendas/[id]/contingencia-stats` — stats acumuladas de contingencia
 - `/api/grupos-masivos` — gestión de incidentes masivos agrupados
 - `/api/dashboard/operativo` — datos en tiempo real: activos, equipo, contingencias, kpis
@@ -93,7 +94,7 @@ en sus 184 tiendas a nivel nacional.
 
 ### Enums importantes
 ```
-rol:              AGENTE | SUPERVISOR | GERENCIA | INFRAESTRUCTURA
+rol:              AGENTE | SUPERVISOR | GERENCIA | INFRAESTRUCTURA | DEMO
 estadoIncidente:  ABIERTO | EN_SEGUIMIENTO | ESCALADO_N1 | ESCALADO_N2 | ESCALADO_N3 | RESUELTO | CANCELADO | CERRADO
 tipoIncidente:    CAIDA_TOTAL | INTERMITENCIA | LENTITUD | OTROS | CORTE_ELECTRICO
 nivelImpacto:     ALTO | MEDIO | BAJO

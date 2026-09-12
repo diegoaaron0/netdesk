@@ -1,6 +1,6 @@
 # NetDesk — Sistema de Gestión de Incidentes de Red
 
-Sistema operativo desarrollado para **Inversiones Rubin's S.A.C. (Footloose Perú)** que gestiona incidentes de conectividad de red en las 156 tiendas a nivel nacional.
+Sistema operativo desarrollado para **Inversiones Rubin's S.A.C. (Footloose Perú)** que gestiona incidentes de conectividad de red en sus 184 tiendas a nivel nacional.
 
 ## Funcionalidades principales
 
@@ -16,7 +16,7 @@ Sistema operativo desarrollado para **Inversiones Rubin's S.A.C. (Footloose Per�
 
 | Capa | Tecnología |
 |------|-----------|
-| Framework | Next.js 14 App Router (Turbopack) |
+| Framework | Next.js 16 App Router (Turbopack) |
 | ORM | Drizzle ORM |
 | Base de datos | PostgreSQL |
 | Autenticación | NextAuth v5 |
@@ -50,6 +50,7 @@ PBI_API_KEY=           # API key de la API pública v1 (Power BI y otros), cabec
 APP_URL=               # URL base usada por el cron
 # SMTP para alertas por email (opcional):
 SMTP_HOST=  SMTP_PORT=587  SMTP_USER=  SMTP_PASS=  SMTP_FROM=
+SMTP_OVERRIDE_TO=      # modo prueba: desvía TODO correo a esta casilla. Vacía en operación normal
 ```
 
 ## Migraciones de base de datos
@@ -83,6 +84,7 @@ Programar el **cron de alertas SLA** (cada 5 minutos) para que invoque el endpoi
 | SUPERVISOR | Monitoreo de cola activa y evaluación de proveedores |
 | GERENCIA | Dashboard analítico y decisiones gerenciales |
 | INFRAESTRUCTURA | Escalamientos de infraestructura interna |
+| DEMO | Todos los permisos — cuenta de demostración y capturas |
 
 ---
 

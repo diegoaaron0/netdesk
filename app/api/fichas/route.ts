@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { fichas, tiendas, proveedores } from '@/drizzle/schema'
-import { eq, and, ilike, inArray, sql } from 'drizzle-orm'
+import { eq, and, ilike, sql } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 

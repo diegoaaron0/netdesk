@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { tiendas, proveedores, incidentes, fichas } from '@/drizzle/schema'
-import { eq, gte, sql, and, isNotNull, desc, count } from 'drizzle-orm'
+import { eq, gte, sql, and, isNotNull, desc } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'

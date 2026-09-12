@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { proveedores, tiendas, incidentes, escalamientos, fichas } from '@/drizzle/schema'
+import { proveedores, tiendas, incidentes, fichas } from '@/drizzle/schema'
 import { eq, gte, sql, and, isNotNull } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
