@@ -131,6 +131,8 @@ export default function ProveedoresPage() {
   const slaResolValidos  = lista.filter(p => p.slaResolucion != null)
   const slaRespGlobal    = slaRespValidos.length  > 0 ? Math.round(slaRespValidos.reduce((s, p)  => s + p.slaRespuesta,  0) / slaRespValidos.length)  : null
   const slaResolGlobal   = slaResolValidos.length > 0 ? Math.round(slaResolValidos.reduce((s, p) => s + p.slaResolucion, 0) / slaResolValidos.length) : null
+  // Denominador global: sobre cuantos incidentes medibles se calculo.
+  const mediblesTotal    = lista.reduce((s, p) => s + (p.slaMedibles ?? 0), 0)
   const peorProveedor    = slaRespValidos.length > 0
     ? slaRespValidos.reduce((prev, cur) => (cur.slaRespuesta ?? 100) < (prev.slaRespuesta ?? 100) ? cur : prev)
     : null
@@ -179,7 +181,7 @@ export default function ProveedoresPage() {
         <KpiProv label="Costo mensual total" value={fmtSoles(costoTotal)}     acento="var(--purple)" icono="S/" valorChico />
         <KpiProv
           label="SLA Respuesta 30d"
-          value={slaRespGlobal != null ? `${slaRespGlobal}%` : '—'}
+          value={slaRespGlobal != null ? `${slaRespGlobal}% (${mediblesTotal})` : '—'}
           acento={slaColor(slaRespGlobal)}
           icono="⚡"
           sub={peorProveedor && slaRespGlobal != null && slaRespGlobal < 80
@@ -188,7 +190,7 @@ export default function ProveedoresPage() {
         />
         <KpiProv
           label="SLA Resolución 30d"
-          value={slaResolGlobal != null ? `${slaResolGlobal}%` : '—'}
+          value={slaResolGlobal != null ? `${slaResolGlobal}% (${mediblesTotal})` : '—'}
           acento={slaColor(slaResolGlobal)}
           icono="✓"
         />
@@ -232,15 +234,16 @@ export default function ProveedoresPage() {
               <th style={thStyle}>Costo/mes</th>
               <th style={{ ...thStyle, textAlign: 'center' }}>SLA Resp. 30d</th>
               <th style={{ ...thStyle, textAlign: 'center' }}>SLA Resol. 30d</th>
+              <th style={{ ...thStyle, textAlign: 'center' }}>Tasa resp.</th>
               <th style={thStyle}>Soporte</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
-              <tr><td colSpan={7} style={{ padding: '28px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Cargando...</td></tr>
+              <tr><td colSpan={8} style={{ padding: '28px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Cargando...</td></tr>
             )}
             {!loading && lista.length === 0 && (
-              <tr><td colSpan={7} style={{ padding: '28px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Sin resultados</td></tr>
+              <tr><td colSpan={8} style={{ padding: '28px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Sin resultados</td></tr>
             )}
             {!loading && lista.map((p, i) => {
               const sColor = slaColor(p.slaRespuesta)
@@ -311,7 +314,7 @@ export default function ProveedoresPage() {
                   <td style={{ padding: '10px 12px', textAlign: 'center' }}>
                     {p.slaRespuesta != null ? (
                       <span style={{ fontWeight: 700, fontSize: '12px', color: sColor, background: sBg, border: `1px solid ${slaBorde(p.slaRespuesta)}`, padding: '2px 7px', borderRadius: '999px' }}>
-                        {p.slaRespuesta}%
+                        {p.slaRespuesta}% <span style={{ fontWeight: 500, opacity: 0.75 }}>({p.slaMedibles})</span>
                       </span>
                     ) : (
                       <span style={{ color: 'var(--muted-foreground)', fontSize: '11px' }}>—</span>
@@ -322,7 +325,25 @@ export default function ProveedoresPage() {
                   <td style={{ padding: '10px 12px', textAlign: 'center' }}>
                     {p.slaResolucion != null ? (
                       <span style={{ fontWeight: 700, fontSize: '12px', color: sColorR, background: sBgR, border: `1px solid ${slaBorde(p.slaResolucion)}`, padding: '2px 7px', borderRadius: '999px' }}>
-                        {p.slaResolucion}%
+                        {p.slaResolucion}% <span style={{ fontWeight: 500, opacity: 0.75 }}>({p.slaMedibles})</span>
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--muted-foreground)', fontSize: '11px' }}>—</span>
+                    )}
+                  </td>
+
+                  {/* Tasa de respuesta — respondidos / escalamientos evaluables.
+                      Es lo que delata al proveedor que nunca contesta: su SLA
+                      queda en "—" por no tener nada medible, pero "0/1" si lo dice. */}
+                  <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                    {p.slaEscalados > 0 ? (
+                      <span style={{
+                        fontSize: '11px', fontFamily: 'monospace', fontWeight: 600,
+                        color: p.slaRespondidos === p.slaEscalados ? 'var(--ok)'
+                             : p.slaRespondidos === 0              ? 'var(--danger)'
+                             : 'var(--warn)',
+                      }}>
+                        {p.slaRespondidos}/{p.slaEscalados}
                       </span>
                     ) : (
                       <span style={{ color: 'var(--muted-foreground)', fontSize: '11px' }}>—</span>

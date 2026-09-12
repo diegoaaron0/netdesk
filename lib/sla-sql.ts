@@ -68,8 +68,31 @@ function tResolucionRealExpr(): string {
  * LEAST(100, NULL) devuelve 100 — un proveedor sin incidentes evaluables
  * marcaria 100% de cumplimiento.
  */
+/** Incidente que SI aporta al promedio: evaluable y con respuesta del proveedor. */
+export function slaMedibleExpr(): string {
+  return `${slaProveedorEvaluableExpr()} AND resp.hora_primera_resp IS NOT NULL`
+}
+
+/** Denominador del %: sobre cuantos incidentes se promedio. La UI lo muestra
+ *  entre parentesis — "58% (2)" — porque un porcentaje sobre 2 casos no se lee
+ *  igual que uno sobre 40. */
+export function slaMediblesCountExpr(): string {
+  return `COUNT(*) FILTER (WHERE ${slaMedibleExpr()})`
+}
+
+/** Tasa de respuesta: cuantos de los escalamientos evaluables tuvieron
+ *  respuesta. Es la senal que el % por promedio no puede dar: un proveedor que
+ *  nunca contesta queda en "—" (nada medible), y "0/1" es lo que delata que
+ *  fallo, en vez de parecer que no hay datos. */
+export function slaEscaladosCountExpr(): string {
+  return `COUNT(*) FILTER (WHERE ${slaProveedorEvaluableExpr()})`
+}
+export function slaRespondidosCountExpr(): string {
+  return `COUNT(*) FILTER (WHERE ${slaMedibleExpr()})`
+}
+
 function pctPromedioExpr(realExpr: string, limiteExpr: string): string {
-  const medible = `${slaProveedorEvaluableExpr()} AND resp.hora_primera_resp IS NOT NULL AND (${realExpr}) IS NOT NULL`
+  const medible = `${slaMedibleExpr()} AND (${realExpr}) IS NOT NULL`
   const real   = `AVG(GREATEST(${realExpr}, 0)) FILTER (WHERE ${medible})`
   const limite = `AVG(${limiteExpr}) FILTER (WHERE ${medible})`
   return `CASE WHEN ${real} IS NULL OR ${real} = 0 THEN NULL ELSE LEAST(100, ROUND(${limite} / ${real} * 100)) END`

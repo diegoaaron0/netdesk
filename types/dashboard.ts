@@ -57,6 +57,9 @@ export interface SlaProveedor {
   slaPct: number
   slaRespuestaPct: number | null   // null = sin incidentes evaluables → la UI muestra "—"
   slaResolucionPct: number | null
+  // Denominadores del %: sobre cuantos incidentes se promedio cada metrica.
+  mediblesRespuesta: number
+  mediblesResolucion: number
   scoreEficiencia: number | null
   tRespPromMin: number | null
   tResolPromMin: number | null
@@ -136,6 +139,8 @@ export interface CumplimientoSLACard {
   porcentaje: number
   slaRespuestaPct: number | null   // null = sin incidentes evaluables → la UI muestra "—"
   slaResolucionPct: number | null
+  mediblesRespuesta: number
+  mediblesResolucion: number
   deltaRespuestaPct: number | null
   deltaResolucionPct: number | null
   scoreEficiencia: number | null

@@ -328,7 +328,7 @@ function ChartSLARespuesta({ data }: { data: DashboardAnaliticoResponse }) {
             <span style={{
               padding: '1px 7px', borderRadius: '999px', fontWeight: 700,
               background: slaBg(p.slaRespuestaPct), color: slaFill(p.slaRespuestaPct),
-            }}>{p.slaRespuestaPct != null ? `${p.slaRespuestaPct}%` : '—'}</span>
+            }}>{p.slaRespuestaPct != null ? `${p.slaRespuestaPct}% (${p.mediblesRespuesta})` : '—'}</span>
             <span style={{ color: 'var(--muted-foreground)', textAlign: 'right' }}>{p.evaluables} eval</span>
             <span style={{ fontFamily: 'monospace', color: 'var(--muted-foreground)', textAlign: 'right' }}>
               {p.tRespPromMin != null ? fmtMin(p.tRespPromMin) : '—'}
@@ -437,7 +437,7 @@ function ChartSLAResolucion({ data }: { data: DashboardAnaliticoResponse }) {
             <span style={{
               padding: '1px 7px', borderRadius: '999px', fontWeight: 700,
               background: slaBg(p.slaResolucionPct), color: slaFill(p.slaResolucionPct),
-            }}>{p.slaResolucionPct != null ? `${p.slaResolucionPct}%` : '—'}</span>
+            }}>{p.slaResolucionPct != null ? `${p.slaResolucionPct}% (${p.mediblesResolucion})` : '—'}</span>
             <span style={{ color: 'var(--muted-foreground)', textAlign: 'right' }}>{p.evaluables} eval</span>
             <span style={{ fontFamily: 'monospace', color: 'var(--muted-foreground)', textAlign: 'right' }}>
               {p.tResolPromMin != null ? fmtMin(p.tResolPromMin) : '—'}

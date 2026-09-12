@@ -5,7 +5,7 @@ import { eq, gte, sql, and, isNotNull } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { logUnlessSchemaMissing } from '@/lib/db-errors'
-import { slaProveedorJoins, slaRespuestaPctExpr, slaResolucionPctExpr } from '@/lib/sla-sql'
+import { slaProveedorJoins, slaRespuestaPctExpr, slaResolucionPctExpr, slaMediblesCountExpr, slaEscaladosCountExpr, slaRespondidosCountExpr } from '@/lib/sla-sql'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -70,13 +70,16 @@ export async function GET(req: NextRequest) {
   // ── 5. SLA Respuesta + SLA Resolución por proveedor (últimos 30d) ──────────
   // Ficha-aware: usa COALESCE(i.ficha_id, t.ficha_activa_id) vía lib/sla-sql.ts,
   // el mismo fragmento canónico que el detalle y el detalle proveedor↔tienda.
-  let slaMap: Record<string, { respuesta: number | null; resolucion: number | null }> = {}
+  let slaMap: Record<string, { respuesta: number | null; resolucion: number | null; medibles: number; escalados: number; respondidos: number }> = {}
   try {
     const slaRows = await db.execute(sql`
       SELECT
         i.proveedor_id,
         ${sql.raw(slaRespuestaPctExpr())}  AS sla_respuesta_pct,
-        ${sql.raw(slaResolucionPctExpr())} AS sla_resolucion_pct
+        ${sql.raw(slaResolucionPctExpr())} AS sla_resolucion_pct,
+        ${sql.raw(slaMediblesCountExpr())}    AS sla_medibles,
+        ${sql.raw(slaEscaladosCountExpr())}   AS sla_escalados,
+        ${sql.raw(slaRespondidosCountExpr())} AS sla_respondidos
       FROM incidentes i
       JOIN tiendas t ON i.tienda_id = t.id
       ${sql.raw(slaProveedorJoins())}
@@ -89,6 +92,9 @@ export async function GET(req: NextRequest) {
       slaMap[r.proveedor_id] = {
         respuesta:  r.sla_respuesta_pct  != null ? Number(r.sla_respuesta_pct)  : null,
         resolucion: r.sla_resolucion_pct != null ? Number(r.sla_resolucion_pct) : null,
+        medibles:    Number(r.sla_medibles    ?? 0),
+        escalados:   Number(r.sla_escalados   ?? 0),
+        respondidos: Number(r.sla_respondidos ?? 0),
       }
     }
   } catch (e) { logUnlessSchemaMissing('proveedores', e) }
@@ -102,6 +108,10 @@ export async function GET(req: NextRequest) {
     incidentes30d: iMap[p.id]            ?? 0,
     slaRespuesta:  slaMap[p.id]?.respuesta  ?? null as number | null,
     slaResolucion: slaMap[p.id]?.resolucion ?? null as number | null,
+    // Denominador del % y tasa de respuesta — ver lib/sla-sql.ts
+    slaMedibles:    slaMap[p.id]?.medibles    ?? 0,
+    slaEscalados:   slaMap[p.id]?.escalados   ?? 0,
+    slaRespondidos: slaMap[p.id]?.respondidos ?? 0,
   }))
 
   // ── Filters ─────────────────────────────────────────────────────────────────

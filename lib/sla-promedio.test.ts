@@ -101,3 +101,26 @@ describe('slaRespuestaPctExpr / slaResolucionPctExpr — SQL', () => {
     expect(slaRespuestaPctExpr()).toContain('AVG(')
   })
 })
+
+describe('contadores para el denominador y la tasa de respuesta', () => {
+  it('los medibles son los mismos incidentes que entran al promedio', async () => {
+    const { slaMediblesCountExpr, slaRespondidosCountExpr, slaMedibleExpr } = await import('./sla-sql')
+    // El "(2)" que se muestra al lado del % tiene que contar exactamente lo que
+    // se promedió: evaluable Y con respuesta del proveedor.
+    expect(slaMediblesCountExpr()).toContain(slaMedibleExpr())
+    expect(slaRespondidosCountExpr()).toContain(slaMedibleExpr())
+  })
+
+  it('los escalados NO exigen respuesta — si no, la tasa siempre daría n/n', async () => {
+    const { slaEscaladosCountExpr, slaProveedorEvaluableExpr } = await import('./sla-sql')
+    expect(slaEscaladosCountExpr()).toContain(slaProveedorEvaluableExpr())
+    expect(slaEscaladosCountExpr()).not.toContain('resp.hora_primera_resp IS NOT NULL')
+  })
+
+  it('la tasa distingue al proveedor que nunca contestó del que no tiene datos', async () => {
+    const { slaEscaladosCountExpr, slaRespondidosCountExpr } = await import('./sla-sql')
+    // CONVERGIA: 1 evaluable, 0 respondidos → SLA "—" pero tasa "0/1".
+    // Un proveedor sin escalamientos da 0 y 0 → la UI muestra "—".
+    expect(slaEscaladosCountExpr()).not.toBe(slaRespondidosCountExpr())
+  })
+})
