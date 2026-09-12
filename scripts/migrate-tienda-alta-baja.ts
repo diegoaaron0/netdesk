@@ -1,3 +1,4 @@
+// ESTADO: estado de ejecucion NO CONFIRMADO — verificar antes de correr.
 // Migra el alta/baja de tienda como entidad:
 //   - tiendas: agrega estado_tienda (ACTIVA/ARCHIVADA), estado (default ACTIVA),
 //     archivada_en, archivada_por_id, archivada_motivo. Todas las filas

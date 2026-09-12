@@ -1,3 +1,4 @@
+// ESTADO: EJECUTADO contra produccion en el deploy. No volver a correr.
 // Backfill del deploy inicial: marca a TODOS los usuarios existentes para que
 // cambien su contraseña en su próximo login.
 //

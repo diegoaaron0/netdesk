@@ -1,3 +1,4 @@
+// ESTADO: estado de ejecucion NO CONFIRMADO — verificar antes de correr.
 // Migra los valores legado de rendimiento (TOTAL/EFECTIVA/LIMITADA/FALLIDA/
 // NO_FUNCIONO/INOPERATIVA) a su equivalente nuevo (EFECTIVO/PARCIAL/NULO) en
 // incidentes.cont_rendimiento e incidentes.mov_rendimiento.

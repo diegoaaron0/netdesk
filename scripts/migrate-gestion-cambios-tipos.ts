@@ -1,3 +1,4 @@
+// ESTADO: EJECUTADO contra produccion en el deploy. No volver a correr.
 // Migra el rediseño de tipos de Gestión de Cambios:
 //   - estado_ficha: agrega DADA_DE_BAJA (estado terminal nuevo, distinto de
 //     HISTORICA — una ficha dada de baja no fue reemplazada por otra).

@@ -6,15 +6,6 @@ import { auth } from '@/auth'
 import { can } from '@/lib/permisos'
 import { ieiPorTiendaEnPeriodo, rangoIsoDeParams, puedeCalcularIei } from '@/lib/tiendas-iei-periodo'
 
-const PROVEEDOR_COLORS: Record<string, { bg: string; color: string }> = {
-  BITEL:     { bg: '#dbeafe', color: '#1e40af' },
-  CLARO:     { bg: '#fee2e2', color: '#b91c1c' },
-  CONVERGIA: { bg: '#ede9fe', color: '#7c3aed' },
-  ENTEL:     { bg: '#dcfce7', color: '#15803d' },
-  MOVISTAR:  { bg: '#1e3a8a', color: '#bfdbfe' },
-  GTD:       { bg: '#ffedd5', color: '#c2410c' },
-}
-
 export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })

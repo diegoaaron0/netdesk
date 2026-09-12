@@ -183,7 +183,6 @@ const IcoClock  = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="no
 const IcoEdit   = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
 const IcoArrow  = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
 const IcoExt    = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-const IcoLayers  = () => <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.35"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 12l10 5 10-5"/><path d="M2 17l10 5 10-5"/></svg>
 const IcoShield  = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
 
 function TimeRow({ label, value, color }: { label: string; value: string; color?: string }) {
@@ -205,15 +204,6 @@ function ResumenRow({ icon, label, children }: { icon: React.ReactNode; label: s
   )
 }
 
-function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', alignItems: 'start', gap: '8px', marginBottom: '10px' }}>
-      <label style={{ fontSize: '11px', fontWeight: 500, color: 'var(--muted-foreground)', paddingTop: '7px' }}>{label}</label>
-      <div>{children}</div>
-    </div>
-  )
-}
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function IncidenteDetallePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -223,7 +213,6 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
 
   const [inc, setInc]               = useState<any>(null)
   const [tick, setTick]             = useState(0)
-  const [historial, setHistorial]   = useState<any[]>([])
   const [editForm, setEditForm]     = useState<any>({})
   const [todosRouters, setTodosRouters] = useState<{ id: string; codigo: string; estado: string; tiendaActualId: string | null; tiendaCodigo: string | null; almacenActual: string | null }[]>([])
   const [saving, setSaving]         = useState(false)
@@ -362,13 +351,6 @@ export default function IncidenteDetallePage({ params }: { params: Promise<{ id:
     const id = setInterval(() => setTick(t => t + 1), 1000)
     return () => clearInterval(id)
   }, [])
-
-  useEffect(() => {
-    if (!inc?.tiendaId) return
-    fetch(`/api/tiendas/${inc.tiendaId}/ultimos-incidentes`)
-      .then(r => r.json())
-      .then(d => setHistorial(Array.isArray(d) ? d.filter((h: any) => h.id !== inc.id) : []))
-  }, [inc?.tiendaId, inc?.id])
 
   if (!inc) return (
     <div style={{ padding: '60px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '12px' }}>Cargando...</div>

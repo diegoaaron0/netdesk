@@ -1,3 +1,4 @@
+// ESTADO: estado de ejecucion NO CONFIRMADO — verificar antes de correr.
 // Agrega usuarios.debe_cambiar_password (boolean, default false) — forzar cambio
 // de contraseña en el primer login cuando se crea con la contraseña por defecto,
 // o cuando un Supervisor le resetea la contraseña a otro usuario.

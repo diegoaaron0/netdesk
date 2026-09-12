@@ -44,19 +44,6 @@ function fmtMin(min: number): string {
   const h = Math.floor(min / 60); const m = Math.round(min % 60)
   return h > 0 ? `${h}h ${m}m` : `${m}m`
 }
-function fmtHora(d: string | Date | null): string {
-  if (!d) return '—'
-  const raw = typeof d === 'string' && !d.includes('Z') && !d.includes('+') ? d + 'Z' : d
-  return new Date(raw).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Lima' })
-}
-function fmtFechaHora(d: string | Date | null): string {
-  if (!d) return '—'
-  const raw = typeof d === 'string' && !d.includes('Z') && !d.includes('+') ? d + 'Z' : d
-  const date = new Date(raw)
-  const fecha = date.toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Lima' })
-  const hora  = date.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Lima' })
-  return `${fecha} ${hora}`
-}
 function fmtHoraEvento(d: string | Date | null): { text: string; isOld: boolean } {
   if (!d) return { text: '—', isOld: false }
   const raw = typeof d === 'string' && !d.includes('Z') && !d.includes('+') ? d + 'Z' : d
@@ -236,14 +223,6 @@ function SLABadge({ inc, nowMs }: { inc: any; nowMs: number }) {
           <div style={{ position: 'absolute', bottom: '-4px', left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '4px solid var(--border)' }} />
         </div>
       )}
-    </div>
-  )
-}
-
-function AvatarCircle({ nombre, color }: { nombre: string; color: string }) {
-  return (
-    <div style={{ width: 36, height: 36, borderRadius: '50%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
-      {initials(nombre)}
     </div>
   )
 }

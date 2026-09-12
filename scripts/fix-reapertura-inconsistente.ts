@@ -1,3 +1,4 @@
+// ESTADO: EJECUTADO contra produccion: corrigio el incidente 00071M. No volver a correr.
 /**
  * Deshace las reaperturas espurias: incidentes con
  * `hora_registro_original <> hora_registro` pero `hora_fin_anterior IS NULL`.

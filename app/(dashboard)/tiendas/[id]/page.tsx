@@ -154,7 +154,6 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
 
   const [tienda, setTienda] = useState<any>(null)
   const [historial, setHistorial] = useState<any[]>([])
-  const [proveedores, setProveedores] = useState<{ id: string; nombre: string }[]>([])
   const [contStats, setContStats] = useState<any>(null)
   const [contList, setContList] = useState<any[]>([])
   const [routersTienda, setRoutersTienda] = useState<any[]>([])
@@ -207,9 +206,6 @@ export default function TiendaDetallePage({ params }: { params: Promise<{ id: st
     })
     fetch(`/api/tiendas/historial-proveedores?tiendaId=${id}`).then(r => r.json()).then(d => {
       setProvHist(Array.isArray(d) ? d : [])
-    })
-    fetch('/api/proveedores').then(r => r.json()).then(d => {
-      setProveedores(Array.isArray(d) ? d : [])
     })
     fetch('/api/routers-externos')
       .then(r => r.json())

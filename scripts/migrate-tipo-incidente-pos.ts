@@ -1,3 +1,4 @@
+// ESTADO: EJECUTADO contra produccion en el deploy. No volver a correr.
 // Elimina el valor 'POS' del enum tipo_incidente: fusiona POS -> OTROS.
 // Mismo patrón que migrate-gestion-cambios-tipos.ts para tipo_accion — Postgres
 // no permite DROP VALUE de un enum, así que se reconstruye (rename -> create ->

@@ -1,3 +1,4 @@
+// ESTADO: estado de ejecucion NO CONFIRMADO — verificar antes de correr.
 // Elimina la columna cluster de usuarios (dato sin uso funcional, auditoría del
 // módulo Usuarios — Paso 9). NO toca tiendas.cluster, que es una columna distinta
 // (mismo enum cluster_tienda, pero sigue en uso pleno en Tiendas).

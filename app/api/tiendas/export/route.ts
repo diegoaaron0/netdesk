@@ -14,12 +14,6 @@ function esc(v: unknown): string {
   return s
 }
 
-function fmtBool(v: unknown): string {
-  if (v === true  || v === 't' || v === 'true')  return 'Sí'
-  if (v === false || v === 'f' || v === 'false') return 'No'
-  return ''
-}
-
 function fmtFecha(v: unknown): string {
   if (!v) return ''
   try {

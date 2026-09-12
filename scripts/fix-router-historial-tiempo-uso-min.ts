@@ -1,3 +1,4 @@
+// ESTADO: estado de ejecucion NO CONFIRMADO — verificar antes de correr.
 // Corrige una deriva de esquema: la migración original (0020_routers_externos.sql)
 // crea router_historial.tiempo_uso_min, pero drizzle/schema.ts nunca la definió y
 // en netdesk_test la columna no existe — GET /api/routers-externos/[id] fallaba

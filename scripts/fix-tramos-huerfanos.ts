@@ -1,3 +1,4 @@
+// ESTADO: NO ejecutado contra produccion (0 filas afectadas al verificar). Queda como herramienta de diagnostico.
 /**
  * Cierra los tramos de mitigación que quedaron huérfanos por la divergencia que
  * arregló el commit "fix(incidentes): desactivar la mitigación también cierra el

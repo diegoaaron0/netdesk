@@ -1,3 +1,4 @@
+// ESTADO: EJECUTADO contra produccion post-deploy: 204 de 215 incidentes migrados. No volver a correr.
 // Fase 3 — migración histórica: reconstruye incidente_mitigacion_tramos para
 // incidentes viejos a partir de sus campos actuales (cont_*, mov_*, boleta_*,
 // mitigaciones_previas). Ver lib/migracion-tramos-historicos.ts para el
