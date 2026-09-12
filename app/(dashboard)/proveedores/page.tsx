@@ -17,11 +17,65 @@ function slaColor(v: number | null) {
   return 'var(--danger)'
 }
 
+/** Fondo del badge. Translúcido, NUNCA el color vivo: con el vivo de fondo y
+ *  slaColor() de texto, el badge quedaba salmón sobre salmón — ilegible. */
 function slaBg(v: number | null) {
   if (v == null) return 'transparent'
-  if (v >= 80) return 'var(--ok)'
-  if (v >= 60) return 'var(--warn)'
-  return 'var(--danger)'
+  if (v >= 80) return 'var(--ok-bg)'
+  if (v >= 60) return 'var(--warn-bg)'
+  return 'var(--danger-bg)'
+}
+
+function slaBorde(v: number | null) {
+  if (v == null) return 'transparent'
+  if (v >= 80) return 'var(--ok-border)'
+  if (v >= 60) return 'var(--warn-border)'
+  return 'var(--danger-border)'
+}
+
+/** Mismo patrón que las KPI del dashboard analítico: la tarjeta siempre va sobre
+ *  var(--card) y el acento aparece solo en la caja del ícono, el velo de esquina
+ *  y la barra de subrayado. El número queda en blanco, legible sobre el navy. */
+function KpiProv({ label, value, acento, icono, sub, valorChico }: {
+  label: string; value: string; acento: string; icono: string
+  sub?: React.ReactNode; valorChico?: boolean
+}) {
+  return (
+    <div style={{
+      position: 'relative', overflow: 'hidden',
+      background: 'var(--card)', border: '1px solid var(--border)',
+      borderRadius: 'var(--radius-md)', padding: '12px 14px',
+      display: 'flex', flexDirection: 'column', gap: '8px',
+      boxShadow: 'var(--shadow-sm)',
+    }}>
+      <div aria-hidden style={{
+        position: 'absolute', top: '-40px', right: '-40px', width: '110px', height: '110px',
+        borderRadius: '50%', background: acento, opacity: 0.10, pointerEvents: 'none',
+      }} />
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
+        <div style={{
+          width: 28, height: 28, borderRadius: 'var(--radius-sm)',
+          background: `color-mix(in srgb, ${acento} 14%, transparent)`,
+          border: `1px solid color-mix(in srgb, ${acento} 32%, transparent)`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '12px', flexShrink: 0,
+        }}>{icono}</div>
+        <div style={{ fontSize: '9.5px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.07em', lineHeight: 1.25 }}>
+          {label}
+        </div>
+      </div>
+
+      <div style={{ position: 'relative' }}>
+        <div style={{ fontSize: valorChico ? '17px' : '22px', fontWeight: 700, color: 'var(--foreground)', lineHeight: 1.1, letterSpacing: '-0.02em', wordBreak: 'break-word' }}>
+          {value}
+        </div>
+        <div style={{ width: '30px', height: '3px', borderRadius: '99px', background: acento, marginTop: '8px', opacity: 0.9 }} />
+      </div>
+
+      {sub && <div style={{ fontSize: '9px', color: 'var(--faint-foreground)', position: 'relative' }}>{sub}</div>}
+    </div>
+  )
 }
 
 const SORT_OPTIONS = [
@@ -120,33 +174,30 @@ export default function ProveedoresPage() {
 
       {/* KPI cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: '10px' }}>
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
-          <div style={{ fontSize: '22px', fontWeight: 700, color: '#3b82f6' }}>{totalProveedores}</div>
-          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Proveedores</div>
-        </div>
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
-          <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--ok)' }}>{totalTiendas}</div>
-          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Tiendas cubiertas</div>
-        </div>
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
-          <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--purple)', letterSpacing: '-0.02em' }}>{fmtSoles(costoTotal)}</div>
-          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Costo mensual total</div>
-        </div>
-        <div style={{ background: slaRespGlobal != null ? slaBg(slaRespGlobal) : 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
-          <div style={{ fontSize: '22px', fontWeight: 700, color: slaColor(slaRespGlobal) }}>{slaRespGlobal != null ? `${slaRespGlobal}%` : '—'}</div>
-          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>SLA Respuesta 30d</div>
-          {peorProveedor && slaRespGlobal != null && slaRespGlobal < 80 && (
-            <div style={{ fontSize: '9px', color: 'var(--danger)', marginTop: '3px' }}>Peor: {peorProveedor.nombre} ({peorProveedor.slaRespuesta}%)</div>
-          )}
-        </div>
-        <div style={{ background: slaResolGlobal != null ? slaBg(slaResolGlobal) : 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
-          <div style={{ fontSize: '22px', fontWeight: 700, color: slaColor(slaResolGlobal) }}>{slaResolGlobal != null ? `${slaResolGlobal}%` : '—'}</div>
-          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>SLA Resolución 30d</div>
-        </div>
-        <div style={{ background: totalInc30d > 0 ? 'var(--danger-bg)' : 'var(--card)', border: `1px solid ${totalInc30d > 0 ? 'var(--danger-border)' : 'var(--border)'}`, borderRadius: '10px', padding: '12px 14px' }}>
-          <div style={{ fontSize: '22px', fontWeight: 700, color: totalInc30d > 0 ? 'var(--danger)' : 'var(--muted-foreground)' }}>{totalInc30d}</div>
-          <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Incidentes 30d</div>
-        </div>
+        <KpiProv label="Proveedores"         value={String(totalProveedores)} acento="var(--info)"   icono="🏢" />
+        <KpiProv label="Tiendas cubiertas"   value={String(totalTiendas)}     acento="var(--ok)"     icono="🏪" />
+        <KpiProv label="Costo mensual total" value={fmtSoles(costoTotal)}     acento="var(--purple)" icono="S/" valorChico />
+        <KpiProv
+          label="SLA Respuesta 30d"
+          value={slaRespGlobal != null ? `${slaRespGlobal}%` : '—'}
+          acento={slaColor(slaRespGlobal)}
+          icono="⚡"
+          sub={peorProveedor && slaRespGlobal != null && slaRespGlobal < 80
+            ? <span style={{ color: 'var(--danger)' }}>Peor: {peorProveedor.nombre} ({peorProveedor.slaRespuesta}%)</span>
+            : undefined}
+        />
+        <KpiProv
+          label="SLA Resolución 30d"
+          value={slaResolGlobal != null ? `${slaResolGlobal}%` : '—'}
+          acento={slaColor(slaResolGlobal)}
+          icono="✓"
+        />
+        <KpiProv
+          label="Incidentes 30d"
+          value={String(totalInc30d)}
+          acento={totalInc30d > 0 ? 'var(--danger)' : 'var(--muted-foreground)'}
+          icono="⚠"
+        />
       </div>
 
       {/* Filtros */}
@@ -259,7 +310,7 @@ export default function ProveedoresPage() {
                   {/* SLA Respuesta */}
                   <td style={{ padding: '10px 12px', textAlign: 'center' }}>
                     {p.slaRespuesta != null ? (
-                      <span style={{ fontWeight: 700, fontSize: '12px', color: sColor, background: sBg, padding: '2px 7px', borderRadius: '5px' }}>
+                      <span style={{ fontWeight: 700, fontSize: '12px', color: sColor, background: sBg, border: `1px solid ${slaBorde(p.slaRespuesta)}`, padding: '2px 7px', borderRadius: '999px' }}>
                         {p.slaRespuesta}%
                       </span>
                     ) : (
@@ -270,7 +321,7 @@ export default function ProveedoresPage() {
                   {/* SLA Resolución */}
                   <td style={{ padding: '10px 12px', textAlign: 'center' }}>
                     {p.slaResolucion != null ? (
-                      <span style={{ fontWeight: 700, fontSize: '12px', color: sColorR, background: sBgR, padding: '2px 7px', borderRadius: '5px' }}>
+                      <span style={{ fontWeight: 700, fontSize: '12px', color: sColorR, background: sBgR, border: `1px solid ${slaBorde(p.slaResolucion)}`, padding: '2px 7px', borderRadius: '999px' }}>
                         {p.slaResolucion}%
                       </span>
                     ) : (
