@@ -224,8 +224,8 @@ export default function ProveedoresPage() {
       </div>
 
       {/* Tabla */}
-      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', overflowX: 'auto' }}>
+        <table style={{ width: '100%', minWidth: '960px', borderCollapse: 'collapse', fontSize: '12px' }}>
           <thead>
             <tr>
               <th style={thStyle}>Proveedor</th>

@@ -507,8 +507,8 @@ export default function TiendasPage() {
       </div>
 
       {/* Table */}
-      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '10px', overflowX: 'auto' }}>
+        <table style={{ width: '100%', minWidth: '1080px', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
               <th style={thStyle}>Código</th>
@@ -551,7 +551,7 @@ export default function TiendasPage() {
                   <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontSize: '12px', fontWeight: 700, color: 'var(--foreground)', whiteSpace: 'nowrap' }}>
                     {t.codigo}
                   </td>
-                  <td style={{ padding: '10px 12px', fontSize: '12px', color: 'var(--foreground)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <td style={{ padding: '10px 12px', fontSize: '12px', color: 'var(--foreground)', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {t.nombreCc || <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
                   </td>
                   <td style={{ padding: '10px 12px' }}>
@@ -572,7 +572,7 @@ export default function TiendasPage() {
                   <td style={{ padding: '10px 12px', fontSize: '11px', color: 'var(--foreground)', whiteSpace: 'nowrap', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {t.distrito || <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
                   </td>
-                  <td style={{ padding: '10px 12px', fontSize: '11px', color: 'var(--muted-foreground)', maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <td style={{ padding: '10px 12px', fontSize: '11px', color: 'var(--muted-foreground)', maxWidth: '110px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {t.supervisorNombre || '—'}
                   </td>
                   <td style={{ padding: '10px 12px' }}>
