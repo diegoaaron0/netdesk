@@ -8,6 +8,7 @@ import path from 'path'
 config({ path: path.resolve(__dirname, '../.env.test'), override: true })
 
 import postgres from 'postgres'
+import { sslDesdeUrl } from '../lib/db-ssl'
 
 // Guard: correr esto a mano contra Railway es un accidente, no un caso de uso.
 // La única corrida legítima contra Railway es la del propio deploy
@@ -25,7 +26,7 @@ if (apuntaARailway && !dentroDeRailway) {
 }
 
 const sql = postgres(process.env.DATABASE_URL!, {
-  ssl: process.env.NODE_ENV === 'production' ? 'require' : false,
+  ssl: sslDesdeUrl(process.env.DATABASE_URL),
 })
 
 async function main() {

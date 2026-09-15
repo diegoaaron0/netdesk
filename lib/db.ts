@@ -2,6 +2,7 @@ import 'dotenv/config'
 import postgres from 'postgres'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import * as schema from '@/drizzle/schema'
+import { sslDesdeUrl } from './db-ssl'
 
 // El pool se cachea en globalThis fuera de producción. En dev, cada hot-reload
 // vuelve a evaluar este módulo: sin la caché se creaba un pool nuevo (10
@@ -13,7 +14,7 @@ import * as schema from '@/drizzle/schema'
 const globalParaDb = globalThis as unknown as { __netdeskPg?: ReturnType<typeof postgres> }
 
 const client = globalParaDb.__netdeskPg ?? postgres(process.env.DATABASE_URL!, {
-  ssl: process.env.NODE_ENV === 'production' ? 'require' : false,
+  ssl: sslDesdeUrl(process.env.DATABASE_URL),
   connection: { TimeZone: 'UTC' },
 })
 if (process.env.NODE_ENV !== 'production') globalParaDb.__netdeskPg = client
