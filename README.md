@@ -20,8 +20,7 @@ Sistema operativo desarrollado para **Inversiones Rubin's S.A.C. (Footloose Per�
 | ORM | Drizzle ORM |
 | Base de datos | PostgreSQL |
 | Autenticación | NextAuth v5 |
-| Deploy dev | Railway |
-| Deploy producción | Servidor propio Footloose |
+| Deploy | Servidor propio Footloose (PM2) |
 
 ## Requisitos
 

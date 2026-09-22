@@ -22,9 +22,9 @@ en sus 184 tiendas a nivel nacional.
 ## Tech stack
 - Framework: Next.js 16 App Router (con Turbopack)
 - ORM: Drizzle ORM
-- Base de datos: PostgreSQL (Railway en dev, servidor Footloose en producción)
+- Base de datos: PostgreSQL (servidor Footloose en producción, instancia local en desarrollo)
 - Auth: NextAuth v5
-- Deploy: Railway (dev) → servidor propio Footloose (producción)
+- Deploy: servidor propio Footloose (PM2, detrás de netdesk.footloose.pe)
 - Repositorio: github.com/Inversiones-Rubins-SAC/fl-netdesk (privado)
 
 ---
@@ -204,13 +204,6 @@ cajasAfectadas / cajasTotales / ventaParcial / boletaManual   → para cálculo 
   (sin este filtro, incidentes históricos bloqueaban el clear del flag)
 - `DATOS_MOVILES` standalone NO debe setear `tiendas.contingencia_activa = true`
 - Al desactivar desde operativo: enviar `{ contHoraDesactivacion: now }` o `{ movHoraDesactivacion: now }`, NUNCA `{ contActivadoPor: null }`
-
-### Railway (entorno dev)
-- Railway agrega `LIMIT` automático a cualquier SQL en su UI
-- Para UPDATE/DELETE desde Railway: envolver en CTE:
-  ```sql
-  WITH upd AS (UPDATE tabla SET ... RETURNING id) SELECT * FROM upd;
-  ```
 
 ### Seguridad
 - Todo API route debe verificar sesión con `auth()` y permiso con `can()`

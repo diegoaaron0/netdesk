@@ -749,7 +749,7 @@ NetDesk/
 | `npm run start` | sirve el build — `next start` |
 | `npm run lint` | eslint — `eslint` |
 | `npm run db:generate` | genera migraciones de Drizzle — `drizzle-kit generate` |
-| `npm run db:migrate` | aplica run-sql.ts (lo corre Railway en cada deploy) — `tsx drizzle/run-sql.ts` |
+| `npm run db:migrate` | aplica run-sql.ts (se ejecuta en cada despliegue) — `tsx drizzle/run-sql.ts` |
 | `npm run db:seed` | siembra datos — `tsx drizzle/seed.ts` |
 | `npm run db:add-users` | alta de usuarios — `tsx drizzle/add-users.ts` |
 | `npm run geocode` | geocodifica tiendas — `npx tsx scripts/geocode-tiendas.ts` |
