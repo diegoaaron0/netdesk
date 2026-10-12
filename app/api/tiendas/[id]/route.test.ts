@@ -19,6 +19,27 @@ const FICHA_SLA_RESOLUCION = 120
 
 let tiendaId: string
 
+// El mock global usa un id que no es UUID y el historial lo escribe en una
+// columna uuid: todo PUT que cambie un campo necesita un autor real. Usuario
+// propio, no `usuarios.limit(1)`: ese primer usuario es arbitrario y puede ser
+// fixture de otra suite, que después no puede borrarlo porque el historial lo
+// referencia (FK) y esa suite falla entera.
+async function conAutorReal(): Promise<void> {
+  const { db } = await import('@/lib/db')
+  const schema = await import('@/drizzle/schema')
+  const EMAIL_FIX = 'anydesk-fixture@netdesk-test.local'
+  let [autor] = await db.select().from(schema.usuarios).where(eq(schema.usuarios.email, EMAIL_FIX))
+  if (!autor) {
+    [autor] = await db.insert(schema.usuarios).values({
+      nombre: 'Fixture anydesk', email: EMAIL_FIX, password: 'x', rol: 'SUPERVISOR',
+    }).returning()
+  }
+  const { auth } = await import('@/auth')
+  vi.mocked(auth).mockResolvedValueOnce({
+    user: { email: EMAIL_FIX, rol: 'SUPERVISOR', id: autor.id },
+  } as any)
+}
+
 async function sembrarFixture(): Promise<string> {
   const { db } = await import('@/lib/db')
   const schema = await import('@/drizzle/schema')
@@ -230,6 +251,7 @@ describe('PUT /api/tiendas/[id] — no traga en silencio errores reales del prim
       throw err
     })
 
+    await conAutorReal()
     try {
       const res = await PUT({ json: async () => ({ nombreCc: 'Actualizado tras fallo simulado' }) } as any, { params: Promise.resolve({ id: t.id }) })
       // El reintento con baseValues sí debe funcionar (degradación elegante intacta)
@@ -282,22 +304,7 @@ describe('PUT /api/tiendas/[id] — anydeskId', () => {
     }
     await db.delete(schema.tiendasHistorial).where(eq(schema.tiendasHistorial.tiendaId, t.id))
 
-    // El mock global usa un id que no es UUID y el historial lo escribe en una
-    // columna uuid. Usuario propio, no `usuarios.limit(1)`: ese primer usuario
-    // es arbitrario y puede ser fixture de otra suite, que después no puede
-    // borrarlo porque el historial lo referencia (FK) y esa suite falla entera.
-    const EMAIL_FIX = 'anydesk-fixture@netdesk-test.local'
-    let [autor] = await db.select().from(schema.usuarios).where(eq(schema.usuarios.email, EMAIL_FIX))
-    if (!autor) {
-      [autor] = await db.insert(schema.usuarios).values({
-        nombre: 'Fixture anydesk', email: EMAIL_FIX, password: 'x', rol: 'SUPERVISOR',
-      }).returning()
-    }
-    const { auth } = await import('@/auth')
-    vi.mocked(auth).mockResolvedValueOnce({
-      user: { email: EMAIL_FIX, rol: 'SUPERVISOR', id: autor.id },
-    } as any)
-
+    await conAutorReal()
     const { PUT, GET } = await import('./route')
     const res = await PUT(
       { json: async () => ({ anydeskId: '123 456 789' }) } as any,
@@ -323,6 +330,7 @@ describe('PUT /api/tiendas/[id] — anydeskId', () => {
     const [t] = await db.select().from(schema.tiendas).where(eq(schema.tiendas.codigo, 'T-ANYDESK'))
     await db.update(schema.tiendas).set({ anydeskId: '999 888 777' } as any).where(eq(schema.tiendas.id, t.id))
 
+    await conAutorReal()
     const { PUT } = await import('./route')
     await PUT({ json: async () => ({ observacion: 'otra cosa' }) } as any, { params: Promise.resolve({ id: t.id }) })
 
